@@ -56,6 +56,10 @@ private class FakeProfileDao : ProfileDao {
     override suspend fun deleteById(id: Long) {
         rows.remove(id)
     }
+
+    override suspend fun deleteByGroup(groupId: Long) {
+        rows.entries.removeAll { it.value.groupId == groupId }
+    }
 }
 
 class ProfileRoundTripTest {
