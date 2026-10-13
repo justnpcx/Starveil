@@ -1,8 +1,8 @@
 package com.justnpcx.starveil.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
@@ -25,7 +25,7 @@ enum class Destination(
     val icon: ImageVector,
 ) {
     DASHBOARD("dashboard", "Dashboard", Icons.Filled.Dashboard),
-    PROFILES("profiles", "Nodes", Icons.Filled.List),
+    PROFILES("profiles", "Nodes", Icons.AutoMirrored.Filled.List),
     RULES("rules", "Rules", Icons.Filled.Route),
     LOGS("logs", "Logs", Icons.Filled.Terminal),
     SETTINGS("settings", "Settings", Icons.Filled.Settings),

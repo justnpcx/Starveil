@@ -2,7 +2,7 @@
 # Pinned 2026-10-13. Bump deliberately; every bump is a decision, not a habit.
 agp = "8.13.0"
 kotlin = "2.2.20"
-ksp = "2.2.20-1.0.32"
+ksp = "2.2.20-2.0.4"
 hilt = "2.57.2"
 composeBom = "2025.10.00"
 navigationCompose = "2.9.5"
@@ -28,7 +28,7 @@ hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 # Compose
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-compose-material3-expressive = { group = "androidx.compose.material3", name = "material3-expressive" }
+compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
