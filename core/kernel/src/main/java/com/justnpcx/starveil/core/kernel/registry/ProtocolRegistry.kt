@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel.registry
 
+import com.justnpcx.starveil.core.kernel.protocol.StarveilProtocols
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 
@@ -57,35 +58,20 @@ class ProtocolRegistry(private val descriptors: Map<ProfileType, ProtocolDescrip
 
     companion object {
         /**
-         * Built-in protocols. Parsers / config builders are stubs until
-         * Phase 2 lands the real per-protocol implementations — each stub
-         * is marked with a TODO so a half-wired protocol is visible.
+         * Built-in protocols. VLESS, Trojan and Shadowsocks are real as of M2;
+         * the rest are stubs (each marked with a TODO) so a half-wired protocol
+         * stays visible.
          */
         fun default(): ProtocolRegistry = ProtocolRegistry(
             listOf(
-                stub(
-                    type = ProfileType.VLESS,
-                    displayName = "VLESS",
-                    defaultPort = 443,
-                    schemes = listOf("vless"),
-                ),
+                StarveilProtocols.Vless,
+                StarveilProtocols.Trojan,
+                StarveilProtocols.Shadowsocks,
                 stub(
                     type = ProfileType.VMESS,
                     displayName = "VMess",
                     defaultPort = 443,
                     schemes = listOf("vmess"),
-                ),
-                stub(
-                    type = ProfileType.TROJAN,
-                    displayName = "Trojan",
-                    defaultPort = 443,
-                    schemes = listOf("trojan"),
-                ),
-                stub(
-                    type = ProfileType.SHADOWSOCKS,
-                    displayName = "Shadowsocks",
-                    defaultPort = 8388,
-                    schemes = listOf("ss"),
                 ),
                 stub(
                     type = ProfileType.HYSTERIA2,
