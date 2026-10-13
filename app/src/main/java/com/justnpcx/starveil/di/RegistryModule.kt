@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.di
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import dagger.Module
 import dagger.Provides
@@ -27,6 +28,16 @@ object RegistryModule {
 
     @Provides
     @Singleton
-    fun provideSubscriptionFormatRegistry(): SubscriptionFormatRegistry =
-        SubscriptionFormatRegistry.default()
+    fun provideSubscriptionFormatRegistry(protocolRegistry: ProtocolRegistry): SubscriptionFormatRegistry =
+        SubscriptionFormatRegistry.default { link -> resolveLink(protocolRegistry, link) }
+
+    /**
+     * Dispatches a share link to whichever protocol descriptor claims its
+     * scheme. Keeps :core:subscription free of a dependency on :core:kernel.
+     */
+    private fun resolveLink(registry: ProtocolRegistry, link: String): Profile? {
+        val scheme = link.substringBefore("://", "").lowercase()
+        if (scheme.isBlank()) return null
+        return registry.fromScheme(scheme)?.linkParser?.invoke(link)
+    }
 }

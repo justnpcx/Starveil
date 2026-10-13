@@ -27,6 +27,7 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
     implementation(libs.coroutines.core)
+    implementation(libs.snakeyaml)
 
     testImplementation(libs.junit)
 }

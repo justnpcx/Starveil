@@ -1,5 +1,8 @@
 package com.justnpcx.starveil.core.subscription.registry
 
+import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.subscription.Base64SubscriptionParser
+import com.justnpcx.starveil.core.subscription.ClashYamlSubscriptionParser
 import com.justnpcx.starveil.core.subscription.FakeSubscriptionParser
 import com.justnpcx.starveil.core.subscription.SubscriptionParser
 
@@ -41,18 +44,32 @@ class SubscriptionFormatRegistry(
 
     companion object {
         /**
-         * Skeleton default: only the Fake parser, as an unconditional
-         * fallback. Real formats (base64 lines, Clash YAML, …) register
-         * ahead of it in Phase 2 with real sniffers.
+         * Skeleton default: the real formats (Clash YAML, base64 lines) are
+         * tried first, most-specific first, and the Fake parser is the
+         * catch-all fallback last.
+         *
+         * [resolveLink] dispatches a share link through the ProtocolRegistry;
+         * it is injected so this module does not depend on :core:kernel.
          */
-        fun default(): SubscriptionFormatRegistry = SubscriptionFormatRegistry(
-            listOf(
-                SubscriptionFormatDescriptor(
-                    format = "text-fallback",
-                    sniff = { true },
-                    parser = FakeSubscriptionParser(),
+        fun default(resolveLink: (String) -> Profile?): SubscriptionFormatRegistry =
+            SubscriptionFormatRegistry(
+                listOf(
+                    SubscriptionFormatDescriptor(
+                        format = "clash-yaml",
+                        sniff = ClashYamlSubscriptionParser::sniff,
+                        parser = ClashYamlSubscriptionParser(),
+                    ),
+                    SubscriptionFormatDescriptor(
+                        format = "base64-lines",
+                        sniff = Base64SubscriptionParser::sniff,
+                        parser = Base64SubscriptionParser(resolveLink),
+                    ),
+                    SubscriptionFormatDescriptor(
+                        format = "text-fallback",
+                        sniff = { true },
+                        parser = FakeSubscriptionParser(),
+                    ),
                 ),
-            ),
-        )
+            )
     }
 }
