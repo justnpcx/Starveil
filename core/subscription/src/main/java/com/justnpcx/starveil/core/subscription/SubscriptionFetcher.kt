@@ -3,6 +3,8 @@ package com.justnpcx.starveil.core.subscription
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Fetches the raw body of a subscription URL. Throws on any failure. */
 interface SubscriptionFetcher {
@@ -21,7 +23,7 @@ class HttpUrlConnectionFetcher(
     private val maxBytes: Int = 4 * 1024 * 1024,
 ) : SubscriptionFetcher {
 
-    override suspend fun fetch(url: String): String {
+    override suspend fun fetch(url: String): String = withContext(Dispatchers.IO) {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = connectTimeoutMs
             readTimeout = readTimeoutMs
@@ -49,7 +51,7 @@ class HttpUrlConnectionFetcher(
                 }
                 buffer.toByteArray()
             }
-            return String(body, Charsets.UTF_8)
+            return@withContext String(body, Charsets.UTF_8)
         } finally {
             connection.disconnect()
         }

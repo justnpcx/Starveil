@@ -6,4 +6,12 @@
     <string name="profiles_latency_untested">untested</string>
     <string name="profiles_latency_ms">%1$d ms</string>
     <string name="profiles_selected">Selected</string>
+
+    <string name="profiles_import_add">Add nodes</string>
+    <string name="profiles_import_title">Import nodes</string>
+    <string name="profiles_import_hint">Paste a share link (vless://…) or a subscription URL</string>
+    <string name="profiles_import_action">Import</string>
+    <string name="profiles_import_cancel">Cancel</string>
+    <string name="profiles_import_working">Importing…</string>
+    <string name="profiles_message_dismiss">Dismiss</string>
 </resources>

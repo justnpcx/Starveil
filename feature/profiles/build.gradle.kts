@@ -34,12 +34,14 @@ kotlin {
 dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.core)
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
 
     implementation(project(":core:ui"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+    implementation(project(":core:subscription"))
 
     implementation(libs.hilt.navigation.compose)
     implementation(libs.hilt.android)

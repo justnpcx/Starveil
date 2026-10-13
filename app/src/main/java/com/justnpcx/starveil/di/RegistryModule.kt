@@ -3,6 +3,7 @@ package com.justnpcx.starveil.di
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.subscription.LinkResolver
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import dagger.Module
 import dagger.Provides
@@ -31,6 +32,12 @@ object RegistryModule {
     @Provides
     @Singleton
     fun provideConfigBuilder(registry: ProtocolRegistry): ConfigBuilder = ConfigBuilder(registry)
+
+    /** Lets :core:subscription parse share links without depending on :core:kernel. */
+    @Provides
+    @Singleton
+    fun provideLinkResolver(registry: ProtocolRegistry): LinkResolver =
+        LinkResolver { link -> resolveLink(registry, link) }
 
     @Provides
     @Singleton
