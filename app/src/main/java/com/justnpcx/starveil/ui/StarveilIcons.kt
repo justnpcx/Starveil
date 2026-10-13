@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
  */
 object StarveilIcons {
 
-    /** Dashboard — the four-tile cockpit glyph. */
+    /** Dashboard — the four-tile cockpit glyph. Path data: AndroidX material-icons-extended 1.7.8, `filled` set (Apache-2.0). */
     val Dashboard: ImageVector by lazy {
         buildIcon("Filled.Dashboard") {
             iconPath {
@@ -54,7 +54,7 @@ object StarveilIcons {
         }
     }
 
-    /** Route — the routing-rules glyph. */
+    /** Route — the routing-rules glyph. Path data: AndroidX material-icons-extended 1.7.8, `filled` set (Apache-2.0). */
     val Route: ImageVector by lazy {
         buildIcon("Filled.Route") {
             iconPath {
@@ -86,7 +86,7 @@ object StarveilIcons {
         }
     }
 
-    /** Terminal — the logs glyph. */
+    /** Terminal — the logs glyph. Path data: AndroidX material-icons-extended 1.7.8, `filled` set (Apache-2.0). */
     val Terminal: ImageVector by lazy {
         buildIcon("Filled.Terminal") {
             iconPath {
