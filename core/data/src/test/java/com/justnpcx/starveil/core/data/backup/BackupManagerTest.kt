@@ -1,0 +1,139 @@
+package com.justnpcx.starveil.core.data.backup
+
+import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.repository.RuleRepository
+import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.ProxyGroup
+import com.justnpcx.starveil.core.model.RealityOptions
+import com.justnpcx.starveil.core.model.Rule
+import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.SecurityMode
+import com.justnpcx.starveil.core.model.TlsOptions
+import com.justnpcx.starveil.core.model.VlessSettings
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+private class MemProfiles : ProfileRepository {
+    val rows = LinkedHashMap<Long, Profile>()
+    override fun observeAll(): Flow<List<Profile>> = flow { emit(rows.values.toList()) }
+    override fun observeByGroup(groupId: Long): Flow<List<Profile>> = flow { emit(rows.values.filter { it.groupId == groupId }) }
+    override suspend fun getById(id: Long): Profile? = rows[id]
+    override suspend fun upsert(profile: Profile): Long {
+        val id = if (profile.id == 0L) (rows.keys.maxOrNull() ?: 0L) + 1 else profile.id
+        rows[id] = profile.copy(id = id)
+        return id
+    }
+
+    override suspend fun deleteById(id: Long) {
+        rows.remove(id)
+    }
+
+    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
+        rows.values.removeAll { it.groupId == groupId }
+        profiles.forEach { upsert(it.copy(groupId = groupId)) }
+    }
+}
+
+private class MemGroups : GroupRepository {
+    val rows = LinkedHashMap<Long, ProxyGroup>()
+    override fun observeAll(): Flow<List<ProxyGroup>> = flow { emit(rows.values.toList()) }
+    override suspend fun getById(id: Long): ProxyGroup? = rows[id]
+    override suspend fun upsert(group: ProxyGroup): Long {
+        val id = if (group.id == 0L) (rows.keys.maxOrNull() ?: 0L) + 1 else group.id
+        rows[id] = group.copy(id = id)
+        return id
+    }
+
+    override suspend fun deleteById(id: Long) {
+        rows.remove(id)
+    }
+}
+
+private class MemRules : RuleRepository {
+    val rows = LinkedHashMap<Long, Rule>()
+    override fun observeAllOrdered(): Flow<List<Rule>> = flow { emit(rows.values.sortedBy { it.order }) }
+    override suspend fun getById(id: Long): Rule? = rows[id]
+    override suspend fun upsert(rule: Rule): Long {
+        val id = if (rule.id == 0L) (rows.keys.maxOrNull() ?: 0L) + 1 else rule.id
+        rows[id] = rule.copy(id = id)
+        return id
+    }
+
+    override suspend fun deleteById(id: Long) {
+        rows.remove(id)
+    }
+}
+
+class BackupManagerTest {
+
+    private val passphrase = "backup-pass".toCharArray()
+
+    private val node = Profile(
+        id = 1L,
+        name = "reality-node",
+        type = ProfileType.VLESS,
+        server = "r.example.com",
+        port = 443,
+        groupId = 5L,
+        settings = VlessSettings(
+            uuid = "11111111-2222-3333-4444-555555555555",
+            tls = TlsOptions(
+                security = SecurityMode.REALITY,
+                sni = "r.example.com",
+                reality = RealityOptions(publicKey = "PBK", shortId = "ab12", mlKemPublicKey = "MLKEM"),
+            ),
+        ),
+    )
+
+    @Test
+    fun `export then restore brings back nodes, rules and settings with credentials intact`() = runBlocking {
+        val srcProfiles = MemProfiles().apply { upsert(node) }
+        val srcGroups = MemGroups().apply {
+            upsert(ProxyGroup(id = 5L, name = "sub", mode = GroupMode.URL_TEST, subscriptionUrl = "https://sub/x?token=t"))
+        }
+        val srcRules = MemRules().apply { upsert(Rule(id = 9L, matcher = "geosite:cn", action = RuleAction.DIRECT, order = 1)) }
+
+        val blob = BackupManager(srcProfiles, srcGroups, srcRules).export(passphrase)
+
+        // Restore into a fresh, empty store.
+        val dstProfiles = MemProfiles()
+        val dstGroups = MemGroups()
+        val dstRules = MemRules()
+        val result = BackupManager(dstProfiles, dstGroups, dstRules).restore(blob, passphrase)
+
+        assertEquals(RestoreResult(profiles = 1, groups = 1, rules = 1), result)
+        assertEquals(node, dstProfiles.rows[1L])
+        assertEquals("https://sub/x?token=t", dstGroups.rows[5L]?.subscriptionUrl)
+        assertEquals(RuleAction.DIRECT, dstRules.rows[9L]?.action)
+    }
+
+    @Test
+    fun `restore with the wrong passphrase writes nothing`() = runBlocking {
+        val srcProfiles = MemProfiles().apply { upsert(node) }
+        val blob = BackupManager(srcProfiles, MemGroups(), MemRules()).export(passphrase)
+
+        val dstProfiles = MemProfiles()
+        try {
+            BackupManager(dstProfiles, MemGroups(), MemRules()).restore(blob, "wrong".toCharArray())
+            throw AssertionError("expected BackupCryptoException")
+        } catch (e: BackupCryptoException) {
+            assertTrue(dstProfiles.rows.isEmpty())
+        }
+    }
+
+    @Test
+    fun `the exported blob does not contain the credentials in the clear`() = runBlocking {
+        val srcProfiles = MemProfiles().apply { upsert(node) }
+        val blob = BackupManager(srcProfiles, MemGroups(), MemRules()).export(passphrase)
+        val asText = String(blob, Charsets.ISO_8859_1)
+        assertTrue(!asText.contains("11111111-2222-3333-4444-555555555555"))
+        assertTrue(!asText.contains("r.example.com"))
+    }
+}

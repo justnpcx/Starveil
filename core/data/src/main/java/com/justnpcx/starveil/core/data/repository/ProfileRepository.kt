@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.data.repository
 
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.entity.ProfileEntity
+import com.justnpcx.starveil.core.data.entity.SettingsJson
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,13 @@ interface ProfileRepository {
     suspend fun getById(id: Long): Profile?
     suspend fun upsert(profile: Profile): Long
     suspend fun deleteById(id: Long)
+
+    /**
+     * Replace every profile in [groupId] with [profiles] — the subscription
+     * refresh path. Runs in one transaction so a failure cannot leave the
+     * group half-updated (the caller keeps the last-good set instead).
+     */
+    suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>)
 }
 
 class RoomProfileRepository @Inject constructor(
@@ -32,37 +40,52 @@ class RoomProfileRepository @Inject constructor(
     override suspend fun getById(id: Long): Profile? = dao.getById(id)?.toDomain()
 
     override suspend fun upsert(profile: Profile): Long {
-        // Preserve per-protocol settings on update: a plain Profile upsert
-        // must never silently wipe settingsJson.
-        val existingSettings = if (profile.id != 0L) {
-            dao.getById(profile.id)?.settingsJson
-        } else {
-            null
+        // Per-protocol settings (UUID / password / REALITY keys) live in
+        // settingsJson. Preserve the stored blob when the caller passes a
+        // profile without settings — e.g. a latency-only update must never
+        // silently wipe credentials.
+        val settingsJson = when {
+            profile.settings != null -> SettingsJson.encode(profile.settings)
+            profile.id != 0L -> dao.getById(profile.id)?.settingsJson ?: EMPTY_SETTINGS
+            else -> EMPTY_SETTINGS
         }
-        return dao.upsert(profile.toEntity(settingsJson = existingSettings ?: "{}"))
+        return dao.upsert(profile.toEntity(settingsJson = settingsJson))
     }
 
     override suspend fun deleteById(id: Long) = dao.deleteById(id)
+
+    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
+        dao.replaceGroup(groupId, profiles.map { it.copy(groupId = groupId).toEntity() })
+    }
+
+    private companion object {
+        const val EMPTY_SETTINGS = "{}"
+    }
 }
 
 /** Unknown stored type names fall back to OTHER — never crash on old data. */
-internal fun ProfileEntity.toDomain(): Profile = Profile(
-    id = id,
-    name = name,
-    type = runCatching { ProfileType.valueOf(type) }.getOrDefault(ProfileType.OTHER),
-    server = server,
-    port = port,
-    latencyMs = latencyMs,
-    groupId = groupId,
-)
+internal fun ProfileEntity.toDomain(): Profile {
+    val profileType = runCatching { ProfileType.valueOf(type) }.getOrDefault(ProfileType.OTHER)
+    return Profile(
+        id = id,
+        name = name,
+        type = profileType,
+        server = server,
+        port = port,
+        latencyMs = latencyMs,
+        groupId = groupId,
+        settings = SettingsJson.decode(settingsJson, profileType),
+    )
+}
 
-internal fun Profile.toEntity(settingsJson: String = "{}"): ProfileEntity = ProfileEntity(
-    id = id,
-    name = name,
-    type = type.name,
-    server = server,
-    port = port,
-    latencyMs = latencyMs,
-    groupId = groupId,
-    settingsJson = settingsJson,
-)
+internal fun Profile.toEntity(settingsJson: String = SettingsJson.encode(settings)): ProfileEntity =
+    ProfileEntity(
+        id = id,
+        name = name,
+        type = type.name,
+        server = server,
+        port = port,
+        latencyMs = latencyMs,
+        groupId = groupId,
+        settingsJson = settingsJson,
+    )

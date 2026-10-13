@@ -15,6 +15,13 @@ data class Profile(
     val latencyMs: Long = -1L,
     /** Belongs to this group (by group id). */
     val groupId: Long = 0L,
+    /**
+     * Per-protocol settings (UUID, password, TLS/REALITY, transport, mux).
+     * Null when the profile came from a source that carried no settings, or
+     * for a protocol whose settings are not modelled yet (see the stub
+     * descriptors in ProtocolRegistry).
+     */
+    val settings: ProfileSettings? = null,
 )
 
 enum class ProfileType {

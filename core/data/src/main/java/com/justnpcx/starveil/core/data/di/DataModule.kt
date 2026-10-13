@@ -3,6 +3,8 @@ package com.justnpcx.starveil.core.data.di
 import android.content.Context
 import androidx.room.Room
 import com.justnpcx.starveil.core.data.StarveilDatabase
+import com.justnpcx.starveil.core.data.StarveilMigrations
+import com.justnpcx.starveil.core.data.crypto.KeystoreSecretStore
 import com.justnpcx.starveil.core.data.dao.GroupDao
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
@@ -20,6 +22,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
  * Data-layer bindings. The database is built here and only here.
@@ -35,8 +38,21 @@ object DataModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): StarveilDatabase =
+    fun provideKeystoreSecretStore(
+        @ApplicationContext context: Context,
+    ): KeystoreSecretStore = KeystoreSecretStore(context)
+
+    @Provides
+    @Singleton
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+        secretStore: KeystoreSecretStore,
+    ): StarveilDatabase =
         Room.databaseBuilder(context, StarveilDatabase::class.java, StarveilDatabase.DATABASE_NAME)
+            // Whole-database encryption: SQLCipher, passphrase wrapped by the
+            // Android Keystore (see KeystoreSecretStore).
+            .openHelperFactory(SupportOpenHelperFactory(secretStore.getOrCreatePassphrase()))
+            .addMigrations(*StarveilMigrations.ALL)
             .build()
 
     @Provides

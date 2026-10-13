@@ -11,6 +11,7 @@ android {
 
     defaultConfig {
         minSdk = 29
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {
@@ -35,6 +36,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.sqlcipher.android)
+    implementation(libs.bouncycastle.prov)
     implementation(libs.datastore.preferences)
     implementation(libs.coroutines.core)
     implementation(libs.hilt.android)
@@ -42,4 +45,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.room.testing)
 }
