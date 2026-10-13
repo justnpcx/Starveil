@@ -1,7 +1,10 @@
 package com.justnpcx.starveil.core.kernel
 
+import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandClientHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandServerHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
+import io.nekohasekai.libbox.CommandClient
+import io.nekohasekai.libbox.CommandClientOptions
 import io.nekohasekai.libbox.CommandServer
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.SetupOptions
@@ -23,12 +26,12 @@ import kotlinx.coroutines.withContext
  * Libbox.setup(...) -> newCommandServer(handler, platform) -> start()
  *                   -> startOrReloadService(config, ...)   // start / reload
  *                   -> closeService() / close()            // stop
+ * Libbox.newCommandClient(handler, options) -> connect()    // stats / urlTest
  * ```
  *
- * Implemented: lifecycle + typed state/errors, log redaction, idempotency.
- * Not yet implemented (explicitly, not faked): traffic stats and urlTest need
- * a `CommandClient`; the tun inbound needs a VpnService. Both are marked with
- * TODO and return honest zero/unreachable values meanwhile.
+ * Traffic stats are **pushed** into [StarveilCommandClientHandler] (sing-box
+ * has no stats getter), so `queryStats()` reads a cached value rather than
+ * blocking — the contract's "pushed, never polled".
  */
 class RealKernelBridge(
     private val platform: StarveilPlatformInterface = StarveilPlatformInterface(),
@@ -40,11 +43,18 @@ class RealKernelBridge(
     private val _logs = MutableSharedFlow<KernelLogLine>(replay = 64, extraBufferCapacity = 64)
     override val logs = _logs.asSharedFlow()
 
+    private val clientHandler = StarveilCommandClientHandler(
+        onConnected = { log(LogLevel.INFO, "kernel connected") },
+        onDisconnected = { reason -> log(LogLevel.WARN, "kernel disconnected") },
+        onLog = { line -> _logs.tryEmit(line) },
+    )
+
     private var server: CommandServer? = null
+    private var client: CommandClient? = null
 
     private fun log(level: LogLevel, message: String) {
-        // Static, credential-free strings only. Anything derived from the
-        // config or a subscription must be redacted before it gets here.
+        // Static, credential-free strings only; sing-box log lines go through
+        // the handler's redactor before reaching the flow.
         _logs.tryEmit(KernelLogLine(level = level, tag = "kernel", message = message))
     }
 
@@ -58,10 +68,17 @@ class RealKernelBridge(
             newServer.start()
             newServer.startOrReloadService(config, null)
             server = newServer
+
+            // The command client is the stats/log channel.
+            val newClient = Libbox.newCommandClient(clientHandler, CommandClientOptions())
+            newClient.connect()
+            client = newClient
+
             _state.value = KernelState.Running
             log(LogLevel.INFO, "kernel running")
             Result.success(Unit)
         } catch (e: Exception) {
+            client = null
             server = null
             _state.value = KernelState.Error(classifyStartFailure(e))
             log(LogLevel.ERROR, "kernel failed to start")
@@ -78,6 +95,8 @@ class RealKernelBridge(
         _state.value = KernelState.Stopping
         log(LogLevel.INFO, "kernel stopping")
         return@withContext try {
+            client?.let { runCatching { it.disconnect() } }
+            client = null
             current.closeService()
             current.close()
             server = null
@@ -85,22 +104,22 @@ class RealKernelBridge(
             log(LogLevel.INFO, "kernel stopped")
             Result.success(Unit)
         } catch (e: Exception) {
+            client = null
             server = null
             _state.value = KernelState.Error(KernelError.Unknown("kernel failed to stop cleanly", e))
             Result.failure(e)
         }
     }
 
-    override suspend fun queryStats(): TrafficStats {
-        // TODO(task 1): read traffic counters from a CommandClient. Returning
-        // zeroes (not fabricated numbers) until that is wired.
-        return TrafficStats()
-    }
+    /** Reads the pushed stats; zeroes while the kernel is not running. */
+    override suspend fun queryStats(): TrafficStats =
+        if (server == null) TrafficStats() else clientHandler.stats.value
 
     override suspend fun urlTest(link: String): UrlTestResult {
-        // TODO(task 1): resolve `link` to an outbound tag and run the kernel's
-        // isolated url test (CommandClient.URLTest takes a tag, not a URL).
-        // Unreachable is the honest "not measured" answer, not a fake latency.
+        // TODO(task 1): resolve `link` to an outbound tag, then
+        // client.urlTest(tag). The client takes a tag, not a URL, and the
+        // result arrives via the handler — so this needs a tag→result bridge
+        // before it can return anything but "not measured".
         return UrlTestResult.Unreachable
     }
 
