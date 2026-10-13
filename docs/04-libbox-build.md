@@ -54,20 +54,26 @@ API-24 floor is irrelevant, and we want the complete outbound set. The
 `-legacy` variant exists only for apps that still support API 21 and must drop
 the naive outbound (cronet) to stay small — Starveil does not need it.
 
-## AAR consumption strategy — decided in task 1
+## AAR consumption strategy — decided: checked-in binary
 
-Three options; the spike deliberately did **not** commit to one yet:
+Decision (task 1): the built AAR is **checked into the repo at
+`app/libs/libbox.aar`** and consumed with
+`implementation(files("libs/libbox.aar"))` in `app/build.gradle.kts`.
 
-| Option | Reproducible in CI | Cost |
-|---|---|---|
-| (a) CI builds libbox from source | Yes, but needs Go 1.25.5 + gomobile + NDK r28 in the runner, and a ~10 min build per CI run | workflow change required |
-| (b) Check the AAR into the repo (`app/libs/libbox.aar`) | Yes, trivially | ~28 MB binary in git; upstream sing-box-for-android does exactly this |
-| (c) Publish the AAR to GitHub Packages, consume by coordinate | Yes | needs a publish step + auth for a private package |
+Rationale, against the "which keeps CI green with the least churn" standard:
 
-Recommendation to lock in task 1: **(c) if the publish plumbing is acceptable,
-otherwise (b)**. (a) makes every CI run pay a Go/NDK toolchain cost that has
-nothing to do with the app. If (a) is chosen, the workflow must install Go
-1.25.5, gomobile v0.1.13 and NDK r28 and cache `$GOPATH/pkg/mod`.
+- **vs. CI builds from source**: that would make every CI run install Go 1.25.5,
+  gomobile v0.1.13 and NDK r28 and spend ~10 min compiling — a toolchain cost
+  with nothing to do with the app.
+- **vs. GitHub Packages**: works, but adds a publish step and a second set of
+  package read/write credentials to CI. Not worth it for one private repo.
 
-Until this is decided, `RealKernelBridge` cannot be wired (it needs the
-`io.nekohasekai.libbox` classes at compile time).
+Checking in the binary keeps CI unchanged and fully reproducible. Cost: a
+~28 MB blob in git. The AAR is not code-reviewed; `tools/build-libbox.sh` plus
+the sha256s above are how it is reproduced.
+
+> Current artifact note: the checked-in AAR was built with
+> `PLATFORM=android/arm64`, so it carries **arm64-v8a only** (enough for the
+> test device, an arm64 vivo). A shippable build needs all ABIs — re-run
+> `tools/build-libbox.sh` with no PLATFORM and replace the file before any
+> release. Tracked as a task-1 follow-up.
