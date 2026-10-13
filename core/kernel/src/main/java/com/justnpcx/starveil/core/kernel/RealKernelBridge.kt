@@ -8,41 +8,42 @@ import io.nekohasekai.libbox.CommandClientOptions
 import io.nekohasekai.libbox.CommandServer
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.SetupOptions
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Real kernel bridge over the sing-box libbox core.
+ * Real kernel bridge over the sing-box libbox core (CommandServer model — see
+ * docs/04-libbox-build.md).
  *
- * This fork drives the box through the **CommandServer** API (there is no
- * `Libbox.newService` — see docs/04-libbox-build.md):
- *
- * ```
- * Libbox.setup(...) -> newCommandServer(handler, platform) -> start()
- *                   -> startOrReloadService(config, ...)   // start / reload
- *                   -> closeService() / close()            // stop
- * Libbox.newCommandClient(handler, options) -> connect()    // stats / urlTest
- * ```
- *
- * Traffic stats are **pushed** into [StarveilCommandClientHandler] (sing-box
- * has no stats getter), so `queryStats()` reads a cached value rather than
- * blocking — the contract's "pushed, never polled".
+ * Supervision: if the command channel drops while we believe the kernel is
+ * running, that is an unexpected death — we restart **once**, and if it drops
+ * again we stop and report [KernelError.Crashed] rather than looping forever
+ * (PRD K10).
  */
 class RealKernelBridge(
     private val platform: StarveilPlatformInterface = StarveilPlatformInterface(),
-    /**
-     * Brings up the tun owner before the kernel starts. Injected so
-     * :core:kernel does not have to know how the app starts a service; if
-     * consent has never been granted the kernel start fails and is reported as
-     * [KernelError.PermissionDenied].
-     */
     private val prepareVpn: () -> Unit = {},
+    /**
+     * Maps a share link to the outbound tag [ConfigBuilder] assigned it.
+     * `CommandClient.urlTest` takes a tag, not a URL, so without this mapping
+     * the bridge cannot honestly test a link — it reports Unreachable rather
+     * than guessing.
+     */
+    private val linkToTag: (String) -> String? = { null },
 ) : KernelBridge {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
     override val state: StateFlow<KernelState> = _state.asStateFlow()
@@ -52,24 +53,35 @@ class RealKernelBridge(
 
     private val clientHandler = StarveilCommandClientHandler(
         onConnected = { log(LogLevel.INFO, "kernel connected") },
-        onDisconnected = { reason -> log(LogLevel.WARN, "kernel disconnected") },
+        onDisconnected = { onCommandChannelDropped() },
         onLog = { line -> _logs.tryEmit(line) },
     )
 
     private var server: CommandServer? = null
     private var client: CommandClient? = null
+    private var lastConfig: String? = null
+
+    @Volatile
+    private var stopping = false
+
+    @Volatile
+    private var restarted = false
 
     private fun log(level: LogLevel, message: String) {
-        // Static, credential-free strings only; sing-box log lines go through
-        // the handler's redactor before reaching the flow.
         _logs.tryEmit(KernelLogLine(level = level, tag = "kernel", message = message))
     }
 
     override suspend fun start(config: String): Result<Unit> = withContext(Dispatchers.IO) {
-        if (server != null) return@withContext Result.success(Unit) // idempotent
+        lastConfig = config
+        restarted = false
+        doStart(config)
+    }
+
+    private suspend fun doStart(config: String): Result<Unit> {
+        if (server != null) return Result.success(Unit) // idempotent
         _state.value = KernelState.Starting
         log(LogLevel.INFO, "kernel starting")
-        try {
+        return try {
             prepareVpn()
             Libbox.setup(SetupOptions())
             val newServer = Libbox.newCommandServer(StarveilCommandServerHandler(), platform)
@@ -77,7 +89,6 @@ class RealKernelBridge(
             newServer.startOrReloadService(config, null)
             server = newServer
 
-            // The command client is the stats/log channel.
             val newClient = Libbox.newCommandClient(clientHandler, CommandClientOptions())
             newClient.connect()
             client = newClient
@@ -100,9 +111,10 @@ class RealKernelBridge(
             _state.value = KernelState.Stopped
             return@withContext Result.success(Unit) // idempotent
         }
+        stopping = true
         _state.value = KernelState.Stopping
         log(LogLevel.INFO, "kernel stopping")
-        return@withContext try {
+        val result = try {
             client?.let { runCatching { it.disconnect() } }
             client = null
             current.closeService()
@@ -117,18 +129,57 @@ class RealKernelBridge(
             _state.value = KernelState.Error(KernelError.Unknown("kernel failed to stop cleanly", e))
             Result.failure(e)
         }
+        stopping = false
+        result
     }
 
-    /** Reads the pushed stats; zeroes while the kernel is not running. */
+    /** The command channel dropped without us asking it to. */
+    private fun onCommandChannelDropped() {
+        if (stopping || server == null) return
+        if (!restarted) {
+            restarted = true
+            log(LogLevel.WARN, "kernel dropped unexpectedly; restarting once")
+            scope.launch {
+                teardownQuietly()
+                lastConfig?.let { doStart(it) }
+            }
+        } else {
+            server = null
+            client = null
+            _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
+            log(LogLevel.ERROR, "kernel crashed; not restarting again")
+        }
+    }
+
+    private fun teardownQuietly() {
+        runCatching { client?.disconnect() }
+        client = null
+        runCatching { server?.closeService() }
+        runCatching { server?.close() }
+        server = null
+    }
+
     override suspend fun queryStats(): TrafficStats =
         if (server == null) TrafficStats() else clientHandler.stats.value
 
     override suspend fun urlTest(link: String): UrlTestResult {
-        // TODO(task 1): resolve `link` to an outbound tag, then
-        // client.urlTest(tag). The client takes a tag, not a URL, and the
-        // result arrives via the handler — so this needs a tag→result bridge
-        // before it can return anything but "not measured".
-        return UrlTestResult.Unreachable
+        val tag = linkToTag(link) ?: return UrlTestResult.Unreachable
+        val active = client ?: return UrlTestResult.Unreachable
+        val before = clientHandler.urlTestResults.value[tag]?.testTimeMs ?: 0L
+        return try {
+            active.urlTest(tag)
+            // The result is pushed, not returned: wait for a newer sample.
+            val snapshot = withTimeoutOrNull(URL_TEST_TIMEOUT_MS) {
+                clientHandler.urlTestResults.map { it[tag] }.first { it != null && it.testTimeMs > before }
+            }
+            when {
+                snapshot == null -> UrlTestResult.Timeout
+                snapshot.succeeded -> UrlTestResult.Success(snapshot.delayMs.toLong())
+                else -> UrlTestResult.Timeout
+            }
+        } catch (e: Exception) {
+            UrlTestResult.Unreachable
+        }
     }
 
     override suspend fun urlTestBatch(links: List<String>): Map<String, UrlTestResult> =
@@ -138,7 +189,8 @@ class RealKernelBridge(
     private fun classifyStartFailure(e: Exception): KernelError {
         val message = e.message.orEmpty()
         return when {
-            message.contains("permission", ignoreCase = true) ->
+            message.contains("permission", ignoreCase = true) ||
+                message.contains("consent", ignoreCase = true) ->
                 KernelError.PermissionDenied("VPN permission denied", e)
 
             message.contains("config", ignoreCase = true) ->
@@ -146,5 +198,9 @@ class RealKernelBridge(
 
             else -> KernelError.StartFailed("kernel failed to start", e)
         }
+    }
+
+    private companion object {
+        const val URL_TEST_TIMEOUT_MS = 5_000L
     }
 }

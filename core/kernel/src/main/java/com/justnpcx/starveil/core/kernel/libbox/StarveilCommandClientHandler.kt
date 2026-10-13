@@ -15,6 +15,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
+ * One outbound's latest url test. [delayMs] of 0 means the probe failed
+ * (timeout or unreachable) — sing-box reports failures as a zero delay.
+ */
+data class UrlTestSnapshot(val testTimeMs: Long, val delayMs: Int) {
+    val succeeded: Boolean get() = delayMs > 0
+}
+
+/**
  * Bridges the kernel's pushed callbacks into the `KernelBridge` contract.
  *
  * Traffic stats arrive here (sing-box pushes `StatusMessage`; there is no
@@ -34,6 +42,10 @@ class StarveilCommandClientHandler(
     private val _stats = MutableStateFlow(TrafficStats())
     val stats: StateFlow<TrafficStats> = _stats.asStateFlow()
 
+    /** Latest url-test result per outbound tag; the kernel pushes these. */
+    private val _urlTestResults = MutableStateFlow<Map<String, UrlTestSnapshot>>(emptyMap())
+    val urlTestResults: StateFlow<Map<String, UrlTestSnapshot>> = _urlTestResults.asStateFlow()
+
     override fun writeStatus(status: StatusMessage) {
         _stats.value = TrafficStats(
             uplinkBytes = status.uplinkTotal,
@@ -41,6 +53,17 @@ class StarveilCommandClientHandler(
             uplinkRate = status.uplink,
             downlinkRate = status.downlink,
         )
+    }
+
+    override fun writeOutbounds(outbounds: OutboundGroupItemIterator) {
+        val updated = _urlTestResults.value.toMutableMap()
+        while (outbounds.hasNext()) {
+            val item = outbounds.next()
+            val time = item.urlTestTime
+            if (time <= 0L) continue // never tested
+            updated[item.tag] = UrlTestSnapshot(testTimeMs = time, delayMs = item.urlTestDelay)
+        }
+        _urlTestResults.value = updated
     }
 
     override fun writeLogs(logs: LogIterator) {
@@ -69,8 +92,6 @@ class StarveilCommandClientHandler(
     override fun setDefaultLogLevel(level: Int) {}
 
     override fun writeGroups(groups: OutboundGroupIterator) {}
-
-    override fun writeOutbounds(outbounds: OutboundGroupItemIterator) {}
 
     override fun writeConnectionEvents(events: ConnectionEvents) {}
 
