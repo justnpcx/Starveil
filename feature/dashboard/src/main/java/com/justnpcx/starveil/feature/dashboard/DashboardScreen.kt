@@ -29,6 +29,12 @@ import com.justnpcx.starveil.core.ui.components.ConnectionCore
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
+    /**
+     * Asks for VPN consent before connecting. Supplied by :app (which owns the
+     * activity-result launcher); the default assumes consent is already held,
+     * so previews and tests do not need the port.
+     */
+    requestVpnConsent: (onGranted: () -> Unit) -> Unit = { it() },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     Column(
@@ -41,7 +47,7 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(24.dp))
         ConnectionCore(
             state = state.connectionState,
-            onClick = viewModel::onCoreClick,
+            onClick = { requestVpnConsent { viewModel.onCoreClick() } },
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(

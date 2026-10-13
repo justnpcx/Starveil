@@ -1,14 +1,23 @@
 package com.justnpcx.starveil.ui
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen
 import com.justnpcx.starveil.feature.logs.LogsScreen
 import com.justnpcx.starveil.feature.profiles.ProfilesScreen
@@ -33,12 +42,38 @@ fun StarveilNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    // The only kernel surface :app touches: the narrow consent port.
+    val vpnConsent = remember(context) { starveilVpnConsent(context) }
+    var pendingConnect by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val consentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        // Only continue on an explicit grant; a denial leaves the connect
+        // alone and the kernel start will report PermissionDenied.
+        if (result.resultCode == Activity.RESULT_OK) pendingConnect?.invoke()
+        pendingConnect = null
+    }
+
+    val requestVpnConsent: (onGranted: () -> Unit) -> Unit = { onGranted ->
+        val intent = vpnConsent.consentIntent()
+        if (intent == null) {
+            onGranted() // consent already held
+        } else {
+            pendingConnect = onGranted
+            consentLauncher.launch(intent)
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Destination.DASHBOARD.route,
         modifier = modifier,
     ) {
-        composable(Destination.DASHBOARD.route) { DashboardScreen() }
+        composable(Destination.DASHBOARD.route) {
+            DashboardScreen(requestVpnConsent = requestVpnConsent)
+        }
         composable(Destination.PROFILES.route) { ProfilesScreen() }
         composable(Destination.RULES.route) { RulesScreen() }
         composable(Destination.LOGS.route) { LogsScreen() }
