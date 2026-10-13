@@ -67,11 +67,6 @@ dependencies {
     implementation(libs.coroutines.android)
     ksp(libs.hilt.compiler)
 
-    // sing-box core (libbox). Consumed as a checked-in AAR: the build is
-    // reproducible, CI needs no Go/gomobile/NDK toolchain and no extra token.
-    // See docs/04-libbox-build.md. Built from justnpcx/sing-box @ 027f5d1.
-    implementation(files("libs/libbox.aar"))
-
     // First-party modules.
     implementation(project(":core:ui"))
     implementation(project(":core:kernel"))
