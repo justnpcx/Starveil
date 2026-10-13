@@ -17,10 +17,17 @@ jobs:
           java-version: "17"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default list is "tools platform-tools", but Google
+          # removed the legacy "tools" package from the SDK repository, so the
+          # step died on `sdkmanager tools` before anything was built. Install
+          # exactly what the pinned compileSdk/build-tools require instead.
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
       # No signing, no secrets, no keystore: CI only proves the skeleton compiles.
+      # Use the wrapper so CI and local builds share the pinned Gradle 8.13.
       - name: Assemble debug
-        run: gradle :app:assembleDebug --no-daemon
+        run: ./gradlew :app:assembleDebug --no-daemon
       - name: Lint
-        run: gradle lintDebug --no-daemon
+        run: ./gradlew lintDebug --no-daemon
