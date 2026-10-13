@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel.libbox
 
+import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import io.nekohasekai.libbox.BridgeOptions
 import io.nekohasekai.libbox.BridgeSession
 import io.nekohasekai.libbox.CommandServerHandler
@@ -31,10 +32,10 @@ import io.nekohasekai.libbox.WIFIState
  * Nothing here logs credentials; the interface never receives any.
  */
 class StarveilPlatformInterface(
-    private val openTun: (TunOptions) -> Int = {
-        throw UnsupportedOperationException(
-            "tun inbound requires a VpnService, which is not wired yet (task 1)",
-        )
+    private val openTun: (TunOptions) -> Int = { options ->
+        // The tun is owned by the foreground VpnService; ask it for the fd.
+        StarveilVpnService.current?.openTun(options)
+            ?: throw IllegalStateException("VPN service is not running (no consent or not started)")
     },
 ) : PlatformInterface {
 
