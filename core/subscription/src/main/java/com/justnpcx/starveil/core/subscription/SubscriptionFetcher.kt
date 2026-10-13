@@ -35,7 +35,20 @@ class HttpUrlConnectionFetcher(
             if (code !in 200..299) {
                 throw IOException("HTTP $code")
             }
-            val body = connection.inputStream.use { it.readNBytes(maxBytes) }
+            // Not InputStream.readNBytes: that is API 33, and minSdk is 29.
+            val body = connection.inputStream.use { stream ->
+                val buffer = java.io.ByteArrayOutputStream()
+                val chunk = ByteArray(8 * 1024)
+                var total = 0
+                while (total < maxBytes) {
+                    val read = stream.read(chunk)
+                    if (read < 0) break
+                    val take = minOf(read, maxBytes - total)
+                    buffer.write(chunk, 0, take)
+                    total += take
+                }
+                buffer.toByteArray()
+            }
             return String(body, Charsets.UTF_8)
         } finally {
             connection.disconnect()
