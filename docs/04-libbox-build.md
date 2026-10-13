@@ -107,3 +107,29 @@ Two findings that shape the implementation:
 `CommandClient.URLTest(outboundTag)` takes an **outbound tag, not a URL** — so
 `KernelBridge.urlTest(link)` has to resolve the link to an outbound tag first,
 rather than passing the URL through.
+
+### CommandClient / TunOptions (for the VpnService + stats work)
+
+```
+Libbox.newStandaloneCommandClient() -> CommandClient
+CommandClient.connect() / connectWithFD(fd) / disconnect()
+CommandClient.urlTest(outboundTag)
+CommandClient.selectOutbound(groupTag, outboundTag)
+CommandClient.serviceReload() / serviceClose() / setClashMode(mode)
+```
+
+`TunOptions` is an **interface the kernel fills in**; the VpnService reads it to
+build the tun: `getMTU()`, `getAutoRoute()`, `getStrictRoute()`,
+`getInet4Address()`, `getInet6Address()`, `getDNSMode()`,
+`getIncludePackage()/getExcludePackage()`, `getHTTPProxyServer()`, …
+
+Open questions still to answer before writing the VpnService (not yet
+resolved):
+
+1. **Traffic stats**: this fork's `CommandClient` exposes no obvious
+   `getTrafficStats`. Stats most likely arrive via a connections subscription
+   (`Connections` / `ConnectionEvents`) or the clash API. Needs a decision
+   before `queryStats()` can be honest.
+2. **Who owns the fd**: `CommandClient.connectWithFD(fd)` suggests the fd is
+   established by the app (`VpnService.Builder.establish()`) and handed to the
+   kernel; confirm against sing-box-for-android's reference flow.
