@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.di
 
+import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
@@ -25,6 +26,11 @@ object RegistryModule {
     @Provides
     @Singleton
     fun provideProtocolRegistry(): ProtocolRegistry = ProtocolRegistry.default()
+
+    /** Pure config assembly; given the registry so it can build outbounds. */
+    @Provides
+    @Singleton
+    fun provideConfigBuilder(registry: ProtocolRegistry): ConfigBuilder = ConfigBuilder(registry)
 
     @Provides
     @Singleton

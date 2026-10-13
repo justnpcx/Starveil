@@ -1,10 +1,16 @@
 package com.justnpcx.starveil.feature.dashboard
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.TrafficStats
+import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
+import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,24 +20,30 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /** Single source of truth for the Dashboard screen. */
 data class DashboardUiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val stats: TrafficStats = TrafficStats(),
-    /** Placeholder: real node selector replaces this in Phase 3. */
-    val selectedNodeName: String = "No node selected",
+    val selectedNodeName: String = NO_NODE,
     val isBusy: Boolean = false,
     val errorMessage: String? = null,
-)
+) {
+    companion object {
+        const val NO_NODE = "No node selected"
+    }
+}
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val kernel: KernelBridge,
+    private val profiles: ProfileRepository,
+    private val preferences: PreferencesRepository,
+    private val configBuilder: ConfigBuilder,
 ) : ViewModel() {
 
     // Structured concurrency: one SupervisorJob per ViewModel, cancelled in
@@ -41,6 +53,16 @@ class DashboardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    init {
+        // Keep the label in sync with the choice made on the Nodes tab.
+        scope.launch {
+            preferences.selectedProfileId.collect { id ->
+                val name = if (id == 0L) DashboardUiState.NO_NODE else profiles.getById(id)?.name
+                _uiState.update { it.copy(selectedNodeName = name ?: DashboardUiState.NO_NODE) }
+            }
+        }
+    }
 
     /** Tap on the core: connect or disconnect. */
     fun onCoreClick() {
@@ -54,15 +76,44 @@ class DashboardViewModel @Inject constructor(
 
     private fun connect() {
         scope.launch {
-            _uiState.update { it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null) }
-            // Skeleton config: real config comes from ConfigBuilder in Phase 2.
-            val result = kernel.start(config = """{"log":{"level":"info"}}""")
+            _uiState.update {
+                it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
+            }
+
+            // The real outbound: whatever node is selected on the Nodes tab.
+            val id = preferences.selectedProfileId.first()
+            val profile = if (id == 0L) null else profiles.getById(id)
+            if (profile == null) {
+                _uiState.update {
+                    it.copy(
+                        isBusy = false,
+                        connectionState = ConnectionState.DISCONNECTED,
+                        errorMessage = "Pick a node on the Nodes tab first",
+                    )
+                }
+                return@launch
+            }
+
+            val config = try {
+                configBuilder.build(profile)
+            } catch (e: ConfigBuildException) {
+                _uiState.update {
+                    it.copy(
+                        isBusy = false,
+                        connectionState = ConnectionState.BLOCKED,
+                        errorMessage = "Cannot build the config for this node",
+                    )
+                }
+                return@launch
+            }
+
+            val result = kernel.start(config)
             if (result.isSuccess) {
                 _uiState.update {
                     it.copy(
                         isBusy = false,
                         connectionState = ConnectionState.CONNECTED,
-                        selectedNodeName = "Demo Node 1",
+                        selectedNodeName = profile.name,
                     )
                 }
                 startStatsLoop()
@@ -71,7 +122,7 @@ class DashboardViewModel @Inject constructor(
                     it.copy(
                         isBusy = false,
                         connectionState = ConnectionState.BLOCKED,
-                        errorMessage = "Kernel failed to start (skeleton: FakeKernelBridge)",
+                        errorMessage = "Kernel failed to start",
                     )
                 }
             }
@@ -88,7 +139,6 @@ class DashboardViewModel @Inject constructor(
                     isBusy = false,
                     connectionState = ConnectionState.DISCONNECTED,
                     stats = TrafficStats(),
-                    selectedNodeName = "No node selected",
                 )
             }
         }

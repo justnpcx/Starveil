@@ -48,4 +48,5 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:kernel"))
     implementation(project(":core:model"))
+    implementation(project(":core:data"))
 }
