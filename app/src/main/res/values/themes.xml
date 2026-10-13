@@ -1,0 +1,11 @@
+<resources>
+    <!--
+        Minimal Activity theme: window background only. All visual identity
+        lives in the Compose design system (:core:ui StarveilTheme).
+    -->
+    <style name="Theme.Starveil" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

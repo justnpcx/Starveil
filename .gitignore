@@ -1,0 +1,21 @@
+# Build outputs
+build/
+.gradle/
+*.iml
+.idea/
+local.properties
+
+# Signing — NEVER commit keys or passwords.
+# See README "安全红线": this repo must never contain a keystore.
+*.keystore
+*.jks
+keystore.properties
+*.p12
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Profiling / captures
+captures/
+*.hprof
