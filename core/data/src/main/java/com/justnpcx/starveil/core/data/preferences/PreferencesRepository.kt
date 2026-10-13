@@ -38,6 +38,9 @@ interface PreferencesRepository {
     val killSwitchMode: Flow<KillSwitchMode>
     val speedTestUrl: Flow<String>
 
+    /** Currently selected node; 0 = none chosen yet. */
+    val selectedProfileId: Flow<Long>
+
     /** Last leak self-check (minimal M2 version). */
     val lastLeakCheck: Flow<LeakCheckRecord>
 
@@ -63,6 +66,7 @@ interface PreferencesRepository {
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
     suspend fun recordLeakCheck(record: LeakCheckRecord)
     suspend fun setSpeedTestUrl(url: String)
+    suspend fun setSelectedProfileId(id: Long)
     suspend fun setUseFakeKernel(useFake: Boolean)
 
     /** Record a successful subscription refresh. */
@@ -89,6 +93,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
         val LEAK_CHECK_BLOCKED = booleanPreferencesKey("leak_check_blocked")
         val SPEED_TEST_URL = stringPreferencesKey("speed_test_url")
+        val SELECTED_PROFILE_ID = longPreferencesKey("selected_profile_id")
         val USE_FAKE_KERNEL = booleanPreferencesKey("use_fake_kernel")
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
@@ -156,6 +161,14 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setSpeedTestUrl(url: String) {
         dataStore.edit { it[Keys.SPEED_TEST_URL] = url }
+    }
+
+    override val selectedProfileId: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.SELECTED_PROFILE_ID] ?: 0L }
+
+    override suspend fun setSelectedProfileId(id: Long) {
+        dataStore.edit { it[Keys.SELECTED_PROFILE_ID] = id }
     }
 
     override suspend fun setUseFakeKernel(useFake: Boolean) {

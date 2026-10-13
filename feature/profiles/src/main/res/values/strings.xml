@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profiles_title">Nodes</string>
+    <string name="profiles_empty_title">No nodes yet</string>
+    <string name="profiles_empty_body">Import a subscription or a share link to add nodes.</string>
+    <string name="profiles_latency_untested">untested</string>
+    <string name="profiles_latency_ms">%1$d ms</string>
+    <string name="profiles_selected">Selected</string>
+</resources>
