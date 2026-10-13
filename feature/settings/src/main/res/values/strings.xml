@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+
+    <string name="kill_switch_title">Kill Switch</string>
+    <string name="kill_switch_off">Off</string>
+    <string name="kill_switch_off_desc">Never block traffic.</string>
+    <string name="kill_switch_on_disconnect">Block on disconnect</string>
+    <string name="kill_switch_on_disconnect_desc">Allow traffic only while connected; block new connections the moment the tunnel drops.</string>
+    <string name="kill_switch_always">Always block</string>
+    <string name="kill_switch_always_desc">Block all traffic and show an explicit blocked state.</string>
+
+    <string name="leak_check_title">Leak self-check</string>
+    <string name="leak_check_never">No self-check has run yet.</string>
+    <string name="leak_check_clean">Last check: no leak (%1$s).</string>
+    <string name="leak_check_leaking">Last check: LEAK DETECTED (%1$s).</string>
+</resources>
