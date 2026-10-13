@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.json.Json
 
 /**
  * Assembles a complete sing-box JSON config from one or more [Profile]s.

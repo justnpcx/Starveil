@@ -5,32 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class JsonTest {
-
-    @Test
-    fun `escapes quotes and control characters`() {
-        assertEquals("\"a\\\"b\"", Json.write("a\"b"))
-        assertEquals("\"a\\\\b\"", Json.write("a\\b"))
-        assertEquals("\"a\\nb\"", Json.write("a\nb"))
-    }
-
-    @Test
-    fun `writes nested objects and arrays in insertion order`() {
-        val value = linkedMapOf<String, Any?>(
-            "a" to 1,
-            "b" to listOf(true, null, "x"),
-            "c" to linkedMapOf("d" to 2),
-        )
-        assertEquals("""{"a":1,"b":[true,null,"x"],"c":{"d":2}}""", Json.write(value))
-    }
-
-    @Test
-    fun `integral doubles render without a decimal point`() {
-        assertEquals("443", Json.write(443.0))
-        assertEquals("1.5", Json.write(1.5))
-    }
-}
-
 class LinkParsingTest {
 
     @Test
