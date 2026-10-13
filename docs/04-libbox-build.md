@@ -123,13 +123,44 @@ build the tun: `getMTU()`, `getAutoRoute()`, `getStrictRoute()`,
 `getInet4Address()`, `getInet6Address()`, `getDNSMode()`,
 `getIncludePackage()/getExcludePackage()`, `getHTTPProxyServer()`, …
 
-Open questions still to answer before writing the VpnService (not yet
-resolved):
+### Resolved: where traffic stats come from, and who owns the tun fd
 
-1. **Traffic stats**: this fork's `CommandClient` exposes no obvious
-   `getTrafficStats`. Stats most likely arrive via a connections subscription
-   (`Connections` / `ConnectionEvents`) or the clash API. Needs a decision
-   before `queryStats()` can be honest.
-2. **Who owns the fd**: `CommandClient.connectWithFD(fd)` suggests the fd is
-   established by the app (`VpnService.Builder.establish()`) and handed to the
-   kernel; confirm against sing-box-for-android's reference flow.
+**1. Traffic stats are pushed, not polled.** The fork has no
+`getTrafficStats`. Stats arrive through
+`CommandClientHandler.writeStatus(StatusMessage)`, and `StatusMessage` carries
+exactly what `KernelBridge.queryStats()` needs:
+
+| StatusMessage | TrafficStats |
+|---|---|
+| `getUplink()` / `getDownlink()` | `uplinkRate` / `downlinkRate` |
+| `getUplinkTotal()` / `getDownlinkTotal()` | `uplinkBytes` / `downlinkBytes` |
+| `getTrafficAvailable()` | whether the numbers are real |
+
+This matches the `KernelBridge` contract's "pushed, never polled" wording: the
+bridge should implement a `CommandClientHandler`, keep the latest
+`StatusMessage` in a `StateFlow<TrafficStats>`, and have `queryStats()` return
+that cached value instead of blocking on a call.
+
+**2. The app owns the tun fd; the kernel asks for it.**
+`CommandClient.connectWithFD(fd)` is *not* the tun path — the Go side wraps that
+fd as a `net.Conn` and dials the command server over it
+(`passthrough:///xpc`), i.e. it is the remote/XPC command channel. The tun fd
+comes from the other direction: the kernel calls
+`PlatformInterface.openTun(TunOptions)`, and the **app's VpnService** calls
+`VpnService.Builder.establish()` and returns the resulting fd.
+
+So the remaining task-1 shape is:
+
+```
+StarveilVpnService (foreground, VpnService)
+  ├─ on start: Builder.establish() -> fd
+  ├─ implements openTun(TunOptions) -> that fd
+  └─ RealKernelBridge.start(config)
+        ├─ Libbox.setup(...) -> newCommandServer(StarveilCommandServerHandler, platform)
+        ├─ newCommandClient(StarveilCommandClientHandler, ...) -> connect()
+        │     └─ writeStatus(StatusMessage) -> StateFlow<TrafficStats>
+        └─ server.startOrReloadService(config, ...)
+```
+
+VPN consent denied maps to `KernelError.PermissionDenied`; `urlTest` resolves a
+link to an outbound tag and calls `CommandClient.urlTest(tag)`.
