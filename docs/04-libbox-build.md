@@ -77,3 +77,33 @@ the sha256s above are how it is reproduced.
 > test device, an arm64 vivo). A shippable build needs all ABIs — re-run
 > `tools/build-libbox.sh` with no PLATFORM and replace the file before any
 > release. Tracked as a task-1 follow-up.
+
+## libbox Java API as this fork actually exposes it
+
+Reconnaissance from the checked-in AAR's `classes.jar` (authoritative for what
+to code against — the Go tree does not show the gobind-generated names):
+
+```
+Libbox.setup(SetupOptions)                                        // global init
+Libbox.newCommandServer(CommandServerHandler, PlatformInterface) -> CommandServer
+CommandServer.start()                                             // start the command server
+CommandServer.startOrReloadService(configJson, OverrideOptions)   // start / hot-reload the box
+CommandServer.closeService()                                      // stop the box
+CommandServer.close()                                             // tear down
+Libbox.newStandaloneCommandClient() -> CommandClient              // stats / urlTest
+Libbox.version() / goVersion()
+```
+
+Two findings that shape the implementation:
+
+1. **There is no `BoxService` in this fork.** Upstream sing-box's
+   `Libbox.newService(...)` model is absent; the box is driven through
+   `CommandServer.startOrReloadService(config, ...)`. `RealKernelBridge` must be
+   written against the CommandServer model, not the upstream one.
+2. **The app must implement `PlatformInterface` and `CommandServerHandler`**
+   (both large interfaces). sing-box-for-android has a reference
+   implementation; ours should stay minimal and must never log credentials.
+
+`CommandClient.URLTest(outboundTag)` takes an **outbound tag, not a URL** — so
+`KernelBridge.urlTest(link)` has to resolve the link to an outbound tag first,
+rather than passing the URL through.
