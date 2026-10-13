@@ -128,5 +128,19 @@ class StarveilVpnService : VpnService() {
 
         /** Null when consent is already granted; otherwise the consent intent. */
         fun consentIntent(context: android.content.Context): Intent? = prepare(context)
+
+        /** Start (or no-op if already running) the foreground VPN service. */
+        fun start(context: android.content.Context) {
+            val intent = Intent(context, StarveilVpnService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        fun stop(context: android.content.Context) {
+            context.stopService(Intent(context, StarveilVpnService::class.java))
+        }
     }
 }

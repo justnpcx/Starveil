@@ -35,6 +35,13 @@ import kotlinx.coroutines.withContext
  */
 class RealKernelBridge(
     private val platform: StarveilPlatformInterface = StarveilPlatformInterface(),
+    /**
+     * Brings up the tun owner before the kernel starts. Injected so
+     * :core:kernel does not have to know how the app starts a service; if
+     * consent has never been granted the kernel start fails and is reported as
+     * [KernelError.PermissionDenied].
+     */
+    private val prepareVpn: () -> Unit = {},
 ) : KernelBridge {
 
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
@@ -63,6 +70,7 @@ class RealKernelBridge(
         _state.value = KernelState.Starting
         log(LogLevel.INFO, "kernel starting")
         try {
+            prepareVpn()
             Libbox.setup(SetupOptions())
             val newServer = Libbox.newCommandServer(StarveilCommandServerHandler(), platform)
             newServer.start()
