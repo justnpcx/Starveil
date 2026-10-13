@@ -3,8 +3,8 @@ package com.justnpcx.starveil.core.subscription.registry
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.subscription.Base64SubscriptionParser
 import com.justnpcx.starveil.core.subscription.ClashYamlSubscriptionParser
-import com.justnpcx.starveil.core.subscription.FakeSubscriptionParser
 import com.justnpcx.starveil.core.subscription.SubscriptionParser
+import com.justnpcx.starveil.core.subscription.UnknownSubscriptionParser
 
 /**
  * One subscription format: how to recognise it, and how to parse it.
@@ -65,9 +65,9 @@ class SubscriptionFormatRegistry(
                         parser = Base64SubscriptionParser(resolveLink),
                     ),
                     SubscriptionFormatDescriptor(
-                        format = "text-fallback",
+                        format = "unknown-fallback",
                         sniff = { true },
-                        parser = FakeSubscriptionParser(),
+                        parser = UnknownSubscriptionParser(),
                     ),
                 ),
             )

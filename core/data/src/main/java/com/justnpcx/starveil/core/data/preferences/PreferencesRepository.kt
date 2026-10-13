@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,12 +43,30 @@ interface PreferencesRepository {
      */
     val useFakeKernel: Flow<Boolean>
 
+    /** Epoch ms of the last successful subscription refresh; 0 = never. */
+    val subscriptionLastSuccessAt: Flow<Long>
+
+    /** Epoch ms of the last failed subscription refresh; 0 = never. */
+    val subscriptionLastFailureAt: Flow<Long>
+
+    /** Redacted reason for the last failure; null when the last run succeeded. */
+    val subscriptionLastError: Flow<String?>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setAutoReconnect(enabled: Boolean)
     suspend fun setKillSwitch(enabled: Boolean)
     suspend fun setSpeedTestUrl(url: String)
     suspend fun setUseFakeKernel(useFake: Boolean)
+
+    /** Record a successful subscription refresh. */
+    suspend fun recordSubscriptionSuccess(atEpochMs: Long)
+
+    /**
+     * Record a failed refresh. [reason] must already be redacted — it is
+     * surfaced in the UI and must never contain a URL, token or credentials.
+     */
+    suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String)
 }
 
 class DataStorePreferencesRepository @Inject constructor(
@@ -63,6 +82,9 @@ class DataStorePreferencesRepository @Inject constructor(
         val KILL_SWITCH = booleanPreferencesKey("kill_switch")
         val SPEED_TEST_URL = stringPreferencesKey("speed_test_url")
         val USE_FAKE_KERNEL = booleanPreferencesKey("use_fake_kernel")
+        val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
+        val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
+        val SUB_LAST_ERROR = stringPreferencesKey("subscription_last_error")
     }
 
     override val themeMode: Flow<ThemeMode> = dataStore.data
@@ -114,5 +136,31 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setUseFakeKernel(useFake: Boolean) {
         dataStore.edit { it[Keys.USE_FAKE_KERNEL] = useFake }
+    }
+
+    override val subscriptionLastSuccessAt: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.SUB_LAST_SUCCESS] ?: 0L }
+
+    override val subscriptionLastFailureAt: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.SUB_LAST_FAILURE] ?: 0L }
+
+    override val subscriptionLastError: Flow<String?> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.SUB_LAST_ERROR] }
+
+    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) {
+        dataStore.edit {
+            it[Keys.SUB_LAST_SUCCESS] = atEpochMs
+            it.remove(Keys.SUB_LAST_ERROR)
+        }
+    }
+
+    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) {
+        dataStore.edit {
+            it[Keys.SUB_LAST_FAILURE] = atEpochMs
+            it[Keys.SUB_LAST_ERROR] = reason
+        }
     }
 }

@@ -138,7 +138,7 @@ class SubscriptionRegistryOrderTest {
     @Test
     fun `descriptor order is specific first, fallback last`() {
         assertEquals(
-            listOf("clash-yaml", "base64-lines", "text-fallback"),
+            listOf("clash-yaml", "base64-lines", "unknown-fallback"),
             registry.all().map { it.format },
         )
     }
@@ -148,6 +148,6 @@ class SubscriptionRegistryOrderTest {
         assertTrue(registry.resolve("proxies:\n  - name: x") is ClashYamlSubscriptionParser)
         val b64 = Base64.getEncoder().encodeToString("vless://u@a.example:443".toByteArray())
         assertTrue(registry.resolve(b64) is Base64SubscriptionParser)
-        assertTrue(registry.resolve("random text") is FakeSubscriptionParser)
+        assertTrue(registry.resolve("random text") is UnknownSubscriptionParser)
     }
 }

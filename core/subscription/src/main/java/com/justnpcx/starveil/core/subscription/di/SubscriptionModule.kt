@@ -1,0 +1,36 @@
+package com.justnpcx.starveil.core.subscription.di
+
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.subscription.Clock
+import com.justnpcx.starveil.core.subscription.HttpUrlConnectionFetcher
+import com.justnpcx.starveil.core.subscription.SubscriptionFetcher
+import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object SubscriptionModule {
+
+    @Provides
+    @Singleton
+    fun provideSubscriptionFetcher(): SubscriptionFetcher = HttpUrlConnectionFetcher()
+
+    @Provides
+    @Singleton
+    fun provideClock(): Clock = Clock { System.currentTimeMillis() }
+
+    @Provides
+    @Singleton
+    fun provideSubscriptionHealthSink(preferences: PreferencesRepository): SubscriptionHealthSink =
+        object : SubscriptionHealthSink {
+            override suspend fun recordSuccess(atEpochMs: Long) =
+                preferences.recordSubscriptionSuccess(atEpochMs)
+
+            override suspend fun recordFailure(atEpochMs: Long, reason: String) =
+                preferences.recordSubscriptionFailure(atEpochMs, reason)
+        }
+}

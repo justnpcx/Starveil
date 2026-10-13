@@ -1,0 +1,80 @@
+package com.justnpcx.starveil.core.subscription
+
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
+import java.io.IOException
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** Injectable time source so the updater is deterministic in tests. */
+fun interface Clock {
+    fun nowMs(): Long
+}
+
+/** Narrow write-side view of subscription health, so the updater is easy to fake. */
+interface SubscriptionHealthSink {
+    suspend fun recordSuccess(atEpochMs: Long)
+
+    /** [reason] must already be redacted. */
+    suspend fun recordFailure(atEpochMs: Long, reason: String)
+}
+
+/** Result of one subscription refresh. */
+sealed interface SubscriptionUpdateOutcome {
+    data class Success(val profileCount: Int) : SubscriptionUpdateOutcome
+
+    /** [reason] is already redacted — safe to persist and show in the UI. */
+    data class Failure(val reason: String) : SubscriptionUpdateOutcome
+}
+
+/**
+ * Fetches a subscription, parses it, and replaces the group's profiles.
+ *
+ * Failure policy: on any error the existing profiles are left untouched (the
+ * "last-good config" survives) and the failure — with a redacted reason — is
+ * recorded for the health view. Success clears the stored error.
+ *
+ * Nothing here logs the URL or the body: both carry credentials.
+ */
+@Singleton
+class SubscriptionUpdater @Inject constructor(
+    private val registry: SubscriptionFormatRegistry,
+    private val profiles: ProfileRepository,
+    private val health: SubscriptionHealthSink,
+    private val fetcher: SubscriptionFetcher,
+    private val clock: Clock,
+) {
+
+    suspend fun update(groupId: Long, url: String): SubscriptionUpdateOutcome {
+        val body = try {
+            fetcher.fetch(url)
+        } catch (e: IOException) {
+            return fail(reason = e.message?.takeIf { it.startsWith("HTTP ") } ?: "network error")
+        } catch (e: Exception) {
+            return fail(reason = "network error")
+        }
+
+        val parsed = try {
+            registry.resolve(body).parse(body)
+        } catch (e: Exception) {
+            return fail(reason = "could not parse subscription")
+        }
+
+        if (parsed.isEmpty()) {
+            return fail(reason = "subscription contained no usable nodes")
+        }
+
+        return try {
+            profiles.replaceGroupProfiles(groupId, parsed)
+            health.recordSuccess(clock.nowMs())
+            SubscriptionUpdateOutcome.Success(parsed.size)
+        } catch (e: Exception) {
+            fail(reason = "could not save nodes")
+        }
+    }
+
+    private suspend fun fail(reason: String): SubscriptionUpdateOutcome {
+        health.recordFailure(clock.nowMs(), reason)
+        return SubscriptionUpdateOutcome.Failure(reason)
+    }
+}
