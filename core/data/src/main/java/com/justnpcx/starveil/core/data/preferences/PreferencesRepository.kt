@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.LeakCheckRecord
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -33,8 +35,11 @@ interface PreferencesRepository {
     val themeMode: Flow<ThemeMode>
     val dynamicColor: Flow<Boolean>
     val autoReconnect: Flow<Boolean>
-    val killSwitch: Flow<Boolean>
+    val killSwitchMode: Flow<KillSwitchMode>
     val speedTestUrl: Flow<String>
+
+    /** Last leak self-check (minimal M2 version). */
+    val lastLeakCheck: Flow<LeakCheckRecord>
 
     /**
      * Skeleton default true: the Fake kernel is the only working kernel
@@ -55,7 +60,8 @@ interface PreferencesRepository {
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setAutoReconnect(enabled: Boolean)
-    suspend fun setKillSwitch(enabled: Boolean)
+    suspend fun setKillSwitchMode(mode: KillSwitchMode)
+    suspend fun recordLeakCheck(record: LeakCheckRecord)
     suspend fun setSpeedTestUrl(url: String)
     suspend fun setUseFakeKernel(useFake: Boolean)
 
@@ -79,7 +85,9 @@ class DataStorePreferencesRepository @Inject constructor(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
-        val KILL_SWITCH = booleanPreferencesKey("kill_switch")
+        val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
+        val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
+        val LEAK_CHECK_BLOCKED = booleanPreferencesKey("leak_check_blocked")
         val SPEED_TEST_URL = stringPreferencesKey("speed_test_url")
         val USE_FAKE_KERNEL = booleanPreferencesKey("use_fake_kernel")
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
@@ -102,9 +110,18 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.AUTO_RECONNECT] ?: true }
 
-    override val killSwitch: Flow<Boolean> = dataStore.data
+    override val killSwitchMode: Flow<KillSwitchMode> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.KILL_SWITCH] ?: false }
+        .map { prefs -> KillSwitchMode.fromStorage(prefs[Keys.KILL_SWITCH_MODE]) }
+
+    override val lastLeakCheck: Flow<LeakCheckRecord> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs ->
+            LeakCheckRecord(
+                checkedAtEpochMs = prefs[Keys.LEAK_CHECK_AT] ?: 0L,
+                blocked = prefs[Keys.LEAK_CHECK_BLOCKED] ?: false,
+            )
+        }
 
     override val speedTestUrl: Flow<String> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
@@ -126,8 +143,15 @@ class DataStorePreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.AUTO_RECONNECT] = enabled }
     }
 
-    override suspend fun setKillSwitch(enabled: Boolean) {
-        dataStore.edit { it[Keys.KILL_SWITCH] = enabled }
+    override suspend fun setKillSwitchMode(mode: KillSwitchMode) {
+        dataStore.edit { it[Keys.KILL_SWITCH_MODE] = mode.name }
+    }
+
+    override suspend fun recordLeakCheck(record: LeakCheckRecord) {
+        dataStore.edit {
+            it[Keys.LEAK_CHECK_AT] = record.checkedAtEpochMs
+            it[Keys.LEAK_CHECK_BLOCKED] = record.blocked
+        }
     }
 
     override suspend fun setSpeedTestUrl(url: String) {
