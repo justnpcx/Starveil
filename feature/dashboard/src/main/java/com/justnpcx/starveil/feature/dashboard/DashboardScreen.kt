@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,7 +73,7 @@ fun DashboardScreen(
             uplinkSamples = state.history.map { it.uplink },
         )
         Spacer(modifier = Modifier.height(16.dp))
-        NodeSelectorPlaceholder()
+        CurrentNodeCard(name = state.selectedNodeName)
     }
 }
 
@@ -100,18 +101,21 @@ private fun SpeedCell(label: String, rate: Long, total: Long) {
     }
 }
 
-/** TODO (Phase 3): node selector with health sparklines + smart routing toggle. */
+/** The node the next connect will use; the in-place selector is M3 D5. */
 @Composable
-private fun NodeSelectorPlaceholder() {
+private fun CurrentNodeCard(name: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Node selector", style = MaterialTheme.typography.titleMedium)
             Text(
-                text = "待实现：节点列表 + 健康曲线 + 自动选路开关（Phase 3）",
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(R.string.dashboard_current_node),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

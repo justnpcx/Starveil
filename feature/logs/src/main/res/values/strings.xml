@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="logs_title">Logs</string>
+    <string name="logs_empty_title">No logs yet</string>
+    <string name="logs_empty_body">Kernel and app logs will appear here once the kernel runs.</string>
+</resources>

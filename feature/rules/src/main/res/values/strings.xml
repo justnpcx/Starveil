@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rules_title">Rules</string>
+    <string name="rules_empty_title">No rules yet</string>
+    <string name="rules_empty_body">Routing rules will be listed here once you add one.</string>
+</resources>
