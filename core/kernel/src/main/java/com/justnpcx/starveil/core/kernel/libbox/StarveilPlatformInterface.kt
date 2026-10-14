@@ -54,6 +54,9 @@ class StarveilPlatformInterface(
      */
     private val localDnsTransport = StarveilLocalDnsTransport(context)
 
+    /** Counts protect calls so the first few are logged and then it goes quiet. */
+    private var protectLogs = 0
+
     /**
      * Called by the kernel for each socket it opens, so the socket can be
      * excluded from our own tunnel. VpnService.protect is the documented way to
@@ -61,7 +64,18 @@ class StarveilPlatformInterface(
      * the tun and times out.
      */
     override fun autoDetectInterfaceControl(fd: Int) {
-        StarveilVpnService.current?.protectSocket(fd)
+        val service = StarveilVpnService.current
+        val protected = service?.protectSocket(fd)
+        // Diagnostic: whether the kernel is asking at all, and whether protect
+        // succeeds. A socket that is not protected is routed back into our own
+        // tunnel and its dial times out with nothing else in the log.
+        if (protectLogs < PROTECT_LOG_LIMIT || protected != true) {
+            protectLogs++
+            android.util.Log.i(
+                "StarveilKernel",
+                "protect(fd=$fd) -> ${protected ?: "no VpnService"}",
+            )
+        }
     }
 
     override fun cancelNotification(identifier: String, typeID: Int) {}
@@ -137,6 +151,10 @@ class StarveilPlatformInterface(
     override fun usePlatformShell(): Boolean = false
 
     override fun useProcFS(): Boolean = true
+
+    private companion object {
+        const val PROTECT_LOG_LIMIT = 3
+    }
 }
 
 /**
