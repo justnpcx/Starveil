@@ -3,9 +3,11 @@ package com.justnpcx.starveil.di
 import android.content.Context
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelPaths
+import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
+import com.justnpcx.starveil.logs.KernelLogStream
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,4 +55,12 @@ object KernelModule {
         // 'proxy-<n>' for a multi-node one). Documented in docs/04.
         linkToTag = { tag -> tag },
     )
+
+    /**
+     * The Logs screen's view of the kernel's log lines. :app owns the adapter so
+     * :feature:logs only sees [LogStream] and a :core:model type.
+     */
+    @Provides
+    @Singleton
+    fun provideLogStream(bridge: KernelBridge): LogStream = KernelLogStream(bridge)
 }
