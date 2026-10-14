@@ -42,6 +42,11 @@ import com.justnpcx.starveil.core.model.Profile
 @Composable
 fun ProfilesScreen(
     viewModel: ProfilesViewModel = hiltViewModel(),
+    /**
+     * Measures the selected node's latency. Supplied by :app, which owns the
+     * kernel; the default keeps previews and tests kernel-free.
+     */
+    onTestLatency: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showImport by remember { mutableStateOf(false) }
@@ -50,6 +55,18 @@ fun ProfilesScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             state.message?.let { message ->
                 MessageBanner(message = message, onDismiss = viewModel::dismissMessage)
+            }
+            if (state.profiles.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onTestLatency) {
+                        Text(stringResource(R.string.profiles_test_latency))
+                    }
+                }
             }
             if (state.profiles.isEmpty()) {
                 EmptyState()

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -18,6 +19,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
+import com.justnpcx.starveil.latency.NodeLatencyTesterEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.launch
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen
 import com.justnpcx.starveil.feature.logs.LogsScreen
 import com.justnpcx.starveil.feature.profiles.ProfilesScreen
@@ -47,6 +51,17 @@ fun StarveilNavHost(
     val vpnConsent = remember(context) { starveilVpnConsent(context) }
     var pendingConnect by remember { mutableStateOf<(() -> Unit)?>(null) }
 
+    // Latency testing needs the kernel, so it lives in :app and the Nodes
+    // screen only gets a callback.
+    val latencyTester = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            NodeLatencyTesterEntryPoint::class.java,
+        ).nodeLatencyTester()
+    }
+    val scope = rememberCoroutineScope()
+    val onTestLatency: () -> Unit = { scope.launch { latencyTester.testSelectedNode() } }
+
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -74,7 +89,9 @@ fun StarveilNavHost(
         composable(Destination.DASHBOARD.route) {
             DashboardScreen(requestVpnConsent = requestVpnConsent)
         }
-        composable(Destination.PROFILES.route) { ProfilesScreen() }
+        composable(Destination.PROFILES.route) {
+            ProfilesScreen(onTestLatency = onTestLatency)
+        }
         composable(Destination.RULES.route) { RulesScreen() }
         composable(Destination.LOGS.route) { LogsScreen() }
         composable(Destination.SETTINGS.route) { SettingsScreen() }
