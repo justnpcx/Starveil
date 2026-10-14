@@ -26,7 +26,10 @@ import io.nekohasekai.libbox.StringIterator
  * ("10.0.0.2/24"), DNS and gateways are bare addresses, and type is the
  * InterfaceType enum (wifi 0, cellular 1, ethernet 2, other 3).
  */
-internal fun listPlatformNetworkInterfaces(context: Context): NetworkInterfaceIterator? {
+internal fun listPlatformNetworkInterfaces(
+    context: Context,
+    onDiagnostic: (String) -> Unit = {},
+): NetworkInterfaceIterator? {
     val manager = context.getSystemService(ConnectivityManager::class.java) ?: return null
     val interfaces = mutableListOf<NetworkInterface>()
     var networks = 0
@@ -47,10 +50,7 @@ internal fun listPlatformNetworkInterfaces(context: Context): NetworkInterfaceIt
         // must not drop the interface, so fall back to index 0 and keep the
         // name (which is what the dialer binds to).
         val javaInterface = runCatching { java.net.NetworkInterface.getByName(name) }.getOrNull()
-        android.util.Log.i(
-            "StarveilKernel",
-            "iface: name=$name java=${javaInterface != null} index=${javaInterface?.index}",
-        )
+        onDiagnostic("iface: name=$name java=${javaInterface != null} index=${javaInterface?.index}")
 
         interfaces += NetworkInterface().apply {
             this.name = name
@@ -75,8 +75,7 @@ internal fun listPlatformNetworkInterfaces(context: Context): NetworkInterfaceIt
             flags = javaInterface?.rawFlags() ?: IFF_UP
         }
     }
-    android.util.Log.i(
-        "StarveilKernel",
+    onDiagnostic(
         "getInterfaces: networks=$networks caps=$withCapabilities link=$withLink name=$withName -> ${interfaces.size} ifaces",
     )
     return StarveilNetworkInterfaceIterator(interfaces)

@@ -54,7 +54,7 @@ class StarveilPlatformInterface(
      * resolv.conf, so without this the kernel dials `[::1]:53` and the
      * outbound's own server address never resolves.
      */
-    private val localDnsTransport = StarveilLocalDnsTransport(context)
+    private val localDnsTransport = StarveilLocalDnsTransport(context, ::diagnostic)
 
     /** Counts protect calls so the first few are logged and then it goes quiet. */
     private var protectLogs = 0
@@ -62,6 +62,20 @@ class StarveilPlatformInterface(
     /** Keeps the network callbacks alive, and lets close() unregister them. */
     private val interfaceCallbacks =
         java.util.concurrent.ConcurrentHashMap<InterfaceUpdateListener, ConnectivityManager.NetworkCallback>()
+
+    /**
+     * Where kernel-side diagnostics go, on top of logcat.
+     *
+     * adb logcat is unreliable on some ROMs (the vivo test device among them),
+     * so the bridge attaches a sink that also feeds the Logs screen. Set once,
+     * by [RealKernelBridge].
+     */
+    var onDiagnostic: ((String) -> Unit)? = null
+
+    internal fun diagnostic(message: String) {
+        android.util.Log.i("StarveilKernel", message)
+        onDiagnostic?.invoke(message)
+    }
 
     /**
      * Called by the kernel for each socket it opens, so the socket can be
@@ -77,10 +91,7 @@ class StarveilPlatformInterface(
         // tunnel and its dial times out with nothing else in the log.
         if (protectLogs < PROTECT_LOG_LIMIT || protected != true) {
             protectLogs++
-            android.util.Log.i(
-                "StarveilKernel",
-                "protect(fd=$fd) -> ${protected ?: "no VpnService"}",
-            )
+            diagnostic("protect(fd=$fd) -> ${protected ?: "no VpnService"}")
         }
     }
 
@@ -114,7 +125,8 @@ class StarveilPlatformInterface(
      * network interfaces (see StarveilNetworkInterfaces), and returning null
      * fails every proxied connection with "no available network interface".
      */
-    override fun getInterfaces(): NetworkInterfaceIterator? = listPlatformNetworkInterfaces(context)
+    override fun getInterfaces(): NetworkInterfaceIterator? =
+        listPlatformNetworkInterfaces(context, ::diagnostic)
 
     override fun includeAllNetworks(): Boolean = false
 
