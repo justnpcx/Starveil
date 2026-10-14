@@ -163,21 +163,38 @@ class RealKernelBridge(
         if (server == null) TrafficStats() else clientHandler.stats.value
 
     override suspend fun urlTest(link: String): UrlTestResult {
-        val tag = linkToTag(link) ?: return UrlTestResult.Unreachable
-        val active = client ?: return UrlTestResult.Unreachable
+        val tag = linkToTag(link) ?: return UrlTestResult.Unreachable.also {
+            android.util.Log.w(LOG_TAG, "urlTest: no tag mapping for the argument")
+        }
+        val active = client ?: return UrlTestResult.Unreachable.also {
+            android.util.Log.w(LOG_TAG, "urlTest($tag): command client is null (kernel not running)")
+        }
         val before = clientHandler.urlTestResults.value[tag]?.testTimeMs ?: 0L
         return try {
             active.urlTest(tag)
+            android.util.Log.i(LOG_TAG, "urlTest($tag): requested, waiting for a pushed sample")
             // The result is pushed, not returned: wait for a newer sample.
             val snapshot = withTimeoutOrNull(URL_TEST_TIMEOUT_MS) {
                 clientHandler.urlTestResults.map { it[tag] }.first { it != null && it.testTimeMs > before }
             }
             when {
-                snapshot == null -> UrlTestResult.Timeout
-                snapshot.succeeded -> UrlTestResult.Success(snapshot.delayMs.toLong())
-                else -> UrlTestResult.Timeout
+                snapshot == null -> {
+                    android.util.Log.w(LOG_TAG, "urlTest($tag): no sample within ${URL_TEST_TIMEOUT_MS}ms")
+                    UrlTestResult.Timeout
+                }
+
+                snapshot.succeeded -> {
+                    android.util.Log.i(LOG_TAG, "urlTest($tag): ${snapshot.delayMs} ms")
+                    UrlTestResult.Success(snapshot.delayMs.toLong())
+                }
+
+                else -> {
+                    android.util.Log.w(LOG_TAG, "urlTest($tag): kernel reported delay 0 (failed probe)")
+                    UrlTestResult.Timeout
+                }
             }
         } catch (e: Exception) {
+            android.util.Log.e(LOG_TAG, "urlTest($tag): threw ${e::class.simpleName}")
             UrlTestResult.Unreachable
         }
     }
@@ -202,5 +219,6 @@ class RealKernelBridge(
 
     private companion object {
         const val URL_TEST_TIMEOUT_MS = 5_000L
+        const val LOG_TAG = "StarveilKernel"
     }
 }

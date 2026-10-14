@@ -57,13 +57,18 @@ class StarveilCommandClientHandler(
 
     override fun writeOutbounds(outbounds: OutboundGroupItemIterator) {
         val updated = _urlTestResults.value.toMutableMap()
+        var seen = 0
         while (outbounds.hasNext()) {
             val item = outbounds.next()
+            seen++
             val time = item.urlTestTime
             if (time <= 0L) continue // never tested
             updated[item.tag] = UrlTestSnapshot(testTimeMs = time, delayMs = item.urlTestDelay)
         }
         _urlTestResults.value = updated
+        // Diagnostic: this callback firing (or not) is what decides whether
+        // urlTest can ever return a result. Visible in adb logcat.
+        android.util.Log.d("StarveilKernel", "writeOutbounds: $seen items, ${updated.size} tested")
     }
 
     override fun writeLogs(logs: LogIterator) {
