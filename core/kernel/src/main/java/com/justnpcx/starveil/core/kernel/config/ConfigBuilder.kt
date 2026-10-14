@@ -111,14 +111,22 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 "final" to finalTag,
                 // On: this is the platform path, and it is the one we want.
                 // The dialer installs the bind/protect control, which reaches
-                // PlatformInterface.AutoDetectInterfaceControl ->
-                // VpnService.protect(fd), and it takes the platform-interfaces
-                // path (this fork hardcodes UsePlatformNetworkInterfaces() to
-                // true), which is what PlatformInterface.GetInterfaces()
-                // feeds. Turning it off was only an A/B — a plain dial made no
-                // difference to the timeout, so it is not worth giving up the
-                // protection for.
+                // PlatformInterface.AutoDetectInterfaceControl, and it takes the
+                // platform-interfaces path (this fork hardcodes
+                // UsePlatformNetworkInterfaces() to true), which is what
+                // PlatformInterface.GetInterfaces() feeds. Turning it off was
+                // only an A/B and made no difference to the dial.
                 "auto_detect_interface" to true,
+            ),
+            // Present, though empty. sing-box only builds its traffic manager —
+            // and therefore only reports uplink/downlink to the CommandClient —
+            // when `experimental.clash_api` is set (box.go: `needClashAPI`).
+            // Without it every StatusMessage carries zero, so the dashboard's
+            // rates and totals sit at 0 B/s forever even while traffic flows.
+            // An empty controller opens no HTTP listener: the server is created
+            // but never bound.
+            "experimental" to linkedMapOf<String, Any?>(
+                "clash_api" to emptyMap<String, Any?>(),
             ),
         )
         return Json.write(config)
