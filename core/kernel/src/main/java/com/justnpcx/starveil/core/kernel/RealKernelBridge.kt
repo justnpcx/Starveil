@@ -106,7 +106,7 @@ class RealKernelBridge(
             newServer.startOrReloadService(config, OverrideOptions())
             server = newServer
 
-            val newClient = Libbox.newCommandClient(clientHandler, CommandClientOptions())
+            val newClient = Libbox.newCommandClient(clientHandler, clientOptions())
             newClient.connect()
             client = newClient
 
@@ -242,6 +242,23 @@ class RealKernelBridge(
     private companion object {
         const val URL_TEST_TIMEOUT_MS = 5_000L
         const val LOG_TAG = "StarveilKernel"
+
+        /**
+         * `CommandClient` only subscribes to the streams named in its options
+         * (`command_client.go` switches over `options.commands`), so with none
+         * named the kernel pushes nothing at all: no traffic stats and no
+         * urlTest results. gobind does not export the Go constants, so these
+         * are the values from `experimental/libbox/command.go`.
+         */
+        const val COMMAND_LOG = 0
+        const val COMMAND_STATUS = 1
+        const val COMMAND_OUTBOUNDS = 5
+
+        fun clientOptions(): CommandClientOptions = CommandClientOptions().apply {
+            addCommand(COMMAND_LOG)
+            addCommand(COMMAND_STATUS)
+            addCommand(COMMAND_OUTBOUNDS)
+        }
     }
 }
 
