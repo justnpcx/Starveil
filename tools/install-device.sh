@@ -2,21 +2,28 @@
 #
 # Install the debug APK on a connected device, driving vivo's installer dialog.
 #
-# vivo shows a dialog adb cannot dismiss on its own:
+# vivo gates adb installs behind a dialog adb cannot dismiss on its own:
 #   - a checkbox "已了解应用的风险检测结果" (acknowledge the risk scan), and
 #   - a "继续安装" button, which refuses with "请先确认…" until the box is ticked.
 # Left alone the install aborts with
 # INSTALL_FAILED_ABORTED: User rejected permissions, which reads like a policy
-# refusal but is really just an untapped checkbox.
+# refusal but is really an untapped checkbox.
+#
+# It also uninstalls first by default: when the installed build came from a
+# different debug key (e.g. a CI artifact) vivo reports "install package
+# signature duplicated" and the only way past it is uninstall + reinstall.
 #
 # Usage:
 #   tools/install-device.sh                 # uses ANDROID_SERIAL, default APK
 #   tools/install-device.sh <serial> [apk]
+#   KEEP_DATA=1 tools/install-device.sh     # in-place upgrade, keep app data
 #
 set -uo pipefail
 
 SERIAL="${1:-${ANDROID_SERIAL:-}}"
 APK="${2:-app/build/outputs/apk/debug/app-debug.apk}"
+PKG="com.justnpcx.starveil"
+INSTALLER="com.android.packageinstaller"
 
 if [ -z "$SERIAL" ]; then
   SERIAL="$(adb devices | awk 'NR>1 && $2=="device"{print $1; exit}')"
@@ -27,39 +34,23 @@ fi
 echo "device: $SERIAL"
 echo "apk:    $APK"
 
-adb -s "$SERIAL" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1
-adb -s "$SERIAL" push "$APK" /data/local/tmp/starveil.apk >/dev/null
-
-OUT="$(mktemp)"
-adb -s "$SERIAL" shell pm install -r -d /data/local/tmp/starveil.apk >"$OUT" 2>&1 &
-INSTALL_PID=$!
-
-# True only while the installer owns the screen. Without this the loop kept
-# dumping and tapping after the dialog was gone, pressing whatever app happened
-# to be in front — on a real run it launched the browser.
-is_installer_foreground() {
-  adb -s "$SERIAL" shell dumpsys activity activities 2>/dev/null \
-    | tr -d '\r' \
-    | grep -m1 'topResumedActivity' \
-    | grep -q 'packageinstaller'
-}
-
-# Prints the centre of the node matching $1 ("check" or "confirm"), if any.
-find_target() {
-  adb -s "$SERIAL" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
-  adb -s "$SERIAL" pull /sdcard/ui.xml /tmp/starveil-ui.xml >/dev/null 2>&1
-  [ -f /tmp/starveil-ui.xml ] || return 1
-  MODE="$1" python3 - <<'PY'
+# The matcher lives in its own file: a heredoc inside a function inside a
+# command substitution is easy to get subtly wrong, and a stale dump silently
+# makes it match the wrong screen.
+MATCHER="$(mktemp /tmp/starveil-install-XXXX.py)"
+trap 'rm -f "$MATCHER" /tmp/starveil-ui.xml' EXIT
+cat >"$MATCHER" <<'PY'
 import os, re, sys
-try:
-    xml = open('/tmp/starveil-ui.xml', encoding='utf-8', errors='replace').read()
-except OSError:
-    raise SystemExit
-mode = os.environ['MODE']
-# The installer's own button id, or an EXACT label. Substring matching tapped
-# unrelated text ('安装' inside other copy) on the first run.
+
+MODE = os.environ['MODE']
+DUMP = os.environ['DUMP']
 CONFIRM_ID = 'com.android.packageinstaller:id/vbutton_title'
 CONFIRM_LABELS = ('继续安装', '安装', 'Install', 'Continue')
+
+try:
+    xml = open(DUMP, encoding='utf-8', errors='replace').read()
+except OSError:
+    sys.exit(1)
 
 def centre(node):
     b = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', node)
@@ -68,52 +59,116 @@ def centre(node):
     x1, y1, x2, y2 = map(int, b.groups())
     return (x1 + x2) // 2, (y1 + y2) // 2
 
+check = None
+confirm = None
 for node in re.finditer(r'<node[^>]*?>', xml):
     n = node.group(0)
-    if mode == 'check':
-        # The acknowledgement box: tick it before the button will work.
-        if 'checkable="true"' in n and 'checked="false"' in n:
-            c = centre(n)
-            if c:
-                print(*c)
-                raise SystemExit
-    else:
-        if 'checkable="true"' in n:
-            continue
-        text = re.search(r'text="([^"]*)"', n)
-        rid = re.search(r'resource-id="([^"]*)"', n)
-        by_id = bool(rid) and rid.group(1) == CONFIRM_ID
-        by_text = bool(text) and text.group(1) in CONFIRM_LABELS
-        if by_id or by_text:
-            c = centre(n)
-            if c:
-                print(*c)
-                raise SystemExit
+    # The acknowledgement box: tick it before the button will work.
+    if check is None and 'checkable="true"' in n and 'checked="false"' in n:
+        check = centre(n)
+        continue
+    if 'checkable="true"' in n:
+        continue
+    text = re.search(r'text="([^"]*)"', n)
+    rid = re.search(r'resource-id="([^"]*)"', n)
+    by_id = bool(rid) and rid.group(1) == CONFIRM_ID
+    by_text = bool(text) and text.group(1) in CONFIRM_LABELS
+    if confirm is None and (by_id or by_text):
+        confirm = centre(n)
+
+if MODE == 'check':
+    picked = check
+elif MODE == 'confirm':
+    picked = confirm
+else:
+    # One dump, both decisions: the checkbox first, the button after.
+    picked, label = (check, 'check') if check else (confirm, 'confirm')
+    if picked:
+        print(label, *picked)
+        sys.exit(0)
+    sys.exit(1)
+
+if picked:
+    print(*picked)
+    sys.exit(0)
+sys.exit(1)
 PY
+
+dump_ui() {
+  rm -f /tmp/starveil-ui.xml
+  adb -s "$SERIAL" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || return 1
+  adb -s "$SERIAL" pull /sdcard/ui.xml /tmp/starveil-ui.xml >/dev/null 2>&1 || return 1
+  [ -s /tmp/starveil-ui.xml ]
 }
 
-for _ in $(seq 1 60); do
-  kill -0 "$INSTALL_PID" 2>/dev/null || break
-  if is_installer_foreground; then
-    # Checkbox first: pressing the button before it is ticked just re-prompts.
-    for mode in check confirm; do
-      coord="$(find_target "$mode")"
-      if [ -n "$coord" ]; then
-        echo "  $mode -> $coord"
-        # shellcheck disable=SC2086
-        adb -s "$SERIAL" shell input tap $coord >/dev/null 2>&1
-        sleep 1
-        break
-      fi
-    done
-  fi
-  sleep 1
-done
+# True only while the installer owns the screen. Without this the loop keeps
+# dumping and tapping after the dialog is gone and presses whatever app is in
+# front — on a real run it launched the browser.
+is_installer_foreground() {
+  adb -s "$SERIAL" shell dumpsys activity activities 2>/dev/null \
+    | tr -d '\r' \
+    | grep -m1 'topResumedActivity' \
+    | grep -q 'packageinstaller'
+}
 
-wait "$INSTALL_PID"
-RESULT="$(tail -1 "$OUT")"
-rm -f "$OUT"
+find_target() {
+  dump_ui || return 1
+  MODE="$1" DUMP=/tmp/starveil-ui.xml python3 "$MATCHER"
+}
+
+adb -s "$SERIAL" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1
+adb -s "$SERIAL" push "$APK" /data/local/tmp/starveil.apk >/dev/null
+
+# A previous run can leave the installer resumed but invisible, which makes
+# every later install hang until it is cleared.
+adb -s "$SERIAL" shell am force-stop "$INSTALLER" >/dev/null 2>&1
+sleep 1
+
+if [ "${KEEP_DATA:-0}" != "1" ] && adb -s "$SERIAL" shell pm path "$PKG" 2>/dev/null | grep -q package:; then
+  echo "uninstalling $PKG (avoids the signature-duplicate dialog)"
+  adb -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1
+  sleep 2
+fi
+
+run_install() {
+  OUT="$(mktemp)"
+  adb -s "$SERIAL" shell pm install -r -d /data/local/tmp/starveil.apk >"$OUT" 2>&1 &
+  INSTALL_PID=$!
+
+  for _ in $(seq 1 60); do
+    kill -0 "$INSTALL_PID" 2>/dev/null || break
+    if is_installer_foreground; then
+      # One dump decides both: the checkbox first, the button after. Dumping
+      # per decision doubled the loop time and made the script look stuck.
+      line="$(MODE=auto find_target auto)"
+      if [ -n "$line" ]; then
+        read -r action x y <<<"$line"
+        echo "  $action -> $x $y"
+        adb -s "$SERIAL" shell input tap "$x" "$y" >/dev/null 2>&1
+        sleep 1
+      fi
+    fi
+    sleep 1
+  done
+
+  wait "$INSTALL_PID"
+  RESULT="$(tail -1 "$OUT")"
+  rm -f "$OUT"
+}
+
+run_install
 echo "$RESULT"
+
+# A build signed with a different debug key (a CI artifact, say) makes vivo
+# report "install package signature duplicated". Nothing but an uninstall gets
+# past it, so do it here rather than leaving it to the user.
+if printf '%s' "$RESULT" | grep -qE 'UPDATE_INCOMPATIBLE|signatures do not match|ALREADY_EXISTS'; then
+  echo "signature conflict -> uninstalling and retrying"
+  adb -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1
+  sleep 2
+  run_install
+  echo "$RESULT"
+fi
 
 if [ "$RESULT" = "Success" ]; then
   adb -s "$SERIAL" shell rm -f /data/local/tmp/starveil.apk >/dev/null 2>&1
