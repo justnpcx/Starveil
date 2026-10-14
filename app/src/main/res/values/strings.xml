@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+        app_name must stay here. net.zetetic:sqlcipher-android ships its own
+        strings.xml with app_name="Database" (a leftover from that library's
+        sample app), and it wins the resource merge whenever the app does not
+        define the name itself — which showed up as "Database" in the VPN
+        consent dialog on device.
+    -->
+    <string name="app_name">Starveil</string>
     <string name="latency_measured">Latency: %1$d ms</string>
     <string name="latency_no_node">Pick a node first.</string>
     <string name="latency_timeout">No reply from the node within the probe window.</string>
