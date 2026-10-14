@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
  * Logs — kernel + app logs, diagnosis.
@@ -23,8 +24,8 @@ fun LogsScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(StarveilSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
         Text(text = stringResource(R.string.logs_title), style = MaterialTheme.typography.titleLarge)
         Text(text = stringResource(R.string.logs_empty_title), style = MaterialTheme.typography.titleMedium)

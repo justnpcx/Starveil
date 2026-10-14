@@ -26,6 +26,7 @@ import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import java.text.DateFormat
 import java.util.Date
+import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
  * Settings — M2 carries the Kill Switch three-way choice and the minimal leak
@@ -40,8 +41,8 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(StarveilSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
         Text(
             text = stringResource(R.string.settings_title),
@@ -88,7 +89,7 @@ private fun KillSwitchOption(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         Column {
             Text(text = stringResource(mode.labelRes()), style = MaterialTheme.typography.bodyLarge)
             Text(

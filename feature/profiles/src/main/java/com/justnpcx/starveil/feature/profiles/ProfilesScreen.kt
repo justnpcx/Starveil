@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
  * Nodes — the real list plus the import entry point (paste a share link or a
@@ -74,7 +75,7 @@ fun ProfilesScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     items(state.profiles, key = { it.id }) { profile ->
                         NodeRow(
@@ -91,7 +92,7 @@ fun ProfilesScreen(
             onClick = { showImport = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(StarveilSpacing.lg),
         ) {
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.profiles_import_add))
         }
@@ -152,14 +153,14 @@ private fun MessageBanner(message: String, onDismiss: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp),
+                .padding(start = StarveilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -191,7 +192,7 @@ private fun NodeRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(StarveilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -227,8 +228,8 @@ private fun EmptyState() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(StarveilSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
         Text(text = stringResource(R.string.profiles_empty_title), style = MaterialTheme.typography.titleMedium)
         Text(

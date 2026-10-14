@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.TrafficSparkline
+import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
  * Dashboard — the cockpit. Tap the core to connect/disconnect.
@@ -42,16 +43,16 @@ fun DashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(StarveilSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         ConnectionCore(
             state = state.connectionState,
             onClick = { requestVpnConsent { viewModel.onCoreClick() } },
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
         Text(
             text = state.connectionState.name,
             style = MaterialTheme.typography.titleMedium,
@@ -65,14 +66,14 @@ fun DashboardScreen(
         state.errorMessage?.let {
             Text(text = it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         SpeedRow(stats = state.stats)
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         TrafficSparkline(
             downlinkSamples = state.history.map { it.downlink },
             uplinkSamples = state.history.map { it.uplink },
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         CurrentNodeCard(name = state.selectedNodeName)
     }
 }
@@ -108,7 +109,7 @@ private fun CurrentNodeCard(name: String) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
             Text(
                 text = stringResource(R.string.dashboard_current_node),
                 style = MaterialTheme.typography.titleMedium,
