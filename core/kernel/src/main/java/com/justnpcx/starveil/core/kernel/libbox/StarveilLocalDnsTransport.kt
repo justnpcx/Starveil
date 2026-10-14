@@ -73,16 +73,35 @@ class StarveilLocalDnsTransport(private val context: Context) : LocalDNSTranspor
         ctx.success(wanted.joinToString("\n") { it.hostAddress })
     }
 
+    /**
+     * Resolve the way the rest of the app does.
+     *
+     * [InetAddress.getAllByName] uses the process's default network and honours
+     * Private DNS (DoH), which is the path the subscription import takes — so
+     * it returns the same answers. Resolving through a specific [Network]
+     * instead uses that network's plain DNS servers and can return a poisoned
+     * address: on device `api.justnpc.com` came back as 69.63.200.132 (a Meta
+     * address) and every proxy dial timed out.
+     *
+     * The network-based path stays as a fallback in case the process resolver
+     * is the one that ends up looping into our own tunnel.
+     */
     private fun resolve(domain: String): List<InetAddress> {
+        try {
+            val addresses = InetAddress.getAllByName(domain).toList()
+            if (addresses.isNotEmpty()) return addresses
+        } catch (e: Exception) {
+            android.util.Log.i(
+                "StarveilKernel",
+                "local dns: $domain default resolver failed: ${e::class.java.simpleName}",
+            )
+        }
         val network = underlyingNetwork()
         if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            android.util.Log.i("StarveilKernel", "local dns: $domain falling back to network resolver")
             return network.getAllByName(domain).toList()
         }
-        android.util.Log.i(
-            "StarveilKernel",
-            "local dns: $domain on default network (underlying=${network != null}, sdk=${Build.VERSION.SDK_INT})",
-        )
-        return InetAddress.getAllByName(domain).toList()
+        return emptyList()
     }
 
     /** The network to resolve on: the app's own, as long as it is not a VPN. */

@@ -81,10 +81,11 @@ class StarveilCommandClientHandler(
         while (logs.hasNext()) {
             val entry = logs.next()
             val redacted = LogRedactor.redact(entry.message)
-            // Diagnostic: sing-box's own view of what is going wrong. WARN and
-            // above only, so the ring stays quiet; redacted like every other
-            // kernel line.
-            if (entry.level >= 3) {
+            // Diagnostic: sing-box's own view of what is going wrong. The level
+            // numbers are inverted from severity — the device shows INFO as 4
+            // and DEBUG as 5, so errors are the LOW numbers and ">= 3" would
+            // have filtered out every error line. Keep warn and worse.
+            if (entry.level <= LEVEL_WARN) {
                 android.util.Log.i("StarveilKernel", "sing-box[${entry.level}]: $redacted")
             }
             onLog(
@@ -119,11 +120,19 @@ class StarveilCommandClientHandler(
 
     override fun writeConnectionEvents(events: ConnectionEvents) {}
 
+    /**
+     * sing-box's levels count down from panic(0) to trace(6), so the ordering
+     * is the opposite of severity: 4 is INFO and 5 is DEBUG on device.
+     */
     private fun mapLevel(level: Int): LogLevel = when (level) {
-        0, 1 -> LogLevel.DEBUG
-        2 -> LogLevel.INFO
+        0, 1, 2 -> LogLevel.ERROR
         3 -> LogLevel.WARN
-        else -> LogLevel.ERROR
+        4 -> LogLevel.INFO
+        else -> LogLevel.DEBUG
+    }
+
+    private companion object {
+        const val LEVEL_WARN = 3
     }
 }
 
