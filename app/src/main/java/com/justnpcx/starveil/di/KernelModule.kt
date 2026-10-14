@@ -51,12 +51,6 @@ object KernelModule {
         // Without this the tun outlives the kernel: the VPN icon stays in the
         // status bar and all app traffic keeps being routed into a dead tunnel.
         stopVpn = { StarveilVpnService.stop(context) },
-        // KernelBridge.urlTest takes a "link", but this app is Profile-centric
-        // (a Profile carries no share link), so the argument is read as an
-        // outbound tag. Identity is therefore the honest mapping: callers pass
-        // the tag ConfigBuilder assigned ('proxy' for a single-node config,
-        // 'proxy-<n>' for a multi-node one). Documented in docs/04.
-        linkToTag = { tag -> tag },
     )
 
     /**

@@ -90,7 +90,7 @@ CommandServer.start()                                             // start the c
 CommandServer.startOrReloadService(configJson, OverrideOptions)   // start / hot-reload the box
 CommandServer.closeService()                                      // stop the box
 CommandServer.close()                                             // tear down
-Libbox.newStandaloneCommandClient() -> CommandClient              // stats / urlTest
+Libbox.newStandaloneCommandClient() -> CommandClient              // stats / logs
 Libbox.version() / goVersion()
 ```
 
@@ -104,16 +104,18 @@ Two findings that shape the implementation:
    (both large interfaces). sing-box-for-android has a reference
    implementation; ours should stay minimal and must never log credentials.
 
-`CommandClient.URLTest(outboundTag)` takes an **outbound tag, not a URL** — so
-`KernelBridge.urlTest(link)` has to resolve the link to an outbound tag first,
-rather than passing the URL through.
+`CommandClient.URLTest(outboundTag)` takes an **outbound tag, not a URL**, and
+the kernel has to be running for it to mean anything. We therefore do **not**
+use it: node latency is probed directly from the app (a TCP handshake to the
+node's `server:port`), so it works before connecting and for any node rather
+than only the connected one. See `NodeLatencyTester`.
 
 ### CommandClient / TunOptions (for the VpnService + stats work)
 
 ```
 Libbox.newStandaloneCommandClient() -> CommandClient
 CommandClient.connect() / connectWithFD(fd) / disconnect()
-CommandClient.urlTest(outboundTag)
+CommandClient.urlTest(outboundTag)          // unused: see the note above
 CommandClient.selectOutbound(groupTag, outboundTag)
 CommandClient.serviceReload() / serviceClose() / setClashMode(mode)
 ```
@@ -162,5 +164,6 @@ StarveilVpnService (foreground, VpnService)
         └─ server.startOrReloadService(config, ...)
 ```
 
-VPN consent denied maps to `KernelError.PermissionDenied`; `urlTest` resolves a
-link to an outbound tag and calls `CommandClient.urlTest(tag)`.
+VPN consent denied maps to `KernelError.PermissionDenied`. Node latency is not
+asked of the kernel at all — `NodeLatencyTester` probes the node's
+`server:port` directly.

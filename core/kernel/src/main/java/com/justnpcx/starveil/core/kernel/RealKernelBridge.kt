@@ -18,11 +18,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Real kernel bridge over the sing-box libbox core (CommandServer model — see
@@ -49,13 +46,6 @@ class RealKernelBridge(
      * anything. Symmetric with [prepareVpn].
      */
     private val stopVpn: () -> Unit = {},
-    /**
-     * Maps a share link to the outbound tag [ConfigBuilder] assigned it.
-     * `CommandClient.urlTest` takes a tag, not a URL, so without this mapping
-     * the bridge cannot honestly test a link — it reports Unreachable rather
-     * than guessing.
-     */
-    private val linkToTag: (String) -> String? = { null },
 ) : KernelBridge {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -212,46 +202,6 @@ class RealKernelBridge(
     override suspend fun queryStats(): TrafficStats =
         if (server == null) TrafficStats() else clientHandler.stats.value
 
-    override suspend fun urlTest(link: String): UrlTestResult {
-        val tag = linkToTag(link) ?: return UrlTestResult.Unreachable.also {
-            android.util.Log.w(LOG_TAG, "urlTest: no tag mapping for the argument")
-        }
-        val active = client ?: return UrlTestResult.Unreachable.also {
-            android.util.Log.w(LOG_TAG, "urlTest($tag): command client is null (kernel not running)")
-        }
-        val before = clientHandler.urlTestResults.value[tag]?.testTimeMs ?: 0L
-        return try {
-            active.urlTest(tag)
-            android.util.Log.i(LOG_TAG, "urlTest($tag): requested, waiting for a pushed sample")
-            // The result is pushed, not returned: wait for a newer sample.
-            val snapshot = withTimeoutOrNull(URL_TEST_TIMEOUT_MS) {
-                clientHandler.urlTestResults.map { it[tag] }.first { it != null && it.testTimeMs > before }
-            }
-            when {
-                snapshot == null -> {
-                    android.util.Log.w(LOG_TAG, "urlTest($tag): no sample within ${URL_TEST_TIMEOUT_MS}ms")
-                    UrlTestResult.Timeout
-                }
-
-                snapshot.succeeded -> {
-                    android.util.Log.i(LOG_TAG, "urlTest($tag): ${snapshot.delayMs} ms")
-                    UrlTestResult.Success(snapshot.delayMs.toLong())
-                }
-
-                else -> {
-                    android.util.Log.w(LOG_TAG, "urlTest($tag): kernel reported delay 0 (failed probe)")
-                    UrlTestResult.Timeout
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(LOG_TAG, "urlTest($tag): threw ${e::class.simpleName}")
-            UrlTestResult.Unreachable
-        }
-    }
-
-    override suspend fun urlTestBatch(links: List<String>): Map<String, UrlTestResult> =
-        links.associateWith { urlTest(it) }
-
     /** Maps a start failure to a typed error the UI can branch on. */
     private fun classifyStartFailure(e: Exception): KernelError {
         val message = e.message.orEmpty()
@@ -268,24 +218,21 @@ class RealKernelBridge(
     }
 
     private companion object {
-        const val URL_TEST_TIMEOUT_MS = 5_000L
         const val LOG_TAG = "StarveilKernel"
 
         /**
          * `CommandClient` only subscribes to the streams named in its options
          * (`command_client.go` switches over `options.commands`), so with none
-         * named the kernel pushes nothing at all: no traffic stats and no
-         * urlTest results. gobind does not export the Go constants, so these
-         * are the values from `experimental/libbox/command.go`.
+         * named the kernel pushes nothing at all — no traffic stats and no
+         * logs. gobind does not export the Go constants, so these are the
+         * values from `experimental/libbox/command.go`.
          */
         const val COMMAND_LOG = 0
         const val COMMAND_STATUS = 1
-        const val COMMAND_OUTBOUNDS = 5
 
         fun clientOptions(): CommandClientOptions = CommandClientOptions().apply {
             addCommand(COMMAND_LOG)
             addCommand(COMMAND_STATUS)
-            addCommand(COMMAND_OUTBOUNDS)
         }
     }
 }

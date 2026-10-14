@@ -1,8 +1,5 @@
 package com.justnpcx.starveil.core.kernel
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,10 +11,9 @@ import kotlin.random.Random
 /**
  * Fake kernel for UI development and screenshots.
  *
- * Simulates: start/stop latency, state transitions, redacted log lines,
- * plausible traffic counters that grow while "running", and urlTest
- * latency in the 20–220ms band with occasional failures. No real
- * networking happens here.
+ * Simulates: start/stop latency, state transitions, redacted log lines, and
+ * plausible traffic counters that grow while "running". No real networking
+ * happens here.
  */
 class FakeKernelBridge : KernelBridge {
 
@@ -82,21 +78,4 @@ class FakeKernelBridge : KernelBridge {
             downlinkRate = if (elapsedSec > 0) (down / elapsedSec).toLong() else 0L,
         )
     }
-
-    override suspend fun urlTest(link: String): UrlTestResult {
-        delay(150)
-        // ~8% simulated failure, split between timeout and unreachable.
-        return when (Random.nextInt(100)) {
-            in 0..3 -> UrlTestResult.Timeout
-            in 4..7 -> UrlTestResult.Unreachable
-            else -> UrlTestResult.Success(Random.nextLong(20, 220))
-        }
-    }
-
-    override suspend fun urlTestBatch(links: List<String>): Map<String, UrlTestResult> =
-        coroutineScope {
-            links.map { link ->
-                async { link to urlTest(link) }
-            }.awaitAll().toMap()
-        }
 }
