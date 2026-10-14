@@ -83,6 +83,15 @@ class StarveilCommandClientHandler(
         while (logs.hasNext()) {
             val entry = logs.next()
             val redacted = LogRedactor.redact(entry.message)
+            // Benign, and loud enough to bury real errors. sing-tun's gvisor
+            // stack is lazy: it only answers the app's SYN once sing-box has
+            // established the outbound, which takes a few hundred ms on a
+            // distant node. An app that gives up in that window — a browser
+            // preconnect, a speculative socket — leaves the inbound gone, so
+            // the deferred handshake fails and sing-box logs it as an error.
+            // Nothing is actionable: the connection was already abandoned, and
+            // a deliberate connection produces none of these.
+            if (BENIGN_HANDSHAKE_REPORT.containsMatchIn(redacted)) continue
             // Diagnostic: sing-box's own view of what is going wrong. The level
             // numbers are inverted from severity — the device shows INFO as 4
             // and DEBUG as 5, so errors are the LOW numbers and ">= 3" would
@@ -143,6 +152,13 @@ class StarveilCommandClientHandler(
 
     private companion object {
         const val LEVEL_WARN = 3
+
+        /**
+         * A connection the app abandoned before sing-box finished establishing
+         * it. Deliberately narrow — only this one sing-box message is dropped,
+         * so anything else still reaches the log. See [writeLogs].
+         */
+        val BENIGN_HANDSHAKE_REPORT = Regex("report handshake success: .*connection refused")
     }
 }
 
