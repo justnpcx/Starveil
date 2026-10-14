@@ -80,11 +80,18 @@ class StarveilCommandClientHandler(
     override fun writeLogs(logs: LogIterator) {
         while (logs.hasNext()) {
             val entry = logs.next()
+            val redacted = LogRedactor.redact(entry.message)
+            // Diagnostic: sing-box's own view of what is going wrong. WARN and
+            // above only, so the ring stays quiet; redacted like every other
+            // kernel line.
+            if (entry.level >= 3) {
+                android.util.Log.i("StarveilKernel", "sing-box[${entry.level}]: $redacted")
+            }
             onLog(
                 KernelLogLine(
                     level = mapLevel(entry.level),
                     tag = "sing-box",
-                    message = LogRedactor.redact(entry.message),
+                    message = redacted,
                 ),
             )
         }
