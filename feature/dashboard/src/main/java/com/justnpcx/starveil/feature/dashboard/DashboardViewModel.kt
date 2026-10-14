@@ -124,11 +124,14 @@ class DashboardViewModel @Inject constructor(
                 }
                 startStatsLoop()
             } else {
+                // The bridge reports a redacted reason (PRD §8.3: tell the
+                // truth on failure, never a bare "failed to start").
+                val reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
                 _uiState.update {
                     it.copy(
                         isBusy = false,
                         connectionState = ConnectionState.BLOCKED,
-                        errorMessage = "Kernel failed to start",
+                        errorMessage = reason ?: "Kernel failed to start",
                     )
                 }
             }
