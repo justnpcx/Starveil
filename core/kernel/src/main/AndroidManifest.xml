@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+        Needed by the local DNS transport, which picks a non-VPN network to
+        resolve on. Declared here as well as in :app because lint checks the
+        module that uses the API.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- The kernel's tun device is owned by a foreground VpnService. -->
     <application>
         <!--

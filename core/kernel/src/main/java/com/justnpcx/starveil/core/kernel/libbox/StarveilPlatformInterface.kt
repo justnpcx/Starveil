@@ -32,6 +32,7 @@ import io.nekohasekai.libbox.WIFIState
  * Nothing here logs credentials; the interface never receives any.
  */
 class StarveilPlatformInterface(
+    private val context: android.content.Context,
     /**
      * Named distinctly from the [openTun] override on purpose. A constructor
      * property called `openTun` made `override fun openTun(o) = openTun(o)`
@@ -51,7 +52,7 @@ class StarveilPlatformInterface(
      * resolv.conf, so without this the kernel dials `[::1]:53` and the
      * outbound's own server address never resolves.
      */
-    private val localDnsTransport = StarveilLocalDnsTransport()
+    private val localDnsTransport = StarveilLocalDnsTransport(context)
 
     override fun autoDetectInterfaceControl(fd: Int) {}
 
