@@ -68,13 +68,19 @@ class StarveilPlatformInterface(
     override fun createBridge(options: BridgeOptions): BridgeSession =
         throw UnsupportedOperationException("bridge is not used")
 
+    /**
+     * Must not return null. The Go side reads the result without a nil check
+     * (`service.go:226` does `result.UserId`), so returning null aborts the
+     * process with a nil-pointer panic the moment the router asks which app
+     * owns a connection. UserId 0 is the honest "unknown" answer.
+     */
     override fun findConnectionOwner(
         ipProtocol: Int,
         sourceAddress: String,
         sourcePort: Int,
         destinationAddress: String,
         destinationPort: Int,
-    ): ConnectionOwner? = null
+    ): ConnectionOwner = ConnectionOwner()
 
     override fun getInterfaces(): NetworkInterfaceIterator? = null
 
@@ -121,7 +127,7 @@ class StarveilPlatformInterface(
 
     override fun usePlatformShell(): Boolean = false
 
-    override fun useProcFS(): Boolean = false
+    override fun useProcFS(): Boolean = true
 }
 
 /**
