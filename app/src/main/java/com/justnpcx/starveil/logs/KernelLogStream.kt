@@ -32,6 +32,12 @@ class KernelLogStream(bridge: KernelBridge) : LogStream {
     init {
         scope.launch {
             bridge.logs.collect { line ->
+                // sing-box's DEBUG output is DNS chatter — dozens of lines a
+                // second — and a bounded ring cannot hold it plus the lines we
+                // actually diagnose with: it evicts the protect/interface/DNS
+                // diagnostics within seconds. Keep INFO and above from sing-box,
+                // and keep our own DEBUG (tag "kernel") in full.
+                if (line.level == LogLevel.DEBUG && line.tag != DIAGNOSTIC_TAG) return@collect
                 ring.update { (it + line.toAppLogLine()).takeLast(RING_SIZE) }
             }
         }
@@ -52,5 +58,8 @@ class KernelLogStream(bridge: KernelBridge) : LogStream {
     private companion object {
         /** Ring size: enough to diagnose a session, small enough to stay cheap. */
         const val RING_SIZE = 500
+
+        /** Tag on lines this app writes itself, as opposed to sing-box's own. */
+        const val DIAGNOSTIC_TAG = "kernel"
     }
 }
