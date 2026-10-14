@@ -76,14 +76,13 @@ class StarveilLocalDnsTransport(
     /**
      * Resolve the way the rest of the app does.
      *
-     * [InetAddress.getAllByName] uses the process's default network and honours
-     * Private DNS (DoH), which is the path the subscription import takes — so
-     * it returns the same answers. Resolving through a specific [Network]
-     * instead uses that network's plain DNS servers and can return a poisoned
-     * address: on device `api.justnpc.com` came back as 69.63.200.132 (a Meta
-     * address) and every proxy dial timed out.
+     * [InetAddress.getAllByName] uses the process's default network. Our
+     * process is excluded from the tunnel (StarveilVpnService disallows its own
+     * package), so this is the real upstream — and unlike the network-bound
+     * resolver it honours /etc/hosts and Private DNS, which is what the
+     * subscription import relies on.
      *
-     * The network-based path stays as a fallback in case the process resolver
+     * The network-bound path stays as a fallback in case the process resolver
      * is the one that ends up looping into our own tunnel.
      */
     private fun resolve(domain: String): List<InetAddress> {
@@ -96,7 +95,7 @@ class StarveilLocalDnsTransport(
         val network = underlyingNetwork()
         if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             onDiagnostic("local dns: $domain falling back to network resolver")
-            return network.getAllByName(domain).toList()
+            return runCatching { network.getAllByName(domain).toList() }.getOrDefault(emptyList())
         }
         return emptyList()
     }
@@ -105,11 +104,7 @@ class StarveilLocalDnsTransport(
     private fun underlyingNetwork(): android.net.Network? {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return null
 
-        // Prefer the app's active network. Our app is excluded from the tunnel
-        // (StarveilVpnService disallows its own package), so this is the real
-        // upstream — the same path the subscription import uses, and therefore
-        // the same answers. Picking "any non-VPN network" instead could land on
-        // a cellular network whose resolver answers differently.
+        // The app's active network, as long as the tunnel is not the default.
         val active = manager.activeNetwork
         if (active != null) {
             val capabilities = manager.getNetworkCapabilities(active)
@@ -121,7 +116,8 @@ class StarveilLocalDnsTransport(
             }
         }
 
-        // Self-exclusion is best-effort, so fall back to any non-VPN network.
+        // With the tunnel up the default network is the VPN, so fall back to
+        // any non-VPN network that has internet.
         return manager.allNetworks.firstOrNull { network ->
             val capabilities = manager.getNetworkCapabilities(network) ?: return@firstOrNull false
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&

@@ -41,27 +41,45 @@ class StarveilVpnService : VpnService() {
      */
     private var tunFd: Int = -1
 
-    /** The network this tunnel sits on; declared to the system while we run. */
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // Android 14+ requires an explicit type; without it the platform
+            // throws MissingForegroundServiceTypeException. The manifest
+            // declares specialUse (see this module's AndroidManifest.xml).
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+        current = this
+        trackUnderlyingNetwork()
+        return START_STICKY
+    }
+
+    /** The network the tunnel sits on; declared to the system while we run. */
     private var underlying: android.net.Network? = null
     private var underlyingCallback: android.net.ConnectivityManager.NetworkCallback? = null
 
     /**
-     * Starts tracking the default network, which must happen *before* the
-     * tunnel exists: once the VPN is up the default network is the VPN itself.
+     * Tracks the network the tunnel sits on, and declares it to the system.
      *
-     * Declaring it (setUnderlyingNetworks) is what gives traffic that is
-     * excluded from the tunnel — our own package, via
-     * addDisallowedApplication — a default network to use. Without it those
-     * sockets have no route and every connection times out, which is exactly
-     * what the device showed: the app reaches the node with the tunnel down and
-     * times out on every port with it up.
+     * Must run *before* the tunnel exists: once the VPN is up the default
+     * network is the VPN itself, and there would be no real network left to
+     * name. Declaring it is what gives traffic excluded from the tunnel (our
+     * own package, via addDisallowedApplication) a network to use.
      */
     private fun trackUnderlyingNetwork() {
         val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return
         manager.activeNetwork?.let { active ->
             if (!isVpn(manager, active)) {
                 underlying = active
-                KernelDiagnostics.log("underlying network: ${manager.getLinkProperties(active)?.interfaceName}")
+                KernelDiagnostics.log(
+                    "underlying network: ${manager.getLinkProperties(active)?.interfaceName}",
+                )
             }
         }
         if (underlyingCallback != null) return
@@ -85,26 +103,6 @@ class StarveilVpnService : VpnService() {
         network: android.net.Network,
     ): Boolean = manager.getNetworkCapabilities(network)
         ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // Android 14+ requires an explicit type; without it the platform
-            // throws MissingForegroundServiceTypeException. The manifest
-            // declares specialUse (see this module's AndroidManifest.xml).
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
-        current = this
-        trackUnderlyingNetwork()
-        KernelDiagnostics.log("VpnService onStartCommand; foreground up")
-        return START_STICKY
-    }
 
     override fun onRevoke() {
         // The system revoked our VPN: tear down so the kernel does not keep
@@ -147,7 +145,6 @@ class StarveilVpnService : VpnService() {
         val builder = Builder()
             .setSession(SESSION_NAME)
             .setMtu(options.mtu)
-            .setBlocking(true)
 
         // Counted rather than logged twice: these iterators are one-shot.
         var v4Routes = 0
@@ -199,15 +196,17 @@ class StarveilVpnService : VpnService() {
         options.includePackage?.forEach { runCatching { builder.addAllowedApplication(it) } }
         options.excludePackage?.forEach { runCatching { builder.addDisallowedApplication(it) } }
 
-        // Exclude ourselves. The proxy's own connection to the node, and the
-        // DNS lookups the local resolver makes, must not be routed back into
-        // our own tunnel — otherwise the outbound can never reach its server
-        // (it needs that server's address resolved first) and every connection
-        // stalls while the kernel's counter stays at zero.
+        // Exclude ourselves. The kernel runs in this process, so its dial to
+        // the node would otherwise be routed back into the tunnel it is trying
+        // to build.
         //
-        // Reported, not swallowed: if this fails the whole client is dead in a
-        // way that looks like a network fault, and it used to fail silently
-        // behind runCatching.
+        // This is done by UID, and NOT with VpnService.protect(): on the test
+        // device protect() returns true but does not keep the socket out — the
+        // kernel's SYNs still land in the tun (the tun's RX counter rises in
+        // step with the dial rate) and every dial times out, even to the LAN
+        // gateway. Worse, protect()'s socket mark overrode the UID exclusion
+        // and pulled the socket back into the tunnel. So: no protect(), and
+        // route the whole process around the tunnel instead.
         val excluded = runCatching { builder.addDisallowedApplication(packageName) }
         KernelDiagnostics.log(
             "exclude self ($packageName): ${excluded.exceptionOrNull() ?: "ok"}",
@@ -232,16 +231,6 @@ class StarveilVpnService : VpnService() {
         tunFd = descriptor.detachFd()
         return tunFd
     }
-
-    /**
-     * Keeps one of the kernel's sockets out of our own tunnel.
-     *
-     * VpnService.protect is protected, so the platform interface reaches it
-     * through here. Without this the proxy's connection to its own server is
-     * routed back into the tunnel, and the dial times out with nothing in the
-     * log to say why — the same trap as any VPN client that forgets it.
-     */
-    fun protectSocket(fd: Int): Boolean = protect(fd)
 
     /** Releases the tun. Called on teardown, and from [stop] before stopping. */
     internal fun closeTun() {
