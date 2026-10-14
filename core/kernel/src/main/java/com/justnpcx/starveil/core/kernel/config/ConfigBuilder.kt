@@ -88,7 +88,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         "dns_mode" to "hijack",
         "auto_route" to true,
         "strict_route" to false,
-        "stack" to "mixed",
+        // gvisor, not mixed: the mixed stack sends UDP through the system
+        // stack, which needs privileges Android does not grant an app.
+        "stack" to "gvisor",
     )
 
     private fun render(outbounds: List<Map<String, Any?>>, finalTag: String): String {
