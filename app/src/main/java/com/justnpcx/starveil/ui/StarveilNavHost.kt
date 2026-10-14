@@ -34,7 +34,10 @@ enum class Destination(
     val label: String,
     val icon: ImageVector,
 ) {
-    DASHBOARD("dashboard", "Dashboard", StarveilIcons.Dashboard),
+    // "Home", not "Dashboard": five tabs leave ~72dp per label, and the longer
+    // word wrapped to two lines on device (the trailing "d" dropped onto its
+    // own row). The screen itself is still the dashboard.
+    DASHBOARD("dashboard", "Home", StarveilIcons.Dashboard),
     PROFILES("profiles", "Nodes", Icons.AutoMirrored.Filled.List),
     RULES("rules", "Rules", StarveilIcons.Route),
     LOGS("logs", "Logs", StarveilIcons.Terminal),

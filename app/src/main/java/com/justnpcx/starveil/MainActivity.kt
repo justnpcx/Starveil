@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -68,7 +69,16 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
                     }
                 },
                 icon = { Icon(destination.icon, contentDescription = destination.label) },
-                label = { Text(destination.label) },
+                // One line, always: a tab label that wraps (as "Dashboard" did)
+                // drops its last letter onto a second row and grows the whole bar.
+                label = {
+                    Text(
+                        text = destination.label,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
             )
         }
     }
