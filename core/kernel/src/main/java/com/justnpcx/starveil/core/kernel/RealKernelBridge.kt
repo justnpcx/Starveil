@@ -36,7 +36,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 class RealKernelBridge(
     /** Filesystem roots libbox needs; without real paths setup throws. */
     private val paths: KernelPaths,
-    private val platform: StarveilPlatformInterface = StarveilPlatformInterface(),
+    /** Built by :app so it can carry the Context the DNS resolver needs. */
+    private val platform: StarveilPlatformInterface,
     private val prepareVpn: () -> Unit = {},
     /**
      * Maps a share link to the outbound tag [ConfigBuilder] assigned it.

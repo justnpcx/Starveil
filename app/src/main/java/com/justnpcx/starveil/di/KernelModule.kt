@@ -4,6 +4,7 @@ import android.content.Context
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelPaths
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
+import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import dagger.Module
 import dagger.Provides
@@ -40,6 +41,10 @@ object KernelModule {
             workingPath = context.filesDir.absolutePath,
             tempPath = context.cacheDir.absolutePath,
         ),
+        // The platform interface needs a Context for the DNS resolver: on
+        // Android sing-box resolves `local` through us, and we resolve on the
+        // underlying network so a query cannot loop back into our own tunnel.
+        platform = StarveilPlatformInterface(context),
         prepareVpn = { StarveilVpnService.start(context) },
         // KernelBridge.urlTest takes a "link", but this app is Profile-centric
         // (a Profile carries no share link), so the argument is read as an
