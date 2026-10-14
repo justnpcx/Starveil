@@ -32,5 +32,11 @@ object KernelModule {
         @ApplicationContext context: Context,
     ): KernelBridge = RealKernelBridge(
         prepareVpn = { StarveilVpnService.start(context) },
+        // KernelBridge.urlTest takes a "link", but this app is Profile-centric
+        // (a Profile carries no share link), so the argument is read as an
+        // outbound tag. Identity is therefore the honest mapping: callers pass
+        // the tag ConfigBuilder assigned ('proxy' for a single-node config,
+        // 'proxy-<n>' for a multi-node one). Documented in docs/04.
+        linkToTag = { tag -> tag },
     )
 }
