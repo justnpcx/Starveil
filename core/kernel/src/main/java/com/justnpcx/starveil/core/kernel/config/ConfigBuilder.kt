@@ -109,6 +109,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             "route" to linkedMapOf<String, Any?>(
                 "rules" to emptyList<Any?>(),
                 "final" to finalTag,
+                // Required for the platform to protect the proxy's own sockets.
+                // The dialer only installs ProtectFunc when this is on
+                // (common/dialer/default.go), and ProtectFunc is what calls
+                // PlatformInterface.AutoDetectInterfaceControl -> VpnService
+                // .protect(fd). Without it the outbound's dial to its own
+                // server is routed back into our tunnel and times out.
+                "auto_detect_interface" to true,
             ),
         )
         return Json.write(config)
