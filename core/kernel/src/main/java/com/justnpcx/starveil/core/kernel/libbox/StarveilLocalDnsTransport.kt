@@ -85,9 +85,27 @@ class StarveilLocalDnsTransport(private val context: Context) : LocalDNSTranspor
         return InetAddress.getAllByName(domain).toList()
     }
 
-    /** The first network with internet that is not a VPN, or null. */
+    /** The network to resolve on: the app's own, as long as it is not a VPN. */
     private fun underlyingNetwork(): android.net.Network? {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return null
+
+        // Prefer the app's active network. Our app is excluded from the tunnel
+        // (StarveilVpnService disallows its own package), so this is the real
+        // upstream — the same path the subscription import uses, and therefore
+        // the same answers. Picking "any non-VPN network" instead could land on
+        // a cellular network whose resolver answers differently.
+        val active = manager.activeNetwork
+        if (active != null) {
+            val capabilities = manager.getNetworkCapabilities(active)
+            if (capabilities != null &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+            ) {
+                return active
+            }
+        }
+
+        // Self-exclusion is best-effort, so fall back to any non-VPN network.
         return manager.allNetworks.firstOrNull { network ->
             val capabilities = manager.getNetworkCapabilities(network) ?: return@firstOrNull false
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
