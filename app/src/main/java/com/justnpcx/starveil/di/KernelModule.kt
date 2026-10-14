@@ -48,6 +48,9 @@ object KernelModule {
         // underlying network so a query cannot loop back into our own tunnel.
         platform = StarveilPlatformInterface(context),
         prepareVpn = { StarveilVpnService.start(context) },
+        // Without this the tun outlives the kernel: the VPN icon stays in the
+        // status bar and all app traffic keeps being routed into a dead tunnel.
+        stopVpn = { StarveilVpnService.stop(context) },
         // KernelBridge.urlTest takes a "link", but this app is Profile-centric
         // (a Profile carries no share link), so the argument is read as an
         // outbound tag. Identity is therefore the honest mapping: callers pass

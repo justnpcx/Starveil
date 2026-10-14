@@ -40,6 +40,16 @@ class RealKernelBridge(
     private val platform: StarveilPlatformInterface,
     private val prepareVpn: () -> Unit = {},
     /**
+     * Tears the VpnService down again.
+     *
+     * Closing the kernel is not enough: the tun's file descriptor belongs to
+     * the service (we detached it and handed a copy to the kernel), so the
+     * interface stays up, the system keeps showing the VPN icon, and every
+     * app's traffic keeps being pulled into a tunnel that no longer forwards
+     * anything. Symmetric with [prepareVpn].
+     */
+    private val stopVpn: () -> Unit = {},
+    /**
      * Maps a share link to the outbound tag [ConfigBuilder] assigned it.
      * `CommandClient.urlTest` takes a tag, not a URL, so without this mapping
      * the bridge cannot honestly test a link — it reports Unreachable rather
@@ -123,6 +133,9 @@ class RealKernelBridge(
         } catch (e: Exception) {
             client = null
             server = null
+            // A failed start can still have established a tun; leaving it up
+            // would route every app into a tunnel with nothing behind it.
+            runCatching { stopVpn() }
             // Redacted: a libbox error can echo back parts of the config.
             val detail = LogRedactor.redact(e.message.orEmpty()).ifBlank { e::class.java.simpleName }
             android.util.Log.e(LOG_TAG, "kernel start failed: $detail")
@@ -137,6 +150,11 @@ class RealKernelBridge(
     override suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
         val current = server
         if (current == null) {
+            // prepareVpn() starts the VpnService *before* the kernel, so the
+            // service can be up with a tun even though nothing is running.
+            // Returning early here without stopping it is what left the VPN
+            // icon in the status bar after a disconnect.
+            stopVpn()
             _state.value = KernelState.Stopped
             return@withContext Result.success(Unit) // idempotent
         }
@@ -149,6 +167,7 @@ class RealKernelBridge(
             current.closeService()
             current.close()
             server = null
+            stopVpn()
             _state.value = KernelState.Stopped
             log(LogLevel.INFO, "kernel stopped")
             Result.success(Unit)
