@@ -54,7 +54,15 @@ class StarveilPlatformInterface(
      */
     private val localDnsTransport = StarveilLocalDnsTransport(context)
 
-    override fun autoDetectInterfaceControl(fd: Int) {}
+    /**
+     * Called by the kernel for each socket it opens, so the socket can be
+     * excluded from our own tunnel. VpnService.protect is the documented way to
+     * do that; without it the proxy's own connection to its server goes into
+     * the tun and times out.
+     */
+    override fun autoDetectInterfaceControl(fd: Int) {
+        StarveilVpnService.current?.protectSocket(fd)
+    }
 
     override fun cancelNotification(identifier: String, typeID: Int) {}
 
@@ -122,7 +130,7 @@ class StarveilPlatformInterface(
 
     override fun underNetworkExtension(): Boolean = false
 
-    override fun usePlatformAutoDetectInterfaceControl(): Boolean = false
+    override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
 
     override fun usePlatformBridge(): Boolean = false
 

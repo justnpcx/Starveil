@@ -155,12 +155,40 @@ class StarveilVpnService : VpnService() {
                 "v4addr=$v4Addrs v4routes=$v4Routes v6addr=$v6Addrs v6routes=$v6Routes dns=$dnsServers",
         )
 
+        // Tell Android which network this tunnel sits on. Without it the VPN's
+        // own protected sockets have no well-defined route, and the proxy's
+        // connection to its server times out even though the socket is
+        // protected. Mirage sets this and works on the same LAN.
+        underlyingNetwork()?.let { builder.setUnderlyingNetworks(arrayOf(it)) }
+
         val descriptor = builder.establish()
             ?: throw IllegalStateException("VPN consent not granted")
 
         tun = descriptor
         return descriptor.detachFd()
     }
+
+    /** The app's active network, unless it is already a VPN. */
+    private fun underlyingNetwork(): android.net.Network? {
+        val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return null
+        val active = manager.activeNetwork ?: return null
+        val capabilities = manager.getNetworkCapabilities(active) ?: return null
+        return if (capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN)) {
+            null
+        } else {
+            active
+        }
+    }
+
+    /**
+     * Keeps one of the kernel's sockets out of our own tunnel.
+     *
+     * VpnService.protect is protected, so the platform interface reaches it
+     * through here. Without this the proxy's connection to its own server is
+     * routed back into the tunnel, and the dial times out with nothing in the
+     * log to say why — the same trap as any VPN client that forgets it.
+     */
+    fun protectSocket(fd: Int): Boolean = protect(fd)
 
     private fun closeTun() {
         runCatching { tun?.close() }
