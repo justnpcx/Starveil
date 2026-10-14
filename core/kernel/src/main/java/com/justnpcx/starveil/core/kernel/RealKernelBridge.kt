@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel
 
+import com.justnpcx.starveil.core.kernel.libbox.LogRedactor
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandClientHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandServerHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
@@ -7,6 +8,7 @@ import io.nekohasekai.libbox.CommandClient
 import io.nekohasekai.libbox.CommandClientOptions
 import io.nekohasekai.libbox.CommandServer
 import io.nekohasekai.libbox.Libbox
+import io.nekohasekai.libbox.OverrideOptions
 import io.nekohasekai.libbox.SetupOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +34,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * (PRD K10).
  */
 class RealKernelBridge(
+    /** Filesystem roots libbox needs; without real paths setup throws. */
+    private val paths: KernelPaths,
     private val platform: StarveilPlatformInterface = StarveilPlatformInterface(),
     private val prepareVpn: () -> Unit = {},
     /**
@@ -83,10 +87,23 @@ class RealKernelBridge(
         log(LogLevel.INFO, "kernel starting")
         return try {
             prepareVpn()
-            Libbox.setup(SetupOptions())
+            paths.ensureDirectories()
+            Libbox.setup(
+                SetupOptions().apply {
+                    basePath = paths.basePath
+                    workingPath = paths.workingPath
+                    tempPath = paths.tempPath
+                    fixAndroidStack = true
+                    // 0 = no cap on the in-memory kernel log ring.
+                    logMaxLines = 0
+                },
+            )
             val newServer = Libbox.newCommandServer(StarveilCommandServerHandler(), platform)
             newServer.start()
-            newServer.startOrReloadService(config, null)
+            // OverrideOptions must not be null: the Go side dereferences it
+            // (command_server.go:214 reads options.AutoRedirect) and a null
+            // pointer panics the whole process with SIGABRT.
+            newServer.startOrReloadService(config, OverrideOptions())
             server = newServer
 
             val newClient = Libbox.newCommandClient(clientHandler, CommandClientOptions())
@@ -99,9 +116,14 @@ class RealKernelBridge(
         } catch (e: Exception) {
             client = null
             server = null
+            // Redacted: a libbox error can echo back parts of the config.
+            val detail = LogRedactor.redact(e.message.orEmpty()).ifBlank { e::class.java.simpleName }
+            android.util.Log.e(LOG_TAG, "kernel start failed: $detail")
             _state.value = KernelState.Error(classifyStartFailure(e))
-            log(LogLevel.ERROR, "kernel failed to start")
-            Result.failure(e)
+            log(LogLevel.ERROR, "kernel failed to start: $detail")
+            // Carry the redacted reason out so the UI can tell the truth
+            // (PRD §8.3) instead of a generic "failed to start".
+            Result.failure(KernelStartException(detail, e))
         }
     }
 
@@ -222,3 +244,10 @@ class RealKernelBridge(
         const val LOG_TAG = "StarveilKernel"
     }
 }
+
+/**
+ * A kernel start failure whose [message] is already redacted, so it is safe to
+ * show to the user. [KernelBridge.start] returns this instead of the raw
+ * libbox exception, which may quote the config.
+ */
+class KernelStartException(message: String, cause: Throwable) : Exception(message, cause)
