@@ -46,6 +46,13 @@ class StarveilPlatformInterface(
     },
 ) : PlatformInterface {
 
+    /**
+     * Backs the config's `local` DNS server. On Android there is no
+     * resolv.conf, so without this the kernel dials `[::1]:53` and the
+     * outbound's own server address never resolves.
+     */
+    private val localDnsTransport = StarveilLocalDnsTransport()
+
     override fun autoDetectInterfaceControl(fd: Int) {}
 
     override fun cancelNotification(identifier: String, typeID: Int) {}
@@ -73,7 +80,7 @@ class StarveilPlatformInterface(
 
     override fun includeAllNetworks(): Boolean = false
 
-    override fun localDNSTransport(): LocalDNSTransport? = null
+    override fun localDNSTransport(): LocalDNSTransport = localDnsTransport
 
     override fun lookupSFTPServer(): String =
         throw UnsupportedOperationException("sftp is not used")
@@ -114,7 +121,7 @@ class StarveilPlatformInterface(
 
     override fun usePlatformShell(): Boolean = false
 
-    override fun useProcFS(): Boolean = true
+    override fun useProcFS(): Boolean = false
 }
 
 /**
