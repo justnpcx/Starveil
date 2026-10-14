@@ -29,18 +29,32 @@ import io.nekohasekai.libbox.StringIterator
 internal fun listPlatformNetworkInterfaces(context: Context): NetworkInterfaceIterator? {
     val manager = context.getSystemService(ConnectivityManager::class.java) ?: return null
     val interfaces = mutableListOf<NetworkInterface>()
+    var networks = 0
+    var withCapabilities = 0
+    var withLink = 0
+    var withName = 0
 
     for (network in manager.allNetworks) {
+        networks++
         val capabilities = manager.getNetworkCapabilities(network) ?: continue
+        withCapabilities++
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
         val link = manager.getLinkProperties(network) ?: continue
+        withLink++
         val name = link.interfaceName ?: continue
+        withName++
+        // NetworkInterface.getByName is restricted on Android 11+; a null here
+        // must not drop the interface, so fall back to index 0 and keep the
+        // name (which is what the dialer binds to).
         val javaInterface = runCatching { java.net.NetworkInterface.getByName(name) }.getOrNull()
-            ?: continue
+        android.util.Log.i(
+            "StarveilKernel",
+            "iface: name=$name java=${javaInterface != null} index=${javaInterface?.index}",
+        )
 
         interfaces += NetworkInterface().apply {
             this.name = name
-            index = javaInterface.index
+            index = javaInterface?.index ?: 0
             mtu = link.mtu
             type = when {
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> TYPE_WIFI
@@ -58,9 +72,13 @@ internal fun listPlatformNetworkInterfaces(context: Context): NetworkInterfaceIt
                     .distinct(),
             )
             metered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-            flags = javaInterface.rawFlags()
+            flags = javaInterface?.rawFlags() ?: IFF_UP
         }
     }
+    android.util.Log.i(
+        "StarveilKernel",
+        "getInterfaces: networks=$networks caps=$withCapabilities link=$withLink name=$withName -> ${interfaces.size} ifaces",
+    )
     return StarveilNetworkInterfaceIterator(interfaces)
 }
 
