@@ -53,6 +53,12 @@ class StarveilCommandClientHandler(
             uplinkRate = status.uplink,
             downlinkRate = status.downlink,
         )
+        // Diagnostic: whether the status stream is subscribed at all. Counters
+        // carry no credentials.
+        android.util.Log.i(
+            "StarveilKernel",
+            "writeStatus: up=${status.uplink}/${status.uplinkTotal} down=${status.downlink}/${status.downlinkTotal}",
+        )
     }
 
     override fun writeOutbounds(outbounds: OutboundGroupItemIterator) {
@@ -68,7 +74,7 @@ class StarveilCommandClientHandler(
         _urlTestResults.value = updated
         // Diagnostic: this callback firing (or not) is what decides whether
         // urlTest can ever return a result. Visible in adb logcat.
-        android.util.Log.d("StarveilKernel", "writeOutbounds: $seen items, ${updated.size} tested")
+        android.util.Log.i("StarveilKernel", "writeOutbounds: $seen items, ${updated.size} tested")
     }
 
     override fun writeLogs(logs: LogIterator) {
@@ -84,9 +90,15 @@ class StarveilCommandClientHandler(
         }
     }
 
-    override fun connected() = onConnected()
+    override fun connected() {
+        android.util.Log.i("StarveilKernel", "command client connected")
+        onConnected()
+    }
 
-    override fun disconnected(message: String) = onDisconnected(message)
+    override fun disconnected(message: String) {
+        android.util.Log.w("StarveilKernel", "command client disconnected: $message")
+        onDisconnected(message)
+    }
 
     override fun clearLogs() {}
 

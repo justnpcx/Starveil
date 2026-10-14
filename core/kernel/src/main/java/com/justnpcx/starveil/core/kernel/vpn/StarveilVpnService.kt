@@ -89,19 +89,64 @@ class StarveilVpnService : VpnService() {
             .setMtu(options.mtu)
             .setBlocking(true)
 
-        if (options.autoRoute) {
-            options.inet4RouteAddress?.forEach { builder.addRoute(it.address(), it.prefix()) }
-            options.inet6RouteAddress?.forEach { builder.addRoute(it.address(), it.prefix()) }
-        }
-        options.inet4Address?.forEach { builder.addAddress(it.address(), it.prefix()) }
-        options.inet6Address?.forEach { builder.addAddress(it.address(), it.prefix()) }
+        // Counted rather than logged twice: these iterators are one-shot.
+        var v4Routes = 0
+        var v6Routes = 0
+        var v4Addrs = 0
+        var v6Addrs = 0
+        var dnsServers = 0
 
-        options.dnsServerAddress?.forEach { builder.addDnsServer(it) }
+        if (options.autoRoute) {
+            // The *Range* accessors carry the ranges the kernel computed for
+            // auto_route. RouteAddress carries the config's explicit
+            // route_address and is empty unless the config names them — using
+            // it leaves the tun with no routes, so nothing is ever captured
+            // and the kernel's traffic counter stays at zero.
+            options.inet4RouteRange?.forEach {
+                v4Routes++
+                builder.addRoute(it.address(), it.prefix())
+            }
+            options.inet6RouteRange?.forEach {
+                v6Routes++
+                builder.addRoute(it.address(), it.prefix())
+            }
+        }
+        // Explicit routes, when the config names them.
+        options.inet4RouteAddress?.forEach {
+            v4Routes++
+            builder.addRoute(it.address(), it.prefix())
+        }
+        options.inet6RouteAddress?.forEach {
+            v6Routes++
+            builder.addRoute(it.address(), it.prefix())
+        }
+        options.inet4Address?.forEach {
+            v4Addrs++
+            builder.addAddress(it.address(), it.prefix())
+        }
+        options.inet6Address?.forEach {
+            v6Addrs++
+            builder.addAddress(it.address(), it.prefix())
+        }
+
+        options.dnsServerAddress?.forEach {
+            dnsServers++
+            builder.addDnsServer(it)
+        }
         // dnsMode is advisory (sing-box resolves it); we do not set a resolver
         // from it because Builder has no equivalent.
 
         options.includePackage?.forEach { runCatching { builder.addAllowedApplication(it) } }
         options.excludePackage?.forEach { runCatching { builder.addDisallowedApplication(it) } }
+
+        // Diagnostic: what the kernel actually asked for. Without routes (or
+        // without an address) the tun is established but captures nothing, and
+        // the kernel's own traffic counter then reports zero forever.
+        android.util.Log.i(
+            "StarveilKernel",
+            "openTun: mtu=${options.mtu} autoRoute=${options.autoRoute} " +
+                "v4addr=$v4Addrs v4routes=$v4Routes v6addr=$v6Addrs v6routes=$v6Routes dns=$dnsServers",
+        )
 
         val descriptor = builder.establish()
             ?: throw IllegalStateException("VPN consent not granted")
