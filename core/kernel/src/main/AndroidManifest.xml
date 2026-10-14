@@ -3,10 +3,24 @@
 
     <!-- The kernel's tun device is owned by a foreground VpnService. -->
     <application>
+        <!--
+            Android 14+ (targetSdk 35) refuses startForeground() from a service
+            with no declared type: MissingForegroundServiceTypeException.
+
+            The type is specialUse, not systemExempted. Both are used by VPN
+            apps, but systemExempted has prerequisites and throws
+            ForegroundServiceTypeNotAllowedException when they are not met,
+            while the platform documents specialUse as having no runtime
+            prerequisites. The subtype property is required for specialUse.
+        -->
         <service
             android:name="com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService"
             android:exported="false"
+            android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn" />
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
