@@ -103,6 +103,15 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `config declares the tun inbound the platform supplies a fd for`() {
+        // Without this inbound the kernel never calls PlatformInterface.openTun,
+        // so no traffic can flow even though the VPN is up.
+        val json = builder.build(vlessProfile())
+        assertTrue(json.contains("\"inbounds\":[{\"type\":\"tun\",\"tag\":\"tun-in\""))
+        assertTrue(json.contains("\"auto_route\":true"))
+    }
+
+    @Test
     fun `missing settings fail with a message that carries no credentials`() {
         val profile = Profile(name = "x", type = ProfileType.VLESS, server = "h.example", port = 443)
         try {

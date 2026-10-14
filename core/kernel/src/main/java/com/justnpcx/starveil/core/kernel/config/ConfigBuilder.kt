@@ -70,13 +70,30 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     private fun directOutbound() = linkedMapOf<String, Any?>("type" to "direct", "tag" to DIRECT_TAG)
     private fun blockOutbound() = linkedMapOf<String, Any?>("type" to "block", "tag" to BLOCK_TAG)
 
+    /**
+     * The tun inbound. Mandatory on Android: the kernel declares the interface
+     * here and then calls `PlatformInterface.openTun` for the file descriptor
+     * that [com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService]
+     * established. With no inbound the kernel has nothing to attach the tun to
+     * and never asks for a descriptor at all.
+     */
+    private fun tunInbound() = linkedMapOf<String, Any?>(
+        "type" to "tun",
+        "tag" to TUN_TAG,
+        "address" to listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126"),
+        "mtu" to 9000,
+        "auto_route" to true,
+        "strict_route" to false,
+        "stack" to "mixed",
+    )
+
     private fun render(outbounds: List<Map<String, Any?>>, finalTag: String): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
             "dns" to linkedMapOf(
                 "servers" to listOf(linkedMapOf<String, Any?>("address" to "local")),
             ),
-            "inbounds" to emptyList<Any?>(),
+            "inbounds" to listOf(tunInbound()),
             "outbounds" to outbounds,
             "route" to linkedMapOf<String, Any?>(
                 "rules" to emptyList<Any?>(),
@@ -91,6 +108,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val AUTO_TAG = "auto"
         const val DIRECT_TAG = "direct"
         const val BLOCK_TAG = "block"
+        const val TUN_TAG = "tun-in"
     }
 }
 
