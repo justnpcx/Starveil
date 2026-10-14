@@ -34,6 +34,16 @@ OUT="$(mktemp)"
 adb -s "$SERIAL" shell pm install -r -d /data/local/tmp/starveil.apk >"$OUT" 2>&1 &
 INSTALL_PID=$!
 
+# True only while the installer owns the screen. Without this the loop kept
+# dumping and tapping after the dialog was gone, pressing whatever app happened
+# to be in front — on a real run it launched the browser.
+is_installer_foreground() {
+  adb -s "$SERIAL" shell dumpsys activity activities 2>/dev/null \
+    | tr -d '\r' \
+    | grep -m1 'topResumedActivity' \
+    | grep -q 'packageinstaller'
+}
+
 # Prints the centre of the node matching $1 ("check" or "confirm"), if any.
 find_target() {
   adb -s "$SERIAL" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
@@ -82,19 +92,21 @@ for node in re.finditer(r'<node[^>]*?>', xml):
 PY
 }
 
-for _ in $(seq 1 30); do
+for _ in $(seq 1 60); do
   kill -0 "$INSTALL_PID" 2>/dev/null || break
-  # Checkbox first: pressing the button before it is ticked just re-prompts.
-  for mode in check confirm; do
-    coord="$(find_target "$mode")"
-    if [ -n "$coord" ]; then
-      echo "  $mode -> $coord"
-      # shellcheck disable=SC2086
-      adb -s "$SERIAL" shell input tap $coord >/dev/null 2>&1
-      sleep 1
-      break
-    fi
-  done
+  if is_installer_foreground; then
+    # Checkbox first: pressing the button before it is ticked just re-prompts.
+    for mode in check confirm; do
+      coord="$(find_target "$mode")"
+      if [ -n "$coord" ]; then
+        echo "  $mode -> $coord"
+        # shellcheck disable=SC2086
+        adb -s "$SERIAL" shell input tap $coord >/dev/null 2>&1
+        sleep 1
+        break
+      fi
+    done
+  fi
   sleep 1
 done
 
