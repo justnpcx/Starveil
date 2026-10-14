@@ -37,25 +37,6 @@ interface KernelBridge {
 
     /** Current traffic snapshot. Returns zeroed stats when not running. */
     suspend fun queryStats(): TrafficStats
-
-    /**
-     * Measure round-trip latency for one outbound [link].
-     * Never throws; failures are typed [UrlTestResult] variants.
-     *
-     * BREAKING CHANGE (Phase 2): previously returned `Long` with a `-1`
-     * sentinel for failure. The sentinel was a defect (easy to forget to
-     * check, conflated timeout with unreachable). No UI code called
-     * `urlTest`, so the only updated call sites are the two
-     * implementations in this module.
-     */
-    suspend fun urlTest(link: String): UrlTestResult
-
-    /**
-     * Measure latency for many outbounds concurrently. Returns one
-     * [UrlTestResult] per link, keyed by the input link. Implementations
-     * run the probes concurrently and respect caller cancellation.
-     */
-    suspend fun urlTestBatch(links: List<String>): Map<String, UrlTestResult>
 }
 
 /** Kernel lifecycle. `Error` carries a typed [KernelError]. */
@@ -127,18 +108,6 @@ data class KernelLogLine(
 )
 
 enum class LogLevel { DEBUG, INFO, WARN, ERROR }
-
-/** Typed result of one url test. No sentinel values. */
-sealed interface UrlTestResult {
-    /** Reachable; [latencyMs] is the measured round-trip time. */
-    data class Success(val latencyMs: Long) : UrlTestResult
-
-    /** No reply within the probe timeout. */
-    data object Timeout : UrlTestResult
-
-    /** Connection refused / DNS failure / other hard failure. */
-    data object Unreachable : UrlTestResult
-}
 
 /** Traffic snapshot. All values are cumulative bytes + instantaneous rate. */
 data class TrafficStats(
