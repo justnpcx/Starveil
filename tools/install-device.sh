@@ -46,7 +46,10 @@ try:
 except OSError:
     raise SystemExit
 mode = os.environ['MODE']
-confirm_labels = ('继续安装', '安装', '继续', 'Install', 'Continue')
+# The installer's own button id, or an EXACT label. Substring matching tapped
+# unrelated text ('安装' inside other copy) on the first run.
+CONFIRM_ID = 'com.android.packageinstaller:id/vbutton_title'
+CONFIRM_LABELS = ('继续安装', '安装', 'Install', 'Continue')
 
 def centre(node):
     b = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', node)
@@ -68,7 +71,10 @@ for node in re.finditer(r'<node[^>]*?>', xml):
         if 'checkable="true"' in n:
             continue
         text = re.search(r'text="([^"]*)"', n)
-        if text and any(l in text.group(1) for l in confirm_labels):
+        rid = re.search(r'resource-id="([^"]*)"', n)
+        by_id = bool(rid) and rid.group(1) == CONFIRM_ID
+        by_text = bool(text) and text.group(1) in CONFIRM_LABELS
+        if by_id or by_text:
             c = centre(n)
             if c:
                 print(*c)
