@@ -154,6 +154,7 @@ class RealKernelBridge(
             // service can be up with a tun even though nothing is running.
             // Returning early here without stopping it is what left the VPN
             // icon in the status bar after a disconnect.
+            log(LogLevel.DEBUG, "stop: no kernel running, stopping the VpnService anyway")
             stopVpn()
             _state.value = KernelState.Stopped
             return@withContext Result.success(Unit) // idempotent
@@ -167,6 +168,7 @@ class RealKernelBridge(
             current.closeService()
             current.close()
             server = null
+            log(LogLevel.DEBUG, "stop: kernel closed, stopping the VpnService")
             stopVpn()
             _state.value = KernelState.Stopped
             log(LogLevel.INFO, "kernel stopped")

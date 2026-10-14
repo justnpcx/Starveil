@@ -8,6 +8,7 @@ import android.content.pm.ServiceInfo
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import io.nekohasekai.libbox.RoutePrefixIterator
 import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.TunOptions
@@ -44,6 +45,7 @@ class StarveilVpnService : VpnService() {
             startForeground(NOTIFICATION_ID, notification)
         }
         current = this
+        KernelDiagnostics.log("VpnService onStartCommand; foreground up")
         return START_STICKY
     }
 
@@ -56,6 +58,7 @@ class StarveilVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        KernelDiagnostics.log("VpnService onDestroy; releasing tun")
         closeTun()
         current = null
         super.onDestroy()
@@ -172,7 +175,9 @@ class StarveilVpnService : VpnService() {
      */
     fun protectSocket(fd: Int): Boolean = protect(fd)
 
-    private fun closeTun() {
+    /** Releases the tun. Called on teardown, and from [stop] before stopping. */
+    internal fun closeTun() {
+        if (tun != null) KernelDiagnostics.log("VpnService closing tun")
         runCatching { tun?.close() }
         tun = null
     }
@@ -228,6 +233,14 @@ class StarveilVpnService : VpnService() {
         }
 
         fun stop(context: android.content.Context) {
+            KernelDiagnostics.log("VpnService stop requested")
+            // Close the tun BEFORE asking the system to stop us. The interface
+            // is what keeps the VPN framework bound to this service, and while
+            // it is bound stopService does not reach onDestroy — device log:
+            //   VpnService stop requested
+            //   stop: kernel closed, stopping the VpnService
+            //   (no onDestroy, and the VPN icon stayed)
+            current?.closeTun()
             context.stopService(Intent(context, StarveilVpnService::class.java))
         }
     }
