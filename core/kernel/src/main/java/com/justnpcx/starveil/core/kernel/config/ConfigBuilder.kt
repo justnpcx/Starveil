@@ -91,7 +91,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
             "dns" to linkedMapOf(
-                "servers" to listOf(linkedMapOf<String, Any?>("address" to "local")),
+                // New DNS server format. The legacy {"address": "local"} shape
+                // was deprecated in sing-box 1.12 and REMOVED in 1.14, where it
+                // fails config decode with an explicit migration message.
+                "servers" to listOf(
+                    linkedMapOf<String, Any?>("type" to "local", "tag" to LOCAL_DNS_TAG),
+                ),
             ),
             "inbounds" to listOf(tunInbound()),
             "outbounds" to outbounds,
@@ -109,6 +114,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val DIRECT_TAG = "direct"
         const val BLOCK_TAG = "block"
         const val TUN_TAG = "tun-in"
+        const val LOCAL_DNS_TAG = "local"
     }
 }
 

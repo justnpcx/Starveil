@@ -112,6 +112,15 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `dns uses the new server format, not the removed legacy one`() {
+        // sing-box 1.14 removed the legacy {"address": ...} DNS server shape:
+        // it fails config decode outright.
+        val json = builder.build(vlessProfile())
+        assertTrue(json.contains("\"servers\":[{\"type\":\"local\",\"tag\":\"local\"}]"))
+        assertFalse(json.contains("\"address\":\"local\""))
+    }
+
+    @Test
     fun `missing settings fail with a message that carries no credentials`() {
         val profile = Profile(name = "x", type = ProfileType.VLESS, server = "h.example", port = 443)
         try {
