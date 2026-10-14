@@ -105,7 +105,12 @@ class StarveilPlatformInterface(
         destinationPort: Int,
     ): ConnectionOwner = ConnectionOwner()
 
-    override fun getInterfaces(): NetworkInterfaceIterator? = null
+    /**
+     * Not optional on this fork: the dialer always asks for the platform's
+     * network interfaces (see StarveilNetworkInterfaces), and returning null
+     * fails every proxied connection with "no available network interface".
+     */
+    override fun getInterfaces(): NetworkInterfaceIterator? = listPlatformNetworkInterfaces(context)
 
     override fun includeAllNetworks(): Boolean = false
 
