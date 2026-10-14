@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
+import com.justnpcx.starveil.core.ui.components.TrafficSparkline
 
 /**
  * Dashboard — the cockpit. Tap the core to connect/disconnect.
@@ -65,6 +66,11 @@ fun DashboardScreen(
         }
         Spacer(modifier = Modifier.height(24.dp))
         SpeedRow(stats = state.stats)
+        Spacer(modifier = Modifier.height(16.dp))
+        TrafficSparkline(
+            downlinkSamples = state.history.map { it.downlink },
+            uplinkSamples = state.history.map { it.uplink },
+        )
         Spacer(modifier = Modifier.height(16.dp))
         NodeSelectorPlaceholder()
     }

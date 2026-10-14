@@ -25,16 +25,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/** One rate sample, kept for the traffic sparkline. */
+data class TrafficSample(val downlink: Long, val uplink: Long)
+
 /** Single source of truth for the Dashboard screen. */
 data class DashboardUiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val stats: TrafficStats = TrafficStats(),
+    /** Bounded ring of recent rates; never grows past [HISTORY_SIZE]. */
+    val history: List<TrafficSample> = emptyList(),
     val selectedNodeName: String = NO_NODE,
     val isBusy: Boolean = false,
     val errorMessage: String? = null,
 ) {
     companion object {
         const val NO_NODE = "No node selected"
+        const val HISTORY_SIZE = 48
     }
 }
 
@@ -139,6 +145,7 @@ class DashboardViewModel @Inject constructor(
                     isBusy = false,
                     connectionState = ConnectionState.DISCONNECTED,
                     stats = TrafficStats(),
+                    history = emptyList(),
                 )
             }
         }
@@ -150,7 +157,13 @@ class DashboardViewModel @Inject constructor(
             while (isActive) {
                 delay(1000)
                 val stats = kernel.queryStats()
-                _uiState.update { it.copy(stats = stats) }
+                _uiState.update { state ->
+                    state.copy(
+                        stats = stats,
+                        history = (state.history + TrafficSample(stats.downlinkRate, stats.uplinkRate))
+                            .takeLast(DashboardUiState.HISTORY_SIZE),
+                    )
+                }
             }
         }
     }
