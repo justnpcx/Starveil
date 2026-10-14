@@ -82,6 +82,10 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         "tag" to TUN_TAG,
         "address" to listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126"),
         "mtu" to 9000,
+        // hijack: sing-box answers DNS itself instead of letting queries reach
+        // the tun and be dropped. Without it an Android app resolves nothing
+        // and reports "cannot use the network".
+        "dns_mode" to "hijack",
         "auto_route" to true,
         "strict_route" to false,
         "stack" to "mixed",
