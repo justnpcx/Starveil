@@ -44,13 +44,27 @@ import os, re, sys
 
 MODE = os.environ['MODE']
 DUMP = os.environ['DUMP']
-CONFIRM_ID = 'com.android.packageinstaller:id/vbutton_title'
-CONFIRM_LABELS = ('继续安装', '安装', 'Install', 'Continue')
+
+# Gate on the node's own package, not on which activity happens to be resumed.
+# The plain install dialog comes from com.android.packageinstaller, but the
+# signature-conflict one comes from a different vivo component, so a
+# foreground-package check misses it and the script taps nothing.
+INSTALLER_PKG = re.compile(r'installer|safecenter|iqoo\.secure', re.IGNORECASE)
+# Match the button by TEXT only. resource-id .../vbutton_title is shared with
+# the '权限' (permissions) button at the top of the same dialog, so matching it
+# tapped permissions and dismissed the install.
+CONFIRM_LABELS = ('继续安装', '安装', '继续', 'Install', 'Continue')
+# Anything that means "get past the conflict" in the vivo dialog.
+CONFLICT_LABELS = ('卸载并重新安装', '重新安装', '卸载重装', 'OK')
 
 try:
     xml = open(DUMP, encoding='utf-8', errors='replace').read()
 except OSError:
     sys.exit(1)
+
+def attr(node, name):
+    m = re.search(name + r'="([^"]*)"', node)
+    return m.group(1) if m else None
 
 def centre(node):
     b = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', node)
@@ -63,17 +77,17 @@ check = None
 confirm = None
 for node in re.finditer(r'<node[^>]*?>', xml):
     n = node.group(0)
+    pkg = attr(n, 'package') or ''
+    if not INSTALLER_PKG.search(pkg):
+        continue
     # The acknowledgement box: tick it before the button will work.
     if check is None and 'checkable="true"' in n and 'checked="false"' in n:
         check = centre(n)
         continue
     if 'checkable="true"' in n:
         continue
-    text = re.search(r'text="([^"]*)"', n)
-    rid = re.search(r'resource-id="([^"]*)"', n)
-    by_id = bool(rid) and rid.group(1) == CONFIRM_ID
-    by_text = bool(text) and text.group(1) in CONFIRM_LABELS
-    if confirm is None and (by_id or by_text):
+    text = attr(n, 'text') or ''
+    if confirm is None and text in CONFIRM_LABELS + CONFLICT_LABELS:
         confirm = centre(n)
 
 if MODE == 'check':
@@ -101,14 +115,12 @@ dump_ui() {
   [ -s /tmp/starveil-ui.xml ]
 }
 
-# True only while the installer owns the screen. Without this the loop keeps
-# dumping and tapping after the dialog is gone and presses whatever app is in
-# front — on a real run it launched the browser.
+# True only while the installer owns the screen.
 is_installer_foreground() {
   adb -s "$SERIAL" shell dumpsys activity activities 2>/dev/null \
     | tr -d '\r' \
     | grep -m1 'topResumedActivity' \
-    | grep -q 'packageinstaller'
+    | grep -qE 'installer|safecenter|iqoo\.secure'
 }
 
 find_target() {
@@ -137,16 +149,14 @@ run_install() {
 
   for _ in $(seq 1 60); do
     kill -0 "$INSTALL_PID" 2>/dev/null || break
-    if is_installer_foreground; then
-      # One dump decides both: the checkbox first, the button after. Dumping
-      # per decision doubled the loop time and made the script look stuck.
-      line="$(MODE=auto find_target auto)"
-      if [ -n "$line" ]; then
-        read -r action x y <<<"$line"
-        echo "  $action -> $x $y"
-        adb -s "$SERIAL" shell input tap "$x" "$y" >/dev/null 2>&1
-        sleep 1
-      fi
+    # The matcher only ever returns nodes owned by the installer, so it is
+    # safe to dump every iteration regardless of what is in front.
+    line="$(MODE=auto find_target auto)"
+    if [ -n "$line" ]; then
+      read -r action x y <<<"$line"
+      echo "  $action -> $x $y"
+      adb -s "$SERIAL" shell input tap "$x" "$y" >/dev/null 2>&1
+      sleep 1
     fi
     sleep 1
   done
