@@ -139,6 +139,13 @@ class StarveilVpnService : VpnService() {
         options.includePackage?.forEach { runCatching { builder.addAllowedApplication(it) } }
         options.excludePackage?.forEach { runCatching { builder.addDisallowedApplication(it) } }
 
+        // Exclude ourselves. The proxy's own connection to the node, and the
+        // DNS lookups the local resolver makes, must not be routed back into
+        // our own tunnel — otherwise the outbound can never reach its server
+        // (it needs that server's address resolved first) and every connection
+        // stalls while the kernel's counter stays at zero.
+        runCatching { builder.addDisallowedApplication(packageName) }
+
         // Diagnostic: what the kernel actually asked for. Without routes (or
         // without an address) the tun is established but captures nothing, and
         // the kernel's own traffic counter then reports zero forever.
