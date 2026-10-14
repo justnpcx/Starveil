@@ -1,5 +1,7 @@
 package com.justnpcx.starveil.core.kernel.libbox
 
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import io.nekohasekai.libbox.BridgeOptions
 import io.nekohasekai.libbox.BridgeSession
@@ -57,6 +59,10 @@ class StarveilPlatformInterface(
     /** Counts protect calls so the first few are logged and then it goes quiet. */
     private var protectLogs = 0
 
+    /** Keeps the network callbacks alive, and lets close() unregister them. */
+    private val interfaceCallbacks =
+        java.util.concurrent.ConcurrentHashMap<InterfaceUpdateListener, ConnectivityManager.NetworkCallback>()
+
     /**
      * Called by the kernel for each socket it opens, so the socket can be
      * excluded from our own tunnel. VpnService.protect is the documented way to
@@ -83,8 +89,6 @@ class StarveilPlatformInterface(
     override fun checkPlatformShell() {}
 
     override fun clearDNSCache() {}
-
-    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {}
 
     override fun closeNeighborMonitor(listener: NeighborUpdateListener) {}
 
@@ -141,7 +145,58 @@ class StarveilPlatformInterface(
 
     override fun sendNotification(notification: Notification) {}
 
-    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {}
+    /**
+     * Reports the default interface to the kernel.
+     *
+     * Not optional on this fork: the dialer picks an interface from what this
+     * monitor has told it (`selectInterfaces`), and with no updates every
+     * proxied connection fails with "no available network interface" before it
+     * dials — which is exactly what the Logs screen showed on device.
+     */
+    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) =
+                reportDefaultInterface(manager, network, listener)
+
+            override fun onCapabilitiesChanged(
+                network: android.net.Network,
+                capabilities: NetworkCapabilities,
+            ) = reportDefaultInterface(manager, network, listener)
+
+            override fun onLost(network: android.net.Network) {
+                manager.activeNetwork?.let { reportDefaultInterface(manager, it, listener) }
+            }
+        }
+        interfaceCallbacks[listener] = callback
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+    }
+
+    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return
+        interfaceCallbacks.remove(listener)?.let { callback ->
+            runCatching { manager.unregisterNetworkCallback(callback) }
+        }
+    }
+
+    private fun reportDefaultInterface(
+        manager: ConnectivityManager,
+        network: android.net.Network,
+        listener: InterfaceUpdateListener,
+    ) {
+        val capabilities = manager.getNetworkCapabilities(network) ?: return
+        val link = manager.getLinkProperties(network) ?: return
+        val name = link.interfaceName ?: return
+        val index = runCatching { java.net.NetworkInterface.getByName(name)?.index }.getOrNull() ?: 0
+        listener.updateDefaultInterface(
+            name,
+            index,
+            /* expensive = */ !capabilities.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_NOT_METERED,
+            ),
+            /* constrained = */ false,
+        )
+    }
 
     override fun startNeighborMonitor(listener: NeighborUpdateListener) {}
 
