@@ -30,6 +30,17 @@ class StarveilVpnService : VpnService() {
 
     private var tun: ParcelFileDescriptor? = null
 
+    /**
+     * The tun's raw descriptor, which is what actually has to be closed.
+     *
+     * establish() hands back a ParcelFileDescriptor, but ownership of the fd
+     * passes to the kernel, so we detach it and return the number. After
+     * detachFd() the PFD is empty — closing *it* closes nothing, which is why
+     * the interface (and the VPN icon) survived a disconnect. Keep the number
+     * and close that.
+     */
+    private var tunFd: Int = -1
+
     /** The network this tunnel sits on; declared to the system while we run. */
     private var underlying: android.net.Network? = null
     private var underlyingCallback: android.net.ConnectivityManager.NetworkCallback? = null
@@ -218,7 +229,8 @@ class StarveilVpnService : VpnService() {
 
         tun = descriptor
         underlying?.let { setUnderlyingNetworks(arrayOf(it)) }
-        return descriptor.detachFd()
+        tunFd = descriptor.detachFd()
+        return tunFd
     }
 
     /**
@@ -233,7 +245,15 @@ class StarveilVpnService : VpnService() {
 
     /** Releases the tun. Called on teardown, and from [stop] before stopping. */
     internal fun closeTun() {
-        if (tun != null) KernelDiagnostics.log("VpnService closing tun")
+        if (tunFd >= 0) {
+            KernelDiagnostics.log("VpnService closing tun fd $tunFd")
+            // adoptFd takes ownership of the raw descriptor, so closing the
+            // PFD closes the fd. Os.close takes a FileDescriptor, not an int.
+            runCatching { ParcelFileDescriptor.adoptFd(tunFd).close() }
+            tunFd = -1
+        }
+        // The PFD is empty after detachFd(); kept only so a future change that
+        // stops detaching does not silently leak.
         runCatching { tun?.close() }
         tun = null
     }
