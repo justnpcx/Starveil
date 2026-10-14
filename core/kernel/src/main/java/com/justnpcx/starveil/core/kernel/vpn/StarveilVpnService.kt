@@ -66,9 +66,22 @@ class StarveilVpnService : VpnService() {
      *
      * Ownership passes to the kernel, so the fd is detached from the PFD here.
      *
-     * @throws IllegalStateException when VPN consent has not been granted.
+     * Every failure is re-thrown with its class, because this is the one place
+     * a platform/ROM failure reaches the user as a kernel start error, and a
+     * bare message cannot be attributed to us or to the framework.
      */
     fun openTun(options: TunOptions): Int {
+        return try {
+            establishTun(options)
+        } catch (t: Throwable) {
+            throw IllegalStateException(
+                "openTun failed [${t::class.java.name}] mtu=${options.mtu}: ${t.message}",
+                t,
+            )
+        }
+    }
+
+    private fun establishTun(options: TunOptions): Int {
         closeTun()
 
         val builder = Builder()

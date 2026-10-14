@@ -32,7 +32,14 @@ import io.nekohasekai.libbox.WIFIState
  * Nothing here logs credentials; the interface never receives any.
  */
 class StarveilPlatformInterface(
-    private val openTun: (TunOptions) -> Int = { options ->
+    /**
+     * Named distinctly from the [openTun] override on purpose. A constructor
+     * property called `openTun` made `override fun openTun(o) = openTun(o)`
+     * resolve to the member function instead of the property, i.e. infinite
+     * recursion — which surfaced on device as a bare
+     * `StackOverflowError: stack size 1036KB` ("configure tun interface").
+     */
+    private val openTunProvider: (TunOptions) -> Int = { options ->
         // The tun is owned by the foreground VpnService; ask it for the fd.
         StarveilVpnService.current?.openTun(options)
             ?: throw IllegalStateException("VPN service is not running (no consent or not started)")
@@ -82,7 +89,7 @@ class StarveilPlatformInterface(
         cols: Int,
     ): ShellSession = throw UnsupportedOperationException("shell is not used")
 
-    override fun openTun(options: TunOptions): Int = openTun(options)
+    override fun openTun(options: TunOptions): Int = openTunProvider(options)
 
     override fun readSystemSSHHostKey(): String =
         throw UnsupportedOperationException("ssh is not used")
