@@ -30,6 +30,51 @@ class StarveilVpnService : VpnService() {
 
     private var tun: ParcelFileDescriptor? = null
 
+    /** The network this tunnel sits on; declared to the system while we run. */
+    private var underlying: android.net.Network? = null
+    private var underlyingCallback: android.net.ConnectivityManager.NetworkCallback? = null
+
+    /**
+     * Starts tracking the default network, which must happen *before* the
+     * tunnel exists: once the VPN is up the default network is the VPN itself.
+     *
+     * Declaring it (setUnderlyingNetworks) is what gives traffic that is
+     * excluded from the tunnel — our own package, via
+     * addDisallowedApplication — a default network to use. Without it those
+     * sockets have no route and every connection times out, which is exactly
+     * what the device showed: the app reaches the node with the tunnel down and
+     * times out on every port with it up.
+     */
+    private fun trackUnderlyingNetwork() {
+        val manager = getSystemService(android.net.ConnectivityManager::class.java) ?: return
+        manager.activeNetwork?.let { active ->
+            if (!isVpn(manager, active)) {
+                underlying = active
+                KernelDiagnostics.log("underlying network: ${manager.getLinkProperties(active)?.interfaceName}")
+            }
+        }
+        if (underlyingCallback != null) return
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                if (isVpn(manager, network)) return
+                underlying = network
+                setUnderlyingNetworks(arrayOf(network))
+            }
+
+            override fun onLost(network: android.net.Network) {
+                if (underlying == network) underlying = null
+            }
+        }
+        underlyingCallback = callback
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+    }
+
+    private fun isVpn(
+        manager: android.net.ConnectivityManager,
+        network: android.net.Network,
+    ): Boolean = manager.getNetworkCapabilities(network)
+        ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -45,6 +90,7 @@ class StarveilVpnService : VpnService() {
             startForeground(NOTIFICATION_ID, notification)
         }
         current = this
+        trackUnderlyingNetwork()
         KernelDiagnostics.log("VpnService onStartCommand; foreground up")
         return START_STICKY
     }
@@ -147,7 +193,14 @@ class StarveilVpnService : VpnService() {
         // our own tunnel — otherwise the outbound can never reach its server
         // (it needs that server's address resolved first) and every connection
         // stalls while the kernel's counter stays at zero.
-        runCatching { builder.addDisallowedApplication(packageName) }
+        //
+        // Reported, not swallowed: if this fails the whole client is dead in a
+        // way that looks like a network fault, and it used to fail silently
+        // behind runCatching.
+        val excluded = runCatching { builder.addDisallowedApplication(packageName) }
+        KernelDiagnostics.log(
+            "exclude self ($packageName): ${excluded.exceptionOrNull() ?: "ok"}",
+        )
 
         // Diagnostic: what the kernel actually asked for. Without routes (or
         // without an address) the tun is established but captures nothing, and
@@ -158,10 +211,13 @@ class StarveilVpnService : VpnService() {
                 "v4addr=$v4Addrs v4routes=$v4Routes v6addr=$v6Addrs v6routes=$v6Routes dns=$dnsServers",
         )
 
+        underlying?.let { builder.setUnderlyingNetworks(arrayOf(it)) }
+
         val descriptor = builder.establish()
             ?: throw IllegalStateException("VPN consent not granted")
 
         tun = descriptor
+        underlying?.let { setUnderlyingNetworks(arrayOf(it)) }
         return descriptor.detachFd()
     }
 
