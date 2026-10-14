@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Starveil</string>
+    <string name="latency_measured">Latency: %1$d ms</string>
+    <string name="latency_no_node">Pick a node first.</string>
+    <string name="latency_timeout">No reply from the node within the probe window.</string>
+    <string name="latency_unreachable">Could not measure — connect first (latency needs the kernel running).</string>
 </resources>

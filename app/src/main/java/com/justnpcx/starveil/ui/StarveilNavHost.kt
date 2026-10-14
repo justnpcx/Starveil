@@ -60,7 +60,9 @@ fun StarveilNavHost(
         ).nodeLatencyTester()
     }
     val scope = rememberCoroutineScope()
-    val onTestLatency: () -> Unit = { scope.launch { latencyTester.testSelectedNode() } }
+    val onTestLatency: ((String) -> Unit) -> Unit = { onResult ->
+        scope.launch { onResult(latencyTester.testSelectedNode()) }
+    }
 
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),

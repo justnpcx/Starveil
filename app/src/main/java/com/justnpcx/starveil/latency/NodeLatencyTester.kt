@@ -1,11 +1,14 @@
 package com.justnpcx.starveil.latency
 
+import android.content.Context
+import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.UrlTestResult
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,33 +18,33 @@ import kotlinx.coroutines.flow.first
  * Measures the latency of the currently selected node and stores it.
  *
  * Lives in :app because it needs the kernel, which :feature:* must not touch.
- * The Nodes screen only receives a `() -> Unit` callback.
+ * The Nodes screen only receives a callback.
  *
- * It tests the outbound tag `proxy` — the tag ConfigBuilder assigns in the
- * single-node config the Dashboard starts. If the kernel is not running the
- * bridge returns Unreachable, so this reports "not measured" rather than a
- * fabricated number.
+ * Always returns a user-facing message, so a failed measurement is never
+ * silent — "nothing happened" was the previous behaviour and read as a broken
+ * button.
  */
 @Singleton
 class NodeLatencyTester @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val kernel: KernelBridge,
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
 ) {
 
-    /** @return the measured ms, or null when nothing could be measured. */
-    suspend fun testSelectedNode(): Long? {
+    suspend fun testSelectedNode(): String {
         val id = preferences.selectedProfileId.first()
-        if (id == 0L) return null
-        val profile = profiles.getById(id) ?: return null
+        if (id == 0L) return context.getString(R.string.latency_no_node)
+        val profile = profiles.getById(id) ?: return context.getString(R.string.latency_no_node)
 
         return when (val result = kernel.urlTest(SINGLE_NODE_TAG)) {
             is UrlTestResult.Success -> {
                 profiles.upsert(profile.copy(latencyMs = result.latencyMs))
-                result.latencyMs
+                context.getString(R.string.latency_measured, result.latencyMs)
             }
 
-            UrlTestResult.Timeout, UrlTestResult.Unreachable -> null
+            UrlTestResult.Timeout -> context.getString(R.string.latency_timeout)
+            UrlTestResult.Unreachable -> context.getString(R.string.latency_unreachable)
         }
     }
 

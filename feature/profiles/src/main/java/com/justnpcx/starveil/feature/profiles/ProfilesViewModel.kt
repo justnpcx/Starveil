@@ -78,4 +78,9 @@ class ProfilesViewModel @Inject constructor(
     fun dismissMessage() {
         message.value = null
     }
+
+    /** Surfaces a message produced outside this feature (e.g. the latency tester). */
+    fun postMessage(text: String) {
+        message.value = text
+    }
 }
