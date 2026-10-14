@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.libbox
 
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import io.nekohasekai.libbox.BridgeOptions
 import io.nekohasekai.libbox.BridgeSession
@@ -71,11 +72,14 @@ class StarveilPlatformInterface(
      * by [RealKernelBridge].
      */
     var onDiagnostic: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            // The VpnService has no way to receive a callback, so it reads the
+            // same sink through KernelDiagnostics.
+            KernelDiagnostics.sink = value
+        }
 
-    internal fun diagnostic(message: String) {
-        android.util.Log.i("StarveilKernel", message)
-        onDiagnostic?.invoke(message)
-    }
+    internal fun diagnostic(message: String) = KernelDiagnostics.log(message)
 
     /**
      * Called by the kernel for each socket it opens, so the socket can be
