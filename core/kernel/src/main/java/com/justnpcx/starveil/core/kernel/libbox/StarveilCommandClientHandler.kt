@@ -73,8 +73,10 @@ class StarveilCommandClientHandler(
         }
         _urlTestResults.value = updated
         // Diagnostic: this callback firing (or not) is what decides whether
-        // urlTest can ever return a result. Visible in adb logcat.
-        android.util.Log.i("StarveilKernel", "writeOutbounds: $seen items, ${updated.size} tested")
+        // urlTest can ever return a result.
+        val summary = "writeOutbounds: $seen items, ${updated.size} tested"
+        android.util.Log.i("StarveilKernel", summary)
+        onLog(KernelLogLine(level = LogLevel.DEBUG, tag = "kernel", message = summary))
     }
 
     override fun writeLogs(logs: LogIterator) {
@@ -100,11 +102,19 @@ class StarveilCommandClientHandler(
 
     override fun connected() {
         android.util.Log.i("StarveilKernel", "command client connected")
+        onLog(KernelLogLine(level = LogLevel.INFO, tag = "kernel", message = "command client connected"))
         onConnected()
     }
 
     override fun disconnected(message: String) {
         android.util.Log.w("StarveilKernel", "command client disconnected: $message")
+        onLog(
+            KernelLogLine(
+                level = LogLevel.WARN,
+                tag = "kernel",
+                message = "command client disconnected: ${LogRedactor.redact(message)}",
+            ),
+        )
         onDisconnected(message)
     }
 

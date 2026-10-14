@@ -29,7 +29,10 @@ import java.net.InetAddress
  *    `exchanged <domain> NOERROR 0` + `lookup failed: empty result` — a
  *    "success" with no records, which is worse than an error.
  */
-class StarveilLocalDnsTransport(private val context: Context) : LocalDNSTransport {
+class StarveilLocalDnsTransport(
+    private val context: Context,
+    private val onDiagnostic: (String) -> Unit = {},
+) : LocalDNSTransport {
 
     /** Raw DNS messages need a socket we cannot provide; lookups only. */
     override fun raw(): Boolean = false
@@ -50,10 +53,7 @@ class StarveilLocalDnsTransport(private val context: Context) : LocalDNSTranspor
         val addresses = try {
             resolve(domain)
         } catch (e: Exception) {
-            android.util.Log.i(
-                "StarveilKernel",
-                "local dns: $domain ($network) failed: ${e::class.java.simpleName}: ${e.message}",
-            )
+            onDiagnostic("local dns: $domain ($network) failed: ${e::class.java.simpleName}: ${e.message}")
             emptyList()
         }
 
@@ -91,14 +91,11 @@ class StarveilLocalDnsTransport(private val context: Context) : LocalDNSTranspor
             val addresses = InetAddress.getAllByName(domain).toList()
             if (addresses.isNotEmpty()) return addresses
         } catch (e: Exception) {
-            android.util.Log.i(
-                "StarveilKernel",
-                "local dns: $domain default resolver failed: ${e::class.java.simpleName}",
-            )
+            onDiagnostic("local dns: $domain default resolver failed: ${e::class.java.simpleName}")
         }
         val network = underlyingNetwork()
         if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            android.util.Log.i("StarveilKernel", "local dns: $domain falling back to network resolver")
+            onDiagnostic("local dns: $domain falling back to network resolver")
             return network.getAllByName(domain).toList()
         }
         return emptyList()

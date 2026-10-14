@@ -66,6 +66,12 @@ class RealKernelBridge(
     private var client: CommandClient? = null
     private var lastConfig: String? = null
 
+    init {
+        // Kernel-side diagnostics also feed the log ring, so the Logs screen
+        // shows them even when adb logcat is unavailable (it is, on some ROMs).
+        platform.onDiagnostic = { message -> log(LogLevel.DEBUG, message) }
+    }
+
     @Volatile
     private var stopping = false
 
