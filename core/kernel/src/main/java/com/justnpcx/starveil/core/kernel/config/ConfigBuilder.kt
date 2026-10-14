@@ -109,16 +109,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             "route" to linkedMapOf<String, Any?>(
                 "rules" to emptyList<Any?>(),
                 "final" to finalTag,
-                // Off on purpose. With it on, this fork's dialer takes the
-                // platform-interfaces path and binds every outbound socket to
-                // the interface — device log: "dial wlan0 (37)" — and that dial
-                // times out for a node that another client on the same phone
-                // reaches fine. Off, the dial is a plain one; our own package
-                // is excluded from the tunnel, so its sockets still go direct.
-                // The cost is that PlatformInterface.AutoDetectInterfaceControl
-                // (VpnService.protect) is no longer called — which the
-                // exclusion already covers.
-                "auto_detect_interface" to false,
+                // On: this is the platform path, and it is the one we want.
+                // The dialer installs the bind/protect control, which reaches
+                // PlatformInterface.AutoDetectInterfaceControl ->
+                // VpnService.protect(fd), and it takes the platform-interfaces
+                // path (this fork hardcodes UsePlatformNetworkInterfaces() to
+                // true), which is what PlatformInterface.GetInterfaces()
+                // feeds. Turning it off was only an A/B — a plain dial made no
+                // difference to the timeout, so it is not worth giving up the
+                // protection for.
+                "auto_detect_interface" to true,
             ),
         )
         return Json.write(config)
