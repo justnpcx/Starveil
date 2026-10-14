@@ -57,8 +57,11 @@ class StarveilPlatformInterface(
      */
     private val localDnsTransport = StarveilLocalDnsTransport(context, ::diagnostic)
 
-    /** Counts protect calls so the first few are logged and then it goes quiet. */
-    private var protectLogs = 0
+    /** Counts protect callbacks so only the first is logged. */
+    private var protectCalls = 0
+
+    /** Last interface name/index reported, so the diagnostic only fires on change. */
+    private var lastDefaultInterface: String? = null
 
     /** Keeps the network callbacks alive, and lets close() unregister them. */
     private val interfaceCallbacks =
@@ -82,20 +85,20 @@ class StarveilPlatformInterface(
     internal fun diagnostic(message: String) = KernelDiagnostics.log(message)
 
     /**
-     * Called by the kernel for each socket it opens, so the socket can be
-     * excluded from our own tunnel. VpnService.protect is the documented way to
-     * do that; without it the proxy's own connection to its server goes into
-     * the tun and times out.
+     * Deliberately does nothing.
+     *
+     * sing-box calls this to exempt each outbound socket from the tunnel, and
+     * the usual answer is `VpnService.protect(fd)`. On the test device that
+     * returns true but exempts nothing: the kernel's SYNs still land in the tun
+     * (its RX counter rises in step with the dial rate) and every dial times
+     * out — even to the LAN gateway. Worse, protect()'s socket mark overrode
+     * the UID-based self-exclusion and pulled the socket *back* into the
+     * tunnel. The whole process is excluded from the tunnel instead (see
+     * StarveilVpnService.establishTun), so there is nothing to do per socket.
      */
     override fun autoDetectInterfaceControl(fd: Int) {
-        val service = StarveilVpnService.current
-        val protected = service?.protectSocket(fd)
-        // Diagnostic: whether the kernel is asking at all, and whether protect
-        // succeeds. A socket that is not protected is routed back into our own
-        // tunnel and its dial times out with nothing else in the log.
-        if (protectLogs < PROTECT_LOG_LIMIT || protected != true) {
-            protectLogs++
-            diagnostic("protect(fd=$fd) -> ${protected ?: "no VpnService"}")
+        if (protectCalls++ == 0) {
+            diagnostic("autoDetectInterfaceControl: no per-socket protect (process is excluded)")
         }
     }
 
@@ -185,6 +188,9 @@ class StarveilPlatformInterface(
             }
         }
         interfaceCallbacks[listener] = callback
+        // Report the current physical interface synchronously first, so no dial
+        // can race the first callback.
+        manager.activeNetwork?.let { reportDefaultInterface(manager, it, listener) }
         runCatching { manager.registerDefaultNetworkCallback(callback) }
     }
 
@@ -195,19 +201,50 @@ class StarveilPlatformInterface(
         }
     }
 
+    /**
+     * Reports the **physical** default interface, never our own tunnel.
+     *
+     * Once the tunnel is up, Android's default network *is* the VPN, so a naive
+     * `registerDefaultNetworkCallback` hands us `tun0`. sing-box cannot resolve
+     * that interface (`InterfaceFinder.ByIndex` fails), so its monitor is left
+     * with no default interface — and `dialParallelInterface` then falls back to
+     * binding every outbound socket to the physical device (`SO_BINDTODEVICE`),
+     * which made every dial time out. Skipping the VPN and reporting the network
+     * underneath it keeps the dialer on the plain "protect only" path.
+     */
     private fun reportDefaultInterface(
         manager: ConnectivityManager,
         network: android.net.Network,
         listener: InterfaceUpdateListener,
     ) {
         val capabilities = manager.getNetworkCapabilities(network) ?: return
-        val link = manager.getLinkProperties(network) ?: return
+        val physical = if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+            manager.allNetworks.firstOrNull { candidate ->
+                candidate != network && manager.getNetworkCapabilities(candidate)?.let { it ->
+                    !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                        it.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                } == true
+            } ?: return
+        } else {
+            network
+        }
+        val physicalCapabilities = manager.getNetworkCapabilities(physical) ?: return
+        val link = manager.getLinkProperties(physical) ?: return
         val name = link.interfaceName ?: return
-        val index = runCatching { java.net.NetworkInterface.getByName(name)?.index }.getOrNull() ?: 0
+        // Null/0 means the app cannot see this interface (tun0 is hidden from
+        // apps). Reporting it would make the kernel fail to resolve the
+        // interface and fall back to a bound dial, so skip instead.
+        val index = runCatching { java.net.NetworkInterface.getByName(name)?.index }.getOrNull() ?: return
+        if (index == 0) return
+        val reported = "$name ($index)"
+        if (lastDefaultInterface != reported) {
+            lastDefaultInterface = reported
+            diagnostic("default interface -> $reported")
+        }
         listener.updateDefaultInterface(
             name,
             index,
-            /* expensive = */ !capabilities.hasCapability(
+            /* expensive = */ !physicalCapabilities.hasCapability(
                 NetworkCapabilities.NET_CAPABILITY_NOT_METERED,
             ),
             /* constrained = */ false,
@@ -227,10 +264,6 @@ class StarveilPlatformInterface(
     override fun usePlatformShell(): Boolean = false
 
     override fun useProcFS(): Boolean = true
-
-    private companion object {
-        const val PROTECT_LOG_LIMIT = 3
-    }
 }
 
 /**
