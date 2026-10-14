@@ -15,4 +15,11 @@
     <string name="profiles_import_working">Importing…</string>
     <string name="profiles_message_dismiss">Dismiss</string>
     <string name="profiles_test_latency">Test latency</string>
+
+    <!-- Import entry points: scan a QR code, paste from the clipboard, or type. -->
+    <string name="profiles_import_scan">Scan QR</string>
+    <string name="profiles_import_paste">Paste</string>
+    <string name="profiles_import_clipboard_empty">Clipboard has no text</string>
+    <string name="profiles_import_scan_cancelled">Scan cancelled</string>
+    <string name="profiles_scan_prompt">Point at a share link or subscription QR</string>
 </resources>

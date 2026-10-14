@@ -38,6 +38,9 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
 
+    // QR import. Embedded ZXing, not ML Kit: no Play Services dependency.
+    implementation(libs.zxing.android.embedded)
+
     implementation(project(":core:ui"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))

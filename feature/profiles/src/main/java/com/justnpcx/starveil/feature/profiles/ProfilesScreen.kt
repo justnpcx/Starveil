@@ -1,5 +1,8 @@
 package com.justnpcx.starveil.feature.profiles
 
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,24 +24,27 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
- * Nodes — the real list plus the import entry point (paste a share link or a
- * subscription URL). Tapping a node selects it, which the Dashboard and the
- * config builder read.
+ * Nodes — the real list plus the import entry points. A node arrives by
+ * scanning a QR code, pasting from the clipboard, or typing a share link /
+ * subscription URL; all three funnel through the same importer.
  */
 @Composable
 fun ProfilesScreen(
@@ -51,7 +57,18 @@ fun ProfilesScreen(
     onTestLatency: ((String) -> Unit) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var showImport by remember { mutableStateOf(false) }
+
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val contents = result.contents
+        if (contents.isNullOrBlank()) {
+            viewModel.postMessage(context.getString(R.string.profiles_import_scan_cancelled))
+        } else {
+            showImport = false
+            viewModel.import(contents)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -62,7 +79,7 @@ fun ProfilesScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = StarveilSpacing.lg),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } }) {
@@ -75,7 +92,7 @@ fun ProfilesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(StarveilSpacing.lg),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     items(state.profiles, key = { it.id }) { profile ->
@@ -107,6 +124,16 @@ fun ProfilesScreen(
                 showImport = false
                 viewModel.import(text)
             },
+            onScan = {
+                scanLauncher.launch(
+                    ScanOptions().apply {
+                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                        setPrompt(context.getString(R.string.profiles_scan_prompt))
+                        setBeepEnabled(false)
+                        setOrientationLocked(false)
+                    },
+                )
+            },
         )
     }
 }
@@ -116,20 +143,59 @@ private fun ImportDialog(
     importing: Boolean,
     onDismiss: () -> Unit,
     onImport: (String) -> Unit,
+    onScan: () -> Unit,
 ) {
+    val context = LocalContext.current
     var text by remember { mutableStateOf("") }
+    var hint by remember { mutableStateOf<String?>(null) }
+    val clipboardEmptyHint = stringResource(R.string.profiles_import_clipboard_empty)
+
+    // The usual flow is: copy a link in another app, then open this dialog. If
+    // the clipboard already holds something importable, start from it.
+    LaunchedEffect(Unit) {
+        readClipboardText(context)?.takeIf(::looksImportable)?.let { text = it }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.profiles_import_title)) },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = false,
-                minLines = 3,
-                label = { Text(stringResource(R.string.profiles_import_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = {
+                        text = it
+                        hint = null
+                    },
+                    singleLine = false,
+                    minLines = 3,
+                    label = { Text(stringResource(R.string.profiles_import_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                hint?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    TextButton(
+                        onClick = {
+                            val clip = readClipboardText(context)
+                            if (clip == null) hint = clipboardEmptyHint else {
+                                text = clip
+                                hint = null
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.profiles_import_paste))
+                    }
+                    TextButton(onClick = onScan) {
+                        Text(stringResource(R.string.profiles_import_scan))
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(
@@ -148,6 +214,21 @@ private fun ImportDialog(
         },
     )
 }
+
+/** Reads the primary clip as text; null when there is nothing to read. */
+private fun readClipboardText(context: Context): String? {
+    val manager = context.getSystemService(ClipboardManager::class.java) ?: return null
+    val clip = manager.primaryClip ?: return null
+    if (clip.itemCount == 0) return null
+    return clip.getItemAt(0).coerceToText(context)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+}
+
+/**
+ * Cheap "could this be a node?" check, used only to decide whether to prefill
+ * from the clipboard. Deliberately permissive: anything with a scheme.
+ */
+private fun looksImportable(text: String): Boolean =
+    text.contains("://") || text.startsWith("http", ignoreCase = true)
 
 @Composable
 private fun MessageBanner(message: String, onDismiss: () -> Unit) {
