@@ -61,12 +61,34 @@ class DashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        // Keep the label in sync with the choice made on the Nodes tab.
+        // Keep the label in sync with the choice made on the Nodes tab — and
+        // apply it. The kernel runs the config that was built at connect time
+        // (RealKernelBridge.start is a no-op while running), so without this
+        // the dashboard would name a node the kernel is not using, and every
+        // connection would silently fail against the old one.
         scope.launch {
+            var replayedInitialValue = false
             preferences.selectedProfileId.collect { id ->
                 val name = if (id == 0L) DashboardUiState.NO_NODE else profiles.getById(id)?.name
                 _uiState.update { it.copy(selectedNodeName = name ?: DashboardUiState.NO_NODE) }
+                // A flow replays its current value on subscribe; that is not a
+                // switch and must not restart anything.
+                if (!replayedInitialValue) {
+                    replayedInitialValue = true
+                    return@collect
+                }
+                if (!_uiState.value.isBusy && _uiState.value.connectionState == ConnectionState.CONNECTED) {
+                    applyNodeSwitch()
+                }
             }
+        }
+    }
+
+    /** Point the running tunnel at the newly selected node. */
+    private fun applyNodeSwitch() {
+        scope.launch {
+            disconnect()
+            connect()
         }
     }
 
@@ -74,83 +96,79 @@ class DashboardViewModel @Inject constructor(
     fun onCoreClick() {
         if (_uiState.value.isBusy) return
         when (_uiState.value.connectionState) {
-            ConnectionState.DISCONNECTED, ConnectionState.BLOCKED -> connect()
-            ConnectionState.CONNECTED -> disconnect()
+            ConnectionState.DISCONNECTED, ConnectionState.BLOCKED -> scope.launch { connect() }
+            ConnectionState.CONNECTED -> scope.launch { disconnect() }
             ConnectionState.CONNECTING -> { /* ignore taps while connecting */ }
         }
     }
 
-    private fun connect() {
-        scope.launch {
-            _uiState.update {
-                it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
-            }
-
-            // The real outbound: whatever node is selected on the Nodes tab.
-            val id = preferences.selectedProfileId.first()
-            val profile = if (id == 0L) null else profiles.getById(id)
-            if (profile == null) {
-                _uiState.update {
-                    it.copy(
-                        isBusy = false,
-                        connectionState = ConnectionState.DISCONNECTED,
-                        errorMessage = "Pick a node on the Nodes tab first",
-                    )
-                }
-                return@launch
-            }
-
-            val config = try {
-                configBuilder.build(profile)
-            } catch (e: ConfigBuildException) {
-                _uiState.update {
-                    it.copy(
-                        isBusy = false,
-                        connectionState = ConnectionState.BLOCKED,
-                        errorMessage = "Cannot build the config for this node",
-                    )
-                }
-                return@launch
-            }
-
-            val result = kernel.start(config)
-            if (result.isSuccess) {
-                _uiState.update {
-                    it.copy(
-                        isBusy = false,
-                        connectionState = ConnectionState.CONNECTED,
-                        selectedNodeName = profile.name,
-                    )
-                }
-                startStatsLoop()
-            } else {
-                // The bridge reports a redacted reason (PRD §8.3: tell the
-                // truth on failure, never a bare "failed to start").
-                val reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
-                _uiState.update {
-                    it.copy(
-                        isBusy = false,
-                        connectionState = ConnectionState.BLOCKED,
-                        errorMessage = reason ?: "Kernel failed to start",
-                    )
-                }
-            }
+    private suspend fun connect() {
+        _uiState.update {
+            it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
         }
-    }
 
-    private fun disconnect() {
-        scope.launch {
-            _uiState.update { it.copy(isBusy = true) }
-            statsJob?.cancel()
-            kernel.stop()
+        // The real outbound: whatever node is selected on the Nodes tab.
+        val id = preferences.selectedProfileId.first()
+        val profile = if (id == 0L) null else profiles.getById(id)
+        if (profile == null) {
             _uiState.update {
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.DISCONNECTED,
-                    stats = TrafficStats(),
-                    history = emptyList(),
+                    errorMessage = "Pick a node on the Nodes tab first",
                 )
             }
+            return
+        }
+
+        val config = try {
+            configBuilder.build(profile)
+        } catch (e: ConfigBuildException) {
+            _uiState.update {
+                it.copy(
+                    isBusy = false,
+                    connectionState = ConnectionState.BLOCKED,
+                    errorMessage = "Cannot build the config for this node",
+                )
+            }
+            return
+        }
+
+        val result = kernel.start(config)
+        if (result.isSuccess) {
+            _uiState.update {
+                it.copy(
+                    isBusy = false,
+                    connectionState = ConnectionState.CONNECTED,
+                    selectedNodeName = profile.name,
+                )
+            }
+            startStatsLoop()
+        } else {
+            // The bridge reports a redacted reason (PRD §8.3: tell the
+            // truth on failure, never a bare "failed to start").
+            val reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+            _uiState.update {
+                it.copy(
+                    isBusy = false,
+                    connectionState = ConnectionState.BLOCKED,
+                    errorMessage = reason ?: "Kernel failed to start",
+                )
+            }
+        }
+    }
+
+    private suspend fun disconnect() {
+        _uiState.update { it.copy(isBusy = true) }
+        statsJob?.cancel()
+        kernel.stop()
+        _uiState.update {
+            it.copy(
+                isBusy = false,
+                connectionState = ConnectionState.DISCONNECTED,
+                stats = TrafficStats(),
+                history = emptyList(),
+            )
         }
     }
 

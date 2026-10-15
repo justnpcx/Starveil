@@ -1,0 +1,191 @@
+package com.justnpcx.starveil.feature.dashboard
+
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.preferences.ThemeMode
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelLogLine
+import com.justnpcx.starveil.core.kernel.KernelState
+import com.justnpcx.starveil.core.kernel.TrafficStats
+import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.ui.components.ConnectionState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * The kernel runs whatever config was built when the tunnel started, so a node
+ * switch has to be applied to it — otherwise the dashboard names a node that is
+ * not carrying the traffic, and every connection fails silently against the old
+ * one. That is what happened on device.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class DashboardViewModelTest {
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `switching node while connected restarts the kernel on the new node`() = runBlocking {
+        val preferences = FakePreferences(ONE)
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(preferences, kernel)
+
+        viewModel.onCoreClick()
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(1, kernel.starts)
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"server\":\"one.example\""))
+
+        preferences.setSelectedProfileId(TWO)
+
+        assertEquals("two", viewModel.uiState.value.selectedNodeName)
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(2, kernel.starts)
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"server\":\"two.example\""))
+    }
+
+    @Test
+    fun `subscribing does not restart the kernel`() = runBlocking {
+        val kernel = RecordingKernel()
+
+        viewModel(FakePreferences(ONE), kernel)
+
+        // The flow replays the current selection on subscribe; that is not a
+        // switch, so nothing should have been started.
+        assertEquals(0, kernel.starts)
+    }
+
+    @Test
+    fun `switching node while disconnected starts nothing`() = runBlocking {
+        val preferences = FakePreferences(ONE)
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(preferences, kernel)
+
+        preferences.setSelectedProfileId(TWO)
+
+        assertEquals("two", viewModel.uiState.value.selectedNodeName)
+        assertEquals(0, kernel.starts)
+    }
+
+    private fun viewModel(preferences: FakePreferences, kernel: RecordingKernel) =
+        DashboardViewModel(
+            kernel = kernel,
+            profiles = FakeProfiles(listOf(profile(ONE, "one"), profile(TWO, "two"))),
+            preferences = preferences,
+            configBuilder = ConfigBuilder(ProtocolRegistry.default()),
+        )
+
+    private fun profile(id: Long, name: String) = Profile(
+        id = id,
+        name = name,
+        type = ProfileType.VLESS,
+        server = "$name.example",
+        port = 443,
+        settings = VlessSettings(uuid = "11111111-2222-3333-4444-555555555555"),
+    )
+
+    private companion object {
+        const val ONE = 1L
+        const val TWO = 2L
+    }
+}
+
+private class FakePreferences(initialId: Long) : PreferencesRepository {
+
+    private val id = MutableStateFlow(initialId)
+
+    override val selectedProfileId: Flow<Long> = id
+
+    override suspend fun setSelectedProfileId(id: Long) {
+        this.id.value = id
+    }
+
+    // The rest of the preferences are not what this test is about.
+    override val themeMode: Flow<ThemeMode> get() = notUsed()
+    override val dynamicColor: Flow<Boolean> get() = notUsed()
+    override val autoReconnect: Flow<Boolean> get() = notUsed()
+    override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
+    override val speedTestUrl: Flow<String> get() = notUsed()
+    override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val useFakeKernel: Flow<Boolean> get() = notUsed()
+    override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
+    override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
+    override val subscriptionLastError: Flow<String?> get() = notUsed()
+    override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
+    override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
+    override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
+    override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
+    override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
+    override suspend fun setSpeedTestUrl(url: String) { notUsed() }
+    override suspend fun setUseFakeKernel(useFake: Boolean) { notUsed() }
+    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
+    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
+}
+
+private class FakeProfiles(private val all: List<Profile>) : ProfileRepository {
+
+    override suspend fun getById(id: Long): Profile? = all.firstOrNull { it.id == id }
+
+    override fun observeAll(): Flow<List<Profile>> = flowOf(all)
+
+    override fun observeByGroup(groupId: Long): Flow<List<Profile>> = notUsed()
+    override suspend fun upsert(profile: Profile): Long = notUsed()
+    override suspend fun deleteById(id: Long) { notUsed() }
+    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) { notUsed() }
+}
+
+/** Records what the kernel was actually asked to run. */
+private class RecordingKernel : KernelBridge {
+
+    var starts = 0
+        private set
+    var lastConfig: String? = null
+        private set
+
+    private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
+    override val state: StateFlow<KernelState> = _state
+    override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
+
+    override suspend fun start(config: String): Result<Unit> {
+        starts++
+        lastConfig = config
+        _state.value = KernelState.Running
+        return Result.success(Unit)
+    }
+
+    override suspend fun stop(): Result<Unit> {
+        _state.value = KernelState.Stopped
+        return Result.success(Unit)
+    }
+
+    override suspend fun queryStats(): TrafficStats = TrafficStats()
+}
+
+private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

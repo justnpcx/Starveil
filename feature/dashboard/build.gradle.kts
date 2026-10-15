@@ -49,4 +49,7 @@ dependencies {
     implementation(project(":core:kernel"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
 }
