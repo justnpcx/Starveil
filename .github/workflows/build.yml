@@ -29,6 +29,10 @@ jobs:
       # Use the wrapper so CI and local builds share the pinned Gradle 8.13.
       - name: Assemble debug
         run: ./gradlew :app:assembleDebug --no-daemon
+      # The tests were only ever run by hand until now, which is how a
+      # regression in the config builder could reach main unnoticed.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
       - name: Lint
         run: ./gradlew lintDebug --no-daemon
       # Sideload build: the debug APK is debug-signed, so it installs on a

@@ -28,7 +28,9 @@ set -uo pipefail
 
 SERIAL="${1:-${ANDROID_SERIAL:-}}"
 APK="${2:-app/build/outputs/apk/debug/app-debug.apk}"
-PKG="com.justnpcx.starveil"
+# Overridable so the same dialog handling can install an instrumentation APK
+# (package `<app>.test`), which Gradle's own installer cannot get past.
+PKG="${PKG:-com.justnpcx.starveil}"
 INSTALLER="com.android.packageinstaller"
 
 if [ -z "$SERIAL" ]; then
