@@ -31,6 +31,7 @@ import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TuicCongestionControl
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
+import com.justnpcx.starveil.core.model.XhttpMode
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -228,6 +229,17 @@ private fun TransportFields(form: EditorForm, onChange: (EditorForm) -> Unit) {
                 onValueChange = { onChange(form.copy(transportHost = it)) },
             )
         }
+    }
+
+    // xhttp only: how the two directions are split. Null is "auto" — the core
+    // picks, and it treats an absent mode and `auto` the same way.
+    if (form.transport == TransportType.XHTTP) {
+        ChipRow(
+            options = listOf<XhttpMode?>(null) + XhttpMode.entries,
+            selected = form.transportMode,
+            label = { it?.wireName ?: stringResource(R.string.editor_mode_auto) },
+            onSelect = { onChange(form.copy(transportMode = it)) },
+        )
     }
 }
 

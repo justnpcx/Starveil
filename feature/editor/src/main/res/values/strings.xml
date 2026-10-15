@@ -29,6 +29,8 @@
     <string name="editor_field_reality_mlkem">ML-KEM hybrid handshake</string>
     <string name="editor_field_transport_path">Path</string>
     <string name="editor_field_transport_host">Host</string>
+    <!-- Shown as the first chip of the XHTTP mode row: let the core choose. -->
+    <string name="editor_mode_auto">auto</string>
     <string name="editor_field_transport_service">Service name</string>
     <string name="editor_field_obfs">Obfuscation</string>
     <string name="editor_field_obfs_password">Obfuscation password</string>

@@ -25,6 +25,33 @@ enum class TransportType(val wireName: String) {
 }
 
 /**
+ * How an XHTTP outbound splits its two directions.
+ *
+ * [STREAM_ONE] is a single request whose body carries the uplink and whose
+ * response body carries the downlink; [STREAM_UP] opens a separate long-lived
+ * upload stream. **Null means "let the core pick"** — the core treats an absent
+ * mode and `auto` identically (it chooses `stream-up` when a separate downlink
+ * is configured and `stream-one` otherwise), so there is no third value to
+ * carry: `auto` from a link decodes to null rather than to a state of its own.
+ *
+ * Xray also has a `packet-up` mode, which the core does **not** implement. It
+ * decodes to null too, so the core falls back to its own default instead of
+ * being handed a mode it would silently ignore. Add it only together with core
+ * support.
+ */
+enum class XhttpMode(val wireName: String) {
+    STREAM_ONE("stream-one"),
+    STREAM_UP("stream-up"),
+    ;
+
+    companion object {
+        /** Null for `auto`, for anything unrecognised, and for blank input. */
+        fun fromWireName(name: String): XhttpMode? =
+            entries.firstOrNull { it.wireName.equals(name, ignoreCase = true) }
+    }
+}
+
+/**
  * REALITY options.
  *
  * [mlKem] says whether the server offers the post-quantum X25519MLKEM768
@@ -79,6 +106,8 @@ data class TransportOptions(
     val path: String? = null,
     /** gRPC service name. */
     val serviceName: String? = null,
+    /** XHTTP only: how the two directions are split. Null means "let the core pick". */
+    val mode: XhttpMode? = null,
     val headers: Map<String, String> = emptyMap(),
 ) {
     companion object {

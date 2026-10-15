@@ -22,6 +22,7 @@ import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.XhttpMode
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
 import org.junit.Assert.assertEquals
@@ -76,6 +77,25 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"type\":\"direct\""))
         assertTrue(json.contains("\"type\":\"block\""))
         assertTrue(json.contains("\"final\":\"proxy\""))
+    }
+
+    @Test
+    fun `xhttp emits the mode the link asked for`() {
+        val base = vlessProfile()
+        val settings = base.settings as VlessSettings
+        val profile = base.copy(
+            settings = settings.copy(
+                transport = settings.transport.copy(mode = XhttpMode.STREAM_UP),
+            ),
+        )
+
+        val json = builder.build(profile)
+
+        // The shape test above pins the other half: with no mode there is no
+        // `mode` key at all, which is what leaves the core to choose.
+        assertTrue(
+            json.contains("\"transport\":{\"type\":\"xhttp\",\"path\":\"/x\",\"mode\":\"stream-up\"}"),
+        )
     }
 
     @Test

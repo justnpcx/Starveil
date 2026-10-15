@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TuicCongestionControl
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
+import com.justnpcx.starveil.core.model.XhttpMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -100,6 +101,7 @@ class EditorFormTest {
             transport = TransportType.XHTTP,
             transportPath = "/x",
             transportHost = "cdn.example",
+            transportMode = XhttpMode.STREAM_UP,
         )
 
         val settings = form.toProfile()!!.settings as com.justnpcx.starveil.core.model.VlessSettings
@@ -109,6 +111,7 @@ class EditorFormTest {
         // xhttp has no `host` field in sing-box; the host travels in the header,
         // which is the emitter's job — the form's job is to keep it at all.
         assertEquals("cdn.example", settings.transport.host)
+        assertEquals(XhttpMode.STREAM_UP, settings.transport.mode)
         assertEquals(SecurityMode.REALITY, settings.tls.security)
         assertTrue(settings.tls.reality!!.mlKem)
     }

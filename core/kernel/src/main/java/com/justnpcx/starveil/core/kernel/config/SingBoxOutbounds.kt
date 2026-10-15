@@ -198,9 +198,14 @@ internal object SingBoxOutbounds {
                 transport.path?.takeIf { it.isNotBlank() }?.let { block["path"] = it }
             }
 
-            // ws / xhttp: host goes into the Host header.
+            // ws / xhttp: host goes into the Host header. xhttp additionally
+            // carries how the two directions are split; omitting `mode` leaves
+            // the core to pick, which is what an unset mode means.
             else -> {
                 transport.path?.takeIf { it.isNotBlank() }?.let { block["path"] = it }
+                if (transport.type == TransportType.XHTTP) {
+                    transport.mode?.let { block["mode"] = it.wireName }
+                }
                 if (transport.headers.isNotEmpty()) {
                     block["headers"] = transport.headers.toMap()
                 } else {
