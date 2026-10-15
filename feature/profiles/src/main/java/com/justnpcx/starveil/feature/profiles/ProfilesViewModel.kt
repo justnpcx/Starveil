@@ -2,9 +2,11 @@ package com.justnpcx.starveil.feature.profiles
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.subscription.ImportOutcome
@@ -32,6 +34,8 @@ data class ProfilesUiState(
     /** Nodes exist, but the current filter hides them all. */
     val hasNoMatches: Boolean = false,
     val selectedId: Long = 0L,
+    /** The group the tunnel goes through, when that is the target instead. */
+    val selectedGroupId: Long = 0L,
     val loading: Boolean = true,
     val importing: Boolean = false,
     /** Result of the last import; already user-facing. */
@@ -61,10 +65,13 @@ class ProfilesViewModel @Inject constructor(
     val uiState: StateFlow<ProfilesUiState> = combine(
         profiles.observeAll(),
         groups.observeAll(),
-        preferences.selectedProfileId,
+        // One atomic value rather than two ids: the two are alternatives, and
+        // reading them separately can catch a half-applied change.
+        preferences.connectionTarget,
         transient,
         groupFilter,
-    ) { list, groupList, selectedId, (isImporting, msg), filter ->
+    ) { list, groupList, target, (isImporting, msg), filter ->
+        val selectedId = (target as? ConnectionTarget.Node)?.id ?: 0L
         // A node imported from a share link has no group, so it only ever
         // shows under "All".
         val visible = if (filter == null) list else list.filter { it.groupId == filter }
@@ -75,6 +82,7 @@ class ProfilesViewModel @Inject constructor(
             hasProfiles = list.isNotEmpty(),
             hasNoMatches = visible.isEmpty() && list.isNotEmpty(),
             selectedId = selectedId,
+            selectedGroupId = (target as? ConnectionTarget.Group)?.id ?: 0L,
             loading = false,
             importing = isImporting,
             message = msg,
@@ -87,6 +95,35 @@ class ProfilesViewModel @Inject constructor(
 
     fun select(id: Long) {
         viewModelScope.launch { preferences.setSelectedProfileId(id) }
+    }
+
+    /**
+     * Point the tunnel through [group] instead of a single node.
+     *
+     * The repository clears the node selection as part of this, so the two can
+     * never both be set.
+     */
+    fun selectGroup(group: ProxyGroup) {
+        viewModelScope.launch { preferences.setSelectedGroupId(group.id) }
+    }
+
+    fun stopUsingGroup() {
+        viewModelScope.launch { preferences.setSelectedGroupId(0L) }
+    }
+
+    /**
+     * Changing the mode can invalidate the selection: a manual group is a
+     * folder, not something to connect through, so if it was the target it
+     * stops being one.
+     */
+    fun setGroupMode(group: ProxyGroup, mode: GroupMode) {
+        if (group.mode == mode) return
+        viewModelScope.launch {
+            groups.upsert(group.copy(mode = mode))
+            if (mode == GroupMode.MANUAL && preferences.selectedGroupId.first() == group.id) {
+                preferences.setSelectedGroupId(0L)
+            }
+        }
     }
 
     /** [groupId] of null shows every group. */
@@ -133,6 +170,11 @@ class ProfilesViewModel @Inject constructor(
             // A subscription group's refresh work outlives the row otherwise,
             // and would keep re-creating nodes for a group that is gone.
             refreshScheduler.cancel(group.id)
+            // Same rule as deleting one node: the target must not outlive the
+            // thing it points at.
+            if (preferences.selectedGroupId.first() == group.id) {
+                preferences.setSelectedGroupId(0L)
+            }
             // Stop filtering by something that no longer exists.
             if (groupFilter.value == group.id) groupFilter.value = null
             // Same rule as deleting one node: the selection must not outlive

@@ -1,11 +1,13 @@
 package com.justnpcx.starveil.feature.profiles
 
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -21,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -290,6 +293,105 @@ class ProfilesViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun `connecting through a group makes it the target and drops the node`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val preferences = FakePreferences(ONE)
+        val groups = FakeGroups(listOf(subGroup(GroupMode.URL_TEST)))
+        val viewModel = viewModel(profiles, preferences, groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.selectGroup(subGroup(GroupMode.URL_TEST))
+        yield()
+
+        assertEquals(SUB, preferences.selectedGroupId.first())
+        // A node and a group are alternatives, so picking the group must let go
+        // of the node rather than leaving both set.
+        assertEquals(0L, preferences.selectedProfileId.first())
+        assertEquals(SUB, viewModel.uiState.value.selectedGroupId)
+        assertEquals(0L, viewModel.uiState.value.selectedId)
+        job.cancel()
+    }
+
+    @Test
+    fun `selecting a node drops the group target`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(subGroup(GroupMode.URL_TEST)))
+        val viewModel = viewModel(profiles, preferences, groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.selectGroup(subGroup(GroupMode.URL_TEST))
+        yield()
+        viewModel.select(ONE)
+        yield()
+
+        assertEquals(ONE, preferences.selectedProfileId.first())
+        assertEquals(0L, preferences.selectedGroupId.first())
+        job.cancel()
+    }
+
+    @Test
+    fun `turning the group in use into a folder stops using it`() = runBlocking {
+        // A folder is not something to connect through, so it cannot stay the
+        // target once its mode says otherwise.
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(subGroup(GroupMode.URL_TEST)))
+        val viewModel = viewModel(profiles, preferences, groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.selectGroup(subGroup(GroupMode.URL_TEST))
+        yield()
+        viewModel.setGroupMode(subGroup(GroupMode.URL_TEST), GroupMode.MANUAL)
+        yield()
+
+        assertEquals(GroupMode.MANUAL, groups.upserted?.mode)
+        assertEquals(0L, preferences.selectedGroupId.first())
+        job.cancel()
+    }
+
+    @Test
+    fun `changing the mode of a group that is not in use leaves the target alone`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val preferences = FakePreferences(ONE)
+        val groups = FakeGroups(listOf(subGroup(GroupMode.URL_TEST)))
+        val viewModel = viewModel(profiles, preferences, groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setGroupMode(subGroup(GroupMode.URL_TEST), GroupMode.MANUAL)
+        yield()
+
+        assertEquals(GroupMode.MANUAL, groups.upserted?.mode)
+        assertEquals(ONE, preferences.selectedProfileId.first())
+        job.cancel()
+    }
+
+    @Test
+    fun `deleting the group in use clears the target`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(subGroup(GroupMode.URL_TEST)))
+        val viewModel = viewModel(profiles, preferences, groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.selectGroup(subGroup(GroupMode.URL_TEST))
+        yield()
+        viewModel.deleteGroup(subGroup(GroupMode.URL_TEST))
+        yield()
+
+        assertEquals(0L, preferences.selectedGroupId.first())
+        job.cancel()
+    }
+
+    private fun subGroup(mode: GroupMode) =
+        ProxyGroup(id = SUB, name = "sub", mode = mode, profileIds = listOf(ONE))
+
     private fun groupsWithSub() = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
 
     private fun viewModel(
@@ -366,12 +468,32 @@ private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepos
 
 private class FakePreferences(initialId: Long) : PreferencesRepository {
 
-    private val id = MutableStateFlow(initialId)
+    private val target = MutableStateFlow<ConnectionTarget>(
+        if (initialId != 0L) ConnectionTarget.Node(initialId) else ConnectionTarget.None,
+    )
 
-    override val selectedProfileId: Flow<Long> = id
+    override val selectedProfileId: Flow<Long> =
+        target.map { (it as? ConnectionTarget.Node)?.id ?: 0L }
+    override val selectedGroupId: Flow<Long> =
+        target.map { (it as? ConnectionTarget.Group)?.id ?: 0L }
+    override val connectionTarget: Flow<ConnectionTarget> = target
 
     override suspend fun setSelectedProfileId(id: Long) {
-        this.id.value = id
+        // Clearing the node must not disturb a group that is selected instead;
+        // the real repository only touches its own key.
+        target.value = when {
+            id != 0L -> ConnectionTarget.Node(id)
+            target.value is ConnectionTarget.Node -> ConnectionTarget.None
+            else -> target.value
+        }
+    }
+
+    override suspend fun setSelectedGroupId(id: Long) {
+        target.value = when {
+            id != 0L -> ConnectionTarget.Group(id)
+            target.value is ConnectionTarget.Group -> ConnectionTarget.None
+            else -> target.value
+        }
     }
 
     // The rest of the preferences are not what this test is about.

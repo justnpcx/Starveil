@@ -17,6 +17,23 @@ import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
 
+/**
+ * The one thing the tunnel points at.
+ *
+ * A node and a group are alternatives, so they are modelled as one value
+ * rather than two flags that could disagree. Reading them as a single flow
+ * also matters for correctness: two separate flows over the same DataStore can
+ * emit in either order, which would show up as a momentary "nothing is
+ * selected" and make the dashboard tear down a healthy tunnel.
+ */
+sealed interface ConnectionTarget {
+    data object None : ConnectionTarget
+
+    data class Node(val id: Long) : ConnectionTarget
+
+    data class Group(val id: Long) : ConnectionTarget
+}
+
 /** Theme selection. Stored as a String; unknown stored values fall back to SYSTEM. */
 enum class ThemeMode { SYSTEM, DARK, LIGHT }
 
@@ -49,8 +66,23 @@ interface PreferencesRepository {
     val autoReconnect: Flow<Boolean>
     val killSwitchMode: Flow<KillSwitchMode>
 
-    /** Currently selected node; 0 = none chosen yet. */
+    /**
+     * Currently selected node; 0 = none chosen yet.
+     *
+     * A node and a group are alternative connection targets, so at most one is
+     * ever set — the setters below clear the other. That invariant lives here
+     * rather than in the UI so no caller can leave both set.
+     */
     val selectedProfileId: Flow<Long>
+
+    /** Currently selected group to connect through; 0 = none. */
+    val selectedGroupId: Flow<Long>
+
+    /**
+     * The connection target, read atomically. Prefer this over watching the two
+     * ids above when deciding what to connect to.
+     */
+    val connectionTarget: Flow<ConnectionTarget>
 
     /** Last leak self-check (minimal M2 version). */
     val lastLeakCheck: Flow<LeakCheckRecord>
@@ -70,6 +102,9 @@ interface PreferencesRepository {
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
     suspend fun recordLeakCheck(record: LeakCheckRecord)
     suspend fun setSelectedProfileId(id: Long)
+
+    /** Selecting a group clears the node selection, and vice versa. */
+    suspend fun setSelectedGroupId(id: Long)
 
     /** Record a successful subscription refresh. */
     suspend fun recordSubscriptionSuccess(atEpochMs: Long)
@@ -95,6 +130,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
         val LEAK_CHECK_LEAKING = booleanPreferencesKey("leak_check_leaking")
         val SELECTED_PROFILE_ID = longPreferencesKey("selected_profile_id")
+        val SELECTED_GROUP_ID = longPreferencesKey("selected_group_id")
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
         val SUB_LAST_ERROR = stringPreferencesKey("subscription_last_error")
@@ -155,8 +191,36 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.SELECTED_PROFILE_ID] ?: 0L }
 
+    override val selectedGroupId: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.SELECTED_GROUP_ID] ?: 0L }
+
+    // One snapshot, one decision: the group wins if both are somehow set.
+    override val connectionTarget: Flow<ConnectionTarget> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs ->
+            val group = prefs[Keys.SELECTED_GROUP_ID] ?: 0L
+            val node = prefs[Keys.SELECTED_PROFILE_ID] ?: 0L
+            when {
+                group != 0L -> ConnectionTarget.Group(group)
+                node != 0L -> ConnectionTarget.Node(node)
+                else -> ConnectionTarget.None
+            }
+        }
+
     override suspend fun setSelectedProfileId(id: Long) {
-        dataStore.edit { it[Keys.SELECTED_PROFILE_ID] = id }
+        dataStore.edit {
+            it[Keys.SELECTED_PROFILE_ID] = id
+            // One connection target at a time; see the interface.
+            if (id != 0L) it.remove(Keys.SELECTED_GROUP_ID)
+        }
+    }
+
+    override suspend fun setSelectedGroupId(id: Long) {
+        dataStore.edit {
+            it[Keys.SELECTED_GROUP_ID] = id
+            if (id != 0L) it.remove(Keys.SELECTED_PROFILE_ID)
+        }
     }
 
     override val subscriptionLastSuccessAt: Flow<Long> = dataStore.data

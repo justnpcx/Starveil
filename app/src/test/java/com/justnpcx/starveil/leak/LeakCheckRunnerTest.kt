@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.leak
 
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -113,6 +114,8 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
 
     // The rest of the preferences are not what this test is about.
     override val selectedProfileId: Flow<Long> get() = notUsed()
+    override val selectedGroupId: Flow<Long> get() = notUsed()
+    override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
@@ -125,6 +128,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun setSelectedProfileId(id: Long) { notUsed() }
+    override suspend fun setSelectedGroupId(id: Long) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
 }

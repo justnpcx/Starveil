@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
@@ -43,20 +44,28 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     }
 
     /**
-     * Multi-profile config: one outbound per profile plus an `auto` urltest
-     * group, which becomes the route's final outbound.
+     * Group config: one outbound per profile, plus a group outbound that
+     * becomes the route's final target, so the kernel chooses between the
+     * nodes instead of being pinned to one.
      *
-     * NOT WIRED UP: nothing outside the tests calls this. Connecting goes
-     * through the single-profile [build], driven by whichever node is selected,
-     * so the urltest path is unreachable — as is the group mode that would
-     * choose it. This is the config half of that unfinished feature and is
-     * covered by tests, so it is kept rather than deleted; drop both together
-     * if the feature is dropped. The previous wording here claimed this was
-     * "used for subscription imports and for the node-switch flow", which was
-     * simply untrue.
+     * [mode] picks the group type:
+     *  - [GroupMode.URL_TEST] — the kernel measures the members and keeps using
+     *    the fastest.
+     *  - [GroupMode.SELECTOR] — the group stays on one member (the first) until
+     *    something changes the pick.
+     *  - [GroupMode.MANUAL] is rejected: a manual group is a plain folder, not
+     *    something you connect *through*, so there is no group outbound to
+     *    build. Callers pick a member and use the single-profile [build].
      */
-    fun build(profiles: List<Profile>, rules: List<Rule> = emptyList()): String {
+    fun build(
+        profiles: List<Profile>,
+        rules: List<Rule> = emptyList(),
+        mode: GroupMode = GroupMode.URL_TEST,
+    ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
+        require(mode != GroupMode.MANUAL) {
+            "a MANUAL group is a folder; connect to one of its nodes instead"
+        }
         val tags = profiles.indices.map { "proxy-$it" }
         val fragments = profiles.mapIndexed { index, profile -> fragment(profile, tags[index]) }
         // One placement lookup per profile: this runs for every node of a
@@ -71,17 +80,30 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 .filter { placements[it] == ConfigPlacement.OUTBOUND }
                 .forEach { add(fragments[it]) }
             add(
-                linkedMapOf<String, Any?>(
-                    "type" to "urltest",
-                    "tag" to AUTO_TAG,
-                    // Endpoint tags are listed too: the outbound manager falls
-                    // back to the endpoint manager when a tag is not an
-                    // outbound, so the group can carry both kinds.
-                    "outbounds" to tags,
-                    "url" to "http://cp.cloudflare.com/",
-                    "interval" to "3m",
-                    "tolerance" to 50,
-                ),
+                when (mode) {
+                    GroupMode.URL_TEST -> linkedMapOf<String, Any?>(
+                        "type" to "urltest",
+                        "tag" to AUTO_TAG,
+                        // Endpoint tags are listed too: the outbound manager
+                        // falls back to the endpoint manager when a tag is not
+                        // an outbound, so the group can carry both kinds.
+                        "outbounds" to tags,
+                        "url" to "http://cp.cloudflare.com/",
+                        "interval" to "3m",
+                        "tolerance" to 50,
+                    )
+
+                    GroupMode.SELECTOR -> linkedMapOf<String, Any?>(
+                        "type" to "selector",
+                        "tag" to AUTO_TAG,
+                        "outbounds" to tags,
+                        // A selector has to start somewhere; without a control
+                        // channel to change it later, this is the pick.
+                        "default" to tags.first(),
+                    )
+
+                    GroupMode.MANUAL -> error("rejected above")
+                },
             )
             add(directOutbound())
             add(blockOutbound())
