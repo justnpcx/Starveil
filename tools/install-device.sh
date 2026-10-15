@@ -27,7 +27,9 @@
 set -uo pipefail
 
 SERIAL="${1:-${ANDROID_SERIAL:-}}"
-APK="${2:-app/build/outputs/apk/debug/app-debug.apk}"
+# The build emits one APK per ABI (a universal one would be ~230 MB of native
+# code), so the default is the arm64 split — which is what the smoke device is.
+APK="${2:-app/build/outputs/apk/debug/app-arm64-v8a-debug.apk}"
 # Overridable so the same dialog handling can install an instrumentation APK
 # (package `<app>.test`), which Gradle's own installer cannot get past.
 PKG="${PKG:-com.justnpcx.starveil}"

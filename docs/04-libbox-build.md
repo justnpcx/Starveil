@@ -167,3 +167,71 @@ StarveilVpnService (foreground, VpnService)
 VPN consent denied maps to `KernelError.PermissionDenied`. Node latency is not
 asked of the kernel at all — `NodeLatencyTester` probes the node's
 `server:port` directly.
+
+## Rebuilding libbox for all ABIs (release blocker)
+
+`core/kernel/libs/libbox.aar` is a checked-in artifact. The one that shipped
+first was **arm64-v8a only**, which made the app installable on exactly one
+ABI — the app carried `ndk { abiFilters += "arm64-v8a" }` to make that honest
+rather than let a non-arm64 device install and then die on `loadLibrary`.
+
+To ship to armeabi-v7a and x86_64 as well, rebuild the AAR and let the app
+emit one APK per ABI.
+
+### Building
+
+```sh
+# All three env vars matter — see the traps below.
+export PATH=/opt/jdk17/bin:/opt/go/bin:$PATH
+export JAVA_HOME=/opt/jdk17
+export ANDROID_HOME=/opt/android-sdk
+
+cd /root/Starveil && bash tools/build-libbox.sh     # ~7 min, writes into /root/sing-box
+```
+
+It produces `libbox.aar` (main variant) and `libbox-legacy.aar` (drops
+`with_naive_outbound`). Starveil uses the **main** one.
+
+### Two traps, both silent until late
+
+1. **`ANDROID_HOME`, not `ANDROID_SDK_ROOT`.** `gomobile`'s `internal/sdkpath`
+   reads only `ANDROID_HOME`. Setting just `ANDROID_SDK_ROOT` fails
+   immediately with `FATAL[0000] android SDK not found`.
+2. **`javac` must be on `PATH`.** Setting `JAVA_HOME` alone is not enough.
+   The Go side compiles every ABI first and only then does `gomobile` need
+   `javac` for the Java bindings — so the build dies ~15 minutes in with
+   `exec: "javac": executable file not found in $PATH`. Hence the
+   `/opt/jdk17/bin` prefix above.
+
+Also note the script **overwrites** `libbox.aar` in place, and truncates it to
+zero bytes when a step fails, so a failed run destroys the previous artifact.
+
+### Trimming to the shipped ABIs
+
+The build emits four ABIs (it includes x86 32-bit). Starveil ships three:
+**armeabi-v7a, arm64-v8a, x86_64** — x86 is emulator-only and there is no
+emulator here. Dropping it also matters for size: the four-ABI AAR is 112 MB,
+which exceeds **GitHub's hard 100 MB per-file limit** and cannot be pushed.
+Three ABIs is 80 MB and does push.
+
+An AAR is a zip, so:
+
+```sh
+python3 - <<'PY'
+import zipfile
+zin = zipfile.ZipFile("/root/sing-box/libbox.aar")
+zout = zipfile.ZipFile("core/kernel/libs/libbox.aar", "w", zipfile.ZIP_DEFLATED)
+for item in zin.infolist():
+    if not item.filename.startswith("jni/x86/"):
+        zout.writestr(item, zin.read(item.filename))
+zout.close()
+PY
+```
+
+### Packaging
+
+The app uses ABI splits (`app/build.gradle.kts`), so a build emits one APK per
+ABI rather than a single universal one — the three ABIs together are ~230 MB
+of native code, which is not a sensible APK. CI uploads all of them under the
+`starveil-debug-apk` artifact, and `tools/install-device.sh` defaults to the
+arm64 split.
