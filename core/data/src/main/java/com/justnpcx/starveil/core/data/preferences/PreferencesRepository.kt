@@ -20,6 +20,18 @@ import javax.inject.Inject
 /** Theme selection. Stored as a String; unknown stored values fall back to SYSTEM. */
 enum class ThemeMode { SYSTEM, DARK, LIGHT }
 
+/**
+ * Whether [this] mode means "dark", given whether the system is dark.
+ *
+ * SYSTEM follows the system; DARK and LIGHT are explicit overrides. Pure, so
+ * the mapping is unit-testable without a Compose runtime.
+ */
+fun ThemeMode.isDark(systemDark: Boolean): Boolean = when (this) {
+    ThemeMode.SYSTEM -> systemDark
+    ThemeMode.DARK -> true
+    ThemeMode.LIGHT -> false
+}
+
 private val Context.starveilDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "starveil_preferences",
 )

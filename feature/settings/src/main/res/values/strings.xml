@@ -2,6 +2,13 @@
 <resources>
     <string name="settings_title">Settings</string>
 
+    <string name="theme_title">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="dynamic_color_title">Dynamic colour</string>
+    <string name="dynamic_color_desc">Take the palette from the wallpaper (Android 12+). Overrides the Starveil HUD colours.</string>
+
     <string name="kill_switch_title">Kill Switch</string>
     <string name="kill_switch_off">Off</string>
     <string name="kill_switch_off_desc">Never block traffic.</string>
