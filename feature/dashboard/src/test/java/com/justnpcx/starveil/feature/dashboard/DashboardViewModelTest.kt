@@ -1,7 +1,9 @@
 package com.justnpcx.starveil.feature.dashboard
 
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
+import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -11,10 +13,12 @@ import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.ui.components.ConnectionState
@@ -23,6 +27,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -213,11 +218,104 @@ class DashboardViewModelTest {
         assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
     }
 
-    private fun viewModel(preferences: FakePreferences, kernel: RecordingKernel) =
+    @Test
+    fun `connecting through a urltest group builds the group config`() = runBlocking {
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(group(SUB, GroupMode.URL_TEST, listOf(ONE, TWO))))
+        preferences.setSelectedGroupId(SUB)
+        val viewModel = viewModel(preferences, kernel, groups)
+
+        viewModel.onCoreClick()
+
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(1, kernel.starts)
+        val config = kernel.lastConfig.orEmpty()
+        assertTrue(config.contains("\"type\":\"urltest\""))
+        // Both members are in the config, so the kernel has something to pick
+        // between — that is the whole point of connecting through a group.
+        assertTrue(config.contains("one.example"))
+        assertTrue(config.contains("two.example"))
+        assertEquals("sub", viewModel.uiState.value.selectedNodeName)
+    }
+
+    @Test
+    fun `connecting through a selector group emits a selector`() = runBlocking {
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(group(SUB, GroupMode.SELECTOR, listOf(ONE, TWO))))
+        preferences.setSelectedGroupId(SUB)
+        val viewModel = viewModel(preferences, kernel, groups)
+
+        viewModel.onCoreClick()
+
+        assertEquals(1, kernel.starts)
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"type\":\"selector\""))
+    }
+
+    @Test
+    fun `a manual group is not a connection target`() = runBlocking {
+        // A manual group is a folder. Connecting "through" it is meaningless,
+        // so it must be refused rather than quietly connecting to a member.
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(group(SUB, GroupMode.MANUAL, listOf(ONE))))
+        preferences.setSelectedGroupId(SUB)
+        val viewModel = viewModel(preferences, kernel, groups)
+
+        viewModel.onCoreClick()
+
+        assertEquals(0, kernel.starts)
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+        assertTrue(viewModel.uiState.value.errorMessage.orEmpty().contains("Pick a node or a group"))
+    }
+
+    @Test
+    fun `a group with no members left is not a connection target`() = runBlocking {
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(0L)
+        val groups = FakeGroups(listOf(group(SUB, GroupMode.URL_TEST, emptyList())))
+        preferences.setSelectedGroupId(SUB)
+        val viewModel = viewModel(preferences, kernel, groups)
+
+        viewModel.onCoreClick()
+
+        assertEquals(0, kernel.starts)
+        assertTrue(viewModel.uiState.value.errorMessage.orEmpty().contains("Pick a node or a group"))
+    }
+
+    @Test
+    fun `switching from a node to a group while connected reconnects exactly once`() = runBlocking {
+        // The node and the group are one stored choice, so this is a single
+        // change of target. Watching them as two flows used to make it two,
+        // tearing the tunnel down twice.
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(ONE)
+        val groups = FakeGroups(listOf(group(SUB, GroupMode.URL_TEST, listOf(ONE, TWO))))
+        val viewModel = viewModel(preferences, kernel, groups)
+
+        viewModel.onCoreClick()
+        assertEquals(1, kernel.starts)
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"server\":\"one.example\""))
+
+        preferences.setSelectedGroupId(SUB)
+
+        assertEquals(2, kernel.starts)
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"type\":\"urltest\""))
+        assertEquals("sub", viewModel.uiState.value.selectedNodeName)
+    }
+
+    private fun viewModel(
+        preferences: FakePreferences,
+        kernel: RecordingKernel,
+        groups: FakeGroups = FakeGroups(emptyList()),
+    ) =
         DashboardViewModel(
             kernel = kernel,
             profiles = FakeProfiles(listOf(profile(ONE, "one"), profile(TWO, "two"))),
             preferences = preferences,
+            groups = groups,
             rules = FakeRules(),
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
         )
@@ -231,9 +329,13 @@ class DashboardViewModelTest {
         settings = VlessSettings(uuid = "11111111-2222-3333-4444-555555555555"),
     )
 
+    private fun group(id: Long, mode: GroupMode, members: List<Long>) =
+        ProxyGroup(id = id, name = "sub", mode = mode, profileIds = members)
+
     private companion object {
         const val ONE = 1L
         const val TWO = 2L
+        const val SUB = 7L
     }
 }
 
@@ -243,16 +345,38 @@ private class FakePreferences(
     autoReconnect: Boolean = true,
 ) : PreferencesRepository {
 
-    private val id = MutableStateFlow(initialId)
     private val killSwitch = MutableStateFlow(initialKillSwitch)
     private val autoReconnectFlow = MutableStateFlow(autoReconnect)
 
-    override val selectedProfileId: Flow<Long> = id
+    private val target = MutableStateFlow<ConnectionTarget>(
+        if (initialId != 0L) ConnectionTarget.Node(initialId) else ConnectionTarget.None,
+    )
+
+    override val selectedProfileId: Flow<Long> =
+        target.map { (it as? ConnectionTarget.Node)?.id ?: 0L }
+    override val selectedGroupId: Flow<Long> =
+        target.map { (it as? ConnectionTarget.Group)?.id ?: 0L }
+    override val connectionTarget: Flow<ConnectionTarget> = target
+
     override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
 
     override suspend fun setSelectedProfileId(id: Long) {
-        this.id.value = id
+        // Clearing the node must not disturb a group that is selected instead;
+        // the real repository only touches its own key.
+        target.value = when {
+            id != 0L -> ConnectionTarget.Node(id)
+            target.value is ConnectionTarget.Node -> ConnectionTarget.None
+            else -> target.value
+        }
+    }
+
+    override suspend fun setSelectedGroupId(id: Long) {
+        target.value = when {
+            id != 0L -> ConnectionTarget.Group(id)
+            target.value is ConnectionTarget.Group -> ConnectionTarget.None
+            else -> target.value
+        }
     }
 
     // The rest of the preferences are not what this test is about.
@@ -282,6 +406,15 @@ private class FakeProfiles(private val all: List<Profile>) : ProfileRepository {
     override suspend fun deleteById(id: Long) { notUsed() }
     override suspend fun deleteByGroup(groupId: Long) { notUsed() }
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) { notUsed() }
+}
+
+/** A group store with no writing: the dashboard only reads. */
+private class FakeGroups(private val all: List<ProxyGroup>) : GroupRepository {
+    override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(all)
+    override suspend fun getById(id: Long): ProxyGroup? = all.firstOrNull { it.id == id }
+    override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? = notUsed()
+    override suspend fun upsert(group: ProxyGroup): Long = notUsed()
+    override suspend fun deleteById(id: Long) = notUsed()
 }
 
 /** No rules configured — the config just has an empty `rules` array. */

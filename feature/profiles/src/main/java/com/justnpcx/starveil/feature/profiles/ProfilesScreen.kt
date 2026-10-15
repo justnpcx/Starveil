@@ -14,6 +14,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.size
+import com.justnpcx.starveil.core.model.GroupMode
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -133,6 +142,7 @@ fun ProfilesScreen(
                         selected = state.groupFilter == group.id,
                         onClick = { viewModel.filterByGroup(group.id) },
                         onLongClick = { groupMenu = group },
+                        inUse = state.selectedGroupId == group.id,
                     )
                 }
                 GroupChip(
@@ -225,13 +235,62 @@ fun ProfilesScreen(
         )
     }
 
-    groupMenu?.let { group ->
+    groupMenu?.let { menuGroup ->
+        // Read through to the live row: the captured value is a snapshot, so
+        // changing the mode would otherwise leave the chips showing the old one.
+        val group = state.groups.firstOrNull { it.id == menuGroup.id } ?: menuGroup
+        val inUse = state.selectedGroupId == group.id
         AlertDialog(
             onDismissRequest = { groupMenu = null },
             title = { Text(group.name) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
                     Text(stringResource(R.string.profiles_group_menu_body, group.profileIds.size))
+
+                    Text(
+                        text = stringResource(R.string.profiles_group_mode_title),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                        GroupMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = group.mode == mode,
+                                onClick = { viewModel.setGroupMode(group, mode) },
+                                label = { Text(stringResource(mode.labelRes())) },
+                            )
+                        }
+                    }
+
+                    // Say why the button is unavailable rather than leaving a
+                    // dead control with no explanation.
+                    when {
+                        group.profileIds.isEmpty() -> Hint(
+                            stringResource(R.string.profiles_group_connect_empty_hint),
+                        )
+
+                        group.mode == GroupMode.MANUAL -> Hint(
+                            stringResource(R.string.profiles_group_connect_folder_hint),
+                        )
+                    }
+
+                    TextButton(
+                        enabled = group.mode != GroupMode.MANUAL && group.profileIds.isNotEmpty(),
+                        onClick = {
+                            if (inUse) viewModel.stopUsingGroup() else viewModel.selectGroup(group)
+                            groupMenu = null
+                        },
+                    ) {
+                        Text(
+                            stringResource(
+                                if (inUse) {
+                                    R.string.profiles_group_connect_stop
+                                } else {
+                                    R.string.profiles_group_connect
+                                },
+                            ),
+                        )
+                    }
+
                     TextButton(
                         onClick = {
                             groupMenu = null
@@ -593,6 +652,8 @@ private fun GroupChip(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    /** The tunnel goes through this group, as opposed to the list being filtered to it. */
+    inUse: Boolean = false,
 ) {
     Surface(
         modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
@@ -603,20 +664,54 @@ private fun GroupChip(
             StarveilColors.Raised
         },
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (selected) StarveilColors.GlowPrimary else StarveilColors.TextDim,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(
                 horizontal = StarveilSpacing.md,
                 vertical = StarveilSpacing.sm,
             ),
-        )
+        ) {
+            if (inUse) {
+                // A dot rather than another chip colour: `selected` here means
+                // "the list is filtered to this group", which is a different
+                // thing from "the tunnel goes through it".
+                Box(
+                    modifier = Modifier
+                        .size(IN_USE_DOT)
+                        .clip(CircleShape)
+                        .background(StarveilColors.Connected),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.xs))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) StarveilColors.GlowPrimary else StarveilColors.TextDim,
+            )
+        }
     }
 }
 
 /** Selected chip fill: the spec's "GlowPrimary 20%". */
 private const val GROUP_SELECTED_ALPHA = 0.2f
+
+/** The "tunnel goes through this group" marker on a chip. */
+private val IN_USE_DOT = 6.dp
+
+@Composable
+private fun Hint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private fun GroupMode.labelRes(): Int = when (this) {
+    GroupMode.MANUAL -> R.string.profiles_group_mode_folder
+    GroupMode.SELECTOR -> R.string.profiles_group_mode_selector
+    GroupMode.URL_TEST -> R.string.profiles_group_mode_urltest
+}
 
 @Composable
 private fun NoMatchesState() {

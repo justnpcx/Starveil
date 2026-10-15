@@ -2,7 +2,9 @@ package com.justnpcx.starveil.feature.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -12,6 +14,9 @@ import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -53,6 +58,7 @@ class DashboardViewModel @Inject constructor(
     private val kernel: KernelBridge,
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
+    private val groups: GroupRepository,
     private val rules: RuleRepository,
     private val configBuilder: ConfigBuilder,
 ) : ViewModel() {
@@ -92,32 +98,38 @@ class DashboardViewModel @Inject constructor(
         // the dashboard would name a node the kernel is not using, and every
         // connection would silently fail against the old one.
         scope.launch {
-            var replayedInitialValue = false
-            preferences.selectedProfileId.collect { id ->
-                val name = if (id == 0L) DashboardUiState.NO_NODE else profiles.getById(id)?.name
-                _uiState.update { it.copy(selectedNodeName = name ?: DashboardUiState.NO_NODE) }
-                // A flow replays its current value on subscribe; that is not a
-                // switch and must not restart anything.
-                if (!replayedInitialValue) {
-                    replayedInitialValue = true
-                    return@collect
-                }
-                if (id == 0L) {
-                    // The selected node was deleted on the Nodes tab. There is
-                    // nothing to switch to, so stop — rather than try to build
-                    // a config from a profile that no longer exists.
+            // The node and the group are one choice, not two: the repository
+            // keeps at most one set. combine can still emit twice for a single
+            // user action, because both keys change in the same edit, so the
+            // target is compared by identity and duplicates are dropped.
+            var lastKey: String? = null
+            preferences.connectionTarget.collect { target ->
+                _uiState.update { it.copy(selectedNodeName = targetLabel(target)) }
+
+                val key = target.key()
+                if (key == lastKey) return@collect
+                // The first value is the flow replaying what is already stored;
+                // that is not a switch and must not restart anything.
+                val isReplay = lastKey == null
+                lastKey = key
+                if (isReplay) return@collect
+
+                if (target is ConnectionTarget.None) {
+                    // The target was deleted, emptied, or turned back into a
+                    // plain folder. There is nothing to switch to, so stop
+                    // rather than build a config from something that is gone.
                     if (_uiState.value.connectionState == ConnectionState.CONNECTED) disconnect()
                     return@collect
                 }
                 if (!_uiState.value.isBusy && _uiState.value.connectionState == ConnectionState.CONNECTED) {
-                    applyNodeSwitch()
+                    applyTargetSwitch()
                 }
             }
         }
     }
 
-    /** Point the running tunnel at the newly selected node. */
-    private fun applyNodeSwitch() {
+    /** Point the running tunnel at the newly selected target. */
+    private fun applyTargetSwitch() {
         scope.launch {
             disconnect()
             connect(userInitiated = true)
@@ -187,28 +199,31 @@ class DashboardViewModel @Inject constructor(
             return
         }
 
-        // The real outbound: whatever node is selected on the Nodes tab.
-        val id = preferences.selectedProfileId.first()
-        val profile = if (id == 0L) null else profiles.getById(id)
-        if (profile == null) {
-            _uiState.update {
-                it.copy(
-                    isBusy = false,
-                    connectionState = ConnectionState.DISCONNECTED,
-                    errorMessage = "Pick a node on the Nodes tab first",
-                )
-            }
-            return
-        }
-
+        // The real outbound: whatever is selected on the Nodes tab — either a
+        // single node, or a group the kernel picks within.
+        val target = resolveTarget()
+        val rules = rules.observeAllOrdered().first()
         val config = try {
-            configBuilder.build(profile, rules.observeAllOrdered().first())
+            when (target) {
+                is Target.Node -> configBuilder.build(target.profile, rules)
+                is Target.Group -> configBuilder.build(target.members, rules, target.mode)
+                Target.None -> {
+                    _uiState.update {
+                        it.copy(
+                            isBusy = false,
+                            connectionState = ConnectionState.DISCONNECTED,
+                            errorMessage = "Pick a node or a group on the Nodes tab first",
+                        )
+                    }
+                    return
+                }
+            }
         } catch (e: ConfigBuildException) {
             _uiState.update {
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.BLOCKED,
-                    errorMessage = "Cannot build the config for this node",
+                    errorMessage = "Cannot build the config for this target",
                 )
             }
             return
@@ -220,7 +235,7 @@ class DashboardViewModel @Inject constructor(
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.CONNECTED,
-                    selectedNodeName = profile.name,
+                    selectedNodeName = target.label(),
                 )
             }
             startStatsLoop()
@@ -311,6 +326,65 @@ class DashboardViewModel @Inject constructor(
         super.onCleared()
     }
 
+    /**
+     * What the tunnel should point at.
+     *
+     * A group carries its name and members rather than the [ProxyGroup] itself,
+     * so the connect path cannot accidentally re-read a group that changed
+     * underneath it.
+     */
+    private sealed interface Target {
+        data object None : Target
+
+        data class Node(val profile: Profile) : Target
+
+        data class Group(val name: String, val members: List<Profile>, val mode: GroupMode) : Target
+
+        fun label(): String = when (this) {
+            is Node -> profile.name
+            is Group -> name
+            None -> DashboardUiState.NO_NODE
+        }
+    }
+
+    /**
+     * Turns the stored selection into something buildable.
+     *
+     * A group only counts as a target when its mode produces a group outbound
+     * and it has at least one member left: a plain folder is not something you
+     * connect *through*, and an empty group has nothing to build from. Both
+     * degrade to [Target.None] rather than failing later.
+     */
+    private suspend fun resolveTarget(): Target {
+        return when (val selected = preferences.connectionTarget.first()) {
+            is ConnectionTarget.Group -> {
+                val group: ProxyGroup = groups.getById(selected.id) ?: return Target.None
+                if (group.mode == GroupMode.MANUAL) return Target.None
+                val members = group.profileIds.mapNotNull { profiles.getById(it) }
+                if (members.isEmpty()) return Target.None
+                Target.Group(group.name, members, group.mode)
+            }
+
+            is ConnectionTarget.Node ->
+                profiles.getById(selected.id)?.let { Target.Node(it) } ?: Target.None
+
+            ConnectionTarget.None -> Target.None
+        }
+    }
+
+    /** Identity of the current target, so a change can be told from a repeat. */
+    private fun ConnectionTarget.key(): String = when (this) {
+        is ConnectionTarget.Node -> "node:$id"
+        is ConnectionTarget.Group -> "group:$id"
+        ConnectionTarget.None -> NO_TARGET
+    }
+
+    private suspend fun targetLabel(target: ConnectionTarget): String = when (target) {
+        is ConnectionTarget.Node -> profiles.getById(target.id)?.name ?: DashboardUiState.NO_NODE
+        is ConnectionTarget.Group -> groups.getById(target.id)?.name ?: DashboardUiState.NO_NODE
+        ConnectionTarget.None -> DashboardUiState.NO_NODE
+    }
+
     private companion object {
         /** Why the dashboard is in BLOCKED: the user has to turn it off. */
         const val KILL_SWITCH_BLOCKING = "Kill Switch is blocking all traffic"
@@ -323,5 +397,8 @@ class DashboardViewModel @Inject constructor(
 
         /** The reconnect also died; stop rather than loop. */
         const val TUNNEL_KEEPS_DROPPING = "Tunnel keeps dropping; not reconnecting again"
+
+        /** No target key: nothing is selected. */
+        const val NO_TARGET = "none"
     }
 }

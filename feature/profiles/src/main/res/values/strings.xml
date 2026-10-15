@@ -14,6 +14,15 @@
 
     <!-- Group management, behind a long-press on a chip. -->
     <string name="profiles_group_menu_body">%1$d nodes</string>
+    <string name="profiles_group_mode_title">Mode</string>
+    <string name="profiles_group_mode_folder">Folder</string>
+    <string name="profiles_group_mode_selector">Selector</string>
+    <string name="profiles_group_mode_urltest">Fastest</string>
+    <string name="profiles_group_connect">Connect through this group</string>
+    <string name="profiles_group_connect_stop">Stop using this group</string>
+    <string name="profiles_group_connect_folder_hint">A folder is not something you connect through. Give it a mode, or pick a node inside it.</string>
+    <string name="profiles_group_connect_empty_hint">This group has no nodes to connect with.</string>
+    <string name="profiles_group_in_use">In use</string>
     <string name="profiles_group_rename">Rename</string>
     <string name="profiles_group_rename_title">Rename group</string>
     <string name="profiles_group_name_label">Name</string>

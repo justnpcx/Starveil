@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.ObfsOptions
+import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -25,6 +26,7 @@ import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -365,6 +367,32 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"tag\":\"proxy-2\""))
         assertTrue(json.contains("\"type\":\"urltest\""))
         assertTrue(json.contains("\"final\":\"auto\""))
+    }
+
+    @Test
+    fun `a selector group lists its members and picks a starting one`() {
+        val profiles = (0 until 3).map { vlessProfile(uuid = "uuid-$it") }
+        val json = builder.build(profiles, mode = GroupMode.SELECTOR)
+
+        assertTrue(json.contains("\"type\":\"selector\""))
+        assertTrue(json.contains("\"final\":\"auto\""))
+        // A selector has to start on something, and it must be a member it
+        // actually lists — sing-box rejects a default that is not in outbounds.
+        assertTrue(json.contains("\"default\":\"proxy-0\""))
+        assertTrue(json.contains("\"outbounds\":[\"proxy-0\",\"proxy-1\",\"proxy-2\"]"))
+        // The urltest-only knobs must not leak into a selector.
+        assertFalse(json.contains("\"tolerance\""))
+        assertFalse(json.contains("\"interval\""))
+    }
+
+    @Test
+    fun `a manual group is rejected because it is a folder, not a connection target`() {
+        // Callers are expected to connect to a member instead. Failing loudly
+        // beats emitting a config that silently does something else.
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            builder.build(listOf(vlessProfile()), mode = GroupMode.MANUAL)
+        }
+        assertTrue(error.message.orEmpty().contains("MANUAL"))
     }
 
     @Test
