@@ -21,6 +21,12 @@ interface ProfileRepository {
     suspend fun deleteById(id: Long)
 
     /**
+     * Remove every profile in [groupId] in one statement. Used when a group is
+     * deleted: a subscription's nodes are the group, so they go with it.
+     */
+    suspend fun deleteByGroup(groupId: Long)
+
+    /**
      * Replace every profile in [groupId] with [profiles] — the subscription
      * refresh path. Runs in one transaction so a failure cannot leave the
      * group half-updated (the caller keeps the last-good set instead).
@@ -53,6 +59,8 @@ class RoomProfileRepository @Inject constructor(
     }
 
     override suspend fun deleteById(id: Long) = dao.deleteById(id)
+
+    override suspend fun deleteByGroup(groupId: Long) = dao.deleteByGroup(groupId)
 
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
         dao.replaceGroup(groupId, profiles.map { it.copy(groupId = groupId).toEntity() })

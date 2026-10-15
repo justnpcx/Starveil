@@ -3,6 +3,8 @@ package com.justnpcx.starveil.feature.profiles
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,12 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -69,6 +71,12 @@ fun ProfilesScreen(
     // Deleting is destructive, so the row's button only stages the node; the
     // confirmation below is what actually removes it.
     var pendingDelete by remember { mutableStateOf<Profile?>(null) }
+    // Group management sits behind a long-press on a chip, because a tap has to
+    // stay the filter. Three stages, like the node delete: menu, then the
+    // rename or the confirmation.
+    var groupMenu by remember { mutableStateOf<ProxyGroup?>(null) }
+    var groupToRename by remember { mutableStateOf<ProxyGroup?>(null) }
+    var groupToDelete by remember { mutableStateOf<ProxyGroup?>(null) }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -117,6 +125,7 @@ fun ProfilesScreen(
                             label = group.name,
                             selected = state.groupFilter == group.id,
                             onClick = { viewModel.filterByGroup(group.id) },
+                            onLongClick = { groupMenu = group },
                         )
                     }
                 }
@@ -194,6 +203,116 @@ fun ProfilesScreen(
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
                     Text(stringResource(R.string.profiles_delete_cancel))
+                }
+            },
+        )
+    }
+
+    groupMenu?.let { group ->
+        AlertDialog(
+            onDismissRequest = { groupMenu = null },
+            title = { Text(group.name) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    Text(stringResource(R.string.profiles_group_menu_body, group.profileIds.size))
+                    TextButton(
+                        onClick = {
+                            groupMenu = null
+                            groupToRename = group
+                        },
+                    ) {
+                        Text(stringResource(R.string.profiles_group_rename))
+                    }
+                    TextButton(
+                        onClick = {
+                            groupMenu = null
+                            groupToDelete = group
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profiles_group_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { groupMenu = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
+                }
+            },
+        )
+    }
+
+    groupToRename?.let { group ->
+        // Keyed on the id so opening a different group starts from its name.
+        var name by remember(group.id) { mutableStateOf(group.name) }
+        AlertDialog(
+            onDismissRequest = { groupToRename = null },
+            title = { Text(stringResource(R.string.profiles_group_rename_title)) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.profiles_group_name_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.renameGroup(group, name)
+                        groupToRename = null
+                    },
+                    enabled = name.isNotBlank(),
+                ) {
+                    Text(stringResource(R.string.profiles_group_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToRename = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
+                }
+            },
+        )
+    }
+
+    groupToDelete?.let { group ->
+        AlertDialog(
+            onDismissRequest = { groupToDelete = null },
+            title = { Text(stringResource(R.string.profiles_group_delete_title)) },
+            text = {
+                Text(
+                    // Say the node count: deleting a subscription group takes
+                    // its nodes with it, and that is not obvious.
+                    if (group.profileIds.isEmpty()) {
+                        stringResource(R.string.profiles_group_delete_body_empty, group.name)
+                    } else {
+                        stringResource(
+                            R.string.profiles_group_delete_body,
+                            group.name,
+                            group.profileIds.size,
+                        )
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteGroup(group)
+                        groupToDelete = null
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.profiles_group_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToDelete = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
                 }
             },
         )
@@ -381,25 +500,41 @@ private fun NodeRow(
 /**
  * A group filter chip (design system §6.4): capsule, raised surface when idle,
  * brand glow when selected.
+ *
+ * Long-press opens group management. A tap has to stay the filter, so the
+ * destructive actions cannot live there.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label) },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = StarveilColors.Raised,
-            labelColor = StarveilColors.TextDim,
-            selectedContainerColor = StarveilColors.GlowPrimary.copy(alpha = 0.2f),
-            selectedLabelColor = StarveilColors.GlowPrimary,
-        ),
-    )
+    Surface(
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(percent = 50),
+        color = if (selected) {
+            StarveilColors.GlowPrimary.copy(alpha = GROUP_SELECTED_ALPHA)
+        } else {
+            StarveilColors.Raised
+        },
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) StarveilColors.GlowPrimary else StarveilColors.TextDim,
+            modifier = Modifier.padding(
+                horizontal = StarveilSpacing.md,
+                vertical = StarveilSpacing.sm,
+            ),
+        )
+    }
 }
+
+/** Selected chip fill: the spec's "GlowPrimary 20%". */
+private const val GROUP_SELECTED_ALPHA = 0.2f
 
 @Composable
 private fun NoMatchesState() {

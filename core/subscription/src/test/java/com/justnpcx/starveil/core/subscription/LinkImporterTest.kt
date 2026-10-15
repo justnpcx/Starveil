@@ -30,6 +30,10 @@ private class ImpProfiles : ProfileRepository {
         rows.remove(id)
     }
 
+    override suspend fun deleteByGroup(groupId: Long) {
+        rows.values.removeAll { it.groupId == groupId }
+    }
+
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
         rows.values.removeAll { it.groupId == groupId }
         profiles.forEach { upsert(it.copy(groupId = groupId)) }

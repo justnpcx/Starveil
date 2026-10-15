@@ -92,6 +92,35 @@ class ProfilesViewModel @Inject constructor(
         groupFilter.value = groupId
     }
 
+    fun renameGroup(group: ProxyGroup, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty() || trimmed == group.name) return
+        viewModelScope.launch { groups.upsert(group.copy(name = trimmed)) }
+    }
+
+    /**
+     * Delete a group and the nodes it brought in.
+     *
+     * A subscription's nodes *are* the group — they refresh from its URL — so
+     * keeping them would leave orphans nothing can update or remove as a set.
+     * The caller confirms first, and the dialog names the count.
+     */
+    fun deleteGroup(group: ProxyGroup) {
+        viewModelScope.launch {
+            // Read before deleting: the ids are gone once the profiles are.
+            val removedIds = group.profileIds.toSet()
+            profiles.deleteByGroup(group.id)
+            groups.deleteById(group.id)
+            // Stop filtering by something that no longer exists.
+            if (groupFilter.value == group.id) groupFilter.value = null
+            // Same rule as deleting one node: the selection must not outlive
+            // the node it points at.
+            if (preferences.selectedProfileId.first() in removedIds) {
+                preferences.setSelectedProfileId(0L)
+            }
+        }
+    }
+
     /**
      * Remove a node.
      *
