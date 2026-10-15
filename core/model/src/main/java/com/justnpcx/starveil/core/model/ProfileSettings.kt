@@ -150,3 +150,46 @@ data class Hysteria2Settings(
     val downMbps: Int? = null,
     val tls: TlsOptions = TlsOptions.Plain,
 ) : ProfileSettings
+
+/** TUIC congestion control. sing-box accepts only these three. */
+enum class TuicCongestionControl(val wireName: String) {
+    CUBIC("cubic"),
+    NEW_RENO("new_reno"),
+    BBR("bbr"),
+    ;
+
+    companion object {
+        fun fromWireName(name: String): TuicCongestionControl? =
+            entries.firstOrNull { it.wireName.equals(name, ignoreCase = true) }
+    }
+}
+
+/** How TUIC carries UDP. sing-box accepts only these two. */
+enum class TuicUdpRelayMode(val wireName: String) {
+    NATIVE("native"),
+    QUIC("quic"),
+    ;
+
+    companion object {
+        fun fromWireName(name: String): TuicUdpRelayMode? =
+            entries.firstOrNull { it.wireName.equals(name, ignoreCase = true) }
+    }
+}
+
+/**
+ * TUIC outbound settings (`tuic://`).
+ *
+ * QUIC-based, like Hysteria2: no stream transport, no multiplex, TLS always
+ * on. The two enums are here rather than plain strings because sing-box
+ * constrains both fields — an unknown value fails the whole config and stops
+ * the kernel — so the type is a better place to keep that out than a
+ * validation call someone can forget.
+ */
+data class TuicSettings(
+    val uuid: String,
+    val password: String,
+    val congestionControl: TuicCongestionControl? = null,
+    val udpRelayMode: TuicUdpRelayMode? = null,
+    val zeroRttHandshake: Boolean = false,
+    val tls: TlsOptions = TlsOptions.Plain,
+) : ProfileSettings

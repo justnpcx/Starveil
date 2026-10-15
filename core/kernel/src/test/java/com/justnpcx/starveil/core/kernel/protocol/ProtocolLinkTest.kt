@@ -7,6 +7,9 @@ import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import java.util.Base64
@@ -284,6 +287,55 @@ class Hysteria2LinkTest {
     }
 }
 
+class TuicLinkTest {
+
+    @Test
+    fun `parses uuid, password, congestion control and TLS`() {
+        val profile = StarveilProtocols.parseTuic(
+            "tuic://11111111-2222-3333-4444-555555555555:secret@t.example.com:443" +
+                "?congestion_control=bbr&udp_relay_mode=native&alpn=h3&sni=t.example.com" +
+                "&allow_insecure=1#TUIC",
+        )
+        assertNotNull(profile)
+        profile!!
+        assertEquals("TUIC", profile.name)
+        assertEquals(ProfileType.TUIC, profile.type)
+        assertEquals("t.example.com", profile.server)
+        assertEquals(443, profile.port)
+        val s = profile.settings as TuicSettings
+        assertEquals("11111111-2222-3333-4444-555555555555", s.uuid)
+        assertEquals("secret", s.password)
+        assertEquals(TuicCongestionControl.BBR, s.congestionControl)
+        assertEquals(TuicUdpRelayMode.NATIVE, s.udpRelayMode)
+        assertEquals(SecurityMode.TLS, s.tls.security)
+        assertEquals("t.example.com", s.tls.sni)
+        assertEquals(listOf("h3"), s.tls.alpn)
+        // TUIC links spell this one with underscores.
+        assertTrue(s.tls.allowInsecure)
+    }
+
+    @Test
+    fun `an unknown congestion control or relay mode is dropped`() {
+        val profile = StarveilProtocols.parseTuic(
+            "tuic://uuid:pw@t.example:443?congestion_control=vegas&udp_relay_mode=weird",
+        )
+        assertNotNull(profile)
+        val s = profile!!.settings as TuicSettings
+        // Both are enums upstream: an unknown value would fail the whole
+        // config and stop the kernel, so they are dropped instead.
+        assertNull(s.congestionControl)
+        assertNull(s.udpRelayMode)
+    }
+
+    @Test
+    fun `rejects links without both halves of the userinfo`() {
+        assertNull(StarveilProtocols.parseTuic("vless://u@h.example:443"))
+        assertNull(StarveilProtocols.parseTuic("tuic://justapassword@t.example:443"))
+        assertNull(StarveilProtocols.parseTuic("tuic://uuid:@t.example:443"))
+        assertNull(StarveilProtocols.parseTuic("tuic://uuid:pw@t.example"))
+    }
+}
+
 class ProtocolRegistryWiringTest {
 
     @Test
@@ -295,6 +347,7 @@ class ProtocolRegistryWiringTest {
         assertEquals(ProfileType.VMESS, registry.fromScheme("vmess")?.type)
         assertEquals(ProfileType.HYSTERIA2, registry.fromScheme("hy2")?.type)
         assertEquals(ProfileType.HYSTERIA2, registry.fromScheme("hysteria2")?.type)
+        assertEquals(ProfileType.TUIC, registry.fromScheme("tuic")?.type)
 
         val vless = registry.get(ProfileType.VLESS)!!
         val parsed = vless.linkParser("vless://u@h.example:443#n")
@@ -305,10 +358,10 @@ class ProtocolRegistryWiringTest {
     @Test
     fun `unimplemented protocols stay stubs`() {
         val registry = com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry.default()
-        val tuic = registry.get(ProfileType.TUIC)!!
-        assertNull(tuic.linkParser("tuic://whatever"))
-        assertTrue(tuic.configBuilder(com.justnpcx.starveil.core.model.Profile(
-            name = "x", type = ProfileType.TUIC, server = "h", port = 1,
+        val wireguard = registry.get(ProfileType.WIREGUARD)!!
+        assertNull(wireguard.linkParser("wireguard://whatever"))
+        assertTrue(wireguard.configBuilder(com.justnpcx.starveil.core.model.Profile(
+            name = "x", type = ProfileType.WIREGUARD, server = "h", port = 1,
         )).isEmpty())
     }
 }

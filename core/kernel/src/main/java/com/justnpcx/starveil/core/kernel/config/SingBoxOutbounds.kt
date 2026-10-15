@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 
@@ -95,6 +96,27 @@ internal object SingBoxOutbounds {
                     linkedMapOf<String, Any?>("type" to obfs.type, "password" to obfs.password),
                 )
             }
+            tlsBlock(s.tls)?.let { put("tls", it) }
+        }
+
+    /**
+     * TUIC is QUIC-based too: no stream transport, no multiplex, and the TLS
+     * block carries its SNI / ALPN / insecure. `congestion_control` and
+     * `udp_relay_mode` are enums upstream, so they are enums here — an
+     * unknown value would fail the whole config, not just this outbound.
+     */
+    fun tuic(profile: Profile, s: TuicSettings): Map<String, Any?> =
+        linkedMapOf<String, Any?>(
+            "type" to "tuic",
+            "tag" to profile.name,
+            "server" to profile.server,
+            "server_port" to profile.port,
+            "uuid" to s.uuid,
+            "password" to s.password,
+        ).apply {
+            s.congestionControl?.let { put("congestion_control", it.wireName) }
+            s.udpRelayMode?.let { put("udp_relay_mode", it.wireName) }
+            if (s.zeroRttHandshake) put("zero_rtt_handshake", true)
             tlsBlock(s.tls)?.let { put("tls", it) }
         }
 
