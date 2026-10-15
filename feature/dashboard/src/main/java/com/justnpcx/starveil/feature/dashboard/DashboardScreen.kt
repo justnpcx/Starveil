@@ -50,22 +50,23 @@ fun DashboardScreen(
     ) {
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         ConnectionCore(
-            state = state.connectionState,
+            state = state.coreState,
             onClick = { requestVpnConsent { viewModel.onCoreClick() } },
             // The core is the screen's primary control, so its description
             // carries both the state and what tapping does (design system §6.1).
             contentDescription = stringResource(
-                when (state.connectionState) {
+                when (state.coreState) {
                     ConnectionState.DISCONNECTED -> R.string.dashboard_core_disconnected
                     ConnectionState.CONNECTING -> R.string.dashboard_core_connecting
                     ConnectionState.CONNECTED -> R.string.dashboard_core_connected
+                    ConnectionState.WARNING -> R.string.dashboard_core_warning
                     ConnectionState.BLOCKED -> R.string.dashboard_core_blocked
                 },
             ),
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.sm))
         Text(
-            text = state.connectionState.name,
+            text = state.coreState.name,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )

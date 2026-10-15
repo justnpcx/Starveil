@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.ui.components
 
+import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -42,6 +44,13 @@ enum class ConnectionState {
     DISCONNECTED,
     CONNECTING,
     CONNECTED,
+
+    /**
+     * Up, but not trustworthy — the tunnel is carrying traffic and something
+     * about it is wrong (a leak the self-check found). Distinct from
+     * [BLOCKED], which is traffic not leaving at all.
+     */
+    WARNING,
     BLOCKED,
 }
 
@@ -49,13 +58,18 @@ enum class ConnectionState {
  * ConnectionCore — the heart of the Dashboard.
  *
  * - [ConnectionState.CONNECTED]: cyan glow, slow breathing pulse.
+ * - [ConnectionState.WARNING]: amber, and a *slower, shallower* pulse — a
+ *   warning that breathes at the healthy rate reads as "all good" in the
+ *   wrong colour.
  * - [ConnectionState.CONNECTING]: rotating charge arc.
  * - [ConnectionState.DISCONNECTED]: dim, static ring.
  * - [ConnectionState.BLOCKED]: red alert ring.
  *
  * A state change moves four things at once — colour, breathing, core size and
  * glow — over 220ms, which is the design system's hard rule (§5.3): changing
- * only the colour reads as a glitch rather than a state change.
+ * only the colour reads as a glitch rather than a state change. The breathing
+ * is therefore *eased* back to rest rather than snapped; an instant jump is
+ * the "瞬变" the same rule forbids.
  */
 @Composable
 fun ConnectionCore(
@@ -84,23 +98,28 @@ fun ConnectionCore(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val breathing = resumed && state == ConnectionState.CONNECTED
-    val spinning = resumed && state == ConnectionState.CONNECTING
+    val animationsEnabled = rememberAnimationsEnabled()
+    val breathSpec = breathFor(state, active = resumed && animationsEnabled)
+    val spinning = resumed && animationsEnabled && state == ConnectionState.CONNECTING
 
     // Driven by Animatable + a keyed LaunchedEffect rather than an
     // InfiniteTransition: a transition only accepts repeatable specs, so it
     // cannot be stopped, while cancelling the effect genuinely halts the loop
     // when the screen is not resumed (§5.5).
-    val breath = remember { Animatable(1f) }
-    LaunchedEffect(breathing) {
-        if (!breathing) {
-            breath.snapTo(1f)
+    val breath = remember { Animatable(REST_SCALE) }
+    LaunchedEffect(breathSpec) {
+        val spec = breathSpec
+        if (spec == null) {
+            // Ease back to rest rather than snapping. The scale is on screen
+            // the whole time, so an instant jump to 1f is exactly the "瞬变"
+            // §5.3 forbids.
+            breath.animateTo(REST_SCALE, StarveilMotion.stateTransition())
             return@LaunchedEffect
         }
         breath.animateTo(
-            targetValue = BREATH_MAX_SCALE,
+            targetValue = spec.peak,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = StarveilMotion.BREATH_PERIOD_MS / 2),
+                animation = tween(durationMillis = spec.periodMs / 2),
                 repeatMode = RepeatMode.Reverse,
             ),
         )
@@ -109,6 +128,9 @@ fun ConnectionCore(
     val spin = remember { Animatable(0f) }
     LaunchedEffect(spinning) {
         if (!spinning) {
+            // Unlike the breath, this one may snap: the charge arc is drawn
+            // only while CONNECTING, so the rotation value is off screen the
+            // moment the state changes.
             spin.snapTo(0f)
             return@LaunchedEffect
         }
@@ -128,6 +150,7 @@ fun ConnectionCore(
             // Disconnected is its own colour, not the disabled-text one: an
             // idle tunnel is a normal state, not an unavailable control.
             ConnectionState.DISCONNECTED -> StarveilColors.Disconnected
+            ConnectionState.WARNING -> StarveilColors.Warning
             ConnectionState.BLOCKED -> StarveilColors.Blocked
         },
         animationSpec = StarveilMotion.stateTransition(),
@@ -155,11 +178,20 @@ fun ConnectionCore(
             ConnectionState.CONNECTED -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
             ConnectionState.DISCONNECTED -> haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
             ConnectionState.BLOCKED -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            // The haptics table (§5.4) puts "断线 / 被阻断" in one "long buzz,
+            // warning feel" bucket. A warning is that same bucket — it is the
+            // one thing the user must not miss — but it is not a rejection, so
+            // it gets the long buzz rather than the reject pattern.
+            ConnectionState.WARNING -> haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             ConnectionState.CONNECTING -> Unit
         }
     }
 
-    val breathScale = if (state == ConnectionState.CONNECTED) breath.value else 1f
+    // Always the animated value, never a `if (state == …) 1f` guard: the guard
+    // would throw the scale back to 1f the instant the state changed, which is
+    // the snap this is supposed to avoid. When the core stops breathing the
+    // effect above eases this to REST_SCALE instead.
+    val breathScale = breath.value
     val rotation = if (state == ConnectionState.CONNECTING) spin.value else 0f
 
     Box(
@@ -243,8 +275,57 @@ private val CORE_DOT_DIM = 14.dp
 /** How far the ring's glow reaches either side of it. */
 private val GLOW_SPREAD = 20.dp
 
+/** Scale at rest: the core's size when nothing is pulsing it. */
+private const val REST_SCALE = 1f
+
 private const val BREATH_MAX_SCALE = 1.06f
+
+/** Shallower than [BREATH_MAX_SCALE] on purpose — see [StarveilMotion.WARNING_BREATH_PERIOD_MS]. */
+private const val WARNING_BREATH_MAX_SCALE = 1.03f
+
 private const val GLOW_PEAK_ALPHA = 0.5f
 private const val DOT_GLOW_SCALE = 2.2f
 private const val DOT_GLOW_ALPHA = 0.35f
 private const val ARC_BRIGHTEN = 0.55f
+
+/**
+ * How the core breathes in a given state, or null for a ring that holds still.
+ *
+ * A pair rather than one amplitude with two speeds: how *hard* it pulses is
+ * part of the signal, and a warning pulsing as strongly as a healthy tunnel
+ * would read as healthy.
+ */
+internal data class Breath(val peak: Float, val periodMs: Int)
+
+internal fun breathFor(state: ConnectionState, active: Boolean): Breath? = when {
+    // Paused screen (§5.5) or reduced motion: decoration stops, the glow stays.
+    !active -> null
+    state == ConnectionState.CONNECTED -> Breath(BREATH_MAX_SCALE, StarveilMotion.BREATH_PERIOD_MS)
+    state == ConnectionState.WARNING ->
+        Breath(WARNING_BREATH_MAX_SCALE, StarveilMotion.WARNING_BREATH_PERIOD_MS)
+    else -> null
+}
+
+/**
+ * Whether the system is animating at all.
+ *
+ * The ambient loops must not run when it is not. An `infiniteRepeatable` tween
+ * is scaled by the animator duration scale, so with animations switched off its
+ * period collapses to zero and the loop becomes a busy loop burning frames —
+ * precisely what "reduce motion" asked us not to do. Design system §5.5:
+ * reduced motion turns the breathing and the rotation into a static glow.
+ *
+ * Read once per composition: this is an accessibility toggle, not something
+ * that changes while a screen is open.
+ */
+@Composable
+private fun rememberAnimationsEnabled(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) != 0f
+    }
+}

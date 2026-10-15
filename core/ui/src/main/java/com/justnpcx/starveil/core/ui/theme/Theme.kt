@@ -42,6 +42,16 @@ object StarveilColors {
     val Blocked = Color(0xFFF87171)
 
     /**
+     * Warning: degraded, but not blocked — the tunnel is up and traffic is
+     * flowing, yet something about it is not trustworthy (a leak the
+     * self-check found, a subscription that stopped refreshing).
+     *
+     * Amber sits deliberately between [Connected] and [Blocked]: it has to
+     * read as "look at this" without reading as "you are cut off".
+     */
+    val Warning = Color(0xFFFBBF24)
+
+    /**
      * Disconnected: dimmed, but deliberately not the disabled colour — a
      * disconnected tunnel is a normal state, not an unavailable control.
      */
