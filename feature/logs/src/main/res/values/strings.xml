@@ -4,4 +4,13 @@
     <string name="logs_empty_title">No logs yet</string>
     <string name="logs_empty_body">Kernel and app logs will appear here once the kernel runs.</string>
     <string name="logs_filter_all">All</string>
+
+    <string name="logs_search_hint">Search lines</string>
+    <string name="logs_search_clear">Clear search</string>
+    <string name="logs_no_matches_title">No matching lines</string>
+    <string name="logs_no_matches_body">Nothing matches the current search or level filter.</string>
+
+    <!-- Export: copies the visible lines to the clipboard. -->
+    <string name="logs_copy">Copy</string>
+    <string name="logs_copied">Copied</string>
 </resources>

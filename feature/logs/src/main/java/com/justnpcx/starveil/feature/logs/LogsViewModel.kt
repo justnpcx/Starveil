@@ -17,8 +17,16 @@ data class LogsUiState(
     val lines: List<AppLogLine> = emptyList(),
     /** null = show every level. */
     val levelFilter: AppLogLevel? = null,
+    /** Case-insensitive substring filter over the message. */
+    val query: String = "",
+    /** How many lines have arrived, before any filtering. */
+    val totalLines: Int = 0,
 ) {
-    val isEmpty: Boolean get() = lines.isEmpty()
+    /** Nothing has arrived at all. */
+    val isEmpty: Boolean get() = totalLines == 0
+
+    /** Lines have arrived, but the current filter hides every one. */
+    val hasNoMatches: Boolean get() = totalLines > 0 && lines.isEmpty()
 }
 
 /**
@@ -31,12 +39,18 @@ class LogsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val filter = MutableStateFlow<AppLogLevel?>(null)
+    private val query = MutableStateFlow("")
 
-    val uiState: StateFlow<LogsUiState> = combine(logStream.lines, filter) { lines, level ->
+    val uiState: StateFlow<LogsUiState> = combine(logStream.lines, filter, query) { lines, level, q ->
+        val needle = q.trim()
         LogsUiState(
             // Newest first: a log viewer is read from the bottom.
-            lines = lines.asReversed().filter { level == null || it.level == level },
+            lines = lines.asReversed()
+                .filter { level == null || it.level == level }
+                .filter { needle.isEmpty() || it.message.contains(needle, ignoreCase = true) },
             levelFilter = level,
+            query = q,
+            totalLines = lines.size,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -47,5 +61,9 @@ class LogsViewModel @Inject constructor(
     /** Tapping the active level clears it, so one control covers "all". */
     fun toggleLevel(level: AppLogLevel) {
         filter.value = if (filter.value == level) null else level
+    }
+
+    fun setQuery(value: String) {
+        query.value = value
     }
 }
