@@ -35,6 +35,17 @@ interface KernelBridge {
     /** Stop the kernel. Idempotent. */
     suspend fun stop(): Result<Unit>
 
+    /**
+     * Stop the kernel but leave the tunnel standing, so every packet still
+     * goes into a tun that nothing is reading. That state *is* the Kill
+     * Switch's block: with no kernel to forward anything, connections cannot
+     * leave. [stop] is what takes the tunnel down again.
+     *
+     * Separate from [stop] on purpose — a tunnel outliving its kernel is
+     * normally a defect, so it only happens when the user asked for it.
+     */
+    suspend fun stopKeepingTunnel(): Result<Unit>
+
     /** Current traffic snapshot. Returns zeroed stats when not running. */
     suspend fun queryStats(): TrafficStats
 }

@@ -55,5 +55,6 @@ private class RecordingBridge : KernelBridge {
 
     override suspend fun start(config: String): Result<Unit> = Result.success(Unit)
     override suspend fun stop(): Result<Unit> = Result.success(Unit)
+    override suspend fun stopKeepingTunnel(): Result<Unit> = Result.success(Unit)
     override suspend fun queryStats(): TrafficStats = TrafficStats()
 }

@@ -137,41 +137,63 @@ class RealKernelBridge(
         }
     }
 
-    override suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
-        val current = server
-        if (current == null) {
-            // prepareVpn() starts the VpnService *before* the kernel, so the
-            // service can be up with a tun even though nothing is running.
-            // Returning early here without stopping it is what left the VPN
-            // icon in the status bar after a disconnect.
-            log(LogLevel.DEBUG, "stop: no kernel running, stopping the VpnService anyway")
-            stopVpn()
-            _state.value = KernelState.Stopped
-            return@withContext Result.success(Unit) // idempotent
+    override suspend fun stop(): Result<Unit> = closeKernel(keepTunnel = false)
+
+    override suspend fun stopKeepingTunnel(): Result<Unit> = closeKernel(keepTunnel = true)
+
+    /**
+     * Closes the kernel. [keepTunnel] decides whether the VpnService goes with
+     * it.
+     *
+     * Normally it must: a tunnel that outlives its kernel leaves the VPN icon
+     * in the status bar and routes every app into an interface that forwards
+     * nothing. The Kill Switch wants exactly that state — the tunnel *is* the
+     * block — so it is opt-in rather than the default.
+     */
+    private suspend fun closeKernel(keepTunnel: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val current = server
+            if (current == null) {
+                if (!keepTunnel) {
+                    // prepareVpn() starts the VpnService *before* the kernel, so
+                    // the service can be up with a tun even though nothing is
+                    // running. Returning early here without stopping it is what
+                    // left the VPN icon in the status bar after a disconnect.
+                    log(LogLevel.DEBUG, "stop: no kernel running, stopping the VpnService anyway")
+                    stopVpn()
+                }
+                _state.value = KernelState.Stopped
+                return@withContext Result.success(Unit) // idempotent
+            }
+            stopping = true
+            _state.value = KernelState.Stopping
+            log(LogLevel.INFO, "kernel stopping")
+            val result = try {
+                client?.let { runCatching { it.disconnect() } }
+                client = null
+                current.closeService()
+                current.close()
+                server = null
+                if (keepTunnel) {
+                    log(LogLevel.INFO, "kernel stopped; tunnel left standing (Kill Switch)")
+                } else {
+                    log(LogLevel.DEBUG, "stop: kernel closed, stopping the VpnService")
+                    stopVpn()
+                }
+                _state.value = KernelState.Stopped
+                log(LogLevel.INFO, "kernel stopped")
+                Result.success(Unit)
+            } catch (e: Exception) {
+                client = null
+                server = null
+                // Never leave a stray tunnel behind on an error path.
+                stopVpn()
+                _state.value = KernelState.Error(KernelError.Unknown("kernel failed to stop cleanly", e))
+                Result.failure(e)
+            }
+            stopping = false
+            result
         }
-        stopping = true
-        _state.value = KernelState.Stopping
-        log(LogLevel.INFO, "kernel stopping")
-        val result = try {
-            client?.let { runCatching { it.disconnect() } }
-            client = null
-            current.closeService()
-            current.close()
-            server = null
-            log(LogLevel.DEBUG, "stop: kernel closed, stopping the VpnService")
-            stopVpn()
-            _state.value = KernelState.Stopped
-            log(LogLevel.INFO, "kernel stopped")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            client = null
-            server = null
-            _state.value = KernelState.Error(KernelError.Unknown("kernel failed to stop cleanly", e))
-            Result.failure(e)
-        }
-        stopping = false
-        result
-    }
 
     /** The command channel dropped without us asking it to. */
     private fun onCommandChannelDropped() {
