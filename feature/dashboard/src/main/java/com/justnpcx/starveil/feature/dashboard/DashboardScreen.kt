@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
+import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.TrafficSparkline
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -51,6 +52,16 @@ fun DashboardScreen(
         ConnectionCore(
             state = state.connectionState,
             onClick = { requestVpnConsent { viewModel.onCoreClick() } },
+            // The core is the screen's primary control, so its description
+            // carries both the state and what tapping does (design system §6.1).
+            contentDescription = stringResource(
+                when (state.connectionState) {
+                    ConnectionState.DISCONNECTED -> R.string.dashboard_core_disconnected
+                    ConnectionState.CONNECTING -> R.string.dashboard_core_connecting
+                    ConnectionState.CONNECTED -> R.string.dashboard_core_connected
+                    ConnectionState.BLOCKED -> R.string.dashboard_core_blocked
+                },
+            ),
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.sm))
         Text(
