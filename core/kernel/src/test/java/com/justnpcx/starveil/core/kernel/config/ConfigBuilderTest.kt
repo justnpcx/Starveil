@@ -1,7 +1,9 @@
 package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MatcherKind
+import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -210,6 +212,43 @@ class ConfigBuilderTest {
         val json = builder.build(vlessProfile(), rules)
         assertFalse(json.contains("geoip"))
         assertFalse(json.contains("geosite"))
+    }
+
+    @Test
+    fun `Hysteria2 config carries password, obfs and bandwidth hints`() {
+        val profile = Profile(
+            name = "hy2",
+            type = ProfileType.HYSTERIA2,
+            server = "hy.example.com",
+            port = 443,
+            settings = Hysteria2Settings(
+                password = "user:pass",
+                obfs = ObfsOptions(type = "salamander", password = "obfspw"),
+                upMbps = 100,
+                downMbps = 200,
+                tls = TlsOptions(
+                    security = SecurityMode.TLS,
+                    sni = "hy.example.com",
+                    alpn = listOf("h3"),
+                    allowInsecure = true,
+                ),
+            ),
+        )
+        val json = builder.build(profile)
+        assertTrue(json.contains("\"type\":\"hysteria2\""))
+        assertTrue(json.contains("\"password\":\"user:pass\""))
+        assertTrue(json.contains("\"obfs\":{\"type\":\"salamander\",\"password\":\"obfspw\"}"))
+        assertTrue(json.contains("\"up_mbps\":100"))
+        assertTrue(json.contains("\"down_mbps\":200"))
+        assertTrue(
+            json.contains(
+                "\"tls\":{\"enabled\":true,\"server_name\":\"hy.example.com\"," +
+                    "\"insecure\":true,\"alpn\":[\"h3\"]}",
+            ),
+        )
+        // QUIC: there is no stream transport and no multiplex to emit.
+        assertFalse(json.contains("\"transport\""))
+        assertFalse(json.contains("\"multiplex\""))
     }
 
     @Test

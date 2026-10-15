@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel.config
 
+import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MuxOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -72,6 +73,30 @@ internal object SingBoxOutbounds {
             "method" to s.method,
             "password" to s.password,
         )
+
+    /**
+     * Hysteria2 is QUIC-based: no stream transport and no multiplex, and the
+     * TLS block is where its SNI / ALPN / insecure live. `obfs` is only
+     * emitted when it is complete — a half-filled obfs block fails at connect.
+     */
+    fun hysteria2(profile: Profile, s: Hysteria2Settings): Map<String, Any?> =
+        linkedMapOf<String, Any?>(
+            "type" to "hysteria2",
+            "tag" to profile.name,
+            "server" to profile.server,
+            "server_port" to profile.port,
+            "password" to s.password,
+        ).apply {
+            s.upMbps?.let { put("up_mbps", it) }
+            s.downMbps?.let { put("down_mbps", it) }
+            s.obfs?.let { obfs ->
+                put(
+                    "obfs",
+                    linkedMapOf<String, Any?>("type" to obfs.type, "password" to obfs.password),
+                )
+            }
+            tlsBlock(s.tls)?.let { put("tls", it) }
+        }
 
     /** Returns null when TLS is off, so no empty `tls` block is emitted. */
     fun tlsBlock(tls: TlsOptions): Map<String, Any?>? {

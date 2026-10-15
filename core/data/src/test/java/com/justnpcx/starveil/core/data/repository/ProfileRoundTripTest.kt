@@ -2,7 +2,9 @@ package com.justnpcx.starveil.core.data.repository
 
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.entity.ProfileEntity
+import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MuxOptions
+import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -117,9 +119,28 @@ class ProfileRoundTripTest {
         ),
     )
 
+    private val hysteria2 = Profile(
+        name = "hy2-node",
+        type = ProfileType.HYSTERIA2,
+        server = "hy.example.com",
+        port = 8443,
+        settings = Hysteria2Settings(
+            password = "user:pass",
+            obfs = ObfsOptions(type = "salamander", password = "obfspw"),
+            upMbps = 100,
+            downMbps = 200,
+            tls = TlsOptions(
+                security = SecurityMode.TLS,
+                sni = "hy.example.com",
+                alpn = listOf("h3"),
+                allowInsecure = true,
+            ),
+        ),
+    )
+
     @Test
     fun `credentials survive import persist reload`() = runBlocking {
-        listOf(vless, trojan, shadowsocks, vmess).forEach { original ->
+        listOf(vless, trojan, shadowsocks, vmess, hysteria2).forEach { original ->
             val id = repo.upsert(original)
             val loaded = repo.getById(id)
             assertEquals("settings for ${original.type}", original.settings, loaded?.settings)
@@ -170,11 +191,11 @@ class ProfileRoundTripTest {
     @Test
     fun `unmodelled protocol settings decode to null`() {
         val entity = ProfileEntity(
-            name = "hy",
-            type = ProfileType.HYSTERIA2.name,
+            name = "tuic",
+            type = ProfileType.TUIC.name,
             server = "h",
             port = 443,
-            settingsJson = """{"kind":"hysteria2","password":"x"}""",
+            settingsJson = """{"kind":"tuic","uuid":"x"}""",
         )
         assertNull(entity.toDomain().settings)
     }

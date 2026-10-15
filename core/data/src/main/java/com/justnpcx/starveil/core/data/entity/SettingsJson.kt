@@ -1,6 +1,8 @@
 package com.justnpcx.starveil.core.data.entity
 
+import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MuxOptions
+import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.ProfileSettings
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -65,6 +67,17 @@ internal object SettingsJson {
                 "transport" to encodeTransport(settings.transport),
                 "mux" to encodeMux(settings.mux),
             )
+
+            is Hysteria2Settings -> linkedMapOf(
+                KEY_KIND to "hysteria2",
+                "password" to settings.password,
+                "obfs" to settings.obfs?.let {
+                    linkedMapOf<String, Any?>("type" to it.type, "password" to it.password)
+                },
+                "upMbps" to settings.upMbps,
+                "downMbps" to settings.downMbps,
+                "tls" to encodeTls(settings.tls),
+            )
         }
         return Json.write(map)
     }
@@ -113,6 +126,23 @@ internal object SettingsJson {
                     tls = decodeTls(map["tls"]),
                     transport = decodeTransport(map["transport"]),
                     mux = decodeMux(map["mux"]),
+                )
+            }
+
+            ProfileType.HYSTERIA2 -> {
+                val password = map.str("password") ?: return null
+                Hysteria2Settings(
+                    password = password,
+                    // An incomplete obfs block is dropped: sing-box fails the
+                    // connection on an obfs without a password.
+                    obfs = map["obfs"].asMap()?.let { o ->
+                        val type = o.str("type") ?: return@let null
+                        val obfsPassword = o.str("password") ?: return@let null
+                        ObfsOptions(type = type, password = obfsPassword)
+                    },
+                    upMbps = map.int("upMbps"),
+                    downMbps = map.int("downMbps"),
+                    tls = decodeTls(map["tls"]),
                 )
             }
 
