@@ -72,6 +72,13 @@ private class ImpHealth : SubscriptionHealthSink {
     override suspend fun recordFailure(atEpochMs: Long, reason: String) {}
 }
 
+private class ImpRefreshScheduler : SubscriptionRefreshScheduler {
+    val scheduled = mutableListOf<Long>()
+    val cancelled = mutableListOf<Long>()
+    override fun schedule(groupId: Long) { scheduled += groupId }
+    override fun cancel(groupId: Long) { cancelled += groupId }
+}
+
 class LinkImporterTest {
 
     private val resolver = LinkResolver { link ->
@@ -86,6 +93,7 @@ class LinkImporterTest {
         profiles: ImpProfiles = ImpProfiles(),
         groups: ImpGroups = ImpGroups(),
         fetcher: SubscriptionFetcher = ImpFetcher(error = IOException("HTTP 500")),
+        scheduler: SubscriptionRefreshScheduler = ImpRefreshScheduler(),
     ): Triple<LinkImporter, ImpProfiles, ImpGroups> {
         val registry = SubscriptionFormatRegistry.default { link -> resolver.resolve(link) }
         val updater = SubscriptionUpdater(
@@ -95,7 +103,7 @@ class LinkImporterTest {
             fetcher = fetcher,
             clock = { 1L },
         )
-        return Triple(LinkImporter(resolver, profiles, groups, updater), profiles, groups)
+        return Triple(LinkImporter(resolver, profiles, groups, updater, scheduler), profiles, groups)
     }
 
     @Test
@@ -150,6 +158,34 @@ class LinkImporterTest {
         import_.import("https://sub.example.com/two")
 
         assertEquals(2, groups.rows.size)
+    }
+
+    @Test
+    fun `importing a subscription schedules its periodic refresh`() = runBlocking {
+        val body = Base64.getEncoder().encodeToString("vless://a@h.example:443#n1".toByteArray())
+        val scheduler = ImpRefreshScheduler()
+        val (import_, _, groups) = importer(fetcher = ImpFetcher(body = body), scheduler = scheduler)
+
+        import_.import("https://sub.example.com/x")
+
+        // Without this the subscription is fetched exactly once, at import,
+        // and never refreshes again.
+        assertEquals(listOf(groups.rows.keys.single()), scheduler.scheduled)
+    }
+
+    @Test
+    fun `a failed first fetch still schedules the retry`() = runBlocking {
+        val scheduler = ImpRefreshScheduler()
+        val (import_, _, groups) = importer(
+            fetcher = ImpFetcher(error = IOException("HTTP 503")),
+            scheduler = scheduler,
+        )
+
+        import_.import("https://sub.example.com/x")
+
+        // The group exists with a URL but no nodes; the periodic work is what
+        // gives it another chance.
+        assertEquals(listOf(groups.rows.keys.single()), scheduler.scheduled)
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.core.subscription.LinkImporter
+import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +48,7 @@ class ProfilesViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val preferences: PreferencesRepository,
     private val importer: LinkImporter,
+    private val refreshScheduler: SubscriptionRefreshScheduler,
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
@@ -128,6 +130,9 @@ class ProfilesViewModel @Inject constructor(
             val removedIds = group.profileIds.toSet()
             profiles.deleteByGroup(group.id)
             groups.deleteById(group.id)
+            // A subscription group's refresh work outlives the row otherwise,
+            // and would keep re-creating nodes for a group that is gone.
+            refreshScheduler.cancel(group.id)
             // Stop filtering by something that no longer exists.
             if (groupFilter.value == group.id) groupFilter.value = null
             // Same rule as deleting one node: the selection must not outlive

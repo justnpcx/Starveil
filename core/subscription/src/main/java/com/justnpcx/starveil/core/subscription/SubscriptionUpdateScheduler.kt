@@ -23,6 +23,13 @@ object SubscriptionUpdateScheduler {
     const val INTERVAL_HOURS = 6L
     const val FLEX_MINUTES = 10L
 
+    /**
+     * Unique work is per GROUP, not per feature. With one shared name the
+     * second subscription's `schedule` would replace the first's request and
+     * the first group would silently stop refreshing.
+     */
+    fun workName(groupId: Long): String = "$WORK_NAME-$groupId"
+
     fun periodicRequest(groupId: Long): PeriodicWorkRequest =
         PeriodicWorkRequestBuilder<SubscriptionUpdateWorker>(
             INTERVAL_HOURS,
@@ -42,13 +49,14 @@ object SubscriptionUpdateScheduler {
     /** Enqueue (or replace) the refresh for [groupId]. Idempotent. */
     fun schedule(context: Context, groupId: Long) {
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            WORK_NAME,
+            workName(groupId),
             ExistingPeriodicWorkPolicy.UPDATE,
             periodicRequest(groupId),
         )
     }
 
-    fun cancel(context: Context) {
-        WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+    /** Stop refreshing [groupId] — its group is gone, so the work is orphaned. */
+    fun cancel(context: Context, groupId: Long) {
+        WorkManager.getInstance(context).cancelUniqueWork(workName(groupId))
     }
 }

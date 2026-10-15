@@ -14,6 +14,7 @@ import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.LinkResolver
 import com.justnpcx.starveil.core.subscription.SubscriptionFetcher
 import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
+import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import kotlinx.coroutines.Dispatchers
@@ -179,7 +180,8 @@ class ProfilesViewModelTest {
             ),
         )
         val groups = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
-        val viewModel = viewModel(profiles, FakePreferences(TWO), groups)
+        val scheduler = FakeRefreshScheduler()
+        val viewModel = viewModel(profiles, FakePreferences(TWO), groups, scheduler)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -190,6 +192,8 @@ class ProfilesViewModelTest {
 
         assertEquals(SUB, groups.deletedId)
         assertEquals(listOf(TWO), profiles.remainingIds())
+        // The refresh work must not outlive the group it refreshes.
+        assertEquals(listOf(SUB), scheduler.cancelled)
         // The filter pointed at a group that no longer exists.
         assertNull(viewModel.uiState.value.groupFilter)
         job.cancel()
@@ -292,11 +296,13 @@ class ProfilesViewModelTest {
         profiles: ProfileRepository,
         preferences: PreferencesRepository,
         groups: GroupRepository = FakeGroups(),
+        refreshScheduler: SubscriptionRefreshScheduler = FakeRefreshScheduler(),
     ) =
         ProfilesViewModel(
             profiles = profiles,
             groups = groups,
             preferences = preferences,
+            refreshScheduler = refreshScheduler,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(
                 resolver = LinkResolver { null },
@@ -309,6 +315,7 @@ class ProfilesViewModelTest {
                     fetcher = FakeFetcher(),
                     clock = Clock { 0L },
                 ),
+                refreshScheduler = refreshScheduler,
             ),
         )
 
@@ -416,6 +423,13 @@ private class FakeHealth : SubscriptionHealthSink {
 
 private class FakeFetcher : SubscriptionFetcher {
     override suspend fun fetch(url: String): String = notUsed()
+}
+
+private class FakeRefreshScheduler : SubscriptionRefreshScheduler {
+    val scheduled = mutableListOf<Long>()
+    val cancelled = mutableListOf<Long>()
+    override fun schedule(groupId: Long) { scheduled += groupId }
+    override fun cancel(groupId: Long) { cancelled += groupId }
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
