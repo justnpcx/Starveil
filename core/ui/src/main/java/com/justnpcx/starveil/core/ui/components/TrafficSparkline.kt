@@ -52,12 +52,16 @@ fun TrafficSparkline(
             .height(height)
             .pointerInput(total) {
                 detectTransformGestures { _, pan, gestureZoom, _ ->
-                    zoom = (zoom * gestureZoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
-                    val window = visibleWindow(total, zoom, start)
-                    // Pixels -> samples, using the window actually on screen.
-                    val perPixel = window.count.toFloat() / size.width.coerceAtLeast(1)
-                    val maxStart = (total - window.count).coerceAtLeast(0).toFloat()
-                    start = (start - pan.x * perPixel).coerceIn(0f, maxStart)
+                    val next = applySparklineGesture(
+                        zoom = zoom,
+                        start = start,
+                        gestureZoom = gestureZoom,
+                        panXPx = pan.x,
+                        total = total,
+                        widthPx = size.width.toFloat(),
+                    )
+                    zoom = next.zoom
+                    start = next.start
                 }
             },
     ) {
@@ -79,6 +83,34 @@ fun TrafficSparkline(
         }
     }
 }
+
+/**
+ * The viewport after one gesture event.
+ *
+ * Pure on purpose. `detectTransformGestures` needs a real pointer stream, so
+ * the parts of the gesture that are actually easy to get wrong — turning a
+ * pixel drag into a sample offset, and clamping at both ends of the history —
+ * live here where they can be tested without a device.
+ */
+internal fun applySparklineGesture(
+    zoom: Float,
+    start: Float,
+    gestureZoom: Float,
+    panXPx: Float,
+    total: Int,
+    widthPx: Float,
+): SparkViewport {
+    val newZoom = (zoom * gestureZoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
+    val window = visibleWindow(total, newZoom, start)
+    // Pixels -> samples, using the window that will actually be on screen.
+    val perPixel = window.count.toFloat() / widthPx.coerceAtLeast(1f)
+    val maxStart = (total - window.count).coerceAtLeast(0).toFloat()
+    val newStart = (start - panXPx * perPixel).coerceIn(0f, maxStart)
+    return SparkViewport(newZoom, newStart)
+}
+
+/** A zoom level and the first sample it shows. */
+internal data class SparkViewport(val zoom: Float, val start: Float)
 
 /**
  * The slice of a [total]-sample history that is on screen: at [zoom] 1 that is
