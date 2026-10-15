@@ -47,11 +47,12 @@ jobs:
         run: bash scripts/ci-watch.test.sh
       - name: Lint
         run: ./gradlew lintDebug --no-daemon
-      # Sideload build: the debug APK is debug-signed, so it installs on a
-      # device without any signing secrets in CI.
-      - name: Upload debug APK
+      # Sideload build: the debug APKs are debug-signed, so they install on a
+      # device without any signing secrets in CI. One APK per ABI — a single
+      # universal APK would be ~230 MB of native code.
+      - name: Upload debug APKs
         uses: actions/upload-artifact@v4
         with:
           name: starveil-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
