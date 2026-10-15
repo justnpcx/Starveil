@@ -49,7 +49,7 @@ class ConfigBuilderTest {
                 reality = RealityOptions(
                     publicKey = "PUBKEY",
                     shortId = "ab12",
-                    mlKemPublicKey = "MLKEMKEY",
+                    mlKem = true,
                 ),
             ),
             transport = TransportOptions(type = TransportType.XHTTP, path = "/x"),
@@ -84,7 +84,7 @@ class ConfigBuilderTest {
         val settings = base.settings as VlessSettings
         val profile = base.copy(
             settings = settings.copy(
-                tls = settings.tls.copy(reality = settings.tls.reality?.copy(mlKemPublicKey = null)),
+                tls = settings.tls.copy(reality = settings.tls.reality?.copy(mlKem = false)),
             ),
         )
 

@@ -55,11 +55,47 @@ class VlessLinkTest {
         assertEquals(SecurityMode.REALITY, s.tls.security)
         assertEquals("PUBKEY", s.tls.reality?.publicKey)
         assertEquals("ab12", s.tls.reality?.shortId)
-        // `spx` is where a REALITY share link carries the ML-KEM public key.
-        assertEquals("MLKEMKEY", s.tls.reality?.mlKemPublicKey)
+        // `spx` is the SpiderX path, not a key, so it does NOT turn ML-KEM on.
+        assertEquals(false, s.tls.reality?.mlKem)
         assertEquals("chrome", s.tls.fingerprint)
         assertEquals(TransportType.XHTTP, s.transport.type)
         assertEquals("xtls-rprx-vision", s.flow)
+    }
+
+    @Test
+    fun `reality ml-kem follows the explicit flag, not the spx path`() {
+        // The three shapes that matter. The old parser keyed off `spx`, which
+        // is the SpiderX path — it only looked right when both parameters were
+        // present together, which is the usual case but not the only one.
+        fun realityOf(extra: String) = (
+            StarveilProtocols.parseVless(
+                "vless://11111111-2222-3333-4444-555555555555@r.example.com:443" +
+                    "?security=reality&pbk=PUBKEY&$extra",
+            )!!.settings as VlessSettings
+            ).tls.reality!!
+
+        // Both present: on, but the flag is what decided it.
+        assertTrue(realityOf("support-x25519mlkem768=true&spx=%2F7a643a01ce631a9").mlKem)
+        // Only the flag: on. The old parser got this one wrong.
+        assertTrue(realityOf("support-x25519mlkem768=true").mlKem)
+        // Only spx: off. A SpiderX path says nothing about ML-KEM.
+        assertFalse(realityOf("spx=%2F7a643a01ce631a9").mlKem)
+        // The flag switched off explicitly.
+        assertFalse(realityOf("support-x25519mlkem768=false").mlKem)
+    }
+
+    @Test
+    fun `wild ml-kem spellings still turn the hybrid handshake on`() {
+        // These carry the key rather than a flag, so presence is all we have.
+        fun mlKemOf(extra: String) = (
+            StarveilProtocols.parseVless(
+                "vless://11111111-2222-3333-4444-555555555555@r.example.com:443" +
+                    "?security=reality&pbk=PUBKEY&$extra",
+            )!!.settings as VlessSettings
+            ).tls.reality!!.mlKem
+
+        assertTrue(mlKemOf("mlkem=abc"))
+        assertTrue(mlKemOf("ml-kem=abc"))
     }
 
     @Test

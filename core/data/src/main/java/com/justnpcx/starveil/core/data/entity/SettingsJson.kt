@@ -242,7 +242,7 @@ internal object SettingsJson {
             linkedMapOf(
                 "publicKey" to r.publicKey,
                 "shortId" to r.shortId,
-                "mlKemPublicKey" to r.mlKemPublicKey,
+                "mlKem" to r.mlKem,
             )
         },
     )
@@ -259,7 +259,10 @@ internal object SettingsJson {
             RealityOptions(
                 publicKey = publicKey,
                 shortId = r.str("shortId"),
-                mlKemPublicKey = r.str("mlKemPublicKey"),
+                // Profiles stored before the flag existed recorded the value
+                // that used to drive this; honour it rather than silently
+                // turning the hybrid handshake off for an existing node.
+                mlKem = r.bool("mlKem") ?: !r.str("mlKemPublicKey").isNullOrBlank(),
             )
         }
         return TlsOptions(

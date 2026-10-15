@@ -27,17 +27,26 @@ enum class TransportType(val wireName: String) {
 /**
  * REALITY options.
  *
- * [mlKemPublicKey] is the server's post-quantum (ML-KEM-768) key, carried by
- * the `spx` parameter of a REALITY share link. sing-box has no config field
- * for the key itself — the client derives nothing from it — so its only job
- * here is to say whether the server supports the hybrid handshake, which is
- * what `support_x25519mlkem768` tells sing-box. Absent means the node is
- * plain X25519.
+ * [mlKem] says whether the server offers the post-quantum X25519MLKEM768
+ * hybrid handshake, taken from the link's `support-x25519mlkem768` flag.
+ * sing-box has no field for an ML-KEM key and the client consumes none, so a
+ * yes/no is all there is to carry. False means plain X25519.
+ *
+ * (An earlier version read this off the `spx` parameter. That is the SpiderX
+ * path, not a key — it only looked correct because the two usually travel
+ * together.)
  */
 data class RealityOptions(
     val publicKey: String,
     val shortId: String? = null,
-    val mlKemPublicKey: String? = null,
+    /**
+     * Whether the server offers the X25519MLKEM768 hybrid handshake.
+     *
+     * A flag, not a key: sing-box exposes only `support_x25519mlkem768`, and
+     * the client does not consume a public key at all. The link's
+     * `support-x25519mlkem768=true` parameter is what sets this.
+     */
+    val mlKem: Boolean = false,
 )
 
 /**

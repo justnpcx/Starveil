@@ -575,14 +575,20 @@ object StarveilProtocols {
     private fun realityFrom(q: Map<String, String>): RealityOptions? {
         val publicKey = q["pbk"] ?: q["publicKey"] ?: return null
         if (publicKey.isBlank()) return null
-        // `spx` is the ML-KEM-768 public key in a REALITY share link; the other
-        // spellings are seen in the wild too. Its presence is what tells us the
-        // server offers the hybrid handshake.
-        val mlKem = q["spx"] ?: q["mlkem"] ?: q["ml-kem"] ?: q["mlkem-pbk"]
+        // ML-KEM is a switch the server advertises, and the link says so
+        // explicitly. `spx` is NOT the key — it is the SpiderX path (a path,
+        // like /7a643a01ce631a9) — and treating its presence as the switch
+        // only appeared to work because the two usually travel together.
+        val mlKem = LinkParsing.asBool(q["support-x25519mlkem768"]) ||
+            // Spellings seen in the wild, where the parameter carries the key
+            // itself; for those, presence is the only signal available.
+            !q["mlkem"].isNullOrBlank() ||
+            !q["ml-kem"].isNullOrBlank() ||
+            !q["mlkem-pbk"].isNullOrBlank()
         return RealityOptions(
             publicKey = publicKey,
             shortId = q["sid"]?.takeIf { it.isNotBlank() },
-            mlKemPublicKey = mlKem?.takeIf { it.isNotBlank() },
+            mlKem = mlKem,
         )
     }
 
