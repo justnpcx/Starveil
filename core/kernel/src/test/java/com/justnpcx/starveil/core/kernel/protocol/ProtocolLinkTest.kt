@@ -1,5 +1,7 @@
 package com.justnpcx.starveil.core.kernel.protocol
 
+import com.justnpcx.starveil.core.model.Hysteria2Settings
+import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
@@ -215,6 +217,73 @@ class VmessLinkTest {
     }
 }
 
+class Hysteria2LinkTest {
+
+    @Test
+    fun `parses the URL form, slash and all`() {
+        val profile = StarveilProtocols.parseHysteria2(
+            "hysteria2://secret@hy.example.com:443/?sni=hy.example.com&insecure=1&alpn=h3#HY2",
+        )
+        assertNotNull(profile)
+        profile!!
+        assertEquals("HY2", profile.name)
+        assertEquals(ProfileType.HYSTERIA2, profile.type)
+        assertEquals("hy.example.com", profile.server)
+        // The `/` before the query must not end up in the port.
+        assertEquals(443, profile.port)
+        val s = profile.settings as Hysteria2Settings
+        assertEquals("secret", s.password)
+        assertEquals(SecurityMode.TLS, s.tls.security)
+        assertEquals("hy.example.com", s.tls.sni)
+        assertTrue(s.tls.allowInsecure)
+        assertEquals(listOf("h3"), s.tls.alpn)
+        assertNull(s.obfs)
+    }
+
+    @Test
+    fun `parses user-password auth, obfs and bandwidth hints`() {
+        val profile = StarveilProtocols.parseHysteria2(
+            "hy2://user:pass@hy.example.com:8443" +
+                "?obfs=salamander&obfs-password=obfspw&up=100&down=200#N",
+        )
+        assertNotNull(profile)
+        val s = profile!!.settings as Hysteria2Settings
+        // sing-box has a single password field, so the whole userinfo goes in.
+        assertEquals("user:pass", s.password)
+        assertEquals(ObfsOptions(type = "salamander", password = "obfspw"), s.obfs)
+        assertEquals(100, s.upMbps)
+        assertEquals(200, s.downMbps)
+        assertEquals(8443, profile.port)
+    }
+
+    @Test
+    fun `an unknown obfs type is dropped rather than passed through`() {
+        // sing-box rejects the whole config on an unknown obfs enum, which
+        // stops the kernel; dropping it fails one connection instead.
+        val profile = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?obfs=something-new&obfs-password=x",
+        )
+        assertNotNull(profile)
+        assertNull((profile!!.settings as Hysteria2Settings).obfs)
+    }
+
+    @Test
+    fun `obfs without a password is dropped`() {
+        val profile = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?obfs=salamander",
+        )
+        assertNotNull(profile)
+        assertNull((profile!!.settings as Hysteria2Settings).obfs)
+    }
+
+    @Test
+    fun `rejects malformed links`() {
+        assertNull(StarveilProtocols.parseHysteria2("vless://u@h.example:443"))
+        assertNull(StarveilProtocols.parseHysteria2("hysteria2://@h.example:443"))
+        assertNull(StarveilProtocols.parseHysteria2("hysteria2://pw@h.example"))
+    }
+}
+
 class ProtocolRegistryWiringTest {
 
     @Test
@@ -224,6 +293,8 @@ class ProtocolRegistryWiringTest {
         assertEquals(ProfileType.TROJAN, registry.fromScheme("trojan")?.type)
         assertEquals(ProfileType.SHADOWSOCKS, registry.fromScheme("ss")?.type)
         assertEquals(ProfileType.VMESS, registry.fromScheme("vmess")?.type)
+        assertEquals(ProfileType.HYSTERIA2, registry.fromScheme("hy2")?.type)
+        assertEquals(ProfileType.HYSTERIA2, registry.fromScheme("hysteria2")?.type)
 
         val vless = registry.get(ProfileType.VLESS)!!
         val parsed = vless.linkParser("vless://u@h.example:443#n")
@@ -234,10 +305,10 @@ class ProtocolRegistryWiringTest {
     @Test
     fun `unimplemented protocols stay stubs`() {
         val registry = com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry.default()
-        val hysteria = registry.get(ProfileType.HYSTERIA2)!!
-        assertNull(hysteria.linkParser("hysteria2://whatever"))
-        assertTrue(hysteria.configBuilder(com.justnpcx.starveil.core.model.Profile(
-            name = "x", type = ProfileType.HYSTERIA2, server = "h", port = 1,
+        val tuic = registry.get(ProfileType.TUIC)!!
+        assertNull(tuic.linkParser("tuic://whatever"))
+        assertTrue(tuic.configBuilder(com.justnpcx.starveil.core.model.Profile(
+            name = "x", type = ProfileType.TUIC, server = "h", port = 1,
         )).isEmpty())
     }
 }

@@ -2,7 +2,9 @@ package com.justnpcx.starveil.core.kernel.protocol
 
 import com.justnpcx.starveil.core.kernel.config.SingBoxOutbounds
 import com.justnpcx.starveil.core.kernel.registry.ProtocolDescriptor
+import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MuxOptions
+import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -87,8 +89,22 @@ object StarveilProtocols {
         editorRoute = "editor/vmess",
     )
 
+    val Hysteria2: ProtocolDescriptor = ProtocolDescriptor(
+        type = ProfileType.HYSTERIA2,
+        displayName = "Hysteria2",
+        defaultPort = 443,
+        schemes = listOf("hysteria2", "hy2"),
+        linkParser = ::parseHysteria2,
+        configBuilder = { profile ->
+            val settings = profile.settings as? Hysteria2Settings
+                ?: error("Hysteria2 profile has no Hysteria2 settings")
+            SingBoxOutbounds.hysteria2(profile, settings)
+        },
+        editorRoute = "editor/hysteria2",
+    )
+
     /** The real descriptors, in the agreed priority order. */
-    val all: List<ProtocolDescriptor> = listOf(Vless, Trojan, Shadowsocks, Vmess)
+    val all: List<ProtocolDescriptor> = listOf(Vless, Trojan, Shadowsocks, Vmess, Hysteria2)
 
     // ---------------------------------------------------------------- VLESS
 
@@ -312,6 +328,75 @@ object StarveilProtocols {
             is String -> value.trim().toIntOrNull()
             else -> null
         }
+
+    // ------------------------------------------------------------- Hysteria2
+
+    /**
+     * `hysteria2://password@host:port/?sni=…&obfs=salamander&obfs-password=…`
+     *
+     * Two details this format gets wrong easily:
+     *
+     * - the URL form puts a `/` (usually with nothing after it) between the
+     *   authority and the query, so `host:port` has to be cut at the first `/`
+     *   or the port parses as `443/`;
+     * - a server that authenticates with `user:pass` carries both in the
+     *   userinfo, and sing-box has a single password field — so the whole
+     *   userinfo is the password.
+     */
+    fun parseHysteria2(link: String): Profile? {
+        val schemeLength = when {
+            link.startsWith("hysteria2://", ignoreCase = true) -> 12
+            link.startsWith("hy2://", ignoreCase = true) -> 6
+            else -> return null
+        }
+        val (body, name) = LinkParsing.splitFragment(link.substring(schemeLength))
+        val (hostPart, queryRaw) = LinkParsing.splitQuery(body)
+
+        val at = hostPart.lastIndexOf('@')
+        if (at <= 0) return null
+        val password = LinkParsing.percentDecode(hostPart.substring(0, at))
+        if (password.isBlank()) return null
+        val authority = hostPart.substring(at + 1).substringBefore('/')
+        val (host, port) = LinkParsing.splitHostPort(authority) ?: return null
+
+        val q = LinkParsing.parseQuery(queryRaw)
+        return Profile(
+            name = name ?: "$host:$port",
+            type = ProfileType.HYSTERIA2,
+            server = host,
+            port = port,
+            settings = Hysteria2Settings(
+                password = password,
+                obfs = obfsFrom(q),
+                upMbps = q.mbps("up", "upmbps"),
+                downMbps = q.mbps("down", "downmbps"),
+                // Hysteria2 runs over QUIC, so TLS is not optional — the
+                // default here is plain TLS rather than none.
+                tls = tlsFrom(q, SecurityMode.TLS, reality = null),
+            ),
+        )
+    }
+
+    private fun Map<String, String>.mbps(vararg keys: String): Int? =
+        keys.firstNotNullOfOrNull { key ->
+            this[key]?.trim()?.toIntOrNull()?.takeIf { it > 0 }
+        }
+
+    /**
+     * Only the obfs types sing-box still accepts, and only when the password
+     * is present. An unknown type is dropped rather than passed through:
+     * sing-box rejects the whole config on an unknown enum value, which would
+     * stop the kernel instead of failing one connection.
+     */
+    private fun obfsFrom(q: Map<String, String>): ObfsOptions? {
+        val type = q["obfs"]?.trim()?.lowercase()
+            ?.takeIf { it.isNotBlank() && it != "none" }
+            ?: return null
+        if (type != "salamander" && type != "gecko") return null
+        val password = (q["obfs-password"] ?: q["obfspassword"])?.takeIf { it.isNotBlank() }
+            ?: return null
+        return ObfsOptions(type = type, password = password)
+    }
 
     // ------------------------------------------------------------ shared bits
 

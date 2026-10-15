@@ -58,9 +58,9 @@ class ProtocolRegistry(private val descriptors: Map<ProfileType, ProtocolDescrip
 
     companion object {
         /**
-         * Built-in protocols. VLESS, Trojan, Shadowsocks and VMess are real;
-         * the rest are stubs (each marked with a TODO) so a half-wired
-         * protocol stays visible.
+         * Built-in protocols. VLESS, Trojan, Shadowsocks, VMess and Hysteria2
+         * are real; the rest are stubs (each marked with a TODO) so a
+         * half-wired protocol stays visible.
          */
         fun default(): ProtocolRegistry = ProtocolRegistry(
             listOf(
@@ -68,12 +68,7 @@ class ProtocolRegistry(private val descriptors: Map<ProfileType, ProtocolDescrip
                 StarveilProtocols.Trojan,
                 StarveilProtocols.Shadowsocks,
                 StarveilProtocols.Vmess,
-                stub(
-                    type = ProfileType.HYSTERIA2,
-                    displayName = "Hysteria2",
-                    defaultPort = 443,
-                    schemes = listOf("hysteria2", "hy2"),
-                ),
+                StarveilProtocols.Hysteria2,
                 stub(
                     type = ProfileType.TUIC,
                     displayName = "TUIC",

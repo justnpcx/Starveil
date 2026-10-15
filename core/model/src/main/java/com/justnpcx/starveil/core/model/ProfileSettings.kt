@@ -125,3 +125,28 @@ data class ShadowsocksSettings(
     val method: String,
     val password: String,
 ) : ProfileSettings
+
+/**
+ * Hysteria2 obfuscation. sing-box accepts only `salamander` and `gecko`, and
+ * both require a password — a block with an empty password fails at connect.
+ */
+data class ObfsOptions(
+    val type: String,
+    val password: String,
+)
+
+/**
+ * Hysteria2 outbound settings (`hysteria2://`, also `hy2://`).
+ *
+ * QUIC-based, so there is always TLS and never a stream transport: [tls] is
+ * where the SNI, ALPN and "skip certificate verification" flag live.
+ * [upMbps] / [downMbps] are the bandwidth hints its congestion control uses;
+ * null means let the server decide.
+ */
+data class Hysteria2Settings(
+    val password: String,
+    val obfs: ObfsOptions? = null,
+    val upMbps: Int? = null,
+    val downMbps: Int? = null,
+    val tls: TlsOptions = TlsOptions.Plain,
+) : ProfileSettings
