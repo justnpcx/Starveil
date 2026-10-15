@@ -177,13 +177,37 @@ so they are not an option here.
 |---|---|
 | Label | `justnpc-direct` (anything) |
 | Enable | ✓ |
-| **Domain** | `api.justnpc.com` |
+| **IP CIDR** | **`69.63.200.132/32`** |
 | **Action** | `Route` (the default) |
 | **Outbound** | **`Direct`** |
 
-Use **Domain** (`domain`, exact) rather than **Domain suffix**
-(`domain_suffix`) unless you want every subdomain of the domain to bypass the
-proxy too — the other services on that domain do not need to.
+### Match on the IP, not the domain — the domain will never match
+
+**A domain rule cannot work for a REALITY node.** The app dials the node's real
+hostname, but the ClientHello it sends carries the node's **disguise SNI**, not
+the hostname. For the nodes here:
+
+| Node | dials | ClientHello SNI |
+|---|---|---|
+| `npc-speed` | `api.justnpc.com:443` | `intel.com` |
+| `cn-speed` | `api.justnpc.com:8443` | `home.amazon.com` |
+
+The proxy sniffs the ClientHello and therefore sees `intel.com` /
+`home.amazon.com` — `api.justnpc.com` never appears in any packet, so a rule on
+it is dead weight. (Measured: with such a rule in place the nodes still failed,
+the tunnel came up and every relayed connection died with `EOF` — which is what
+REALITY's fallback to the decoy destination looks like from the client side.)
+
+Use **IP CIDR** instead. It matches the destination address, which the redirect
+provides directly and which needs no sniffing.
+
+Do **not** work around this by adding the disguise SNI (`intel.com`) as a
+domain rule — that would send all of Intel's traffic direct.
+
+### Applying it
+
+**UI:** Services → HomeProxy → Client → **Routing Rules** → Add, with the table
+above.
 
 **Equivalent CLI** (the Direct outbound's tag is `direct-out`):
 
@@ -191,17 +215,20 @@ proxy too — the other services on that domain do not need to.
 uci add homeproxy routing_rule
 uci set homeproxy.@routing_rule[-1].label='justnpc-direct'
 uci set homeproxy.@routing_rule[-1].enabled='1'
-uci set homeproxy.@routing_rule[-1].domain='api.justnpc.com'
+uci set homeproxy.@routing_rule[-1].ip_cidr='69.63.200.132/32'
 uci set homeproxy.@routing_rule[-1].action='route'
 uci set homeproxy.@routing_rule[-1].outbound='direct-out'
 uci commit homeproxy
 /etc/init.d/homeproxy restart
 ```
 
-**Verify it took:** with the proxy running, `connect()` to the node host on
-`:443` should now show the real RTT (~170 ms here) instead of ~1 ms. If it is
-still ~1 ms the rule is not matching — check that the rule is enabled and that
-the domain matches the hostname the app actually dials.
+### Verifying it
+
+**A TCP connect-time probe cannot verify this.** The connection is terminated by
+the proxy either way, so `connect()` still returns in ~1 ms whether the rule
+matched or not — that is how the wrong rule got past the first check. Verify
+**end-to-end** instead: connect the app to the node and confirm it carries
+traffic (`tun0` counters move, an IP-echo page reports the expected exit).
 
 An alternative to the exemption is to move the node to a port outside the
 redirect set, but that changes the subscription for every client, so the
