@@ -87,7 +87,7 @@ class ProfileRoundTripTest {
                 sni = "r.example.com",
                 alpn = listOf("h2", "http/1.1"),
                 fingerprint = "chrome",
-                reality = RealityOptions(publicKey = "PBK", shortId = "ab12", mlKemPublicKey = "MLKEM"),
+                reality = RealityOptions(publicKey = "PBK", shortId = "ab12", mlKem = true),
             ),
             transport = TransportOptions(type = TransportType.XHTTP, path = "/x", host = "h.example"),
             mux = MuxOptions(enabled = true, protocol = "smux"),

@@ -95,7 +95,7 @@ class BackupManagerTest {
             tls = TlsOptions(
                 security = SecurityMode.REALITY,
                 sni = "r.example.com",
-                reality = RealityOptions(publicKey = "PBK", shortId = "ab12", mlKemPublicKey = "MLKEM"),
+                reality = RealityOptions(publicKey = "PBK", shortId = "ab12", mlKem = true),
             ),
         ),
     )
