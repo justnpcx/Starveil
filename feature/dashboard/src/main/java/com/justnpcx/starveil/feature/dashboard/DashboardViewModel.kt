@@ -77,6 +77,13 @@ class DashboardViewModel @Inject constructor(
                     replayedInitialValue = true
                     return@collect
                 }
+                if (id == 0L) {
+                    // The selected node was deleted on the Nodes tab. There is
+                    // nothing to switch to, so stop — rather than try to build
+                    // a config from a profile that no longer exists.
+                    if (_uiState.value.connectionState == ConnectionState.CONNECTED) disconnect()
+                    return@collect
+                }
                 if (!_uiState.value.isBusy && _uiState.value.connectionState == ConnectionState.CONNECTED) {
                     applyNodeSwitch()
                 }

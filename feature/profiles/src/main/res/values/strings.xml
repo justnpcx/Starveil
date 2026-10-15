@@ -22,4 +22,11 @@
     <string name="profiles_import_clipboard_empty">Clipboard has no text</string>
     <string name="profiles_import_scan_cancelled">Scan cancelled</string>
     <string name="profiles_scan_prompt">Point at a share link or subscription QR</string>
+
+    <!-- Deleting a node: the row button stages it, the dialog confirms. -->
+    <string name="profiles_delete">Delete %1$s</string>
+    <string name="profiles_delete_title">Delete this node?</string>
+    <string name="profiles_delete_body">%1$s will be removed from this device.</string>
+    <string name="profiles_delete_confirm">Delete</string>
+    <string name="profiles_delete_cancel">Cancel</string>
 </resources>

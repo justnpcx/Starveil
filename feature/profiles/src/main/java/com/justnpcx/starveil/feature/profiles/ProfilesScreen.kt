@@ -15,9 +15,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -59,6 +61,9 @@ fun ProfilesScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showImport by remember { mutableStateOf(false) }
+    // Deleting is destructive, so the row's button only stages the node; the
+    // confirmation below is what actually removes it.
+    var pendingDelete by remember { mutableStateOf<Profile?>(null) }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -100,6 +105,7 @@ fun ProfilesScreen(
                             profile = profile,
                             selected = profile.id == state.selectedId,
                             onClick = { viewModel.select(profile.id) },
+                            onDelete = { pendingDelete = profile },
                         )
                     }
                 }
@@ -133,6 +139,29 @@ fun ProfilesScreen(
                         setOrientationLocked(false)
                     },
                 )
+            },
+        )
+    }
+
+    pendingDelete?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.profiles_delete_title)) },
+            text = { Text(stringResource(R.string.profiles_delete_body, profile.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.delete(profile.id)
+                        pendingDelete = null
+                    },
+                ) {
+                    Text(stringResource(R.string.profiles_delete_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.profiles_delete_cancel))
+                }
             },
         )
     }
@@ -260,6 +289,7 @@ private fun NodeRow(
     profile: Profile,
     selected: Boolean,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
@@ -274,7 +304,7 @@ private fun NodeRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(StarveilSpacing.lg),
+                .padding(start = StarveilSpacing.lg, top = StarveilSpacing.sm, bottom = StarveilSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -301,6 +331,16 @@ private fun NodeRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Its own button rather than a swipe: a node carries credentials
+            // and re-importing one is not always possible, so the gesture has
+            // to be deliberate and visible.
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.profiles_delete, profile.name),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
