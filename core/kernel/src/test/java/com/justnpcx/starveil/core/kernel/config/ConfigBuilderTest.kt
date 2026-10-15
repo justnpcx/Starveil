@@ -1,9 +1,13 @@
 package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
+import com.justnpcx.starveil.core.model.Rule
+import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.RuleMatcher
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TlsOptions
@@ -134,6 +138,78 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"alter_id\":4"))
         assertTrue(json.contains("\"tls\":{\"enabled\":true}"))
         assertTrue(json.contains("\"transport\":{\"type\":\"ws\",\"path\":\"/ws\",\"headers\":{\"Host\":\"vm.example.com\"}}"))
+    }
+
+    @Test
+    fun `no rules means an empty rules array`() {
+        assertTrue(builder.build(vlessProfile()).contains("\"rules\":[]"))
+    }
+
+    @Test
+    fun `route rules are emitted in order with the union action shape`() {
+        val rules = listOf(
+            Rule(
+                matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "example.com"),
+                action = RuleAction.DIRECT,
+                order = 0,
+            ),
+            Rule(
+                matcher = RuleMatcher(MatcherKind.IP_CIDR, "10.0.0.0/8"),
+                action = RuleAction.DIRECT,
+                order = 1,
+            ),
+            Rule(
+                matcher = RuleMatcher(MatcherKind.DOMAIN_KEYWORD, "ads"),
+                action = RuleAction.BLOCK,
+                order = 2,
+            ),
+            Rule(
+                matcher = RuleMatcher(MatcherKind.DOMAIN, "only.example"),
+                action = RuleAction.PROXY,
+                order = 3,
+            ),
+            Rule(
+                matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "off.example"),
+                action = RuleAction.DIRECT,
+                order = 4,
+                enabled = false,
+            ),
+        )
+        val json = builder.build(vlessProfile(), rules)
+        // Order is the routing decision, so it has to survive verbatim.
+        assertTrue(
+            json.contains(
+                "\"rules\":[" +
+                    "{\"domain_suffix\":[\"example.com\"],\"action\":\"direct\"}," +
+                    "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"direct\"}," +
+                    "{\"domain_keyword\":[\"ads\"],\"action\":\"reject\"}," +
+                    "{\"domain\":[\"only.example\"],\"action\":\"route\",\"outbound\":\"proxy\"}]",
+            ),
+        )
+        // A disabled rule is not emitted at all.
+        assertFalse(json.contains("off.example"))
+    }
+
+    @Test
+    fun `a multi-node config points proxy rules at the urltest group`() {
+        val rules = listOf(
+            Rule(matcher = RuleMatcher(MatcherKind.DOMAIN, "a.example"), action = RuleAction.PROXY),
+        )
+        val json = builder.build(listOf(vlessProfile(), vlessProfile(uuid = "u2")), rules)
+        assertTrue(json.contains("\"action\":\"route\",\"outbound\":\"auto\""))
+    }
+
+    @Test
+    fun `geoip is never emitted`() {
+        // This fork removed the geoip matcher: a rule carrying one fails config
+        // construction ("removed in sing-box 1.12.0"), so the kernel would not
+        // start. Nothing in the app may produce it.
+        val rules = listOf(
+            Rule(matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "example.com"), action = RuleAction.DIRECT),
+        )
+        val json = builder.build(vlessProfile(), rules)
+        assertFalse(json.contains("geoip"))
+        assertFalse(json.contains("geosite"))
     }
 
     @Test
