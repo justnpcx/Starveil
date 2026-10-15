@@ -6,10 +6,11 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KillSwitchController
+import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
-import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -117,10 +118,14 @@ class DashboardViewModel @Inject constructor(
             it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
         }
 
-        // Kill Switch, panic mode: bring the tunnel up with nothing but a
-        // reject. No node is read, so no credential is touched and nothing can
-        // reach the network — the user has to turn the mode off to get out.
-        if (preferences.killSwitchMode.first() == KillSwitchMode.ALWAYS_BLOCK) {
+        // Kill Switch, panic mode. Asked as "would traffic be allowed if we
+        // were up?", so the decision comes from the one policy function rather
+        // than a second reading of the mode here.
+        val alwaysBlocked = KillSwitchController.policyFor(
+            preferences.killSwitchMode.first(),
+            connected = true,
+        ) == TrafficPolicy.BLOCK
+        if (alwaysBlocked) {
             startBlocked()
             return
         }
@@ -183,7 +188,13 @@ class DashboardViewModel @Inject constructor(
         // "Block on disconnect" means the tunnel stays up with nothing
         // forwarding it. Tearing it down here is exactly the leak this mode
         // exists to prevent: whatever was in flight would go out directly.
-        val keepTunnel = preferences.killSwitchMode.first() == KillSwitchMode.BLOCK_ON_DISCONNECT
+        //
+        // Asked as "once we are down, would traffic be allowed?" — that is the
+        // question the policy answers, and it covers ALWAYS_BLOCK too.
+        val keepTunnel = KillSwitchController.policyFor(
+            preferences.killSwitchMode.first(),
+            connected = false,
+        ) == TrafficPolicy.BLOCK
         if (keepTunnel) kernel.stopKeepingTunnel() else kernel.stop()
 
         _uiState.update {

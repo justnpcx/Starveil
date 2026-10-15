@@ -83,7 +83,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
-        val LEAK_CHECK_BLOCKED = booleanPreferencesKey("leak_check_blocked")
+        val LEAK_CHECK_LEAKING = booleanPreferencesKey("leak_check_leaking")
         val SPEED_TEST_URL = stringPreferencesKey("speed_test_url")
         val SELECTED_PROFILE_ID = longPreferencesKey("selected_profile_id")
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
@@ -115,7 +115,7 @@ class DataStorePreferencesRepository @Inject constructor(
         .map { prefs ->
             LeakCheckRecord(
                 checkedAtEpochMs = prefs[Keys.LEAK_CHECK_AT] ?: 0L,
-                blocked = prefs[Keys.LEAK_CHECK_BLOCKED] ?: false,
+                leaking = prefs[Keys.LEAK_CHECK_LEAKING] ?: false,
             )
         }
 
@@ -142,7 +142,7 @@ class DataStorePreferencesRepository @Inject constructor(
     override suspend fun recordLeakCheck(record: LeakCheckRecord) {
         dataStore.edit {
             it[Keys.LEAK_CHECK_AT] = record.checkedAtEpochMs
-            it[Keys.LEAK_CHECK_BLOCKED] = record.blocked
+            it[Keys.LEAK_CHECK_LEAKING] = record.leaking
         }
     }
 

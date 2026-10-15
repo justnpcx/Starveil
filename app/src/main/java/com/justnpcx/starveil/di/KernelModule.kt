@@ -7,6 +7,8 @@ import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
+import com.justnpcx.starveil.leak.TunnelProbe
+import com.justnpcx.starveil.leak.VpnServiceTunnelProbe
 import com.justnpcx.starveil.logs.KernelLogStream
 import dagger.Module
 import dagger.Provides
@@ -17,8 +19,7 @@ import java.io.File
 import javax.inject.Singleton
 
 /**
- * Kernel binding. M2 wires the real sing-box core; the Fake is kept in the
- * module for development and tests but is no longer the default.
+ * Kernel binding — the real sing-box core.
  *
  * `prepareVpn` brings up the foreground VpnService (which owns the tun) before
  * the kernel starts. If the user has never granted VPN consent, the service
@@ -60,4 +61,13 @@ object KernelModule {
     @Provides
     @Singleton
     fun provideLogStream(bridge: KernelBridge): LogStream = KernelLogStream(bridge)
+
+    /**
+     * What the leak self-check watches: whether the tunnel the Kill Switch
+     * blocks with is standing. Bound here because only :app may name the
+     * VpnService.
+     */
+    @Provides
+    @Singleton
+    fun provideTunnelProbe(): TunnelProbe = VpnServiceTunnelProbe()
 }
