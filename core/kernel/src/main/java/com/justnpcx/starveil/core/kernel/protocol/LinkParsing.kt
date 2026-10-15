@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel.protocol
 
+import com.justnpcx.starveil.core.model.ProfileValidation
 import java.util.Base64
 
 /**
@@ -58,8 +59,9 @@ internal object LinkParsing {
         return if (valid(host, port)) host to port else null
     }
 
-    private fun valid(host: String, port: Int): Boolean =
-        host.isNotBlank() && port in 1..65535
+    // Delegated, not reimplemented: the editor validates with the same rule, so
+    // a node cannot import cleanly and then fail to be re-entered by hand.
+    private fun valid(host: String, port: Int): Boolean = ProfileValidation.valid(host, port)
 
     /** Percent-decoding that does NOT treat `+` as space (unlike URLDecoder). */
     fun percentDecode(s: String): String {

@@ -35,6 +35,14 @@ data class ProtocolDescriptor(
     val linkParser: (String) -> Profile?,
     val configBuilder: (Profile) -> Map<String, Any?>,
     /**
+     * Navigation route of this protocol's editor (e.g. `editor/vless`).
+     *
+     * Declared here so adding a protocol does not mean touching navigation: the
+     * graph is built from the registry. (This field existed before and was
+     * deleted as unread — at the time there was no editor for it to point at.)
+     */
+    val editorRoute: String,
+    /**
      * True when [linkParser] should also be tried on text that carries no
      * scheme — a WireGuard `.conf`, for instance. Scheme-ful links never reach
      * this, so it is only the fallback path.

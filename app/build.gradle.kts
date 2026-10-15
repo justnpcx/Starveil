@@ -90,6 +90,7 @@ dependencies {
     implementation(project(":core:subscription"))
     implementation(project(":feature:dashboard"))
     implementation(project(":feature:profiles"))
+    implementation(project(":feature:editor"))
     implementation(project(":feature:rules"))
     implementation(project(":feature:logs"))
     implementation(project(":feature:settings"))

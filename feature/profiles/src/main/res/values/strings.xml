@@ -8,6 +8,11 @@
     <string name="profiles_selected">Selected</string>
 
     <!-- Group filter chips (a group comes from a subscription import). -->
+    <string name="profiles_new_node">New node</string>
+    <string name="profiles_new_node_title">Which protocol?</string>
+    <string name="profiles_row_edit">Edit</string>
+    <string name="profiles_row_move">Move to group</string>
+    <string name="profiles_row_menu_title">%1$s</string>
     <string name="profiles_group_all">All</string>
     <string name="profiles_no_matches_title">No nodes in this group</string>
     <string name="profiles_no_matches_body">Pick another group, or import a subscription.</string>
