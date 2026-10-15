@@ -13,6 +13,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -29,12 +30,17 @@ import java.util.Date
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
- * Settings — M2 carries the Kill Switch three-way choice and the minimal leak
- * self-check readout. The rest of the grouped preferences land in M3.
+ * Settings — the Kill Switch three-way choice and the leak self-check. The
+ * rest of the grouped preferences land in M3.
  */
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
+    /**
+     * Runs the leak self-check. Supplied by :app, which owns the VpnService the
+     * check inspects; the default keeps previews and tests platform-free.
+     */
+    onRunLeakCheck: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -52,7 +58,7 @@ fun SettingsScreen(
         Text(
             text = stringResource(R.string.kill_switch_title),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.padding(top = StarveilSpacing.sm),
         )
         KillSwitchMode.entries.forEach { mode ->
             KillSwitchOption(
@@ -65,13 +71,16 @@ fun SettingsScreen(
         Text(
             text = stringResource(R.string.leak_check_title),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.padding(top = StarveilSpacing.sm),
         )
         Text(
             text = leakCheckSummary(state.lastLeakCheck),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        TextButton(onClick = onRunLeakCheck) {
+            Text(stringResource(R.string.leak_check_run))
+        }
     }
 }
 
@@ -109,7 +118,7 @@ private fun leakCheckSummary(record: LeakCheckRecord): String =
         val when_ = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
             .format(Date(record.checkedAtEpochMs))
         stringResource(
-            if (record.blocked) R.string.leak_check_leaking else R.string.leak_check_clean,
+            if (record.leaking) R.string.leak_check_leaking else R.string.leak_check_clean,
             when_,
         )
     }

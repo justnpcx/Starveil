@@ -23,8 +23,15 @@ enum class KillSwitchMode {
     }
 }
 
-/** Last leak self-check result (minimal M2 version, PRD §3.6 K9). */
+/**
+ * Last leak self-check result (minimal M2 version, PRD §3.6 K9).
+ *
+ * [leaking] is what the check *found*: the policy said "block" but a
+ * connection got through anyway. The field used to be called `blocked`, which
+ * read as the opposite of what the screen does with it — it renders true as
+ * "LEAK DETECTED".
+ */
 data class LeakCheckRecord(
     val checkedAtEpochMs: Long = 0L,
-    val blocked: Boolean = false,
+    val leaking: Boolean = false,
 )

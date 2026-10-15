@@ -20,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.latency.NodeLatencyTesterEntryPoint
+import com.justnpcx.starveil.leak.LeakCheckRunnerEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen
@@ -67,6 +68,18 @@ fun StarveilNavHost(
         scope.launch { onResult(latencyTester.testSelectedNode()) }
     }
 
+    // The leak self-check watches the VpnService, so it also lives in :app and
+    // Settings only gets a callback.
+    val leakCheckRunner = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            LeakCheckRunnerEntryPoint::class.java,
+        ).leakCheckRunner()
+    }
+    val onRunLeakCheck: () -> Unit = {
+        scope.launch { leakCheckRunner.run() }
+    }
+
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -99,6 +112,6 @@ fun StarveilNavHost(
         }
         composable(Destination.RULES.route) { RulesScreen() }
         composable(Destination.LOGS.route) { LogsScreen() }
-        composable(Destination.SETTINGS.route) { SettingsScreen() }
+        composable(Destination.SETTINGS.route) { SettingsScreen(onRunLeakCheck = onRunLeakCheck) }
     }
 }
