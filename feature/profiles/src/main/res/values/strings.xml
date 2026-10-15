@@ -7,6 +7,11 @@
     <string name="profiles_latency_ms">%1$d ms</string>
     <string name="profiles_selected">Selected</string>
 
+    <!-- Group filter chips (a group comes from a subscription import). -->
+    <string name="profiles_group_all">All</string>
+    <string name="profiles_no_matches_title">No nodes in this group</string>
+    <string name="profiles_no_matches_body">Pick another group, or import a subscription.</string>
+
     <string name="profiles_import_add">Add nodes</string>
     <string name="profiles_import_title">Import nodes</string>
     <string name="profiles_import_hint">Paste a share link (vless://…) or a subscription URL</string>

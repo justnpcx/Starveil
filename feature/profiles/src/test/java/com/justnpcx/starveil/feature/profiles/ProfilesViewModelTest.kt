@@ -22,13 +22,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -77,15 +81,82 @@ class ProfilesViewModelTest {
         assertEquals(ONE, preferences.selectedProfileId.first())
     }
 
-    private fun viewModel(profiles: ProfileRepository, preferences: PreferencesRepository) =
+    @Test
+    fun `filtering by a group shows only that group's nodes`() = runBlocking {
+        val profiles = FakeProfiles(
+            mutableListOf(
+                // A share-link import has no group; only "All" shows it.
+                profile(ONE, "one").copy(groupId = 0L),
+                profile(TWO, "two").copy(groupId = SUB),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(SUB)
+        yield()
+
+        assertEquals(listOf(TWO), viewModel.uiState.value.profiles.map { it.id })
+        assertFalse(viewModel.uiState.value.hasNoMatches)
+        job.cancel()
+    }
+
+    @Test
+    fun `a filter that matches nothing says so, rather than looking empty`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(SUB)
+        yield()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.profiles.isEmpty())
+        assertTrue(state.hasNoMatches)
+        // The node exists; the filter is what hides it.
+        assertTrue(state.hasProfiles)
+        job.cancel()
+    }
+
+    @Test
+    fun `clearing the filter shows everything again`() = runBlocking {
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "one").copy(groupId = 0L),
+                profile(TWO, "two").copy(groupId = SUB),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(SUB)
+        yield()
+        viewModel.filterByGroup(null)
+        yield()
+
+        assertEquals(listOf(ONE, TWO), viewModel.uiState.value.profiles.map { it.id }.sorted())
+        job.cancel()
+    }
+
+    private fun groupsWithSub() = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
+
+    private fun viewModel(
+        profiles: ProfileRepository,
+        preferences: PreferencesRepository,
+        groups: GroupRepository = FakeGroups(),
+    ) =
         ProfilesViewModel(
             profiles = profiles,
+            groups = groups,
             preferences = preferences,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(
                 resolver = LinkResolver { null },
                 profiles = profiles,
-                groups = FakeGroups(),
+                groups = groups,
                 updater = SubscriptionUpdater(
                     registry = SubscriptionFormatRegistry.default { null },
                     profiles = profiles,
@@ -107,6 +178,7 @@ class ProfilesViewModelTest {
     private companion object {
         const val ONE = 1L
         const val TWO = 2L
+        const val SUB = 7L
     }
 }
 
@@ -160,9 +232,9 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
 }
 
-private class FakeGroups : GroupRepository {
-    override fun observeAll(): Flow<List<ProxyGroup>> = notUsed()
-    override suspend fun getById(id: Long): ProxyGroup? = notUsed()
+private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : GroupRepository {
+    override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(all)
+    override suspend fun getById(id: Long): ProxyGroup? = all.firstOrNull { it.id == id }
     override suspend fun upsert(group: ProxyGroup): Long = notUsed()
     override suspend fun deleteById(id: Long) { notUsed() }
 }
