@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel.config
 
+import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.Rule
@@ -24,12 +25,21 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     /** Single-profile config: one `proxy` outbound, route final = `proxy`. */
     fun build(profile: Profile, rules: List<Rule> = emptyList()): String {
-        val outbounds = listOf(
-            outbound(profile, PROXY_TAG),
-            directOutbound(),
-            blockOutbound(),
+        val proxy = fragment(profile, PROXY_TAG)
+        // WireGuard is an endpoint, so its fragment goes in a different
+        // top-level section — and the route still points at its tag, because
+        // the outbound manager resolves an endpoint tag too.
+        val isEndpoint = placementOf(profile) == ConfigPlacement.ENDPOINT
+        return render(
+            outbounds = buildList {
+                if (!isEndpoint) add(proxy)
+                add(directOutbound())
+                add(blockOutbound())
+            },
+            endpoints = if (isEndpoint) listOf(proxy) else emptyList(),
+            finalTag = PROXY_TAG,
+            rules = rules,
         )
-        return render(outbounds = outbounds, finalTag = PROXY_TAG, rules = rules)
     }
 
     /**
@@ -40,12 +50,25 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     fun build(profiles: List<Profile>, rules: List<Rule> = emptyList()): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         val tags = profiles.indices.map { "proxy-$it" }
+        val fragments = profiles.mapIndexed { index, profile -> fragment(profile, tags[index]) }
+        // One placement lookup per profile: this runs for every node of a
+        // subscription, and the builder is on a latency-sensitive path.
+        val placements = profiles.map { placementOf(it) }
+        val endpoints = profiles.indices
+            .filter { placements[it] == ConfigPlacement.ENDPOINT }
+            .map { fragments[it] }
+
         val outbounds = buildList {
-            profiles.forEachIndexed { index, profile -> add(outbound(profile, tags[index])) }
+            profiles.indices
+                .filter { placements[it] == ConfigPlacement.OUTBOUND }
+                .forEach { add(fragments[it]) }
             add(
                 linkedMapOf<String, Any?>(
                     "type" to "urltest",
                     "tag" to AUTO_TAG,
+                    // Endpoint tags are listed too: the outbound manager falls
+                    // back to the endpoint manager when a tag is not an
+                    // outbound, so the group can carry both kinds.
                     "outbounds" to tags,
                     "url" to "http://cp.cloudflare.com/",
                     "interval" to "3m",
@@ -55,7 +78,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             add(directOutbound())
             add(blockOutbound())
         }
-        return render(outbounds = outbounds, finalTag = AUTO_TAG, rules = rules)
+        return render(
+            outbounds = outbounds,
+            endpoints = endpoints,
+            finalTag = AUTO_TAG,
+            rules = rules,
+        )
     }
 
     /**
@@ -80,15 +108,19 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             matcher + action
         }
 
-    private fun outbound(profile: Profile, tag: String): Map<String, Any?> {
+    /** Where this profile's fragment belongs; unknown types default to outbound. */
+    private fun placementOf(profile: Profile): ConfigPlacement =
+        registry.get(profile.type)?.placement ?: ConfigPlacement.OUTBOUND
+
+    private fun fragment(profile: Profile, tag: String): Map<String, Any?> {
         val descriptor = registry.get(profile.type)
             ?: throw ConfigBuildException("No protocol descriptor registered for ${profile.type}")
-        val fragment = try {
+        val built = try {
             descriptor.configBuilder(profile)
         } catch (e: IllegalStateException) {
-            throw ConfigBuildException("Cannot build ${profile.type} outbound: ${e.message}")
+            throw ConfigBuildException("Cannot build ${profile.type} fragment: ${e.message}")
         }
-        return LinkedHashMap<String, Any?>(fragment).apply { put("tag", tag) }
+        return LinkedHashMap<String, Any?>(built).apply { put("tag", tag) }
     }
 
     private fun directOutbound() = linkedMapOf<String, Any?>("type" to "direct", "tag" to DIRECT_TAG)
@@ -119,6 +151,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     private fun render(
         outbounds: List<Map<String, Any?>>,
+        endpoints: List<Map<String, Any?>>,
         finalTag: String,
         rules: List<Rule>,
     ): String {
@@ -134,28 +167,34 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             ),
             "inbounds" to listOf(tunInbound()),
             "outbounds" to outbounds,
-            "route" to linkedMapOf<String, Any?>(
-                "rules" to routeRules(rules, finalTag),
-                "final" to finalTag,
-                // On: this is the platform path, and it is the one we want.
-                // The dialer installs the bind/protect control, which reaches
-                // PlatformInterface.AutoDetectInterfaceControl, and it takes the
-                // platform-interfaces path (this fork hardcodes
-                // UsePlatformNetworkInterfaces() to true), which is what
-                // PlatformInterface.GetInterfaces() feeds. Turning it off was
-                // only an A/B and made no difference to the dial.
-                "auto_detect_interface" to true,
-            ),
-            // Present, though empty. sing-box only builds its traffic manager —
-            // and therefore only reports uplink/downlink to the CommandClient —
-            // when `experimental.clash_api` is set (box.go: `needClashAPI`).
-            // Without it every StatusMessage carries zero, so the dashboard's
-            // rates and totals sit at 0 B/s forever even while traffic flows.
-            // An empty controller opens no HTTP listener: the server is created
-            // but never bound.
-            "experimental" to linkedMapOf<String, Any?>(
-                "clash_api" to emptyMap<String, Any?>(),
-            ),
+        )
+        // WireGuard's endpoint goes here, not in `outbounds`: sing-box 1.13
+        // removed the outbound form and fails config construction on it.
+        // Omitted when empty, so a config with no endpoint is unchanged.
+        if (endpoints.isNotEmpty()) {
+            config["endpoints"] = endpoints
+        }
+        config["route"] = linkedMapOf<String, Any?>(
+            "rules" to routeRules(rules, finalTag),
+            "final" to finalTag,
+            // On: this is the platform path, and it is the one we want.
+            // The dialer installs the bind/protect control, which reaches
+            // PlatformInterface.AutoDetectInterfaceControl, and it takes the
+            // platform-interfaces path (this fork hardcodes
+            // UsePlatformNetworkInterfaces() to true), which is what
+            // PlatformInterface.GetInterfaces() feeds. Turning it off was
+            // only an A/B and made no difference to the dial.
+            "auto_detect_interface" to true,
+        )
+        // Present, though empty. sing-box only builds its traffic manager —
+        // and therefore only reports uplink/downlink to the CommandClient —
+        // when `experimental.clash_api` is set (box.go: `needClashAPI`).
+        // Without it every StatusMessage carries zero, so the dashboard's
+        // rates and totals sit at 0 B/s forever even while traffic flows.
+        // An empty controller opens no HTTP listener: the server is created
+        // but never bound.
+        config["experimental"] = linkedMapOf<String, Any?>(
+            "clash_api" to emptyMap<String, Any?>(),
         )
         return Json.write(config)
     }

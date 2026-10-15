@@ -19,6 +19,8 @@ import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.WireGuardPeer
+import com.justnpcx.starveil.core.model.WireGuardSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -156,9 +158,32 @@ class ProfileRoundTripTest {
         ),
     )
 
+    private val wireGuard = Profile(
+        name = "wg-node",
+        type = ProfileType.WIREGUARD,
+        server = "wg.example.com",
+        port = 51820,
+        settings = WireGuardSettings(
+            privateKey = "priv",
+            address = listOf("10.7.0.2/32", "fd00::2/128"),
+            peers = listOf(
+                WireGuardPeer(
+                    publicKey = "pub",
+                    endpointAddress = "wg.example.com",
+                    endpointPort = 51820,
+                    allowedIps = listOf("0.0.0.0/0", "::/0"),
+                    preSharedKey = "psk",
+                    persistentKeepalive = 25,
+                ),
+            ),
+            mtu = 1420,
+            listenPort = 51820,
+        ),
+    )
+
     @Test
     fun `credentials survive import persist reload`() = runBlocking {
-        listOf(vless, trojan, shadowsocks, vmess, hysteria2, tuic).forEach { original ->
+        listOf(vless, trojan, shadowsocks, vmess, hysteria2, tuic, wireGuard).forEach { original ->
             val id = repo.upsert(original)
             val loaded = repo.getById(id)
             assertEquals("settings for ${original.type}", original.settings, loaded?.settings)
@@ -208,12 +233,13 @@ class ProfileRoundTripTest {
 
     @Test
     fun `unmodelled protocol settings decode to null`() {
+        // OTHER is the placeholder type for protocols that are not modelled.
         val entity = ProfileEntity(
-            name = "wg",
-            type = ProfileType.WIREGUARD.name,
+            name = "other",
+            type = ProfileType.OTHER.name,
             server = "h",
-            port = 51820,
-            settingsJson = """{"kind":"wireguard","privateKey":"x"}""",
+            port = 1,
+            settingsJson = """{"kind":"other","secret":"x"}""",
         )
         assertNull(entity.toDomain().settings)
     }

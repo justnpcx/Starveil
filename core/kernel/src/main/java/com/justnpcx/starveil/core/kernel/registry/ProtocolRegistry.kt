@@ -19,6 +19,15 @@ import com.justnpcx.starveil.core.model.ProfileType
  * - [editorRoute]: the Compose navigation route of this protocol's edit
  *   screen. UI resolves it; `:core:kernel` never imports UI code.
  */
+/**
+ * Where a protocol's config fragment belongs in the sing-box config.
+ *
+ * Almost everything is an outbound. WireGuard is an *endpoint*: sing-box 1.13
+ * removed its outbound form, and emitting it under `outbounds` fails config
+ * construction with "use WireGuard endpoint instead" — which stops the kernel.
+ */
+enum class ConfigPlacement { OUTBOUND, ENDPOINT }
+
 data class ProtocolDescriptor(
     val type: ProfileType,
     val displayName: String,
@@ -28,6 +37,14 @@ data class ProtocolDescriptor(
     val linkParser: (String) -> Profile?,
     val configBuilder: (Profile) -> Map<String, Any?>,
     val editorRoute: String,
+    /**
+     * True when [linkParser] should also be tried on text that carries no
+     * scheme — a WireGuard `.conf`, for instance. Scheme-ful links never reach
+     * this, so it is only the fallback path.
+     */
+    val sniff: (String) -> Boolean = { false },
+    /** Outbound by default; only WireGuard is an endpoint. */
+    val placement: ConfigPlacement = ConfigPlacement.OUTBOUND,
 )
 
 /**
@@ -58,42 +75,10 @@ class ProtocolRegistry(private val descriptors: Map<ProfileType, ProtocolDescrip
 
     companion object {
         /**
-         * Built-in protocols. Every protocol with a share link is real now;
-         * WireGuard is the remaining stub — its configuration is a peer/key
-         * structure rather than a URL, so it is a different shape of work.
+         * Built-in protocols. Every one is real now, so the registry is just
+         * the descriptors' own list — there are no stubs left to keep visible.
          */
-        fun default(): ProtocolRegistry = ProtocolRegistry(
-            listOf(
-                StarveilProtocols.Vless,
-                StarveilProtocols.Trojan,
-                StarveilProtocols.Shadowsocks,
-                StarveilProtocols.Vmess,
-                StarveilProtocols.Hysteria2,
-                StarveilProtocols.Tuic,
-                stub(
-                    type = ProfileType.WIREGUARD,
-                    displayName = "WireGuard",
-                    defaultPort = 51820,
-                    schemes = listOf("wireguard"),
-                ),
-            ).associateBy { it.type },
-        )
-
-        private fun stub(
-            type: ProfileType,
-            displayName: String,
-            defaultPort: Int,
-            schemes: List<String>,
-        ): ProtocolDescriptor = ProtocolDescriptor(
-            type = type,
-            displayName = displayName,
-            defaultPort = defaultPort,
-            schemes = schemes,
-            // TODO (Phase 2): real link parser for $displayName.
-            linkParser = { null },
-            // TODO (Phase 2): real sing-box outbound fragment for $displayName.
-            configBuilder = { emptyMap() },
-            editorRoute = "editor/${type.name.lowercase()}",
-        )
+        fun default(): ProtocolRegistry =
+            ProtocolRegistry(StarveilProtocols.all.associateBy { it.type })
     }
 }

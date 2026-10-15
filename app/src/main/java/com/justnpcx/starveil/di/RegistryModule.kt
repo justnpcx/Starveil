@@ -45,12 +45,28 @@ object RegistryModule {
         SubscriptionFormatRegistry.default { link -> resolveLink(protocolRegistry, link) }
 
     /**
-     * Dispatches a share link to whichever protocol descriptor claims its
-     * scheme. Keeps :core:subscription free of a dependency on :core:kernel.
+     * Dispatches pasted text to whichever protocol descriptor claims it.
+     *
+     * A share link is matched by its scheme. Text with no scheme — a WireGuard
+     * `.conf` — goes to the descriptors that opted into sniffing instead.
+     * Keeps :core:subscription free of a dependency on :core:kernel.
      */
-    private fun resolveLink(registry: ProtocolRegistry, link: String): Profile? {
-        val scheme = link.substringBefore("://", "").lowercase()
-        if (scheme.isBlank()) return null
-        return registry.fromScheme(scheme)?.linkParser?.invoke(link)
+    private fun resolveLink(registry: ProtocolRegistry, text: String): Profile? {
+        val trimmed = text.trim()
+        val scheme = trimmed.substringBefore("://", "")
+        // A real scheme is short and has no whitespace. Without that guard a
+        // `.conf` whose body happens to contain "://" would be read as one.
+        val hasScheme = scheme.isNotBlank() &&
+            scheme.length < SCHEME_MAX_LENGTH &&
+            scheme.none { it.isWhitespace() || it == '[' || it == ']' }
+        if (hasScheme) {
+            return registry.fromScheme(scheme)?.linkParser?.invoke(trimmed)
+        }
+        return registry.all().firstNotNullOfOrNull { descriptor ->
+            if (descriptor.sniff(trimmed)) descriptor.linkParser(trimmed) else null
+        }
     }
+
+    /** Longest plausible URI scheme; anything longer is not one. */
+    private const val SCHEME_MAX_LENGTH = 32
 }

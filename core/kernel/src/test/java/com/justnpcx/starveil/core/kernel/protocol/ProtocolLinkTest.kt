@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.protocol
 
 import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.ObfsOptions
+import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
@@ -12,8 +13,10 @@ import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.WireGuardSettings
 import java.util.Base64
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -336,6 +339,82 @@ class TuicLinkTest {
     }
 }
 
+class WireGuardConfTest {
+
+    private val conf = """
+        # a wg-quick config
+        [Interface]
+        PrivateKey = aPrivateKeyBase64=
+        Address = 10.7.0.2/32, fd00::2/128
+        DNS = 1.1.1.1
+        MTU = 1420
+        ListenPort = 51820
+
+        [Peer]
+        PublicKey = aPublicKeyBase64=
+        PresharedKey = aPresharedKeyBase64=
+        AllowedIPs = 0.0.0.0/0, ::/0
+        Endpoint = wg.example.com:51820
+        PersistentKeepalive = 25
+    """.trimIndent()
+
+    @Test
+    fun `parses a wg-quick conf`() {
+        val profile = StarveilProtocols.parseWireGuardConf(conf)
+        assertNotNull(profile)
+        profile!!
+        assertEquals(ProfileType.WIREGUARD, profile.type)
+        assertEquals("wg.example.com", profile.server)
+        assertEquals(51820, profile.port)
+        val s = profile.settings as WireGuardSettings
+        assertEquals("aPrivateKeyBase64=", s.privateKey)
+        assertEquals(listOf("10.7.0.2/32", "fd00::2/128"), s.address)
+        assertEquals(1420, s.mtu)
+        assertEquals(51820, s.listenPort)
+        val peer = s.peers.single()
+        assertEquals("aPublicKeyBase64=", peer.publicKey)
+        assertEquals("wg.example.com", peer.endpointAddress)
+        assertEquals(51820, peer.endpointPort)
+        assertEquals(listOf("0.0.0.0/0", "::/0"), peer.allowedIps)
+        assertEquals("aPresharedKeyBase64=", peer.preSharedKey)
+        assertEquals(25, peer.persistentKeepalive)
+    }
+
+    @Test
+    fun `keeps every peer and skips one with no endpoint`() {
+        val text = """
+            [Interface]
+            PrivateKey = k
+            Address = 10.7.0.2/32
+
+            [Peer]
+            PublicKey = p1
+            Endpoint = a.example.com:51820
+
+            [Peer]
+            PublicKey = p2-no-endpoint
+
+            [Peer]
+            PublicKey = p3
+            Endpoint = b.example.com:51821
+        """.trimIndent()
+        val settings = StarveilProtocols.parseWireGuardConf(text)!!.settings as WireGuardSettings
+        // The middle peer cannot be dialled, so it is dropped rather than
+        // failing the whole import.
+        assertEquals(listOf("p1", "p3"), settings.peers.map { it.publicKey })
+    }
+
+    @Test
+    fun `rejects a conf with no interface, key, address or peer`() {
+        assertNull(StarveilProtocols.parseWireGuardConf("not a conf at all"))
+        assertNull(StarveilProtocols.parseWireGuardConf("[Interface]\nAddress = 10.0.0.2/32"))
+        assertNull(StarveilProtocols.parseWireGuardConf("[Interface]\nPrivateKey = k"))
+        assertNull(
+            StarveilProtocols.parseWireGuardConf("[Interface]\nPrivateKey = k\nAddress = 10.0.0.2/32"),
+        )
+    }
+}
+
 class ProtocolRegistryWiringTest {
 
     @Test
@@ -348,6 +427,7 @@ class ProtocolRegistryWiringTest {
         assertEquals(ProfileType.HYSTERIA2, registry.fromScheme("hy2")?.type)
         assertEquals(ProfileType.HYSTERIA2, registry.fromScheme("hysteria2")?.type)
         assertEquals(ProfileType.TUIC, registry.fromScheme("tuic")?.type)
+        assertEquals(ProfileType.WIREGUARD, registry.fromScheme("wireguard")?.type)
 
         val vless = registry.get(ProfileType.VLESS)!!
         val parsed = vless.linkParser("vless://u@h.example:443#n")
@@ -356,12 +436,23 @@ class ProtocolRegistryWiringTest {
     }
 
     @Test
-    fun `unimplemented protocols stay stubs`() {
+    fun `no protocol is left as a stub`() {
         val registry = com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry.default()
-        val wireguard = registry.get(ProfileType.WIREGUARD)!!
-        assertNull(wireguard.linkParser("wireguard://whatever"))
-        assertTrue(wireguard.configBuilder(com.justnpcx.starveil.core.model.Profile(
-            name = "x", type = ProfileType.WIREGUARD, server = "h", port = 1,
-        )).isEmpty())
+        // OTHER is the placeholder for future protocols, not a protocol.
+        ProfileType.entries.filter { it != ProfileType.OTHER }.forEach { type ->
+            assertNotNull("no descriptor registered for $type", registry.get(type))
+        }
+    }
+
+    @Test
+    fun `WireGuard is claimed by sniffing and placed as an endpoint`() {
+        val descriptor =
+            com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry.default()
+                .get(ProfileType.WIREGUARD)!!
+        // It has no usable URI scheme, so a .conf is recognised by its sections.
+        assertTrue(descriptor.sniff("[Interface]\nPrivateKey = k\n[Peer]\nPublicKey = p"))
+        assertFalse(descriptor.sniff("vless://u@h.example:443"))
+        // sing-box 1.13 removed the WireGuard outbound.
+        assertEquals(ConfigPlacement.ENDPOINT, descriptor.placement)
     }
 }
