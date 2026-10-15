@@ -33,6 +33,11 @@ jobs:
       # regression in the config builder could reach main unnoticed.
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --no-daemon
+      # The CI watcher is shell, so Gradle does not cover it. It has its own
+      # tests (no network, no credentials) and they run here rather than being
+      # something only remembered by hand.
+      - name: CI watcher tests
+        run: bash scripts/ci-watch.test.sh
       - name: Lint
         run: ./gradlew lintDebug --no-daemon
       # Sideload build: the debug APK is debug-signed, so it installs on a
