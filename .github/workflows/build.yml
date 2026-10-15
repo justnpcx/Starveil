@@ -31,8 +31,15 @@ jobs:
         run: ./gradlew :app:assembleDebug --no-daemon
       # The tests were only ever run by hand until now, which is how a
       # regression in the config builder could reach main unnoticed.
+      #
+      # --rerun-tasks on purpose: the Gradle build cache was serving every
+      # testDebugUnitTest FROM-CACHE, so this step was reporting a previous
+      # run's result rather than checking anything. A cache hit is sound for
+      # hermetic tests, but CI's job is to be the independent check, and a
+      # cached success also hides flakiness and anything a test reads that is
+      # not a declared input (time, timezone, environment).
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest --no-daemon --rerun-tasks
       # The CI watcher is shell, so Gradle does not cover it. It has its own
       # tests (no network, no credentials) and they run here rather than being
       # something only remembered by hand.
