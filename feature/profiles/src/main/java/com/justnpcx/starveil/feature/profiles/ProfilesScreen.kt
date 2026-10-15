@@ -303,6 +303,20 @@ fun ProfilesScreen(
                         )
                     }
 
+                    // Only a subscription-backed group has something to fetch;
+                    // a folder would just be a button that does nothing.
+                    if (!group.subscriptionUrl.isNullOrBlank()) {
+                        TextButton(
+                            enabled = !state.importing,
+                            onClick = {
+                                groupMenu = null
+                                viewModel.refreshSubscription(group)
+                            },
+                        ) {
+                            Text(stringResource(R.string.profiles_group_refresh))
+                        }
+                    }
+
                     TextButton(
                         onClick = {
                             groupMenu = null

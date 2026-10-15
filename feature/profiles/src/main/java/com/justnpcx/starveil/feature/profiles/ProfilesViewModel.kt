@@ -12,6 +12,8 @@ import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
+import com.justnpcx.starveil.core.subscription.SubscriptionUpdateOutcome
+import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +54,7 @@ class ProfilesViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val preferences: PreferencesRepository,
     private val importer: LinkImporter,
+    private val updater: SubscriptionUpdater,
     private val refreshScheduler: SubscriptionRefreshScheduler,
 ) : ViewModel() {
 
@@ -210,6 +213,30 @@ class ProfilesViewModel @Inject constructor(
                 is ImportOutcome.AddedNode -> "Added ${outcome.name}"
                 is ImportOutcome.AddedSubscription -> "Imported ${outcome.nodeCount} nodes"
                 is ImportOutcome.Failed -> "Import failed: ${outcome.reason}"
+            }
+            importing.value = false
+        }
+    }
+
+    /**
+     * Re-pull a subscription-backed group from its URL.
+     *
+     * The periodic worker is the automatic path, but it only exists for groups
+     * imported after the scheduler got its first caller — an older group has a
+     * URL and no work, so nothing would ever refresh it. Re-arming the schedule
+     * here is what makes a manual refresh also repair the group's cadence.
+     *
+     * A group without a URL is a folder; there is nothing to fetch.
+     */
+    fun refreshSubscription(group: ProxyGroup) {
+        val url = group.subscriptionUrl
+        if (url.isNullOrBlank()) return
+        viewModelScope.launch {
+            importing.value = true
+            refreshScheduler.schedule(group.id)
+            message.value = when (val outcome = updater.update(group.id, url)) {
+                is SubscriptionUpdateOutcome.Success -> "Refreshed: ${outcome.profileCount} nodes"
+                is SubscriptionUpdateOutcome.Failure -> "Refresh failed: ${outcome.reason}"
             }
             importing.value = false
         }

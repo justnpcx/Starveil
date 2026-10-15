@@ -28,6 +28,7 @@
     <string name="profiles_group_connect_folder_hint">A folder is not something you connect through. Give it a mode, or pick a node inside it.</string>
     <string name="profiles_group_connect_empty_hint">This group has no nodes to connect with.</string>
     <string name="profiles_group_in_use">In use</string>
+    <string name="profiles_group_refresh">Refresh subscription</string>
     <string name="profiles_group_rename">Rename</string>
     <string name="profiles_group_rename_title">Rename group</string>
     <string name="profiles_group_name_label">Name</string>

@@ -19,6 +19,8 @@ import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
+import java.io.IOException
+import java.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -389,6 +391,107 @@ class ProfilesViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun `refreshing a subscription replaces its nodes and re-arms the schedule`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "old").copy(groupId = SUB)))
+        val scheduler = FakeRefreshScheduler()
+        val fetcher = FakeFetcher(
+            body = base64Links("vless://u1@h:443#node1", "vless://u2@h:443#node2"),
+        )
+        val viewModel = viewModel(
+            profiles,
+            FakePreferences(0L),
+            FakeGroups(listOf(subGroupWithUrl())),
+            scheduler,
+            fetcher,
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.refreshSubscription(subGroupWithUrl())
+        yield()
+
+        assertEquals(SUB_URL, fetcher.lastUrl)
+        assertEquals(SUB, profiles.replacedGroupId)
+        assertEquals(2, profiles.replacedCount)
+        // Re-arming is the repair, not a side effect: a group imported before
+        // the scheduler got its first caller has a URL and no work, so a manual
+        // refresh is the only thing that can put it back on the cadence.
+        assertTrue(scheduler.scheduled.contains(SUB))
+        assertEquals("Refreshed: 2 nodes", awaitMessage(viewModel))
+        job.cancel()
+    }
+
+    @Test
+    fun `refreshing a folder is a no-op`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one").copy(groupId = SUB)))
+        val scheduler = FakeRefreshScheduler()
+        val fetcher = FakeFetcher(body = "ignored")
+        val folder = ProxyGroup(id = SUB, name = "folder")
+        val viewModel = viewModel(
+            profiles,
+            FakePreferences(0L),
+            FakeGroups(listOf(folder)),
+            scheduler,
+            fetcher,
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.refreshSubscription(folder)
+        yield()
+
+        // No URL means no request, no write, and nothing to say.
+        assertNull(fetcher.lastUrl)
+        assertEquals(0, profiles.replaceCalls)
+        assertTrue(scheduler.scheduled.isEmpty())
+        assertNull(viewModel.uiState.value.message)
+        job.cancel()
+    }
+
+    @Test
+    fun `a failed refresh reports the reason and keeps the old nodes`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "old").copy(groupId = SUB)))
+        val viewModel = viewModel(
+            profiles,
+            FakePreferences(0L),
+            FakeGroups(listOf(subGroupWithUrl())),
+            FakeRefreshScheduler(),
+            FakeFetcher(error = IOException("HTTP 500")),
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.refreshSubscription(subGroupWithUrl())
+        yield()
+
+        // The last-good nodes survive a failed refresh; the failure is reported
+        // rather than silently leaving a stale list.
+        assertEquals(0, profiles.replaceCalls)
+        assertEquals(listOf(ONE), profiles.remainingIds())
+        assertEquals("Refresh failed: HTTP 500", awaitMessage(viewModel))
+        job.cancel()
+    }
+
+    /**
+     * The message reaches [ProfilesUiState] through two `combine`s, so it lands
+     * a dispatch turn or two after the call returns. Asserting immediately
+     * reads a stale state.
+     */
+    private suspend fun awaitMessage(viewModel: ProfilesViewModel): String? {
+        repeat(20) {
+            viewModel.uiState.value.message?.let { return it }
+            yield()
+        }
+        return viewModel.uiState.value.message
+    }
+
+    private fun base64Links(vararg links: String): String =
+        Base64.getEncoder().encodeToString(links.joinToString("\n").toByteArray())
+
+    private fun subGroupWithUrl() =
+        ProxyGroup(id = SUB, name = "sub", subscriptionUrl = SUB_URL)
+
     private fun subGroup(mode: GroupMode) =
         ProxyGroup(id = SUB, name = "sub", mode = mode, profileIds = listOf(ONE))
 
@@ -399,27 +502,45 @@ class ProfilesViewModelTest {
         preferences: PreferencesRepository,
         groups: GroupRepository = FakeGroups(),
         refreshScheduler: SubscriptionRefreshScheduler = FakeRefreshScheduler(),
-    ) =
-        ProfilesViewModel(
+        fetcher: SubscriptionFetcher = FakeFetcher(),
+    ): ProfilesViewModel {
+        // A subscription body is base64'd share links, so the registry needs a
+        // resolver that can turn one into a profile; otherwise every body would
+        // parse to zero nodes.
+        val updater = SubscriptionUpdater(
+            registry = SubscriptionFormatRegistry.default { link ->
+                if (link.startsWith("vless://")) {
+                    Profile(
+                        name = link.substringAfter('#', "node"),
+                        type = ProfileType.VLESS,
+                        server = "h.example",
+                        port = 443,
+                    )
+                } else {
+                    null
+                }
+            },
+            profiles = profiles,
+            health = FakeHealth(),
+            fetcher = fetcher,
+            clock = Clock { 0L },
+        )
+        return ProfilesViewModel(
             profiles = profiles,
             groups = groups,
             preferences = preferences,
             refreshScheduler = refreshScheduler,
+            updater = updater,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(
                 resolver = LinkResolver { null },
                 profiles = profiles,
                 groups = groups,
-                updater = SubscriptionUpdater(
-                    registry = SubscriptionFormatRegistry.default { null },
-                    profiles = profiles,
-                    health = FakeHealth(),
-                    fetcher = FakeFetcher(),
-                    clock = Clock { 0L },
-                ),
+                updater = updater,
                 refreshScheduler = refreshScheduler,
             ),
         )
+    }
 
     private fun profile(id: Long, name: String) = Profile(
         id = id,
@@ -433,6 +554,7 @@ class ProfilesViewModelTest {
         const val ONE = 1L
         const val TWO = 2L
         const val SUB = 7L
+        const val SUB_URL = "https://sub.example.com/abc?token=SECRET"
     }
 }
 
@@ -461,7 +583,20 @@ private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepos
         all.removeAll { it.groupId == groupId }
     }
 
-    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = notUsed()
+    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
+        replaceCalls++
+        replacedGroupId = groupId
+        replacedCount = profiles.size
+        all.removeAll { it.groupId == groupId }
+        all += profiles
+    }
+
+    var replaceCalls = 0
+        private set
+    var replacedGroupId: Long? = null
+        private set
+    var replacedCount = 0
+        private set
 
     fun remainingIds(): List<Long> = all.map { it.id }
 }
@@ -537,12 +672,32 @@ private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : Grou
 }
 
 private class FakeHealth : SubscriptionHealthSink {
-    override suspend fun recordSuccess(atEpochMs: Long) { notUsed() }
-    override suspend fun recordFailure(atEpochMs: Long, reason: String) { notUsed() }
+    var lastSuccessAt: Long? = null
+        private set
+    var lastReason: String? = null
+        private set
+
+    override suspend fun recordSuccess(atEpochMs: Long) {
+        lastSuccessAt = atEpochMs
+    }
+
+    override suspend fun recordFailure(atEpochMs: Long, reason: String) {
+        lastReason = reason
+    }
 }
 
-private class FakeFetcher : SubscriptionFetcher {
-    override suspend fun fetch(url: String): String = notUsed()
+private class FakeFetcher(
+    private val body: String? = null,
+    private val error: Exception? = null,
+) : SubscriptionFetcher {
+    var lastUrl: String? = null
+        private set
+
+    override suspend fun fetch(url: String): String {
+        lastUrl = url
+        error?.let { throw it }
+        return body!!
+    }
 }
 
 private class FakeRefreshScheduler : SubscriptionRefreshScheduler {
