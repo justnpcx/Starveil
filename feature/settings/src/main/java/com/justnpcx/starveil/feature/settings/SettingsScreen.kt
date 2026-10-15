@@ -6,12 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import java.text.DateFormat
@@ -30,8 +32,7 @@ import java.util.Date
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
- * Settings — the Kill Switch three-way choice and the leak self-check. The
- * rest of the grouped preferences land in M3.
+ * Settings — theme, the Kill Switch three-way choice, and the leak self-check.
  */
 @Composable
 fun SettingsScreen(
@@ -55,24 +56,33 @@ fun SettingsScreen(
             style = MaterialTheme.typography.titleLarge,
         )
 
-        Text(
-            text = stringResource(R.string.kill_switch_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = StarveilSpacing.sm),
+        SectionTitle(stringResource(R.string.theme_title))
+        ThemeMode.entries.forEach { mode ->
+            RadioOption(
+                label = stringResource(mode.labelRes()),
+                description = null,
+                selected = mode == state.themeMode,
+                onSelect = { viewModel.setThemeMode(mode) },
+            )
+        }
+        SwitchRow(
+            title = stringResource(R.string.dynamic_color_title),
+            description = stringResource(R.string.dynamic_color_desc),
+            checked = state.dynamicColor,
+            onCheckedChange = viewModel::setDynamicColor,
         )
+
+        SectionTitle(stringResource(R.string.kill_switch_title))
         KillSwitchMode.entries.forEach { mode ->
-            KillSwitchOption(
-                mode = mode,
+            RadioOption(
+                label = stringResource(mode.labelRes()),
+                description = stringResource(mode.descriptionRes()),
                 selected = mode == state.killSwitchMode,
                 onSelect = { viewModel.setKillSwitchMode(mode) },
             )
         }
 
-        Text(
-            text = stringResource(R.string.leak_check_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = StarveilSpacing.sm),
-        )
+        SectionTitle(stringResource(R.string.leak_check_title))
         Text(
             text = leakCheckSummary(state.lastLeakCheck),
             style = MaterialTheme.typography.bodyMedium,
@@ -85,8 +95,18 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun KillSwitchOption(
-    mode: KillSwitchMode,
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = StarveilSpacing.sm),
+    )
+}
+
+@Composable
+private fun RadioOption(
+    label: String,
+    description: String?,
     selected: Boolean,
     onSelect: () -> Unit,
 ) {
@@ -100,13 +120,44 @@ private fun KillSwitchOption(
         RadioButton(selected = selected, onClick = null)
         Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         Column {
-            Text(text = stringResource(mode.labelRes()), style = MaterialTheme.typography.bodyLarge)
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            if (description != null) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = stringResource(mode.descriptionRes()),
+                text = description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+        // onCheckedChange = null: the whole row is the target, so the switch
+        // must not also be one (it would toggle twice).
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -122,6 +173,12 @@ private fun leakCheckSummary(record: LeakCheckRecord): String =
             when_,
         )
     }
+
+private fun ThemeMode.labelRes(): Int = when (this) {
+    ThemeMode.SYSTEM -> R.string.theme_system
+    ThemeMode.DARK -> R.string.theme_dark
+    ThemeMode.LIGHT -> R.string.theme_light
+}
 
 private fun KillSwitchMode.labelRes(): Int = when (this) {
     KillSwitchMode.OFF -> R.string.kill_switch_off
