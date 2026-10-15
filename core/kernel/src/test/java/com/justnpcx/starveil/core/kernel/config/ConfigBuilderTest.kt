@@ -16,6 +16,9 @@ import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import org.junit.Assert.assertEquals
@@ -247,6 +250,43 @@ class ConfigBuilderTest {
             ),
         )
         // QUIC: there is no stream transport and no multiplex to emit.
+        assertFalse(json.contains("\"transport\""))
+        assertFalse(json.contains("\"multiplex\""))
+    }
+
+    @Test
+    fun `TUIC config carries uuid, password and the QUIC knobs`() {
+        val profile = Profile(
+            name = "tuic",
+            type = ProfileType.TUIC,
+            server = "t.example.com",
+            port = 443,
+            settings = TuicSettings(
+                uuid = "11111111-2222-3333-4444-555555555555",
+                password = "secret",
+                congestionControl = TuicCongestionControl.BBR,
+                udpRelayMode = TuicUdpRelayMode.NATIVE,
+                zeroRttHandshake = true,
+                tls = TlsOptions(
+                    security = SecurityMode.TLS,
+                    sni = "t.example.com",
+                    alpn = listOf("h3"),
+                ),
+            ),
+        )
+        val json = builder.build(profile)
+        assertTrue(json.contains("\"type\":\"tuic\""))
+        assertTrue(json.contains("\"uuid\":\"11111111-2222-3333-4444-555555555555\""))
+        assertTrue(json.contains("\"password\":\"secret\""))
+        assertTrue(json.contains("\"congestion_control\":\"bbr\""))
+        assertTrue(json.contains("\"udp_relay_mode\":\"native\""))
+        assertTrue(json.contains("\"zero_rtt_handshake\":true"))
+        assertTrue(
+            json.contains(
+                "\"tls\":{\"enabled\":true,\"server_name\":\"t.example.com\",\"alpn\":[\"h3\"]}",
+            ),
+        )
+        // QUIC: no stream transport and no multiplex.
         assertFalse(json.contains("\"transport\""))
         assertFalse(json.contains("\"multiplex\""))
     }

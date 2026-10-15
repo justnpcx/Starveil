@@ -14,6 +14,9 @@ import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import kotlinx.coroutines.flow.Flow
@@ -138,9 +141,24 @@ class ProfileRoundTripTest {
         ),
     )
 
+    private val tuic = Profile(
+        name = "tuic-node",
+        type = ProfileType.TUIC,
+        server = "t.example.com",
+        port = 443,
+        settings = TuicSettings(
+            uuid = "11111111-2222-3333-4444-555555555555",
+            password = "secret",
+            congestionControl = TuicCongestionControl.BBR,
+            udpRelayMode = TuicUdpRelayMode.QUIC,
+            zeroRttHandshake = true,
+            tls = TlsOptions(security = SecurityMode.TLS, sni = "t.example.com", alpn = listOf("h3")),
+        ),
+    )
+
     @Test
     fun `credentials survive import persist reload`() = runBlocking {
-        listOf(vless, trojan, shadowsocks, vmess, hysteria2).forEach { original ->
+        listOf(vless, trojan, shadowsocks, vmess, hysteria2, tuic).forEach { original ->
             val id = repo.upsert(original)
             val loaded = repo.getById(id)
             assertEquals("settings for ${original.type}", original.settings, loaded?.settings)
@@ -191,11 +209,11 @@ class ProfileRoundTripTest {
     @Test
     fun `unmodelled protocol settings decode to null`() {
         val entity = ProfileEntity(
-            name = "tuic",
-            type = ProfileType.TUIC.name,
+            name = "wg",
+            type = ProfileType.WIREGUARD.name,
             server = "h",
-            port = 443,
-            settingsJson = """{"kind":"tuic","uuid":"x"}""",
+            port = 51820,
+            settingsJson = """{"kind":"wireguard","privateKey":"x"}""",
         )
         assertNull(entity.toDomain().settings)
     }

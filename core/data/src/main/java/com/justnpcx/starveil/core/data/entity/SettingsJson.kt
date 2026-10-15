@@ -12,6 +12,9 @@ import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.json.Json
@@ -78,6 +81,16 @@ internal object SettingsJson {
                 "downMbps" to settings.downMbps,
                 "tls" to encodeTls(settings.tls),
             )
+
+            is TuicSettings -> linkedMapOf(
+                KEY_KIND to "tuic",
+                "uuid" to settings.uuid,
+                "password" to settings.password,
+                "congestionControl" to settings.congestionControl?.wireName,
+                "udpRelayMode" to settings.udpRelayMode?.wireName,
+                "zeroRttHandshake" to settings.zeroRttHandshake,
+                "tls" to encodeTls(settings.tls),
+            )
         }
         return Json.write(map)
     }
@@ -142,6 +155,24 @@ internal object SettingsJson {
                     },
                     upMbps = map.int("upMbps"),
                     downMbps = map.int("downMbps"),
+                    tls = decodeTls(map["tls"]),
+                )
+            }
+
+            ProfileType.TUIC -> {
+                val uuid = map.str("uuid") ?: return null
+                val password = map.str("password") ?: return null
+                TuicSettings(
+                    uuid = uuid,
+                    password = password,
+                    // Unknown values decode to null rather than being carried
+                    // forward: sing-box rejects the whole config on an unknown
+                    // enum, which would stop the kernel.
+                    congestionControl = map.str("congestionControl")
+                        ?.let { TuicCongestionControl.fromWireName(it) },
+                    udpRelayMode = map.str("udpRelayMode")
+                        ?.let { TuicUdpRelayMode.fromWireName(it) },
+                    zeroRttHandshake = map.bool("zeroRttHandshake") ?: false,
                     tls = decodeTls(map["tls"]),
                 )
             }

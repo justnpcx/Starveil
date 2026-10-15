@@ -14,6 +14,9 @@ import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.json.Json
@@ -103,8 +106,23 @@ object StarveilProtocols {
         editorRoute = "editor/hysteria2",
     )
 
+    val Tuic: ProtocolDescriptor = ProtocolDescriptor(
+        type = ProfileType.TUIC,
+        displayName = "TUIC",
+        defaultPort = 443,
+        schemes = listOf("tuic"),
+        linkParser = ::parseTuic,
+        configBuilder = { profile ->
+            val settings = profile.settings as? TuicSettings
+                ?: error("TUIC profile has no TUIC settings")
+            SingBoxOutbounds.tuic(profile, settings)
+        },
+        editorRoute = "editor/tuic",
+    )
+
     /** The real descriptors, in the agreed priority order. */
-    val all: List<ProtocolDescriptor> = listOf(Vless, Trojan, Shadowsocks, Vmess, Hysteria2)
+    val all: List<ProtocolDescriptor> =
+        listOf(Vless, Trojan, Shadowsocks, Vmess, Hysteria2, Tuic)
 
     // ---------------------------------------------------------------- VLESS
 
@@ -398,6 +416,54 @@ object StarveilProtocols {
         return ObfsOptions(type = type, password = password)
     }
 
+    // ------------------------------------------------------------------ TUIC
+
+    /**
+     * `tuic://uuid:password@host:port?congestion_control=bbr&udp_relay_mode=native&…`
+     *
+     * TUIC v5 authenticates with a UUID **and** a password, both in the
+     * userinfo — a link with only one of them is not a TUIC v5 node and is
+     * rejected rather than half-filled.
+     */
+    fun parseTuic(link: String): Profile? {
+        if (!link.startsWith("tuic://", ignoreCase = true)) return null
+        val (body, name) = LinkParsing.splitFragment(link.substring(7))
+        val (hostPart, queryRaw) = LinkParsing.splitQuery(body)
+
+        val at = hostPart.lastIndexOf('@')
+        if (at <= 0) return null
+        val userInfo = LinkParsing.percentDecode(hostPart.substring(0, at))
+        val colon = userInfo.indexOf(':')
+        if (colon <= 0) return null
+        val uuid = userInfo.substring(0, colon).trim()
+        val password = userInfo.substring(colon + 1)
+        if (uuid.isBlank() || password.isBlank()) return null
+
+        val authority = hostPart.substring(at + 1).substringBefore('/')
+        val (host, port) = LinkParsing.splitHostPort(authority) ?: return null
+
+        val q = LinkParsing.parseQuery(queryRaw)
+        return Profile(
+            name = name ?: "$host:$port",
+            type = ProfileType.TUIC,
+            server = host,
+            port = port,
+            settings = TuicSettings(
+                uuid = uuid,
+                password = password,
+                // Both are constrained upstream; an unrecognised value is
+                // dropped rather than forwarded, because sing-box rejects the
+                // whole config on an unknown enum and the kernel would not start.
+                congestionControl = q["congestion_control"]
+                    ?.let { TuicCongestionControl.fromWireName(it) },
+                udpRelayMode = q["udp_relay_mode"]?.let { TuicUdpRelayMode.fromWireName(it) },
+                zeroRttHandshake = LinkParsing.asBool(q["zero_rtt_handshake"]),
+                // QUIC: TLS is not optional.
+                tls = tlsFrom(q, SecurityMode.TLS, reality = null),
+            ),
+        )
+    }
+
     // ------------------------------------------------------------ shared bits
 
     private fun securityFrom(q: Map<String, String>): SecurityMode =
@@ -428,7 +494,9 @@ object StarveilProtocols {
                 ?.takeIf { it.isNotBlank() },
             alpn = LinkParsing.asAlpn(q["alpn"]),
             fingerprint = q["fp"]?.takeIf { it.isNotBlank() },
-            allowInsecure = LinkParsing.asBool(q["allowInsecure"] ?: q["insecure"]),
+            allowInsecure = LinkParsing.asBool(
+                q["allowInsecure"] ?: q["insecure"] ?: q["allow_insecure"],
+            ),
             reality = reality,
         )
 
