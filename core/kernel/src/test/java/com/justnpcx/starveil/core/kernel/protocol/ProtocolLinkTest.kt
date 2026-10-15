@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 import java.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -146,14 +147,83 @@ class ShadowsocksLinkTest {
     }
 }
 
+class VmessLinkTest {
+
+    private fun b64(s: String): String = Base64.getEncoder().encodeToString(s.toByteArray())
+
+    @Test
+    fun `parses the base64 JSON form`() {
+        val json = """{"v":"2","ps":"vm-node","add":"vm.example.com","port":"443",""" +
+            """"id":"11111111-2222-3333-4444-555555555555","aid":"0","scy":"auto",""" +
+            """"net":"ws","host":"vm.example.com","path":"/ws","tls":"tls",""" +
+            """"sni":"vm.example.com","alpn":"h2","fp":"chrome"}"""
+        val profile = StarveilProtocols.parseVmess("vmess://${b64(json)}")
+        assertNotNull(profile)
+        profile!!
+        // The label lives in the JSON (`ps`), not in a fragment.
+        assertEquals("vm-node", profile.name)
+        assertEquals(ProfileType.VMESS, profile.type)
+        assertEquals("vm.example.com", profile.server)
+        assertEquals(443, profile.port)
+        val s = profile.settings as VmessSettings
+        assertEquals("11111111-2222-3333-4444-555555555555", s.uuid)
+        assertEquals("auto", s.security)
+        assertEquals(0, s.alterId)
+        assertEquals(SecurityMode.TLS, s.tls.security)
+        assertEquals("vm.example.com", s.tls.sni)
+        assertEquals(listOf("h2"), s.tls.alpn)
+        assertEquals("chrome", s.tls.fingerprint)
+        assertEquals(TransportType.WS, s.transport.type)
+        assertEquals("/ws", s.transport.path)
+    }
+
+    @Test
+    fun `parses the URL form`() {
+        val profile = StarveilProtocols.parseVmess(
+            "vmess://11111111-2222-3333-4444-555555555555@vm.example.com:8443" +
+                "?encryption=auto&security=tls&type=grpc&serviceName=gs&sni=vm.example.com#VM",
+        )
+        assertNotNull(profile)
+        profile!!
+        assertEquals("VM", profile.name)
+        assertEquals(8443, profile.port)
+        val s = profile.settings as VmessSettings
+        assertEquals(SecurityMode.TLS, s.tls.security)
+        assertEquals(TransportType.GRPC, s.transport.type)
+        assertEquals("gs", s.transport.serviceName)
+    }
+
+    @Test
+    fun `reads a non-zero alterId and numeric port from the JSON form`() {
+        val json = """{"add":"h.example","port":443,"id":"u","aid":"4","net":"tcp"}"""
+        val profile = StarveilProtocols.parseVmess("vmess://${b64(json)}")
+        assertNotNull(profile)
+        val s = profile!!.settings as VmessSettings
+        assertEquals(4, s.alterId)
+        // No `scy` in the link — VMess negotiates the cipher itself.
+        assertEquals("auto", s.security)
+        assertEquals(SecurityMode.NONE, s.tls.security)
+    }
+
+    @Test
+    fun `rejects malformed links`() {
+        assertNull(StarveilProtocols.parseVmess("vless://u@h.example:443"))
+        assertNull(StarveilProtocols.parseVmess("vmess://not!base64"))
+        // JSON without a port, and with an out-of-range one.
+        assertNull(StarveilProtocols.parseVmess("vmess://${b64("""{"add":"h","id":"u"}""")}"))
+        assertNull(StarveilProtocols.parseVmess("vmess://${b64("""{"add":"h","port":"0","id":"u"}""")}"))
+    }
+}
+
 class ProtocolRegistryWiringTest {
 
     @Test
-    fun `M2 protocols resolve by scheme and have real parsers`() {
+    fun `real protocols resolve by scheme and have real parsers`() {
         val registry = com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry.default()
         assertEquals(ProfileType.VLESS, registry.fromScheme("vless")?.type)
         assertEquals(ProfileType.TROJAN, registry.fromScheme("trojan")?.type)
         assertEquals(ProfileType.SHADOWSOCKS, registry.fromScheme("ss")?.type)
+        assertEquals(ProfileType.VMESS, registry.fromScheme("vmess")?.type)
 
         val vless = registry.get(ProfileType.VLESS)!!
         val parsed = vless.linkParser("vless://u@h.example:443#n")
@@ -164,10 +234,10 @@ class ProtocolRegistryWiringTest {
     @Test
     fun `unimplemented protocols stay stubs`() {
         val registry = com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry.default()
-        val vmess = registry.get(ProfileType.VMESS)!!
-        assertNull(vmess.linkParser("vmess://whatever"))
-        assertTrue(vmess.configBuilder(com.justnpcx.starveil.core.model.Profile(
-            name = "x", type = ProfileType.VMESS, server = "h", port = 1,
+        val hysteria = registry.get(ProfileType.HYSTERIA2)!!
+        assertNull(hysteria.linkParser("hysteria2://whatever"))
+        assertTrue(hysteria.configBuilder(com.justnpcx.starveil.core.model.Profile(
+            name = "x", type = ProfileType.HYSTERIA2, server = "h", port = 1,
         )).isEmpty())
     }
 }

@@ -13,6 +13,7 @@ import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -102,9 +103,23 @@ class ProfileRoundTripTest {
         settings = ShadowsocksSettings(method = "2022-blake3-aes-128-gcm", password = "b64pass"),
     )
 
+    private val vmess = Profile(
+        name = "vm-node",
+        type = ProfileType.VMESS,
+        server = "vm.example.com",
+        port = 443,
+        settings = VmessSettings(
+            uuid = "11111111-2222-3333-4444-555555555555",
+            security = "chacha20-poly1305",
+            alterId = 4,
+            tls = TlsOptions.Plain,
+            transport = TransportOptions(type = TransportType.WS, path = "/ws", host = "vm.example.com"),
+        ),
+    )
+
     @Test
     fun `credentials survive import persist reload`() = runBlocking {
-        listOf(vless, trojan, shadowsocks).forEach { original ->
+        listOf(vless, trojan, shadowsocks, vmess).forEach { original ->
             val id = repo.upsert(original)
             val loaded = repo.getById(id)
             assertEquals("settings for ${original.type}", original.settings, loaded?.settings)
@@ -155,11 +170,11 @@ class ProfileRoundTripTest {
     @Test
     fun `unmodelled protocol settings decode to null`() {
         val entity = ProfileEntity(
-            name = "vm",
-            type = ProfileType.VMESS.name,
+            name = "hy",
+            type = ProfileType.HYSTERIA2.name,
             server = "h",
             port = 443,
-            settingsJson = """{"kind":"vmess","uuid":"x"}""",
+            settingsJson = """{"kind":"hysteria2","password":"x"}""",
         )
         assertNull(entity.toDomain().settings)
     }

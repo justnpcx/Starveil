@@ -95,6 +95,23 @@ data class VlessSettings(
     val mux: MuxOptions? = null,
 ) : ProfileSettings
 
+/**
+ * VMess outbound settings (`vmess://`).
+ *
+ * [security] is the cipher VMess negotiates — `auto` unless the link says
+ * otherwise (`aes-128-gcm`, `chacha20-poly1305`, `none`). [alterId] is the
+ * legacy MD5-auth counter: modern AEAD servers use 0, and a non-zero value
+ * means the server is old.
+ */
+data class VmessSettings(
+    val uuid: String,
+    val security: String = "auto",
+    val alterId: Int = 0,
+    val tls: TlsOptions = TlsOptions.None,
+    val transport: TransportOptions = TransportOptions.Tcp,
+    val mux: MuxOptions? = null,
+) : ProfileSettings
+
 /** Trojan outbound settings (`trojan://`). */
 data class TrojanSettings(
     val password: String,

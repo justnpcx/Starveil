@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -109,6 +110,30 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"method\":\"2022-blake3-aes-128-gcm\""))
         assertTrue(json.contains("\"password\":\"pw\""))
         assertFalse(json.contains("\"tls\""))
+    }
+
+    @Test
+    fun `VMess config carries uuid, security and alter_id`() {
+        val profile = Profile(
+            name = "vm",
+            type = ProfileType.VMESS,
+            server = "vm.example.com",
+            port = 443,
+            settings = VmessSettings(
+                uuid = "11111111-2222-3333-4444-555555555555",
+                security = "chacha20-poly1305",
+                alterId = 4,
+                tls = TlsOptions.Plain,
+                transport = TransportOptions(type = TransportType.WS, path = "/ws", host = "vm.example.com"),
+            ),
+        )
+        val json = builder.build(profile)
+        assertTrue(json.contains("\"type\":\"vmess\""))
+        assertTrue(json.contains("\"uuid\":\"11111111-2222-3333-4444-555555555555\""))
+        assertTrue(json.contains("\"security\":\"chacha20-poly1305\""))
+        assertTrue(json.contains("\"alter_id\":4"))
+        assertTrue(json.contains("\"tls\":{\"enabled\":true}"))
+        assertTrue(json.contains("\"transport\":{\"type\":\"ws\",\"path\":\"/ws\",\"headers\":{\"Host\":\"vm.example.com\"}}"))
     }
 
     @Test
