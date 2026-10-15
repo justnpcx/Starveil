@@ -8,6 +8,11 @@
 # already reported are kept in a state file, so a restart does not re-report an
 # old failure.
 #
+# The one exception is a rejected credential (HTTP 401). That is not a CI
+# failure but it does mean the watcher has gone blind, so it is reported once
+# per outage — silently staying "green" while unable to see anything would be
+# the worst possible behaviour for a monitor.
+#
 # Usage:
 #   ci-watch.sh          poll forever (for a long-running monitor)
 #   ci-watch.sh --once   poll once and exit (for cron)
@@ -30,6 +35,7 @@ INTERVAL="${CI_WATCH_INTERVAL:-60}"
 STATE_DIR="${CI_WATCH_STATE_DIR:-/root/.cache/starveil-ci-watch}"
 ENV_FILE="${CI_WATCH_ENV:-/root/smart-home/.env}"
 STATE="$STATE_DIR/reported-runs"
+AUTH_FLAG="$STATE_DIR/auth-failed"
 NOTIFY="${CI_WATCH_NOTIFY:-0}"
 NTFY_URL="${CI_WATCH_NTFY_URL:-http://127.0.0.1:2586}"
 NTFY_TOPIC="${CI_WATCH_NTFY_TOPIC:-homelab}"
@@ -104,39 +110,79 @@ for line in new_alerts:
 
 # ntfy is how this homelab reports things (same as ipan-watch.py). JSON publish
 # so the body is not limited to latin-1.
-notify_ntfy() {
+notify_ntfy() {  # $1 = title, $2 = message
     local payload
     payload="$(python3 -c '
 import json, sys
 print(json.dumps({
     "topic": sys.argv[1],
-    "title": "Starveil CI failure",
-    "message": sys.argv[2],
+    "title": sys.argv[2],
+    "message": sys.argv[3],
     "priority": 4,
     "tags": ["rotating_light"],
 }))
-' "$NTFY_TOPIC" "$1")"
+' "$NTFY_TOPIC" "$1" "$2")"
     if ! curl -sS --max-time 15 -H "Content-Type: application/json" \
         -d "$payload" "$NTFY_URL/" >/dev/null 2>&1; then
         echo "ci-watch: ntfy publish failed" >&2
     fi
 }
 
+# A 401 means the token is expired or revoked: every later poll will fail the
+# same way, so the watcher is blind until someone replaces it. That is worth
+# saying out loud — but only once per outage, not every tick.
+#
+# Tracked with a flag file rather than a variable so the "already said this"
+# memory survives the process, which matters because cron starts a new one
+# every five minutes.
+report_auth_failure() {
+    [ -f "$AUTH_FLAG" ] && return 0
+    : > "$AUTH_FLAG"
+
+    local line
+    line="[$(date '+%F %T')] CI watcher is BLIND: GitHub rejected the token (HTTP 401). \
+The token in $ENV_FILE is expired or revoked, so CI is NOT being monitored. \
+Replace it, then this watcher recovers on its own."
+    echo "$line"
+    [ "$NOTIFY" = "1" ] && notify_ntfy "Starveil CI watcher is blind" "$line"
+}
+
+clear_auth_failure() {
+    [ -f "$AUTH_FLAG" ] && rm -f "$AUTH_FLAG"
+}
+
 poll_once() {
-    local alerts line stamped
-    alerts="$(curl -sS --max-time 30 \
+    local resp code body alerts line stamped
+    resp="$(curl -sS --max-time 30 -w '\n%{http_code}' \
         -H "Authorization: Bearer $GH_TOKEN" \
         -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/$REPO/actions/runs?per_page=20" 2>/dev/null \
-        | read_runs)"
+        "https://api.github.com/repos/$REPO/actions/runs?per_page=20" 2>/dev/null)" || return 0
 
+    # curl appends the status on its own line; command substitution strips the
+    # trailing newline, so the code is whatever follows the last one.
+    code="${resp##*$'\n'}"
+    body="${resp%$'\n'*}"
+
+    if [ "$code" = "401" ]; then
+        report_auth_failure
+        return 0
+    fi
+
+    # Anything else (offline, 5xx, rate limited) is treated as transient and
+    # stays quiet: a flaky network should not page anyone. Only a credential
+    # problem is permanent enough to be worth a notification.
+    [ "$code" != "200" ] && return 0
+
+    clear_auth_failure
+
+    alerts="$(printf '%s' "$body" | read_runs)"
     [ -z "$alerts" ] && return 0
 
     while IFS= read -r line; do
         [ -z "$line" ] && continue
         stamped="[$(date '+%F %T')] $line"
         echo "$stamped"
-        [ "$NOTIFY" = "1" ] && notify_ntfy "$stamped"
+        [ "$NOTIFY" = "1" ] && notify_ntfy "Starveil CI failure" "$stamped"
     done <<< "$alerts"
 }
 
