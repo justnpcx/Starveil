@@ -198,7 +198,10 @@ object StarveilProtocols {
     private fun realityFrom(q: Map<String, String>): RealityOptions? {
         val publicKey = q["pbk"] ?: q["publicKey"] ?: return null
         if (publicKey.isBlank()) return null
-        val mlKem = q["mlkem"] ?: q["ml-kem"] ?: q["mlkem-pbk"]
+        // `spx` is the ML-KEM-768 public key in a REALITY share link; the other
+        // spellings are seen in the wild too. Its presence is what tells us the
+        // server offers the hybrid handshake.
+        val mlKem = q["spx"] ?: q["mlkem"] ?: q["ml-kem"] ?: q["mlkem-pbk"]
         return RealityOptions(
             publicKey = publicKey,
             shortId = q["sid"]?.takeIf { it.isNotBlank() },

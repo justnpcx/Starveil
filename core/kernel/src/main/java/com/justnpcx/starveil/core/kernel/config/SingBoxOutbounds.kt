@@ -79,9 +79,14 @@ internal object SingBoxOutbounds {
             "public_key" to reality.publicKey,
         ).apply {
             reality.shortId?.takeIf { it.isNotBlank() }?.let { put("short_id", it) }
-            // Fork extension (ML-KEM). Only emitted when the server advertises
-            // it, so upstream sing-box configs are unaffected.
-            reality.mlKemPublicKey?.takeIf { it.isNotBlank() }?.let { put("ml_kem_public_key", it) }
+            // sing-box has no field for the ML-KEM key itself — only this
+            // switch, which advertises the X25519MLKEM768 key share. The key's
+            // presence in the link is what tells us the server wants it.
+            //
+            // Do NOT be tempted to emit the key: option.Options decodes with
+            // DisallowUnknownFields, so an unknown field here fails the whole
+            // config and the kernel refuses to start.
+            if (!reality.mlKemPublicKey.isNullOrBlank()) put("support_x25519mlkem768", true)
         }
 
     /** Returns null for plain TCP, which sing-box expresses by omission. */
