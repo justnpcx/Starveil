@@ -160,7 +160,52 @@ rules follow:
    redirect sets include 80/443 and often 8443. `:2053` and `:2096` were clean.
 2. **Or exempt the node's host from the proxy** — a direct/bypass routing rule
    for the node's domain keeps the rest of the network proxied while letting
-   the app reach its nodes directly.
+   the app reach its nodes directly. Concrete steps for the router used here
+   (OpenWrt + `luci-app-homeproxy`) are below.
+
+### Applying the exemption (luci-app-homeproxy)
+
+The client config has a **Routing Rules** tab (`routing_rule` sections), which
+is the right place when the routing mode is `bypass_mainland_china`. The
+simpler-looking *Proxy Domain List* / *Direct Domain List* textareas are
+**hidden** in that mode — they only render when the routing mode is `custom`,
+so they are not an option here.
+
+**UI:** Services → HomeProxy → Client → **Routing Rules** → Add
+
+| Field | Value |
+|---|---|
+| Label | `justnpc-direct` (anything) |
+| Enable | ✓ |
+| **Domain** | `api.justnpc.com` |
+| **Action** | `Route` (the default) |
+| **Outbound** | **`Direct`** |
+
+Use **Domain** (`domain`, exact) rather than **Domain suffix**
+(`domain_suffix`) unless you want every subdomain of the domain to bypass the
+proxy too — the other services on that domain do not need to.
+
+**Equivalent CLI** (the Direct outbound's tag is `direct-out`):
+
+```sh
+uci add homeproxy routing_rule
+uci set homeproxy.@routing_rule[-1].label='justnpc-direct'
+uci set homeproxy.@routing_rule[-1].enabled='1'
+uci set homeproxy.@routing_rule[-1].domain='api.justnpc.com'
+uci set homeproxy.@routing_rule[-1].action='route'
+uci set homeproxy.@routing_rule[-1].outbound='direct-out'
+uci commit homeproxy
+/etc/init.d/homeproxy restart
+```
+
+**Verify it took:** with the proxy running, `connect()` to the node host on
+`:443` should now show the real RTT (~170 ms here) instead of ~1 ms. If it is
+still ~1 ms the rule is not matching — check that the rule is enabled and that
+the domain matches the hostname the app actually dials.
+
+An alternative to the exemption is to move the node to a port outside the
+redirect set, but that changes the subscription for every client, so the
+bypass rule is usually the smaller change.
 
 ## Recipes worth keeping
 
