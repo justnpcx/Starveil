@@ -81,6 +81,12 @@ fun SettingsScreen(
                 onSelect = { viewModel.setKillSwitchMode(mode) },
             )
         }
+        SwitchRow(
+            title = stringResource(R.string.auto_reconnect_title),
+            description = stringResource(R.string.auto_reconnect_desc),
+            checked = state.autoReconnect,
+            onCheckedChange = viewModel::setAutoReconnect,
+        )
 
         SectionTitle(stringResource(R.string.leak_check_title))
         Text(

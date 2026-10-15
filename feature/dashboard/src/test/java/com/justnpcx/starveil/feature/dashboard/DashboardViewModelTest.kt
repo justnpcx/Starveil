@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelError
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -137,6 +138,81 @@ class DashboardViewModelTest {
         assertEquals(0, kernel.stopKeepingTunnelCalls)
     }
 
+    @Test
+    fun `a dropped tunnel is reconnected when auto-reconnect is on`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = true), kernel)
+
+        viewModel.onCoreClick()
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(1, kernel.starts)
+
+        kernel.crash()
+
+        // The kernel died under a believed-connected dashboard; bring it back
+        // rather than leaving a stale CONNECTED label over a dead tunnel.
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(2, kernel.starts)
+    }
+
+    @Test
+    fun `a dropped tunnel stays down when auto-reconnect is off`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = false), kernel)
+
+        viewModel.onCoreClick()
+        kernel.crash()
+
+        assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
+        assertEquals(1, kernel.starts)
+    }
+
+    @Test
+    fun `a second drop after an auto-reconnect is not retried`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = true), kernel)
+
+        viewModel.onCoreClick() // starts = 1
+        kernel.crash() // one auto-reconnect -> starts = 2
+        assertEquals(2, kernel.starts)
+
+        kernel.crash() // budget spent: give up rather than loop
+
+        assertEquals(2, kernel.starts)
+        assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
+    }
+
+    @Test
+    fun `a user connect re-arms the auto-reconnect`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = true), kernel)
+
+        viewModel.onCoreClick() // starts = 1
+        kernel.crash() // auto-reconnect -> starts = 2, budget spent
+        assertEquals(2, kernel.starts)
+
+        viewModel.onCoreClick() // user disconnects
+        viewModel.onCoreClick() // user connects again -> starts = 3, budget re-armed
+        assertEquals(3, kernel.starts)
+
+        kernel.crash() // a fresh drop gets its own attempt -> starts = 4
+
+        assertEquals(4, kernel.starts)
+    }
+
+    @Test
+    fun `a crash while disconnected is not a drop to recover from`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = true), kernel)
+
+        // Never connected: the UI is DISCONNECTED, so a kernel error is not a
+        // lost tunnel and must not start one.
+        kernel.crash()
+
+        assertEquals(0, kernel.starts)
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+    }
+
     private fun viewModel(preferences: FakePreferences, kernel: RecordingKernel) =
         DashboardViewModel(
             kernel = kernel,
@@ -164,13 +240,16 @@ class DashboardViewModelTest {
 private class FakePreferences(
     initialId: Long,
     initialKillSwitch: KillSwitchMode = KillSwitchMode.OFF,
+    autoReconnect: Boolean = true,
 ) : PreferencesRepository {
 
     private val id = MutableStateFlow(initialId)
     private val killSwitch = MutableStateFlow(initialKillSwitch)
+    private val autoReconnectFlow = MutableStateFlow(autoReconnect)
 
     override val selectedProfileId: Flow<Long> = id
     override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
+    override val autoReconnect: Flow<Boolean> = autoReconnectFlow
 
     override suspend fun setSelectedProfileId(id: Long) {
         this.id.value = id
@@ -179,8 +258,6 @@ private class FakePreferences(
     // The rest of the preferences are not what this test is about.
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
-    override val autoReconnect: Flow<Boolean> get() = notUsed()
-    override val speedTestUrl: Flow<String> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
@@ -190,7 +267,6 @@ private class FakePreferences(
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
-    override suspend fun setSpeedTestUrl(url: String) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
 }
@@ -226,13 +302,25 @@ private class RecordingKernel : KernelBridge {
     var lastConfig: String? = null
         private set
 
+    /** When set, the next [start] dies immediately — a flapping node. */
+    var crashOnStart = false
+
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
     override val state: StateFlow<KernelState> = _state
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
 
+    /** The kernel died under us, the way the real bridge reports a crash. */
+    fun crash() {
+        _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
+    }
+
     override suspend fun start(config: String): Result<Unit> {
         starts++
         lastConfig = config
+        if (crashOnStart) {
+            _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
+            return Result.failure(IllegalStateException("kernel stopped unexpectedly"))
+        }
         _state.value = KernelState.Running
         return Result.success(Unit)
     }

@@ -48,7 +48,6 @@ interface PreferencesRepository {
     val dynamicColor: Flow<Boolean>
     val autoReconnect: Flow<Boolean>
     val killSwitchMode: Flow<KillSwitchMode>
-    val speedTestUrl: Flow<String>
 
     /** Currently selected node; 0 = none chosen yet. */
     val selectedProfileId: Flow<Long>
@@ -70,7 +69,6 @@ interface PreferencesRepository {
     suspend fun setAutoReconnect(enabled: Boolean)
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
     suspend fun recordLeakCheck(record: LeakCheckRecord)
-    suspend fun setSpeedTestUrl(url: String)
     suspend fun setSelectedProfileId(id: Long)
 
     /** Record a successful subscription refresh. */
@@ -96,7 +94,6 @@ class DataStorePreferencesRepository @Inject constructor(
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
         val LEAK_CHECK_LEAKING = booleanPreferencesKey("leak_check_leaking")
-        val SPEED_TEST_URL = stringPreferencesKey("speed_test_url")
         val SELECTED_PROFILE_ID = longPreferencesKey("selected_profile_id")
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
@@ -131,10 +128,6 @@ class DataStorePreferencesRepository @Inject constructor(
             )
         }
 
-    override val speedTestUrl: Flow<String> = dataStore.data
-        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.SPEED_TEST_URL] ?: "http://cp.cloudflare.com/" }
-
     override suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
     }
@@ -156,10 +149,6 @@ class DataStorePreferencesRepository @Inject constructor(
             it[Keys.LEAK_CHECK_AT] = record.checkedAtEpochMs
             it[Keys.LEAK_CHECK_LEAKING] = record.leaking
         }
-    }
-
-    override suspend fun setSpeedTestUrl(url: String) {
-        dataStore.edit { it[Keys.SPEED_TEST_URL] = url }
     }
 
     override val selectedProfileId: Flow<Long> = dataStore.data

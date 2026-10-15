@@ -19,6 +19,7 @@ data class SettingsUiState(
     val killSwitchMode: KillSwitchMode = KillSwitchMode.OFF,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = false,
+    val autoReconnect: Boolean = true,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
 )
 
@@ -32,12 +33,14 @@ class SettingsViewModel @Inject constructor(
             preferences.killSwitchMode,
             preferences.themeMode,
             preferences.dynamicColor,
+            preferences.autoReconnect,
             preferences.lastLeakCheck,
-        ) { mode, theme, dynamic, leak ->
+        ) { mode, theme, dynamic, reconnect, leak ->
             SettingsUiState(
                 killSwitchMode = mode,
                 themeMode = theme,
                 dynamicColor = dynamic,
+                autoReconnect = reconnect,
                 lastLeakCheck = leak,
             )
         }.stateIn(
@@ -56,5 +59,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { preferences.setDynamicColor(enabled) }
+    }
+
+    fun setAutoReconnect(enabled: Boolean) {
+        viewModelScope.launch { preferences.setAutoReconnect(enabled) }
     }
 }
