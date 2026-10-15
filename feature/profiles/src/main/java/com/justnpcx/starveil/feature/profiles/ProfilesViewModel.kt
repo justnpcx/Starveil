@@ -99,6 +99,23 @@ class ProfilesViewModel @Inject constructor(
     }
 
     /**
+     * A plain folder. Subscription imports are the only other way a group
+     * appears, so without this a hand-added node can never be grouped.
+     */
+    fun createGroup(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch { groups.upsert(ProxyGroup(name = trimmed)) }
+    }
+
+    /** [groupId] of null takes the node out of its group. */
+    fun moveToGroup(profile: Profile, groupId: Long?) {
+        val target = groupId ?: 0L
+        if (profile.groupId == target) return
+        viewModelScope.launch { profiles.upsert(profile.copy(groupId = target)) }
+    }
+
+    /**
      * Delete a group and the nodes it brought in.
      *
      * A subscription's nodes *are* the group — they refresh from its URL — so

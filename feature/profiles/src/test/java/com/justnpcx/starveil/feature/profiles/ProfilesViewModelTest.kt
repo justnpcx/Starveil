@@ -210,6 +210,82 @@ class ProfilesViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun `creating a group trims the name and leaves the id unset`() = runBlocking {
+        val groups = FakeGroups()
+        val viewModel = viewModel(FakeProfiles(mutableListOf()), FakePreferences(ONE), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.createGroup("  my folder  ")
+        yield()
+
+        // id 0 is what makes the repository insert rather than update.
+        assertEquals(0L, groups.upserted?.id)
+        assertEquals("my folder", groups.upserted?.name)
+        job.cancel()
+    }
+
+    @Test
+    fun `a blank group name is ignored`() = runBlocking {
+        val groups = FakeGroups()
+        val viewModel = viewModel(FakeProfiles(mutableListOf()), FakePreferences(ONE), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.createGroup("   ")
+        yield()
+
+        assertNull(groups.upserted)
+        job.cancel()
+    }
+
+    @Test
+    fun `moving a node into a group rewrites only its group`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.moveToGroup(profile(ONE, "one"), SUB)
+        yield()
+
+        val moved = profiles.upserted
+        assertEquals(SUB, moved?.groupId)
+        // Everything else has to survive the move.
+        assertEquals("one", moved?.name)
+        assertEquals("one.example", moved?.server)
+        job.cancel()
+    }
+
+    @Test
+    fun `moving a node out of a group uses no-group`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one").copy(groupId = SUB)))
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.moveToGroup(profile(ONE, "one").copy(groupId = SUB), null)
+        yield()
+
+        assertEquals(0L, profiles.upserted?.groupId)
+        job.cancel()
+    }
+
+    @Test
+    fun `moving a node to the group it is already in writes nothing`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one").copy(groupId = SUB)))
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.moveToGroup(profile(ONE, "one").copy(groupId = SUB), SUB)
+        yield()
+
+        assertNull(profiles.upserted)
+        job.cancel()
+    }
+
     private fun groupsWithSub() = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
 
     private fun viewModel(
@@ -253,6 +329,9 @@ class ProfilesViewModelTest {
 
 private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepository {
 
+    var upserted: Profile? = null
+        private set
+
     override fun observeAll(): Flow<List<Profile>> = flowOf(all.toList())
 
     override fun observeByGroup(groupId: Long): Flow<List<Profile>> =
@@ -260,7 +339,10 @@ private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepos
 
     override suspend fun getById(id: Long): Profile? = all.firstOrNull { it.id == id }
 
-    override suspend fun upsert(profile: Profile): Long = notUsed()
+    override suspend fun upsert(profile: Profile): Long {
+        upserted = profile
+        return profile.id
+    }
 
     override suspend fun deleteById(id: Long) {
         all.removeAll { it.id == id }

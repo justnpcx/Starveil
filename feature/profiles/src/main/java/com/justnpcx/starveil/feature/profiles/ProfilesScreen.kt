@@ -77,6 +77,9 @@ fun ProfilesScreen(
     var groupMenu by remember { mutableStateOf<ProxyGroup?>(null) }
     var groupToRename by remember { mutableStateOf<ProxyGroup?>(null) }
     var groupToDelete by remember { mutableStateOf<ProxyGroup?>(null) }
+    var creatingGroup by remember { mutableStateOf(false) }
+    // The node whose group is being changed.
+    var movingProfile by remember { mutableStateOf<Profile?>(null) }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -105,30 +108,33 @@ fun ProfilesScreen(
                     }
                 }
             }
-            if (state.groups.isNotEmpty()) {
-                // Groups come from subscription imports; a node imported from a
-                // single share link has none, so it only shows under "All".
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-                ) {
+            // Always shown, even with no groups: creating the first one has to
+            // have somewhere to live.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                GroupChip(
+                    label = stringResource(R.string.profiles_group_all),
+                    selected = state.groupFilter == null,
+                    onClick = { viewModel.filterByGroup(null) },
+                )
+                state.groups.forEach { group ->
                     GroupChip(
-                        label = stringResource(R.string.profiles_group_all),
-                        selected = state.groupFilter == null,
-                        onClick = { viewModel.filterByGroup(null) },
+                        label = group.name,
+                        selected = state.groupFilter == group.id,
+                        onClick = { viewModel.filterByGroup(group.id) },
+                        onLongClick = { groupMenu = group },
                     )
-                    state.groups.forEach { group ->
-                        GroupChip(
-                            label = group.name,
-                            selected = state.groupFilter == group.id,
-                            onClick = { viewModel.filterByGroup(group.id) },
-                            onLongClick = { groupMenu = group },
-                        )
-                    }
                 }
+                GroupChip(
+                    label = stringResource(R.string.profiles_group_new),
+                    selected = false,
+                    onClick = { creatingGroup = true },
+                )
             }
             when {
                 !state.hasProfiles -> EmptyState()
@@ -147,6 +153,7 @@ fun ProfilesScreen(
                             profile = profile,
                             selected = profile.id == state.selectedId,
                             onClick = { viewModel.select(profile.id) },
+                            onLongClick = { movingProfile = profile },
                             onDelete = { pendingDelete = profile },
                         )
                     }
@@ -245,35 +252,13 @@ fun ProfilesScreen(
     }
 
     groupToRename?.let { group ->
-        // Keyed on the id so opening a different group starts from its name.
-        var name by remember(group.id) { mutableStateOf(group.name) }
-        AlertDialog(
-            onDismissRequest = { groupToRename = null },
-            title = { Text(stringResource(R.string.profiles_group_rename_title)) },
-            text = {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.profiles_group_name_label)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.renameGroup(group, name)
-                        groupToRename = null
-                    },
-                    enabled = name.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.profiles_group_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { groupToRename = null }) {
-                    Text(stringResource(R.string.profiles_group_cancel))
-                }
+        GroupNameDialog(
+            title = stringResource(R.string.profiles_group_rename_title),
+            initial = group.name,
+            onDismiss = { groupToRename = null },
+            onConfirm = { name ->
+                viewModel.renameGroup(group, name)
+                groupToRename = null
             },
         )
     }
@@ -317,6 +302,89 @@ fun ProfilesScreen(
             },
         )
     }
+
+    if (creatingGroup) {
+        GroupNameDialog(
+            title = stringResource(R.string.profiles_group_new_title),
+            initial = "",
+            onDismiss = { creatingGroup = false },
+            onConfirm = { name ->
+                viewModel.createGroup(name)
+                creatingGroup = false
+            },
+        )
+    }
+
+    movingProfile?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { movingProfile = null },
+            title = { Text(stringResource(R.string.profiles_group_move_title, profile.name)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    // "No group" first: taking a node back out is as common as
+                    // putting it in, and a node from a share link starts there.
+                    TextButton(
+                        onClick = {
+                            viewModel.moveToGroup(profile, null)
+                            movingProfile = null
+                        },
+                    ) {
+                        Text(stringResource(R.string.profiles_group_none))
+                    }
+                    state.groups.forEach { group ->
+                        TextButton(
+                            onClick = {
+                                viewModel.moveToGroup(profile, group.id)
+                                movingProfile = null
+                            },
+                            enabled = group.id != profile.groupId,
+                        ) {
+                            Text(group.name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { movingProfile = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
+                }
+            },
+        )
+    }
+}
+
+/** Name entry, shared by "new group" and "rename". */
+@Composable
+private fun GroupNameDialog(
+    title: String,
+    initial: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var name by remember(initial) { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.profiles_group_name_label)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) {
+                Text(stringResource(R.string.profiles_group_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.profiles_group_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -436,16 +504,20 @@ private fun MessageBanner(message: String, onDismiss: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NodeRow(
     profile: Profile,
     selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        // Long-press moves the node between groups; a tap stays the selection.
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = MaterialTheme.shapes.medium,
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer

@@ -24,6 +24,12 @@
     <string name="profiles_group_delete_body">%1$s and its %2$d nodes will be removed.</string>
     <string name="profiles_group_delete_body_empty">%1$s will be removed.</string>
 
+    <!-- Creating a group, and moving a node between groups. -->
+    <string name="profiles_group_new">New group</string>
+    <string name="profiles_group_new_title">New group</string>
+    <string name="profiles_group_move_title">Move %1$s</string>
+    <string name="profiles_group_none">No group</string>
+
     <string name="profiles_import_add">Add nodes</string>
     <string name="profiles_import_title">Import nodes</string>
     <string name="profiles_import_hint">Paste a share link (vless://…) or a subscription URL</string>
