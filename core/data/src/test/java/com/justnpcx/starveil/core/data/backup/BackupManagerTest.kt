@@ -47,6 +47,8 @@ private class MemGroups : GroupRepository {
     val rows = LinkedHashMap<Long, ProxyGroup>()
     override fun observeAll(): Flow<List<ProxyGroup>> = flow { emit(rows.values.toList()) }
     override suspend fun getById(id: Long): ProxyGroup? = rows[id]
+    override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? =
+        rows.values.firstOrNull { it.subscriptionUrl == url }
     override suspend fun upsert(group: ProxyGroup): Long {
         val id = if (group.id == 0L) (rows.keys.maxOrNull() ?: 0L) + 1 else group.id
         rows[id] = group.copy(id = id)

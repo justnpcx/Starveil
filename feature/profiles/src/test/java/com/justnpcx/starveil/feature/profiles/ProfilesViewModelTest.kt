@@ -235,6 +235,8 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
 private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : GroupRepository {
     override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(all)
     override suspend fun getById(id: Long): ProxyGroup? = all.firstOrNull { it.id == id }
+    override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? =
+        all.firstOrNull { it.subscriptionUrl == url }
     override suspend fun upsert(group: ProxyGroup): Long = notUsed()
     override suspend fun deleteById(id: Long) { notUsed() }
 }
