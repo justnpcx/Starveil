@@ -21,6 +21,14 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric needs the merged resources/manifest to render and to
+            // find the test Activity that createComposeRule launches.
+            isIncludeAndroidResources = true
+        }
+    }
+
 }
 
 kotlin {
@@ -41,4 +49,10 @@ dependencies {
     implementation(libs.lifecycle.runtime.compose)
 
     testImplementation(libs.junit)
+    // Gesture tests: a real pointer stream through Compose, on the JVM.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
