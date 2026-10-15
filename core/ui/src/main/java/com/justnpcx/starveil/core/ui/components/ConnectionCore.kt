@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -175,18 +176,31 @@ fun ConnectionCore(
         Canvas(modifier = Modifier.size(CORE_SIZE)) {
             val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
             val outer = size.minDimension / 2
+            val ringRadius = outer - RING_INSET.toPx()
+            val spread = GLOW_SPREAD.toPx()
 
-            // Glow, three layers of falling alpha. A blur shader would be one
-            // pass, but stacked strokes cost nothing at this size and read the
-            // same (§2.1 prescribes exactly this: 24% state glow, 16% halo,
-            // then the solid ring).
-            drawCircle(color = ringColor.copy(alpha = GLOW_STATE_ALPHA), radius = outer - 2.dp.toPx())
+            // The glow is a radial gradient, not stacked strokes: the falloff
+            // is continuous rather than banded, it is one draw call, and it
+            // needs no blur pass — a RenderEffect would cost GPU work every
+            // frame while the core breathes, and only exists from API 31
+            // anyway (minSdk is 29). The stops peak at the ring and fade both
+            // ways, so it reads as light coming off the ring rather than a
+            // filled disc (the design's structure is strokes + ring + dot).
             drawCircle(
-                color = ringColor.copy(alpha = GLOW_HALO_ALPHA),
-                radius = outer - 8.dp.toPx(),
-                style = stroke,
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        ((ringRadius - spread) / outer).coerceIn(0f, 1f) to Color.Transparent,
+                        (ringRadius / outer).coerceIn(0f, 1f) to ringColor.copy(alpha = GLOW_PEAK_ALPHA),
+                        ((ringRadius + spread) / outer).coerceIn(0f, 1f) to Color.Transparent,
+                    ),
+                    center = center,
+                    radius = outer,
+                ),
+                radius = outer,
             )
-            drawCircle(color = ringColor, radius = outer - 18.dp.toPx(), style = stroke)
+
+            // Main ring.
+            drawCircle(color = ringColor, radius = ringRadius, style = stroke)
 
             if (state == ConnectionState.CONNECTING) {
                 // Brightened brand colour, never pure white (§2.1 forbids a
@@ -200,17 +214,37 @@ fun ConnectionCore(
                 )
             }
 
-            drawCircle(color = ringColor, radius = coreRadius.toPx())
+            // A small bloom under the dot, so it reads as lit rather than
+            // pasted on.
+            val dotRadius = coreRadius.toPx()
+            val dotGlow = dotRadius * DOT_GLOW_SCALE
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0f to ringColor.copy(alpha = DOT_GLOW_ALPHA),
+                        1f to Color.Transparent,
+                    ),
+                    center = center,
+                    radius = dotGlow,
+                ),
+                radius = dotGlow,
+            )
+            drawCircle(color = ringColor, radius = dotRadius)
         }
     }
 }
 
 private val CORE_SIZE = 220.dp
 private val RING_STROKE = 6.dp
+private val RING_INSET = 22.dp
 private val CORE_DOT_LIT = 22.dp
 private val CORE_DOT_DIM = 14.dp
 
+/** How far the ring's glow reaches either side of it. */
+private val GLOW_SPREAD = 20.dp
+
 private const val BREATH_MAX_SCALE = 1.06f
-private const val GLOW_STATE_ALPHA = 0.24f
-private const val GLOW_HALO_ALPHA = 0.16f
+private const val GLOW_PEAK_ALPHA = 0.5f
+private const val DOT_GLOW_SCALE = 2.2f
+private const val DOT_GLOW_ALPHA = 0.35f
 private const val ARC_BRIGHTEN = 0.55f
