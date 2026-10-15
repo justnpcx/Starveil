@@ -61,7 +61,13 @@ class LinkImporter @Inject constructor(
     }
 
     private suspend fun importSubscription(url: String): ImportOutcome {
-        val groupId = groups.upsert(ProxyGroup(name = SUBSCRIPTION_GROUP_NAME, subscriptionUrl = url))
+        // One subscription URL is one group that refreshes. Inserting a fresh
+        // group on every import split the same subscription's nodes across
+        // duplicates — which showed up as three identical chips in the node
+        // list after three imports.
+        val existing = groups.findBySubscriptionUrl(url)
+        val groupId = existing?.id
+            ?: groups.upsert(ProxyGroup(name = SUBSCRIPTION_GROUP_NAME, subscriptionUrl = url))
         return when (val outcome = updater.update(groupId, url)) {
             is SubscriptionUpdateOutcome.Success -> ImportOutcome.AddedSubscription(outcome.profileCount)
             is SubscriptionUpdateOutcome.Failure -> ImportOutcome.Failed(outcome.reason)

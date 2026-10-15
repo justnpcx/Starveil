@@ -19,6 +19,8 @@ import javax.inject.Inject
 interface GroupRepository {
     fun observeAll(): Flow<List<ProxyGroup>>
     suspend fun getById(id: Long): ProxyGroup?
+    /** The group a subscription URL already has, if any. */
+    suspend fun findBySubscriptionUrl(url: String): ProxyGroup?
     suspend fun upsert(group: ProxyGroup): Long
     suspend fun deleteById(id: Long)
 }
@@ -36,6 +38,11 @@ class RoomGroupRepository @Inject constructor(
 
     override suspend fun getById(id: Long): ProxyGroup? {
         val entity = groupDao.getById(id) ?: return null
+        return entity.toDomain(profileDao.getProfileIdsByGroup(entity.id))
+    }
+
+    override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? {
+        val entity = groupDao.findBySubscriptionUrl(url) ?: return null
         return entity.toDomain(profileDao.getProfileIdsByGroup(entity.id))
     }
 

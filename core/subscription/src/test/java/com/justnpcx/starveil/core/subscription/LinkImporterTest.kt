@@ -40,6 +40,8 @@ private class ImpGroups : GroupRepository {
     val rows = LinkedHashMap<Long, ProxyGroup>()
     override fun observeAll(): Flow<List<ProxyGroup>> = flow { emit(rows.values.toList()) }
     override suspend fun getById(id: Long): ProxyGroup? = rows[id]
+    override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? =
+        rows.values.firstOrNull { it.subscriptionUrl == url }
     override suspend fun upsert(group: ProxyGroup): Long {
         val id = if (group.id == 0L) (rows.keys.maxOrNull() ?: 0L) + 1 else group.id
         rows[id] = group.copy(id = id)
@@ -116,6 +118,34 @@ class LinkImporterTest {
         assertEquals(2, profiles.rows.size)
         assertEquals(1, groups.rows.size)
         assertEquals("https://sub.example.com/x?token=t", groups.rows.values.single().subscriptionUrl)
+    }
+
+    @Test
+    fun `importing the same subscription twice reuses its group`() = runBlocking {
+        val body = Base64.getEncoder().encodeToString(
+            "vless://a@h.example:443#n1\nvless://b@h.example:443#n2".toByteArray(),
+        )
+        val (import_, profiles, groups) = importer(fetcher = ImpFetcher(body = body))
+
+        import_.import("https://sub.example.com/x")
+        import_.import("https://sub.example.com/x")
+
+        // One URL is one group that refreshes. A fresh group per import split
+        // the subscription's nodes across duplicates — three identical chips in
+        // the node list after three imports.
+        assertEquals(1, groups.rows.size)
+        assertEquals(2, profiles.rows.size)
+    }
+
+    @Test
+    fun `a different subscription url gets its own group`() = runBlocking {
+        val body = Base64.getEncoder().encodeToString("vless://a@h.example:443#n1".toByteArray())
+        val (import_, _, groups) = importer(fetcher = ImpFetcher(body = body))
+
+        import_.import("https://sub.example.com/one")
+        import_.import("https://sub.example.com/two")
+
+        assertEquals(2, groups.rows.size)
     }
 
     @Test

@@ -17,6 +17,16 @@ interface GroupDao {
     @Query("SELECT * FROM `groups` WHERE id = :id")
     suspend fun getById(id: Long): GroupEntity?
 
+    /**
+     * The group a subscription URL already has, if any.
+     *
+     * One URL is one group that refreshes; without this lookup every import
+     * inserted a new group and the same subscription's nodes ended up split
+     * across duplicates.
+     */
+    @Query("SELECT * FROM `groups` WHERE subscriptionUrl = :url LIMIT 1")
+    suspend fun findBySubscriptionUrl(url: String): GroupEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: GroupEntity): Long
 
