@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -60,6 +61,23 @@ class ProfilesViewModel @Inject constructor(
 
     fun select(id: Long) {
         viewModelScope.launch { preferences.setSelectedProfileId(id) }
+    }
+
+    /**
+     * Remove a node.
+     *
+     * When the deleted node is the selected one, clear the selection too:
+     * leaving it set would have the dashboard name a node that no longer
+     * exists, and the next connect would build a config from a missing
+     * profile.
+     */
+    fun delete(id: Long) {
+        viewModelScope.launch {
+            profiles.deleteById(id)
+            if (preferences.selectedProfileId.first() == id) {
+                preferences.setSelectedProfileId(0L)
+            }
+        }
     }
 
     /** Paste a share link, or a subscription URL. */
