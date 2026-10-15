@@ -94,6 +94,26 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `xhttp carries the host as a Host header`() {
+        // xhttp, like ws, has no `host` field in sing-box — the host travels in
+        // the headers. Emitting a `host` key would be rejected outright, since
+        // options decode with DisallowUnknownFields.
+        val base = vlessProfile()
+        val settings = base.settings as VlessSettings
+        val profile = base.copy(
+            settings = settings.copy(
+                transport = TransportOptions(type = TransportType.XHTTP, path = "/x", host = "h.example"),
+            ),
+        )
+
+        val json = builder.build(profile)
+
+        assertTrue(
+            json.contains("\"transport\":{\"type\":\"xhttp\",\"path\":\"/x\",\"headers\":{\"Host\":\"h.example\"}}"),
+        )
+    }
+
+    @Test
     fun `Trojan config carries password and TLS`() {
         val profile = Profile(
             name = "t",
