@@ -31,6 +31,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -96,6 +97,46 @@ class DashboardViewModelTest {
         assertEquals(0, kernel.starts)
     }
 
+    @Test
+    fun `always block starts a reject-everything config instead of the node`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.ALWAYS_BLOCK), kernel)
+
+        viewModel.onCoreClick()
+
+        assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
+        assertEquals(1, kernel.starts)
+        // No node at all: nothing to reach the network with.
+        assertFalse(kernel.lastConfig.orEmpty().contains("one.example"))
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"final\":\"block\""))
+    }
+
+    @Test
+    fun `block on disconnect keeps the tunnel standing`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.BLOCK_ON_DISCONNECT), kernel)
+
+        viewModel.onCoreClick() // connect
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+
+        viewModel.onCoreClick() // disconnect
+        // Tearing the tunnel down here is the leak this mode exists to stop.
+        assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
+        assertEquals(1, kernel.stopKeepingTunnelCalls)
+    }
+
+    @Test
+    fun `with the kill switch off, disconnecting really disconnects`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.OFF), kernel)
+
+        viewModel.onCoreClick()
+        viewModel.onCoreClick()
+
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(0, kernel.stopKeepingTunnelCalls)
+    }
+
     private fun viewModel(preferences: FakePreferences, kernel: RecordingKernel) =
         DashboardViewModel(
             kernel = kernel,
@@ -120,11 +161,16 @@ class DashboardViewModelTest {
     }
 }
 
-private class FakePreferences(initialId: Long) : PreferencesRepository {
+private class FakePreferences(
+    initialId: Long,
+    initialKillSwitch: KillSwitchMode = KillSwitchMode.OFF,
+) : PreferencesRepository {
 
     private val id = MutableStateFlow(initialId)
+    private val killSwitch = MutableStateFlow(initialKillSwitch)
 
     override val selectedProfileId: Flow<Long> = id
+    override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
 
     override suspend fun setSelectedProfileId(id: Long) {
         this.id.value = id
@@ -134,7 +180,6 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
-    override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
     override val speedTestUrl: Flow<String> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
     override val useFakeKernel: Flow<Boolean> get() = notUsed()
@@ -177,6 +222,8 @@ private class RecordingKernel : KernelBridge {
 
     var starts = 0
         private set
+    var stopKeepingTunnelCalls = 0
+        private set
     var lastConfig: String? = null
         private set
 
@@ -192,6 +239,13 @@ private class RecordingKernel : KernelBridge {
     }
 
     override suspend fun stop(): Result<Unit> {
+        _state.value = KernelState.Stopped
+        return Result.success(Unit)
+    }
+
+    /** Records that the Kill Switch asked for the tunnel to stay standing. */
+    override suspend fun stopKeepingTunnel(): Result<Unit> {
+        stopKeepingTunnelCalls++
         _state.value = KernelState.Stopped
         return Result.success(Unit)
     }

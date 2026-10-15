@@ -47,6 +47,12 @@ class FakeKernelBridge : KernelBridge {
         return Result.success(Unit)
     }
 
+    /**
+     * The fake has no tunnel to keep, so this is [stop]. The Kill Switch's
+     * real behaviour lives in the platform VpnService.
+     */
+    override suspend fun stopKeepingTunnel(): Result<Unit> = stop()
+
     override suspend fun stop(): Result<Unit> {
         if (!running) {
             _state.value = KernelState.Stopped

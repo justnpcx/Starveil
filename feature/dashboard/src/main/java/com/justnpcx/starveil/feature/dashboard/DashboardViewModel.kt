@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -116,6 +117,14 @@ class DashboardViewModel @Inject constructor(
             it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
         }
 
+        // Kill Switch, panic mode: bring the tunnel up with nothing but a
+        // reject. No node is read, so no credential is touched and nothing can
+        // reach the network — the user has to turn the mode off to get out.
+        if (preferences.killSwitchMode.first() == KillSwitchMode.ALWAYS_BLOCK) {
+            startBlocked()
+            return
+        }
+
         // The real outbound: whatever node is selected on the Nodes tab.
         val id = preferences.selectedProfileId.first()
         val profile = if (id == 0L) null else profiles.getById(id)
@@ -170,13 +179,43 @@ class DashboardViewModel @Inject constructor(
     private suspend fun disconnect() {
         _uiState.update { it.copy(isBusy = true) }
         statsJob?.cancel()
-        kernel.stop()
+
+        // "Block on disconnect" means the tunnel stays up with nothing
+        // forwarding it. Tearing it down here is exactly the leak this mode
+        // exists to prevent: whatever was in flight would go out directly.
+        val keepTunnel = preferences.killSwitchMode.first() == KillSwitchMode.BLOCK_ON_DISCONNECT
+        if (keepTunnel) kernel.stopKeepingTunnel() else kernel.stop()
+
         _uiState.update {
             it.copy(
                 isBusy = false,
-                connectionState = ConnectionState.DISCONNECTED,
+                connectionState = if (keepTunnel) {
+                    ConnectionState.BLOCKED
+                } else {
+                    ConnectionState.DISCONNECTED
+                },
                 stats = TrafficStats(),
                 history = emptyList(),
+                errorMessage = if (keepTunnel) KILL_SWITCH_BLOCKING else null,
+            )
+        }
+    }
+
+    /** Bring the tunnel up with nothing but a reject, and say why. */
+    private suspend fun startBlocked() {
+        val result = kernel.start(configBuilder.buildBlocking())
+        _uiState.update {
+            it.copy(
+                isBusy = false,
+                connectionState = ConnectionState.BLOCKED,
+                stats = TrafficStats(),
+                history = emptyList(),
+                errorMessage = if (result.isSuccess) {
+                    KILL_SWITCH_BLOCKING
+                } else {
+                    result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+                        ?: "Kernel failed to start"
+                },
             )
         }
     }
@@ -202,5 +241,10 @@ class DashboardViewModel @Inject constructor(
         statsJob?.cancel()
         scope.cancel()
         super.onCleared()
+    }
+
+    private companion object {
+        /** Why the dashboard is in BLOCKED: the user has to turn it off. */
+        const val KILL_SWITCH_BLOCKING = "Kill Switch is blocking all traffic"
     }
 }

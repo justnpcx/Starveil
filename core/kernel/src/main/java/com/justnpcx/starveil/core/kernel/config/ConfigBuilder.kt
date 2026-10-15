@@ -87,6 +87,22 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     }
 
     /**
+     * A config with no proxy at all: the tunnel comes up and every connection
+     * is rejected, because the route's `final` is the built-in `block`
+     * outbound. This is what the Kill Switch runs — traffic stays inside a
+     * tunnel that answers nothing, rather than escaping to the network.
+     *
+     * It carries no node, so it never touches the user's credentials.
+     */
+    fun buildBlocking(): String =
+        render(
+            outbounds = listOf(blockOutbound()),
+            endpoints = emptyList(),
+            finalTag = BLOCK_TAG,
+            rules = emptyList(),
+        )
+
+    /**
      * Enabled rules, in the order the user arranged them — the first match
      * wins, so this order is the routing decision.
      *

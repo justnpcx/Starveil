@@ -338,6 +338,21 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `the blocking config carries no node and rejects everything`() {
+        val json = builder.buildBlocking()
+        // This is what the Kill Switch runs: the route's final is the built-in
+        // block outbound, so nothing can leave.
+        assertTrue(json.contains("\"final\":\"block\""))
+        assertTrue(json.contains("\"type\":\"block\""))
+        // No proxy of any kind, so no credential is involved.
+        assertFalse(json.contains("\"type\":\"vless\""))
+        assertFalse(json.contains("\"endpoints\""))
+        assertFalse(json.contains("\"uuid\""))
+        // The tun still has to come up, or there is nothing to block with.
+        assertTrue(json.contains("\"inbounds\":[{\"type\":\"tun\""))
+    }
+
+    @Test
     fun `a config with no endpoint omits the endpoints key entirely`() {
         assertFalse(builder.build(vlessProfile()).contains("\"endpoints\""))
     }
