@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -166,5 +167,17 @@ class SubscriptionSchedulerConfigTest {
     fun `refresh runs every 6 hours with a 10 minute flex window`() {
         assertEquals(6L, SubscriptionUpdateScheduler.INTERVAL_HOURS)
         assertEquals(10L, SubscriptionUpdateScheduler.FLEX_MINUTES)
+    }
+
+    @Test
+    fun `each group gets its own unique work name`() {
+        // A single shared name made the second subscription's schedule replace
+        // the first's, so the first group silently stopped refreshing.
+        val a = SubscriptionUpdateScheduler.workName(1L)
+        val b = SubscriptionUpdateScheduler.workName(2L)
+
+        assertNotEquals(a, b)
+        assertTrue(a.startsWith(SubscriptionUpdateScheduler.WORK_NAME))
+        assertEquals(SubscriptionUpdateScheduler.workName(7L), SubscriptionUpdateScheduler.workName(7L))
     }
 }

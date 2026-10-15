@@ -37,6 +37,7 @@ class LinkImporter @Inject constructor(
     private val profiles: ProfileRepository,
     private val groups: GroupRepository,
     private val updater: SubscriptionUpdater,
+    private val refreshScheduler: SubscriptionRefreshScheduler,
 ) {
 
     suspend fun import(text: String): ImportOutcome {
@@ -68,6 +69,10 @@ class LinkImporter @Inject constructor(
         val existing = groups.findBySubscriptionUrl(url)
         val groupId = existing?.id
             ?: groups.upsert(ProxyGroup(name = SUBSCRIPTION_GROUP_NAME, subscriptionUrl = url))
+        // Schedule before the first fetch: a group whose initial fetch fails
+        // still has a URL, and must retry on the periodic cadence rather than
+        // stay empty forever.
+        refreshScheduler.schedule(groupId)
         return when (val outcome = updater.update(groupId, url)) {
             is SubscriptionUpdateOutcome.Success -> ImportOutcome.AddedSubscription(outcome.profileCount)
             is SubscriptionUpdateOutcome.Failure -> ImportOutcome.Failed(outcome.reason)
