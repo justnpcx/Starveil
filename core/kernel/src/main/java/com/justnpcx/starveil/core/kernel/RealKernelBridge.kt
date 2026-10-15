@@ -224,6 +224,8 @@ class RealKernelBridge(
     override suspend fun queryStats(): TrafficStats =
         if (server == null) TrafficStats() else clientHandler.stats.value
 
+    override suspend fun version(): String = Libbox.version()
+
     /** Maps a start failure to a typed error the UI can branch on. */
     private fun classifyStartFailure(e: Exception): KernelError {
         val message = e.message.orEmpty()

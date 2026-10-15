@@ -99,6 +99,7 @@ private class FakeKernel(initial: KernelState) : KernelBridge {
     override suspend fun stop(): Result<Unit> = Result.success(Unit)
     override suspend fun stopKeepingTunnel(): Result<Unit> = Result.success(Unit)
     override suspend fun queryStats(): TrafficStats = TrafficStats()
+    override suspend fun version(): String = "test"
 }
 
 private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRepository {

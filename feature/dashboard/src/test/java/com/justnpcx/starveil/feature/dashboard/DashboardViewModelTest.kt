@@ -471,6 +471,7 @@ private class RecordingKernel : KernelBridge {
     }
 
     override suspend fun queryStats(): TrafficStats = TrafficStats()
+    override suspend fun version(): String = "test"
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

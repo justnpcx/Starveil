@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
+import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,28 +23,46 @@ data class SettingsUiState(
     val dynamicColor: Boolean = false,
     val autoReconnect: Boolean = true,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
+    /**
+     * The core's own version string, e.g. `1.14.0-mirage-1`. Empty until the
+     * first read lands.
+     */
+    val kernelVersion: String = "",
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
+    private val kernel: KernelBridge,
 ) : ViewModel() {
 
+    private val kernelVersion = MutableStateFlow("")
+
+    init {
+        // Read once. It is a build constant, and Settings is the one place it
+        // is worth showing — a bug report needs to name the core it ran.
+        viewModelScope.launch { kernelVersion.value = kernel.version() }
+    }
+
+    private val preferencesState = combine(
+        preferences.killSwitchMode,
+        preferences.themeMode,
+        preferences.dynamicColor,
+        preferences.autoReconnect,
+        preferences.lastLeakCheck,
+    ) { mode, theme, dynamic, reconnect, leak ->
+        SettingsUiState(
+            killSwitchMode = mode,
+            themeMode = theme,
+            dynamicColor = dynamic,
+            autoReconnect = reconnect,
+            lastLeakCheck = leak,
+        )
+    }
+
     val uiState: StateFlow<SettingsUiState> =
-        combine(
-            preferences.killSwitchMode,
-            preferences.themeMode,
-            preferences.dynamicColor,
-            preferences.autoReconnect,
-            preferences.lastLeakCheck,
-        ) { mode, theme, dynamic, reconnect, leak ->
-            SettingsUiState(
-                killSwitchMode = mode,
-                themeMode = theme,
-                dynamicColor = dynamic,
-                autoReconnect = reconnect,
-                lastLeakCheck = leak,
-            )
+        combine(preferencesState, kernelVersion) { state, version ->
+            state.copy(kernelVersion = version)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

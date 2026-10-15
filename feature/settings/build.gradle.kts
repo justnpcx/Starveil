@@ -46,6 +46,10 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+    // For the kernel version row. The bridge is the only kernel surface a
+    // feature module may touch (see KernelBridge's KDoc).
+    implementation(project(":core:kernel"))
 
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
 }

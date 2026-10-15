@@ -48,6 +48,18 @@ interface KernelBridge {
 
     /** Current traffic snapshot. Returns zeroed stats when not running. */
     suspend fun queryStats(): TrafficStats
+
+    /**
+     * The kernel's own version string, e.g. `1.14.0-mirage-1`.
+     *
+     * Read from the core rather than hard-coded here: the app ships a built
+     * libbox, so a version written into Kotlin would drift from the artifact
+     * silently, and the version is exactly what a bug report needs.
+     *
+     * Safe to call before [start] — the core returns a build constant and its
+     * package init needs no setup.
+     */
+    suspend fun version(): String
 }
 
 /** Kernel lifecycle. `Error` carries a typed [KernelError]. */
