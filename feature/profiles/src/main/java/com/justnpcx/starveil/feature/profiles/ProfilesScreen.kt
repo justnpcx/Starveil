@@ -3,6 +3,7 @@ package com.justnpcx.starveil.feature.profiles
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -80,7 +85,7 @@ fun ProfilesScreen(
             state.message?.let { message ->
                 MessageBanner(message = message, onDismiss = viewModel::dismissMessage)
             }
-            if (state.profiles.isNotEmpty()) {
+            if (state.hasProfiles) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -92,10 +97,38 @@ fun ProfilesScreen(
                     }
                 }
             }
-            if (state.profiles.isEmpty()) {
-                EmptyState()
-            } else {
-                LazyColumn(
+            if (state.groups.isNotEmpty()) {
+                // Groups come from subscription imports; a node imported from a
+                // single share link has none, so it only shows under "All".
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                ) {
+                    GroupChip(
+                        label = stringResource(R.string.profiles_group_all),
+                        selected = state.groupFilter == null,
+                        onClick = { viewModel.filterByGroup(null) },
+                    )
+                    state.groups.forEach { group ->
+                        GroupChip(
+                            label = group.name,
+                            selected = state.groupFilter == group.id,
+                            onClick = { viewModel.filterByGroup(group.id) },
+                        )
+                    }
+                }
+            }
+            when {
+                !state.hasProfiles -> EmptyState()
+
+                // Nodes exist but the filter hides them: say so, rather than
+                // reusing "No nodes yet", which would be a lie.
+                state.hasNoMatches -> NoMatchesState()
+
+                else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(StarveilSpacing.lg),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
@@ -342,6 +375,49 @@ private fun NodeRow(
                 )
             }
         }
+    }
+}
+
+/**
+ * A group filter chip (design system §6.4): capsule, raised surface when idle,
+ * brand glow when selected.
+ */
+@Composable
+private fun GroupChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = StarveilColors.Raised,
+            labelColor = StarveilColors.TextDim,
+            selectedContainerColor = StarveilColors.GlowPrimary.copy(alpha = 0.2f),
+            selectedLabelColor = StarveilColors.GlowPrimary,
+        ),
+    )
+}
+
+@Composable
+private fun NoMatchesState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(StarveilSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+    ) {
+        Text(
+            text = stringResource(R.string.profiles_no_matches_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.profiles_no_matches_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
