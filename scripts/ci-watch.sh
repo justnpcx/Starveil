@@ -8,10 +8,12 @@
 # already reported are kept in a state file, so a restart does not re-report an
 # old failure.
 #
-# The one exception is a rejected credential (HTTP 401). That is not a CI
-# failure but it does mean the watcher has gone blind, so it is reported once
-# per outage — silently staying "green" while unable to see anything would be
-# the worst possible behaviour for a monitor.
+# The one exception is being unable to see the runs at all — a rejected token
+# (401), a repo the token cannot reach (404), or a permission failure that is
+# not a rate limit (403). Those are not CI failures but they do mean the
+# watcher has gone blind, so they are reported once per outage: silently
+# staying "green" while unable to see anything would be the worst possible
+# behaviour for a monitor.
 #
 # Usage:
 #   ci-watch.sh          poll forever (for a long-running monitor)
@@ -35,7 +37,7 @@ INTERVAL="${CI_WATCH_INTERVAL:-60}"
 STATE_DIR="${CI_WATCH_STATE_DIR:-/root/.cache/starveil-ci-watch}"
 ENV_FILE="${CI_WATCH_ENV:-/root/smart-home/.env}"
 STATE="$STATE_DIR/reported-runs"
-AUTH_FLAG="$STATE_DIR/auth-failed"
+BLIND_FLAG="$STATE_DIR/blind"
 NOTIFY="${CI_WATCH_NOTIFY:-0}"
 NTFY_URL="${CI_WATCH_NTFY_URL:-http://127.0.0.1:2586}"
 NTFY_TOPIC="${CI_WATCH_NTFY_TOPIC:-homelab}"
@@ -128,52 +130,72 @@ print(json.dumps({
     fi
 }
 
-# A 401 means the token is expired or revoked: every later poll will fail the
-# same way, so the watcher is blind until someone replaces it. That is worth
-# saying out loud — but only once per outage, not every tick.
+# The watcher is "blind" when it cannot see the runs at all — as opposed to
+# seeing them and finding them green. Every later poll will fail the same way,
+# so it is worth saying out loud, but only once per outage rather than every
+# tick. [1] says what happened.
 #
 # Tracked with a flag file rather than a variable so the "already said this"
 # memory survives the process, which matters because cron starts a new one
 # every five minutes.
-report_auth_failure() {
-    [ -f "$AUTH_FLAG" ] && return 0
-    : > "$AUTH_FLAG"
+report_blind() {
+    [ -f "$BLIND_FLAG" ] && return 0
+    : > "$BLIND_FLAG"
 
     local line
-    line="[$(date '+%F %T')] CI watcher is BLIND: GitHub rejected the token (HTTP 401). \
-The token in $ENV_FILE is expired or revoked, so CI is NOT being monitored. \
-Replace it, then this watcher recovers on its own."
+    line="[$(date '+%F %T')] CI watcher is BLIND: $1 \
+CI is NOT being monitored until this is fixed; the watcher recovers on its own \
+once the API answers again."
     echo "$line"
     [ "$NOTIFY" = "1" ] && notify_ntfy "Starveil CI watcher is blind" "$line"
 }
 
-clear_auth_failure() {
-    [ -f "$AUTH_FLAG" ] && rm -f "$AUTH_FLAG"
+clear_blind() {
+    [ -f "$BLIND_FLAG" ] && rm -f "$BLIND_FLAG"
 }
 
 poll_once() {
-    local resp code body alerts line stamped
-    resp="$(curl -sS --max-time 30 -w '\n%{http_code}' \
+    local resp meta code rl_remaining retry_after body alerts line stamped
+    resp="$(curl -sS --max-time 30 \
+        -w '\n%{http_code} %header{x-ratelimit-remaining} %header{retry-after}' \
         -H "Authorization: Bearer $GH_TOKEN" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/$REPO/actions/runs?per_page=20" 2>/dev/null)" || return 0
 
-    # curl appends the status on its own line; command substitution strips the
-    # trailing newline, so the code is whatever follows the last one.
-    code="${resp##*$'\n'}"
+    # curl appends a status line last; command substitution strips the trailing
+    # newline, so everything after the final one is that line.
+    meta="${resp##*$'\n'}"
     body="${resp%$'\n'*}"
+    read -r code rl_remaining retry_after <<< "$meta"
 
-    if [ "$code" = "401" ]; then
-        report_auth_failure
-        return 0
-    fi
+    case "$code" in
+        401)
+            report_blind "GitHub rejected the token (HTTP 401); the token in $ENV_FILE is expired or revoked."
+            return 0
+            ;;
+        404)
+            # GitHub answers 404 rather than 403 when a token cannot see a
+            # private repo, so this covers both a wrong repo name and a token
+            # without access to it.
+            report_blind "GitHub reports no such repo (HTTP 404) for '$REPO'; either the name is wrong or the token cannot see it."
+            return 0
+            ;;
+        403)
+            # A rate limit is transient and clears on its own, so it stays
+            # quiet. Anything else at 403 is a scope problem, which does not.
+            if [ "$rl_remaining" = "0" ] || [ -n "$retry_after" ]; then
+                return 0
+            fi
+            report_blind "GitHub refused the request (HTTP 403) and it is not a rate limit; the token is probably missing a scope."
+            return 0
+            ;;
+        200) ;;
+        # Offline, 5xx, anything else: transient, and a flaky network should
+        # not page anyone.
+        *) return 0 ;;
+    esac
 
-    # Anything else (offline, 5xx, rate limited) is treated as transient and
-    # stays quiet: a flaky network should not page anyone. Only a credential
-    # problem is permanent enough to be worth a notification.
-    [ "$code" != "200" ] && return 0
-
-    clear_auth_failure
+    clear_blind
 
     alerts="$(printf '%s' "$body" | read_runs)"
     [ -z "$alerts" ] && return 0
