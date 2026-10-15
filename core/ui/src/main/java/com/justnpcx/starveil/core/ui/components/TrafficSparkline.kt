@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,30 +40,31 @@ fun TrafficSparkline(
     uplinkSamples: List<Long>,
     modifier: Modifier = Modifier,
     height: Dp = 56.dp,
+    state: SparklineState = rememberSparklineState(),
 ) {
     val total = maxOf(downlinkSamples.size, uplinkSamples.size)
-    var zoom by remember { mutableFloatStateOf(MIN_ZOOM) }
-    var start by remember { mutableFloatStateOf(0f) }
 
     // Global max, so the trace keeps its shape while panning.
     val maxValue = (downlinkSamples + uplinkSamples).maxOrNull() ?: 0L
+
+    // The gesture must survive a growing history. Keying pointerInput on
+    // `total` restarted the block — and so cancelled any in-flight drag — every
+    // time a sample arrived (once a second, until the ring filled). Read the
+    // live value instead and keep the block keyed on nothing.
+    val latestTotal by rememberUpdatedState(total)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .pointerInput(total) {
+            .pointerInput(Unit) {
                 detectTransformGestures { _, pan, gestureZoom, _ ->
-                    val next = applySparklineGesture(
-                        zoom = zoom,
-                        start = start,
+                    state.onGesture(
                         gestureZoom = gestureZoom,
                         panXPx = pan.x,
-                        total = total,
+                        total = latestTotal,
                         widthPx = size.width.toFloat(),
                     )
-                    zoom = next.zoom
-                    start = next.start
                 }
             },
     ) {
@@ -76,13 +79,45 @@ fun TrafficSparkline(
             )
             if (maxValue <= 0L || total < 2) return@Canvas
 
-            val window = visibleWindow(total, zoom, start)
+            val window = visibleWindow(total, state.zoom, state.start)
             val scale = (size.height - 2f) / maxValue.toFloat()
             drawSeries(downlinkSamples, window, StarveilColors.Chart1, scale)
             drawSeries(uplinkSamples, window, StarveilColors.Chart2, scale)
         }
     }
 }
+
+/**
+ * The sparkline's viewport: how far in it is zoomed, and the first sample it
+ * shows.
+ *
+ * Hoisted out of the composable so it can be driven and asserted directly —
+ * the gesture *plumbing* (a real pointer stream reaching [onGesture]) is the
+ * one part the pure-function tests cannot reach.
+ */
+@Stable
+class SparklineState internal constructor() {
+
+    internal var zoom by mutableFloatStateOf(MIN_ZOOM)
+    internal var start by mutableFloatStateOf(0f)
+
+    /** Fold one gesture event into the viewport. */
+    internal fun onGesture(gestureZoom: Float, panXPx: Float, total: Int, widthPx: Float) {
+        val next = applySparklineGesture(
+            zoom = zoom,
+            start = start,
+            gestureZoom = gestureZoom,
+            panXPx = panXPx,
+            total = total,
+            widthPx = widthPx,
+        )
+        zoom = next.zoom
+        start = next.start
+    }
+}
+
+@Composable
+fun rememberSparklineState(): SparklineState = remember { SparklineState() }
 
 /**
  * The viewport after one gesture event.
