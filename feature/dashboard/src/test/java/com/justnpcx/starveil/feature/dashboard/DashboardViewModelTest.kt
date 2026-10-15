@@ -182,7 +182,6 @@ private class FakePreferences(
     override val autoReconnect: Flow<Boolean> get() = notUsed()
     override val speedTestUrl: Flow<String> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
-    override val useFakeKernel: Flow<Boolean> get() = notUsed()
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
@@ -192,7 +191,6 @@ private class FakePreferences(
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun setSpeedTestUrl(url: String) { notUsed() }
-    override suspend fun setUseFakeKernel(useFake: Boolean) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
 }

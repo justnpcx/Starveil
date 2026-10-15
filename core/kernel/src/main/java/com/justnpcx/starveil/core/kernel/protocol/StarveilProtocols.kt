@@ -50,7 +50,6 @@ object StarveilProtocols {
                 ?: error("VLESS profile has no VLESS settings")
             SingBoxOutbounds.vless(profile, settings)
         },
-        editorRoute = "editor/vless",
     )
 
     val Trojan: ProtocolDescriptor = ProtocolDescriptor(
@@ -64,7 +63,6 @@ object StarveilProtocols {
                 ?: error("Trojan profile has no Trojan settings")
             SingBoxOutbounds.trojan(profile, settings)
         },
-        editorRoute = "editor/trojan",
     )
 
     val Shadowsocks: ProtocolDescriptor = ProtocolDescriptor(
@@ -78,7 +76,6 @@ object StarveilProtocols {
                 ?: error("Shadowsocks profile has no Shadowsocks settings")
             SingBoxOutbounds.shadowsocks(profile, settings)
         },
-        editorRoute = "editor/shadowsocks",
     )
 
     val Vmess: ProtocolDescriptor = ProtocolDescriptor(
@@ -92,7 +89,6 @@ object StarveilProtocols {
                 ?: error("VMess profile has no VMess settings")
             SingBoxOutbounds.vmess(profile, settings)
         },
-        editorRoute = "editor/vmess",
     )
 
     val Hysteria2: ProtocolDescriptor = ProtocolDescriptor(
@@ -106,7 +102,6 @@ object StarveilProtocols {
                 ?: error("Hysteria2 profile has no Hysteria2 settings")
             SingBoxOutbounds.hysteria2(profile, settings)
         },
-        editorRoute = "editor/hysteria2",
     )
 
     val Tuic: ProtocolDescriptor = ProtocolDescriptor(
@@ -120,7 +115,6 @@ object StarveilProtocols {
                 ?: error("TUIC profile has no TUIC settings")
             SingBoxOutbounds.tuic(profile, settings)
         },
-        editorRoute = "editor/tuic",
     )
 
     val WireGuard: ProtocolDescriptor = ProtocolDescriptor(
@@ -134,7 +128,6 @@ object StarveilProtocols {
                 ?: error("WireGuard profile has no WireGuard settings")
             SingBoxOutbounds.wireguard(profile, settings)
         },
-        editorRoute = "editor/wireguard",
         // No URI scheme to key on: a .conf is recognised by its sections.
         sniff = { text ->
             text.contains("[Interface]", ignoreCase = true) &&
