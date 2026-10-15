@@ -3,6 +3,7 @@ package com.justnpcx.starveil.feature.dashboard
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
@@ -13,6 +14,7 @@ import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import kotlinx.coroutines.Dispatchers
@@ -99,6 +101,7 @@ class DashboardViewModelTest {
             kernel = kernel,
             profiles = FakeProfiles(listOf(profile(ONE, "one"), profile(TWO, "two"))),
             preferences = preferences,
+            rules = FakeRules(),
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
         )
 
@@ -159,6 +162,14 @@ private class FakeProfiles(private val all: List<Profile>) : ProfileRepository {
     override suspend fun upsert(profile: Profile): Long = notUsed()
     override suspend fun deleteById(id: Long) { notUsed() }
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) { notUsed() }
+}
+
+/** No rules configured — the config just has an empty `rules` array. */
+private class FakeRules : RuleRepository {
+    override fun observeAllOrdered(): Flow<List<Rule>> = flowOf(emptyList())
+    override suspend fun getById(id: Long): Rule? = notUsed()
+    override suspend fun upsert(rule: Rule): Long = notUsed()
+    override suspend fun deleteById(id: Long) { notUsed() }
 }
 
 /** Records what the kernel was actually asked to run. */

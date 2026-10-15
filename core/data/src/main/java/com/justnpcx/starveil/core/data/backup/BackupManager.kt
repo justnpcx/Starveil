@@ -10,6 +10,7 @@ import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.RuleMatcher
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
 import javax.inject.Inject
@@ -102,7 +103,7 @@ internal object BackupSerializer {
             "rules" to snapshot.rules.map { r ->
                 linkedMapOf<String, Any?>(
                     "id" to r.id,
-                    "matcher" to r.matcher,
+                    "matcher" to r.matcher.encode(),
                     "action" to r.action.name,
                     "order" to r.order,
                     "enabled" to r.enabled,
@@ -144,7 +145,7 @@ internal object BackupSerializer {
         val rules = root.list("rules").map { row ->
             Rule(
                 id = row.long("id") ?: 0L,
-                matcher = row.str("matcher").orEmpty(),
+                matcher = RuleMatcher.decode(row.str("matcher").orEmpty()),
                 action = runCatching { RuleAction.valueOf(row.str("action") ?: "PROXY") }.getOrDefault(RuleAction.PROXY),
                 order = (row.long("order") ?: 0L).toInt(),
                 enabled = row.bool("enabled") ?: true,

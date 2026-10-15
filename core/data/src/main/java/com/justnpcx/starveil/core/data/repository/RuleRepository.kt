@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.dao.RuleDao
 import com.justnpcx.starveil.core.data.entity.RuleEntity
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.RuleMatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -35,7 +36,7 @@ class RoomRuleRepository @Inject constructor(
 
 internal fun RuleEntity.toDomain(): Rule = Rule(
     id = id,
-    matcher = matcher,
+    matcher = RuleMatcher.decode(matcher),
     action = runCatching { RuleAction.valueOf(action) }.getOrDefault(RuleAction.PROXY),
     order = sortOrder,
     enabled = enabled,
@@ -43,7 +44,7 @@ internal fun RuleEntity.toDomain(): Rule = Rule(
 
 internal fun Rule.toEntity(): RuleEntity = RuleEntity(
     id = id,
-    matcher = matcher,
+    matcher = matcher.encode(),
     action = action.name,
     sortOrder = order,
     enabled = enabled,

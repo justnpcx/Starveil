@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
@@ -49,6 +50,7 @@ class DashboardViewModel @Inject constructor(
     private val kernel: KernelBridge,
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
+    private val rules: RuleRepository,
     private val configBuilder: ConfigBuilder,
 ) : ViewModel() {
 
@@ -129,7 +131,7 @@ class DashboardViewModel @Inject constructor(
         }
 
         val config = try {
-            configBuilder.build(profile)
+            configBuilder.build(profile, rules.observeAllOrdered().first())
         } catch (e: ConfigBuildException) {
             _uiState.update {
                 it.copy(

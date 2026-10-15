@@ -2,6 +2,8 @@ package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.Rule
+import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.model.json.Json
 
 /**
@@ -21,13 +23,13 @@ import com.justnpcx.starveil.core.model.json.Json
 class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     /** Single-profile config: one `proxy` outbound, route final = `proxy`. */
-    fun build(profile: Profile): String {
+    fun build(profile: Profile, rules: List<Rule> = emptyList()): String {
         val outbounds = listOf(
             outbound(profile, PROXY_TAG),
             directOutbound(),
             blockOutbound(),
         )
-        return render(outbounds = outbounds, finalTag = PROXY_TAG)
+        return render(outbounds = outbounds, finalTag = PROXY_TAG, rules = rules)
     }
 
     /**
@@ -35,7 +37,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      * group, which becomes the route's final outbound. Used for subscription
      * imports and for the node-switch flow.
      */
-    fun build(profiles: List<Profile>): String {
+    fun build(profiles: List<Profile>, rules: List<Rule> = emptyList()): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         val tags = profiles.indices.map { "proxy-$it" }
         val outbounds = buildList {
@@ -53,8 +55,30 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             add(directOutbound())
             add(blockOutbound())
         }
-        return render(outbounds = outbounds, finalTag = AUTO_TAG)
+        return render(outbounds = outbounds, finalTag = AUTO_TAG, rules = rules)
     }
+
+    /**
+     * Enabled rules, in the order the user arranged them — the first match
+     * wins, so this order is the routing decision.
+     *
+     * The action uses the union form sing-box 1.14 documents: `route` carries
+     * the outbound tag, `direct` and `reject` carry nothing. The older
+     * `{"outbound": "direct"}` shape is deprecated, and `reject` has no
+     * outbound at all, so the union is the only shape that covers all three.
+     */
+    private fun routeRules(rules: List<Rule>, proxyTag: String): List<Map<String, Any?>> =
+        rules.filter { it.enabled }.map { rule ->
+            val matcher = linkedMapOf<String, Any?>(
+                rule.matcher.kind.wireName to listOf(rule.matcher.value),
+            )
+            val action = when (rule.action) {
+                RuleAction.PROXY -> linkedMapOf<String, Any?>("action" to "route", "outbound" to proxyTag)
+                RuleAction.DIRECT -> linkedMapOf<String, Any?>("action" to "direct")
+                RuleAction.BLOCK -> linkedMapOf<String, Any?>("action" to "reject")
+            }
+            matcher + action
+        }
 
     private fun outbound(profile: Profile, tag: String): Map<String, Any?> {
         val descriptor = registry.get(profile.type)
@@ -93,7 +117,11 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         "stack" to "gvisor",
     )
 
-    private fun render(outbounds: List<Map<String, Any?>>, finalTag: String): String {
+    private fun render(
+        outbounds: List<Map<String, Any?>>,
+        finalTag: String,
+        rules: List<Rule>,
+    ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
             "dns" to linkedMapOf(
@@ -107,7 +135,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             "inbounds" to listOf(tunInbound()),
             "outbounds" to outbounds,
             "route" to linkedMapOf<String, Any?>(
-                "rules" to emptyList<Any?>(),
+                "rules" to routeRules(rules, finalTag),
                 "final" to finalTag,
                 // On: this is the platform path, and it is the one we want.
                 // The dialer installs the bind/protect control, which reaches

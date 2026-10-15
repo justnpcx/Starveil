@@ -4,12 +4,14 @@ import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.RealityOptions
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.RuleMatcher
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.VlessSettings
@@ -98,7 +100,7 @@ class BackupManagerTest {
         val srcGroups = MemGroups().apply {
             upsert(ProxyGroup(id = 5L, name = "sub", mode = GroupMode.URL_TEST, subscriptionUrl = "https://sub/x?token=t"))
         }
-        val srcRules = MemRules().apply { upsert(Rule(id = 9L, matcher = "geosite:cn", action = RuleAction.DIRECT, order = 1)) }
+        val srcRules = MemRules().apply { upsert(Rule(id = 9L, matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "cn"), action = RuleAction.DIRECT, order = 1)) }
 
         val blob = BackupManager(srcProfiles, srcGroups, srcRules).export(passphrase)
 
