@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
@@ -75,6 +76,10 @@ fun ProfilesScreen(
      * never silent. The default keeps previews and tests kernel-free.
      */
     onTestLatency: ((String) -> Unit) -> Unit = {},
+    /** Opens the editor for a brand-new node of the chosen protocol. */
+    onNewNode: (ProfileType) -> Unit = {},
+    /** Opens the editor for an existing node. */
+    onEditNode: (ProfileType, Long) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -91,6 +96,10 @@ fun ProfilesScreen(
     var creatingGroup by remember { mutableStateOf(false) }
     // The node whose group is being changed.
     var movingProfile by remember { mutableStateOf<Profile?>(null) }
+    // Long-press a node for its actions. A tap has to stay "select", because
+    // that is what the dashboard connects to.
+    var rowMenu by remember { mutableStateOf<Profile?>(null) }
+    var pickingProtocol by remember { mutableStateOf(false) }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
@@ -117,6 +126,9 @@ fun ProfilesScreen(
                         .padding(horizontal = StarveilSpacing.lg),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    TextButton(onClick = { pickingProtocol = true }) {
+                        Text(stringResource(R.string.profiles_new_node))
+                    }
                     TextButton(onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } }) {
                         Text(stringResource(R.string.profiles_test_latency))
                     }
@@ -172,7 +184,7 @@ fun ProfilesScreen(
                                 profile = profile,
                                 selected = profile.id == state.selectedId,
                                 onClick = { viewModel.select(profile.id) },
-                                onLongClick = { movingProfile = profile },
+                                onLongClick = { rowMenu = profile },
                                 onDelete = { pendingDelete = profile },
                             )
                         }
@@ -314,6 +326,75 @@ fun ProfilesScreen(
             },
             confirmButton = {
                 TextButton(onClick = { groupMenu = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
+                }
+            },
+        )
+    }
+
+    rowMenu?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { rowMenu = null },
+            title = { Text(stringResource(R.string.profiles_row_menu_title, profile.name)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    TextButton(
+                        onClick = {
+                            rowMenu = null
+                            onEditNode(profile.type, profile.id)
+                        },
+                    ) {
+                        Text(stringResource(R.string.profiles_row_edit))
+                    }
+                    TextButton(
+                        onClick = {
+                            rowMenu = null
+                            movingProfile = profile
+                        },
+                    ) {
+                        Text(stringResource(R.string.profiles_row_move))
+                    }
+                    TextButton(
+                        onClick = {
+                            rowMenu = null
+                            pendingDelete = profile
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profiles_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { rowMenu = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
+                }
+            },
+        )
+    }
+
+    if (pickingProtocol) {
+        AlertDialog(
+            onDismissRequest = { pickingProtocol = false },
+            title = { Text(stringResource(R.string.profiles_new_node_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    ProfileType.entries.filter { it != ProfileType.OTHER }.forEach { type ->
+                        TextButton(
+                            onClick = {
+                                pickingProtocol = false
+                                onNewNode(type)
+                            },
+                        ) {
+                            Text(type.editorLabel())
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { pickingProtocol = false }) {
                     Text(stringResource(R.string.profiles_group_cancel))
                 }
             },
@@ -748,4 +829,15 @@ private fun EmptyState() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+private fun ProfileType.editorLabel(): String = when (this) {
+    ProfileType.VLESS -> "VLESS"
+    ProfileType.VMESS -> "VMess"
+    ProfileType.TROJAN -> "Trojan"
+    ProfileType.SHADOWSOCKS -> "Shadowsocks"
+    ProfileType.HYSTERIA2 -> "Hysteria2"
+    ProfileType.TUIC -> "TUIC"
+    ProfileType.WIREGUARD -> "WireGuard"
+    ProfileType.OTHER -> "Node"
 }

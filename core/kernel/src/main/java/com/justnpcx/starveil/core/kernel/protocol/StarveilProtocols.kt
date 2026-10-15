@@ -41,6 +41,7 @@ object StarveilProtocols {
 
     val Vless: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.VLESS,
+        editorRoute = "editor/vless",
         displayName = "VLESS",
         defaultPort = 443,
         schemes = listOf("vless"),
@@ -54,6 +55,7 @@ object StarveilProtocols {
 
     val Trojan: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.TROJAN,
+        editorRoute = "editor/trojan",
         displayName = "Trojan",
         defaultPort = 443,
         schemes = listOf("trojan"),
@@ -67,6 +69,7 @@ object StarveilProtocols {
 
     val Shadowsocks: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.SHADOWSOCKS,
+        editorRoute = "editor/shadowsocks",
         displayName = "Shadowsocks",
         defaultPort = 8388,
         schemes = listOf("ss"),
@@ -80,6 +83,7 @@ object StarveilProtocols {
 
     val Vmess: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.VMESS,
+        editorRoute = "editor/vmess",
         displayName = "VMess",
         defaultPort = 443,
         schemes = listOf("vmess"),
@@ -93,6 +97,7 @@ object StarveilProtocols {
 
     val Hysteria2: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.HYSTERIA2,
+        editorRoute = "editor/hysteria2",
         displayName = "Hysteria2",
         defaultPort = 443,
         schemes = listOf("hysteria2", "hy2"),
@@ -106,6 +111,7 @@ object StarveilProtocols {
 
     val Tuic: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.TUIC,
+        editorRoute = "editor/tuic",
         displayName = "TUIC",
         defaultPort = 443,
         schemes = listOf("tuic"),
@@ -119,6 +125,7 @@ object StarveilProtocols {
 
     val WireGuard: ProtocolDescriptor = ProtocolDescriptor(
         type = ProfileType.WIREGUARD,
+        editorRoute = "editor/wireguard",
         displayName = "WireGuard",
         defaultPort = 51820,
         schemes = listOf("wireguard"),

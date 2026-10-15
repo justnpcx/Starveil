@@ -27,6 +27,11 @@ import com.justnpcx.starveil.feature.dashboard.DashboardScreen
 import com.justnpcx.starveil.feature.logs.LogsScreen
 import com.justnpcx.starveil.feature.profiles.ProfilesScreen
 import com.justnpcx.starveil.feature.rules.RulesScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.di.ProtocolRegistryEntryPoint
+import com.justnpcx.starveil.feature.editor.ProfileEditorScreen
 import com.justnpcx.starveil.feature.settings.SettingsScreen
 
 /** Destinations. Adding a screen = adding one entry here + one composable below. */
@@ -80,6 +85,19 @@ fun StarveilNavHost(
         scope.launch { leakCheckRunner.run() }
     }
 
+    // One editor route per protocol, assembled from the registry: adding a
+    // protocol adds its editor without touching this graph. The route strings
+    // live on the descriptors (ProtocolDescriptor.editorRoute).
+    val descriptors = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            ProtocolRegistryEntryPoint::class.java,
+        ).protocolRegistry().all()
+    }
+    val editorRouteFor: (ProfileType) -> String = { type ->
+        descriptors.firstOrNull { it.type == type }?.editorRoute ?: Destination.PROFILES.route
+    }
+
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -108,10 +126,33 @@ fun StarveilNavHost(
             DashboardScreen(requestVpnConsent = requestVpnConsent)
         }
         composable(Destination.PROFILES.route) {
-            ProfilesScreen(onTestLatency = onTestLatency)
+            ProfilesScreen(
+                onTestLatency = onTestLatency,
+                onNewNode = { type -> navController.navigate(editorRouteFor(type)) },
+                onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
+            )
         }
         composable(Destination.RULES.route) { RulesScreen() }
         composable(Destination.LOGS.route) { LogsScreen() }
         composable(Destination.SETTINGS.route) { SettingsScreen(onRunLeakCheck = onRunLeakCheck) }
+
+        descriptors.forEach { descriptor ->
+            composable(
+                route = "${descriptor.editorRoute}?id={id}",
+                arguments = listOf(
+                    navArgument("id") {
+                        type = NavType.LongType
+                        // Absent means "create a new node".
+                        defaultValue = 0L
+                    },
+                ),
+            ) { entry ->
+                ProfileEditorScreen(
+                    type = descriptor.type,
+                    profileId = entry.arguments?.getLong("id") ?: 0L,
+                    onDone = { navController.popBackStack() },
+                )
+            }
+        }
     }
 }

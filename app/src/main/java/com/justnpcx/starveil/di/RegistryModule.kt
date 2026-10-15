@@ -7,6 +7,7 @@ import com.justnpcx.starveil.core.subscription.LinkResolver
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -69,4 +70,15 @@ object RegistryModule {
 
     /** Longest plausible URI scheme; anything longer is not one. */
     private const val SCHEME_MAX_LENGTH = 32
+}
+
+/**
+ * The nav graph builds one editor route per protocol from the registry, so it
+ * needs the registry itself. :app is allowed to see :core:kernel; the feature
+ * modules are not, which is why the routes are assembled here.
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface ProtocolRegistryEntryPoint {
+    fun protocolRegistry(): ProtocolRegistry
 }

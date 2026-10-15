@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_title_new">New %1$s node</string>
+    <string name="editor_title_edit">Edit %1$s node</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_missing">This node no longer exists.</string>
+
+    <string name="editor_section_basic">Basic</string>
+    <string name="editor_section_security">Security</string>
+    <string name="editor_section_transport">Transport</string>
+    <string name="editor_section_protocol">%1$s settings</string>
+    <string name="editor_section_wireguard">WireGuard</string>
+
+    <string name="editor_field_name">Name (optional)</string>
+    <string name="editor_field_server">Server</string>
+    <string name="editor_field_port">Port</string>
+    <string name="editor_field_uuid">UUID</string>
+    <string name="editor_field_password">Password</string>
+    <string name="editor_field_flow">Flow (optional)</string>
+    <string name="editor_field_alter_id">Alter ID</string>
+    <string name="editor_field_vmess_security">Cipher</string>
+    <string name="editor_field_method">Method</string>
+    <string name="editor_field_sni">SNI (optional)</string>
+    <string name="editor_field_fingerprint">uTLS fingerprint (optional)</string>
+    <string name="editor_field_allow_insecure">Allow insecure certificates</string>
+    <string name="editor_field_reality_public_key">REALITY public key</string>
+    <string name="editor_field_reality_short_id">Short ID (optional)</string>
+    <string name="editor_field_reality_mlkem">ML-KEM hybrid handshake</string>
+    <string name="editor_field_transport_path">Path</string>
+    <string name="editor_field_transport_host">Host</string>
+    <string name="editor_field_transport_service">Service name</string>
+    <string name="editor_field_obfs">Obfuscation</string>
+    <string name="editor_field_obfs_password">Obfuscation password</string>
+    <string name="editor_field_up_mbps">Up (Mbps, optional)</string>
+    <string name="editor_field_down_mbps">Down (Mbps, optional)</string>
+    <string name="editor_field_congestion">Congestion control</string>
+    <string name="editor_field_udp_relay">UDP relay mode</string>
+    <string name="editor_field_wg_private_key">Private key</string>
+    <string name="editor_field_wg_address">Addresses (comma separated)</string>
+    <string name="editor_field_wg_peer_public_key">Peer public key</string>
+    <string name="editor_field_wg_peer_endpoint">Peer endpoint</string>
+    <string name="editor_field_wg_peer_port">Peer port</string>
+    <string name="editor_field_wg_allowed_ips">Allowed IPs (comma separated)</string>
+    <string name="editor_field_wg_mtu">MTU (optional)</string>
+
+    <string name="editor_error_required">Required</string>
+    <string name="editor_error_number">Enter a number between 1 and 65535</string>
+
+    <string name="editor_security_none">None</string>
+    <string name="editor_security_tls">TLS</string>
+    <string name="editor_security_reality">REALITY</string>
+
+    <string name="editor_transport_tcp">TCP</string>
+    <string name="editor_transport_ws">WebSocket</string>
+    <string name="editor_transport_grpc">gRPC</string>
+    <string name="editor_transport_http">HTTP</string>
+    <string name="editor_transport_xhttp">XHTTP</string>
+
+    <string name="editor_obfs_none">None</string>
+
+    <string name="editor_hint_wireguard">WireGuard is an endpoint, not an outbound — the kernel loads it from the top-level endpoints section.</string>
+</resources>
