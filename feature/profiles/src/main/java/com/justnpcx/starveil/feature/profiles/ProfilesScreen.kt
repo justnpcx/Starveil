@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +47,8 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
+import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
+import com.justnpcx.starveil.core.ui.components.rememberAppearance
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -80,6 +82,9 @@ fun ProfilesScreen(
     var creatingGroup by remember { mutableStateOf(false) }
     // The node whose group is being changed.
     var movingProfile by remember { mutableStateOf<Profile?>(null) }
+    // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
+    // not replay its entrance.
+    val appeared = rememberAppearance()
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -148,14 +153,19 @@ fun ProfilesScreen(
                     contentPadding = PaddingValues(StarveilSpacing.lg),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
-                    items(state.profiles, key = { it.id }) { profile ->
-                        NodeRow(
-                            profile = profile,
-                            selected = profile.id == state.selectedId,
-                            onClick = { viewModel.select(profile.id) },
-                            onLongClick = { movingProfile = profile },
-                            onDelete = { pendingDelete = profile },
-                        )
+                    itemsIndexed(state.profiles, key = { _, profile -> profile.id }) { index, profile ->
+                        // §5.2: rows settle in top-down instead of snapping in
+                        // as a block. `appeared` lives out here so a row that
+                        // scrolls away and back does not replay its entrance.
+                        AppearOnFirstShow(key = profile.id, index = index, seen = appeared) {
+                            NodeRow(
+                                profile = profile,
+                                selected = profile.id == state.selectedId,
+                                onClick = { viewModel.select(profile.id) },
+                                onLongClick = { movingProfile = profile },
+                                onDelete = { pendingDelete = profile },
+                            )
+                        }
                     }
                 }
             }

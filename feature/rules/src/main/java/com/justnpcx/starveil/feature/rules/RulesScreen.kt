@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
+import com.justnpcx.starveil.core.ui.components.rememberAppearance
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -58,6 +60,9 @@ fun RulesScreen(
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Rule?>(null) }
     var pendingDelete by remember { mutableStateOf<Rule?>(null) }
+    // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
+    // not replay its entrance.
+    val appeared = rememberAppearance()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -79,18 +84,21 @@ fun RulesScreen(
                     contentPadding = PaddingValues(StarveilSpacing.lg),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
-                    items(state.rules, key = { it.id }) { rule ->
-                        val index = state.rules.indexOfFirst { it.id == rule.id }
-                        RuleRow(
-                            rule = rule,
-                            canMoveUp = index > 0,
-                            canMoveDown = index in 0 until state.rules.lastIndex,
-                            onToggle = { viewModel.setEnabled(rule, it) },
-                            onEdit = { editing = rule },
-                            onDelete = { pendingDelete = rule },
-                            onMoveUp = { viewModel.move(rule, up = true) },
-                            onMoveDown = { viewModel.move(rule, up = false) },
-                        )
+                    itemsIndexed(state.rules, key = { _, rule -> rule.id }) { index, rule ->
+                        // §5.2: rows settle in top-down. The index also replaces
+                        // the per-row indexOfFirst lookup this used to do.
+                        AppearOnFirstShow(key = rule.id, index = index, seen = appeared) {
+                            RuleRow(
+                                rule = rule,
+                                canMoveUp = index > 0,
+                                canMoveDown = index in 0 until state.rules.lastIndex,
+                                onToggle = { viewModel.setEnabled(rule, it) },
+                                onEdit = { editing = rule },
+                                onDelete = { pendingDelete = rule },
+                                onMoveUp = { viewModel.move(rule, up = true) },
+                                onMoveDown = { viewModel.move(rule, up = false) },
+                            )
+                        }
                     }
                 }
             }
