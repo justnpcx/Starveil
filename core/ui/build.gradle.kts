@@ -36,4 +36,9 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.animation)
     implementation(libs.compose.ui.tooling.preview)
+    // For LocalLifecycleOwner: the core's ambient loops must pause when the
+    // screen is not visible (design system §5.5).
+    implementation(libs.lifecycle.runtime.compose)
+
+    testImplementation(libs.junit)
 }

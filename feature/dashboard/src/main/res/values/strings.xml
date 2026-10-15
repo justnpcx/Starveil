@@ -2,4 +2,10 @@
 <resources>
     <string name="dashboard_current_node">Current node</string>
     <string name="dashboard_no_node_hint">Pick one on the Nodes tab.</string>
+
+    <!-- The core's accessibility description: state + what tapping does. -->
+    <string name="dashboard_core_disconnected">Connection state: disconnected. Tap to connect.</string>
+    <string name="dashboard_core_connecting">Connection state: connecting. Please wait.</string>
+    <string name="dashboard_core_connected">Connection state: connected. Tap to disconnect.</string>
+    <string name="dashboard_core_blocked">Connection state: blocked. Tap to try again.</string>
 </resources>

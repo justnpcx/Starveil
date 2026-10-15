@@ -37,8 +37,28 @@ object StarveilColors {
     /** Blocked / alert. */
     val Blocked = Color(0xFFF87171)
 
+    /**
+     * Disconnected: dimmed, but deliberately not the disabled colour — a
+     * disconnected tunnel is a normal state, not an unavailable control.
+     */
+    val Disconnected = Color(0xFF64748B)
+
     /** Muted text on dark. */
     val TextDim = Color(0xFF94A3B8)
+
+    // --- Chart series (design system §2.1) -------------------------------
+    // The sparkline had been borrowing the glow colours, which happen to be
+    // the same values today but mean something different: a chart series is
+    // not a glow, and changing one must not silently change the other.
+
+    /** Chart line 1 — downlink. */
+    val Chart1 = Color(0xFF38BDF8)
+
+    /** Chart line 2 — uplink. */
+    val Chart2 = Color(0xFF818CF8)
+
+    /** Chart grid line. */
+    val ChartGrid = Color(0xFF1E293B)
 }
 
 private val DarkScheme = darkColorScheme(
