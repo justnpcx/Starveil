@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 
 /**
  * Pure `Profile + settings -> sing-box outbound fragment` builders.
@@ -41,6 +42,21 @@ internal object SingBoxOutbounds {
             "server" to profile.server,
             "server_port" to profile.port,
             "password" to s.password,
+        ).apply {
+            tlsBlock(s.tls)?.let { put("tls", it) }
+            transportBlock(s.transport)?.let { put("transport", it) }
+            muxBlock(s.mux)?.let { put("multiplex", it) }
+        }
+
+    fun vmess(profile: Profile, s: VmessSettings): Map<String, Any?> =
+        linkedMapOf<String, Any?>(
+            "type" to "vmess",
+            "tag" to profile.name,
+            "server" to profile.server,
+            "server_port" to profile.port,
+            "uuid" to s.uuid,
+            "security" to s.security,
+            "alter_id" to s.alterId,
         ).apply {
             tlsBlock(s.tls)?.let { put("tls", it) }
             transportBlock(s.transport)?.let { put("transport", it) }

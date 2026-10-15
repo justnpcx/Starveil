@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
 
@@ -54,6 +55,16 @@ internal object SettingsJson {
                 "method" to settings.method,
                 "password" to settings.password,
             )
+
+            is VmessSettings -> linkedMapOf(
+                KEY_KIND to "vmess",
+                "uuid" to settings.uuid,
+                "security" to settings.security,
+                "alterId" to settings.alterId,
+                "tls" to encodeTls(settings.tls),
+                "transport" to encodeTransport(settings.transport),
+                "mux" to encodeMux(settings.mux),
+            )
         }
         return Json.write(map)
     }
@@ -91,6 +102,18 @@ internal object SettingsJson {
                 val method = map.str("method") ?: return null
                 val password = map.str("password") ?: return null
                 ShadowsocksSettings(method = method, password = password)
+            }
+
+            ProfileType.VMESS -> {
+                val uuid = map.str("uuid") ?: return null
+                VmessSettings(
+                    uuid = uuid,
+                    security = map.str("security") ?: "auto",
+                    alterId = map.int("alterId") ?: 0,
+                    tls = decodeTls(map["tls"]),
+                    transport = decodeTransport(map["transport"]),
+                    mux = decodeMux(map["mux"]),
+                )
             }
 
             // Not modelled yet — nothing to decode.
@@ -184,6 +207,12 @@ internal object SettingsJson {
         (this[key] as? String)?.takeIf { it.isNotEmpty() }
 
     private fun Map<*, *>.bool(key: String): Boolean? = this[key] as? Boolean
+
+    private fun Map<*, *>.int(key: String): Int? = when (val value = this[key]) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }
 
     private fun Any?.asStringList(): List<String> =
         (this as? List<*>)?.mapNotNull { it as? String } ?: emptyList()

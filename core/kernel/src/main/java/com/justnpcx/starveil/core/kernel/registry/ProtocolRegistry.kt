@@ -58,21 +58,16 @@ class ProtocolRegistry(private val descriptors: Map<ProfileType, ProtocolDescrip
 
     companion object {
         /**
-         * Built-in protocols. VLESS, Trojan and Shadowsocks are real as of M2;
-         * the rest are stubs (each marked with a TODO) so a half-wired protocol
-         * stays visible.
+         * Built-in protocols. VLESS, Trojan, Shadowsocks and VMess are real;
+         * the rest are stubs (each marked with a TODO) so a half-wired
+         * protocol stays visible.
          */
         fun default(): ProtocolRegistry = ProtocolRegistry(
             listOf(
                 StarveilProtocols.Vless,
                 StarveilProtocols.Trojan,
                 StarveilProtocols.Shadowsocks,
-                stub(
-                    type = ProfileType.VMESS,
-                    displayName = "VMess",
-                    defaultPort = 443,
-                    schemes = listOf("vmess"),
-                ),
+                StarveilProtocols.Vmess,
                 stub(
                     type = ProfileType.HYSTERIA2,
                     displayName = "Hysteria2",

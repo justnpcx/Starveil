@@ -13,18 +13,21 @@ import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.json.Json
+import com.justnpcx.starveil.core.model.json.JsonException
 
 /**
- * Real descriptors for the three protocols in scope for M2:
- * VLESS, Trojan and Shadowsocks.
+ * Real descriptors for the protocols in scope for M2 — VLESS, Trojan and
+ * Shadowsocks — plus VMess.
  *
  * Everything here is a pure function — parse a share link, or turn a
  * [Profile] into a sing-box outbound fragment. No IO, no logging of links or
  * settings (both carry credentials).
  *
- * The ML-KEM REALITY parameter name is a Starveil/Mirage fork extension and is
- * accepted under a couple of spellings; confirm the exact wire name against
- * the fork before shipping a build that relies on it.
+ * The ML-KEM REALITY parameter is a Starveil/Mirage fork extension: the share
+ * link carries the key as `spx`, and it maps to sing-box's
+ * `support_x25519mlkem768` switch (there is no field for the key itself).
  */
 object StarveilProtocols {
 
@@ -70,8 +73,22 @@ object StarveilProtocols {
         editorRoute = "editor/shadowsocks",
     )
 
-    /** The three M2 descriptors, in the agreed priority order. */
-    val all: List<ProtocolDescriptor> = listOf(Vless, Trojan, Shadowsocks)
+    val Vmess: ProtocolDescriptor = ProtocolDescriptor(
+        type = ProfileType.VMESS,
+        displayName = "VMess",
+        defaultPort = 443,
+        schemes = listOf("vmess"),
+        linkParser = ::parseVmess,
+        configBuilder = { profile ->
+            val settings = profile.settings as? VmessSettings
+                ?: error("VMess profile has no VMess settings")
+            SingBoxOutbounds.vmess(profile, settings)
+        },
+        editorRoute = "editor/vmess",
+    )
+
+    /** The real descriptors, in the agreed priority order. */
+    val all: List<ProtocolDescriptor> = listOf(Vless, Trojan, Shadowsocks, Vmess)
 
     // ---------------------------------------------------------------- VLESS
 
@@ -185,6 +202,116 @@ object StarveilProtocols {
         if (method.isBlank() || password.isBlank()) return null
         return method to password
     }
+
+    // ---------------------------------------------------------------- VMess
+
+    /**
+     * Two shapes of `vmess://` are in the wild:
+     *
+     * - the original base64 of a JSON blob (v2rayN), with the fields as
+     *   `add`/`port`/`id`/`aid`/`net`/`tls`;
+     * - a URL-shaped link (v2rayNG) with the UUID in the userinfo and the rest
+     *   in the query string, exactly like VLESS.
+     *
+     * Base64 has no `@`, so its presence is what tells them apart.
+     */
+    fun parseVmess(link: String): Profile? {
+        if (!link.startsWith("vmess://", ignoreCase = true)) return null
+        val (body, name) = LinkParsing.splitFragment(link.substring(8))
+        if (body.isBlank()) return null
+        return if (body.contains('@')) parseVmessUrl(body, name) else parseVmessJson(body, name)
+    }
+
+    private fun parseVmessUrl(body: String, name: String?): Profile? {
+        val (hostPart, queryRaw) = LinkParsing.splitQuery(body)
+        val at = hostPart.lastIndexOf('@')
+        if (at <= 0) return null
+        val uuid = LinkParsing.percentDecode(hostPart.substring(0, at)).trim()
+        if (uuid.isBlank()) return null
+        val (host, port) = LinkParsing.splitHostPort(hostPart.substring(at + 1)) ?: return null
+        return vmessProfile(name, host, port, uuid, LinkParsing.parseQuery(queryRaw))
+    }
+
+    private fun parseVmessJson(body: String, name: String?): Profile? {
+        val decoded = LinkParsing.base64Decode(body) ?: return null
+        val map = try {
+            Json.parseObject(decoded)
+        } catch (e: JsonException) {
+            return null
+        }
+        val host = map.vmessStr("add") ?: return null
+        val port = map.vmessInt("port") ?: return null
+        val uuid = map.vmessStr("id") ?: return null
+        if (port !in 1..65535) return null
+        // `ps` (the label) is inside the JSON for this form.
+        return vmessProfile(name ?: map.vmessStr("ps"), host, port, uuid, map.vmessParams())
+    }
+
+    /**
+     * Normalises the JSON form's field names onto the ones the URL form uses,
+     * so one builder covers both.
+     */
+    private fun Map<String, Any?>.vmessParams(): Map<String, String> {
+        val q = LinkedHashMap<String, String>()
+        vmessStr("net")?.let { q["type"] = it }
+        vmessStr("scy")?.let { q["encryption"] = it }
+        vmessInt("aid")?.let { q["aid"] = it.toString() }
+        vmessStr("host")?.let { q["host"] = it }
+        vmessStr("path")?.let { q["path"] = it }
+        vmessStr("sni")?.let { q["sni"] = it }
+        vmessStr("alpn")?.let { q["alpn"] = it }
+        vmessStr("fp")?.let { q["fp"] = it }
+        // In the JSON form `tls` is either "" or "tls".
+        vmessStr("tls")?.let { q["security"] = it }
+        return q
+    }
+
+    private fun vmessProfile(
+        name: String?,
+        host: String,
+        port: Int,
+        uuid: String,
+        q: Map<String, String>,
+    ): Profile? {
+        val security = when (q["security"]?.lowercase()) {
+            "tls" -> SecurityMode.TLS
+            "reality" -> SecurityMode.REALITY
+            else -> SecurityMode.NONE
+        }
+        val reality = realityFrom(q)
+        // REALITY without a public key cannot be dialled; refuse rather than
+        // build a config that would fail at connect time.
+        if (security == SecurityMode.REALITY && reality == null) return null
+
+        return Profile(
+            name = name ?: "$host:$port",
+            type = ProfileType.VMESS,
+            server = host,
+            port = port,
+            settings = VmessSettings(
+                uuid = uuid,
+                security = q["encryption"]?.takeIf { it.isNotBlank() } ?: "auto",
+                alterId = q["aid"]?.trim()?.toIntOrNull() ?: 0,
+                tls = tlsFrom(q, security, reality),
+                transport = transportFrom(q),
+                mux = muxFrom(q),
+            ),
+        )
+    }
+
+    private fun Map<String, Any?>.vmessStr(key: String): String? =
+        when (val value = this[key]) {
+            is String -> value.takeIf { it.isNotBlank() }
+            is Number -> value.toString()
+            else -> null
+        }
+
+    private fun Map<String, Any?>.vmessInt(key: String): Int? =
+        when (val value = this[key]) {
+            is Number -> value.toInt()
+            is String -> value.trim().toIntOrNull()
+            else -> null
+        }
 
     // ------------------------------------------------------------ shared bits
 
