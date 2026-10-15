@@ -16,6 +16,17 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0-skeleton"
+
+        ndk {
+            // libbox.aar ships arm64-v8a only, so that is the only ABI this
+            // app can actually run on. Without this filter the APK also
+            // carries sqlcipher and friends for armeabi-v7a / x86 / x86_64,
+            // which makes the installer treat those devices as compatible —
+            // the app then installs and launches, and dies on "connect" when
+            // libbox fails to load. Better to fail at install, and to not ship
+            // 5.6 MB of native libraries for ABIs that cannot run the kernel.
+            abiFilters += "arm64-v8a"
+        }
     }
 
     buildTypes {
