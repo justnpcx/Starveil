@@ -86,9 +86,9 @@ class LogsViewModelTest {
 
     private companion object {
         val LINES = listOf(
-            AppLogLine(AppLogLevel.INFO, "kernel", "kernel started", 1L),
-            AppLogLine(AppLogLevel.ERROR, "sing-box", "dial tcp i/o timeout", 2L),
-            AppLogLine(AppLogLevel.DEBUG, "kernel", "dns query ok", 3L),
+            AppLogLine(AppLogLevel.INFO, "kernel", "kernel started", 1L, seq = 1L),
+            AppLogLine(AppLogLevel.ERROR, "sing-box", "dial tcp i/o timeout", 2L, seq = 2L),
+            AppLogLine(AppLogLevel.DEBUG, "kernel", "dns query ok", 3L, seq = 3L),
         )
     }
 }

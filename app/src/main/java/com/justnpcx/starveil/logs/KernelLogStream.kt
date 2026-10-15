@@ -27,6 +27,15 @@ class KernelLogStream(bridge: KernelBridge) : LogStream {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val ring = MutableStateFlow<List<AppLogLine>>(emptyList())
 
+    /**
+     * Hands each line a unique id. Two lines can carry the same timestamp and
+     * the same text (sing-box logs a connection more than once within a
+     * millisecond), and the viewer keys its list on this — a duplicate key
+     * throws. Assigned here, outside the `update` lambda, so a CAS retry cannot
+     * skip numbers.
+     */
+    private var nextSeq = 0L
+
     override val lines: Flow<List<AppLogLine>> = ring.asStateFlow()
 
     init {
@@ -38,12 +47,13 @@ class KernelLogStream(bridge: KernelBridge) : LogStream {
                 // diagnostics within seconds. Keep INFO and above from sing-box,
                 // and keep our own DEBUG (tag "kernel") in full.
                 if (line.level == LogLevel.DEBUG && line.tag != DIAGNOSTIC_TAG) return@collect
-                ring.update { (it + line.toAppLogLine()).takeLast(RING_SIZE) }
+                val seq = nextSeq++
+                ring.update { (it + line.toAppLogLine(seq)).takeLast(RING_SIZE) }
             }
         }
     }
 
-    private fun KernelLogLine.toAppLogLine() = AppLogLine(
+    private fun KernelLogLine.toAppLogLine(seq: Long) = AppLogLine(
         level = when (level) {
             LogLevel.DEBUG -> AppLogLevel.DEBUG
             LogLevel.INFO -> AppLogLevel.INFO
@@ -53,6 +63,7 @@ class KernelLogStream(bridge: KernelBridge) : LogStream {
         tag = tag,
         message = message,
         timestampMs = timestampMs,
+        seq = seq,
     )
 
     private companion object {

@@ -166,7 +166,10 @@ fun LogsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
             ) {
-                items(state.lines, key = { it.timestampMs to it.message.hashCode() }) { line ->
+                // Keyed on the line's own id. A key built from the timestamp and
+                // the text is not unique — sing-box can log the same line twice
+                // in one millisecond — and a duplicate key throws.
+                items(state.lines, key = { it.seq }) { line ->
                     LogRow(line)
                 }
             }
