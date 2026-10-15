@@ -27,8 +27,12 @@ enum class TransportType(val wireName: String) {
 /**
  * REALITY options.
  *
- * [mlKemPublicKey] is a fork extension (post-quantum ML-KEM). It is emitted
- * only when present, so upstream sing-box configs stay byte-identical.
+ * [mlKemPublicKey] is the server's post-quantum (ML-KEM-768) key, carried by
+ * the `spx` parameter of a REALITY share link. sing-box has no config field
+ * for the key itself — the client derives nothing from it — so its only job
+ * here is to say whether the server supports the hybrid handshake, which is
+ * what `support_x25519mlkem768` tells sing-box. Absent means the node is
+ * plain X25519.
  */
 data class RealityOptions(
     val publicKey: String,

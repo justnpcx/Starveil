@@ -39,13 +39,14 @@ class VlessLinkTest {
         val profile = StarveilProtocols.parseVless(
             "vless://11111111-2222-3333-4444-555555555555@r.example.com:443" +
                 "?security=reality&pbk=PUBKEY&sid=ab12&fp=chrome&type=xhttp&path=%2Fx" +
-                "&flow=xtls-rprx-vision&mlkem=MLKEMKEY#R",
+                "&flow=xtls-rprx-vision&spx=MLKEMKEY#R",
         )
         assertNotNull(profile)
         val s = profile!!.settings as VlessSettings
         assertEquals(SecurityMode.REALITY, s.tls.security)
         assertEquals("PUBKEY", s.tls.reality?.publicKey)
         assertEquals("ab12", s.tls.reality?.shortId)
+        // `spx` is where a REALITY share link carries the ML-KEM public key.
         assertEquals("MLKEMKEY", s.tls.reality?.mlKemPublicKey)
         assertEquals("chrome", s.tls.fingerprint)
         assertEquals(TransportType.XHTTP, s.transport.type)

@@ -52,12 +52,31 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"server_port\":443"))
         assertTrue(json.contains("\"uuid\":\"11111111-2222-3333-4444-555555555555\""))
         assertTrue(json.contains("\"flow\":\"xtls-rprx-vision\""))
-        assertTrue(json.contains("\"reality\":{\"enabled\":true,\"public_key\":\"PUBKEY\",\"short_id\":\"ab12\",\"ml_kem_public_key\":\"MLKEMKEY\"}"))
+        assertTrue(json.contains("\"reality\":{\"enabled\":true,\"public_key\":\"PUBKEY\",\"short_id\":\"ab12\",\"support_x25519mlkem768\":true}"))
+        assertFalse(
+            "sing-box decodes with DisallowUnknownFields; an unknown field here fails the whole config",
+            json.contains("ml_kem_public_key"),
+        )
         assertTrue(json.contains("\"transport\":{\"type\":\"xhttp\",\"path\":\"/x\"}"))
         assertTrue(json.contains("\"multiplex\":{\"enabled\":true,\"protocol\":\"smux\"}"))
         assertTrue(json.contains("\"type\":\"direct\""))
         assertTrue(json.contains("\"type\":\"block\""))
         assertTrue(json.contains("\"final\":\"proxy\""))
+    }
+
+    @Test
+    fun `REALITY without an ML-KEM key advertises plain X25519 only`() {
+        val base = vlessProfile()
+        val settings = base.settings as VlessSettings
+        val profile = base.copy(
+            settings = settings.copy(
+                tls = settings.tls.copy(reality = settings.tls.reality?.copy(mlKemPublicKey = null)),
+            ),
+        )
+
+        val json = builder.build(profile)
+        assertTrue(json.contains("\"public_key\":\"PUBKEY\""))
+        assertFalse(json.contains("support_x25519mlkem768"))
     }
 
     @Test
