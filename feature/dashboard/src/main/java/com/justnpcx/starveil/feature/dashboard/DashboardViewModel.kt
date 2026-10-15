@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -61,10 +62,30 @@ class DashboardViewModel @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var statsJob: Job? = null
 
+    /**
+     * One automatic reconnect per user-initiated connection.
+     *
+     * A reconnect that itself dies must not be retried, or a node that crashes
+     * the kernel every time would be retried forever. The user tapping connect
+     * again is what grants the next attempt — deliberately not the kernel
+     * reporting [KernelState.Running], since a kernel that starts and
+     * immediately dies would re-arm itself on every cycle.
+     */
+    private var canAutoReconnect = true
+
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
+        // The kernel pushes its lifecycle, so an unexpected death arrives here
+        // without polling. Only recoverable errors are retryable (Crashed /
+        // StartFailed / Unknown); Stopped is the user stopping, which must
+        // never be "recovered".
+        scope.launch {
+            kernel.state.collect { state ->
+                if (state is KernelState.Error && state.error.recoverable) onKernelDropped()
+            }
+        }
         // Keep the label in sync with the choice made on the Nodes tab — and
         // apply it. The kernel runs the config that was built at connect time
         // (RealKernelBridge.start is a no-op while running), so without this
@@ -99,21 +120,57 @@ class DashboardViewModel @Inject constructor(
     private fun applyNodeSwitch() {
         scope.launch {
             disconnect()
-            connect()
+            connect(userInitiated = true)
         }
+    }
+
+    /**
+     * The kernel died under us. If the user had a tunnel up and asked for
+     * auto-reconnect, bring it back; otherwise settle into BLOCKED and say
+     * what happened rather than leaving a stale CONNECTED label.
+     */
+    private suspend fun onKernelDropped() {
+        // Only a drop from a believed-connected state is ours to recover from.
+        // A crash while disconnected (or while blocked) is not a lost tunnel.
+        if (_uiState.value.connectionState != ConnectionState.CONNECTED) return
+        if (_uiState.value.isBusy) return
+
+        if (!preferences.autoReconnect.first()) {
+            _uiState.update {
+                it.copy(connectionState = ConnectionState.BLOCKED, errorMessage = TUNNEL_DROPPED)
+            }
+            return
+        }
+        if (!canAutoReconnect) {
+            _uiState.update {
+                it.copy(connectionState = ConnectionState.BLOCKED, errorMessage = TUNNEL_KEEPS_DROPPING)
+            }
+            return
+        }
+
+        canAutoReconnect = false
+        _uiState.update { it.copy(errorMessage = TUNNEL_RECONNECTING) }
+        connect()
     }
 
     /** Tap on the core: connect or disconnect. */
     fun onCoreClick() {
         if (_uiState.value.isBusy) return
         when (_uiState.value.connectionState) {
-            ConnectionState.DISCONNECTED, ConnectionState.BLOCKED -> scope.launch { connect() }
+            ConnectionState.DISCONNECTED, ConnectionState.BLOCKED ->
+                scope.launch { connect(userInitiated = true) }
+
             ConnectionState.CONNECTED -> scope.launch { disconnect() }
             ConnectionState.CONNECTING -> { /* ignore taps while connecting */ }
         }
     }
 
-    private suspend fun connect() {
+    /**
+     * @param userInitiated true when the user (or a node switch) asked for
+     *   this, which re-arms the single automatic reconnect.
+     */
+    private suspend fun connect(userInitiated: Boolean = false) {
+        if (userInitiated) canAutoReconnect = true
         _uiState.update {
             it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
         }
@@ -257,5 +314,14 @@ class DashboardViewModel @Inject constructor(
     private companion object {
         /** Why the dashboard is in BLOCKED: the user has to turn it off. */
         const val KILL_SWITCH_BLOCKING = "Kill Switch is blocking all traffic"
+
+        /** The tunnel died and auto-reconnect is off. */
+        const val TUNNEL_DROPPED = "Tunnel dropped"
+
+        /** The tunnel died and is being brought back. */
+        const val TUNNEL_RECONNECTING = "Tunnel dropped; reconnecting…"
+
+        /** The reconnect also died; stop rather than loop. */
+        const val TUNNEL_KEEPS_DROPPING = "Tunnel keeps dropping; not reconnecting again"
     }
 }

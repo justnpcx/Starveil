@@ -17,6 +17,9 @@
     <string name="kill_switch_always">Always block</string>
     <string name="kill_switch_always_desc">Block all traffic and show an explicit blocked state.</string>
 
+    <string name="auto_reconnect_title">Auto-reconnect</string>
+    <string name="auto_reconnect_desc">Bring the tunnel back up if it drops unexpectedly. Retries once per drop.</string>
+
     <string name="leak_check_title">Leak self-check</string>
     <string name="leak_check_never">No self-check has run yet.</string>
     <string name="leak_check_clean">Last check: no leak (%1$s).</string>
