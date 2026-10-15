@@ -21,6 +21,8 @@ import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.WireGuardPeer
+import com.justnpcx.starveil.core.model.WireGuardSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -289,6 +291,55 @@ class ConfigBuilderTest {
         // QUIC: no stream transport and no multiplex.
         assertFalse(json.contains("\"transport\""))
         assertFalse(json.contains("\"multiplex\""))
+    }
+
+    @Test
+    fun `WireGuard goes in endpoints, not outbounds`() {
+        val profile = Profile(
+            name = "wg",
+            type = ProfileType.WIREGUARD,
+            server = "wg.example.com",
+            port = 51820,
+            settings = WireGuardSettings(
+                privateKey = "priv",
+                address = listOf("10.7.0.2/32"),
+                peers = listOf(
+                    WireGuardPeer(
+                        publicKey = "pub",
+                        endpointAddress = "wg.example.com",
+                        endpointPort = 51820,
+                        allowedIps = listOf("0.0.0.0/0"),
+                        preSharedKey = "psk",
+                        persistentKeepalive = 25,
+                    ),
+                ),
+                mtu = 1420,
+            ),
+        )
+        val json = builder.build(profile)
+        // sing-box 1.13 removed the WireGuard outbound: under `outbounds` the
+        // config fails construction ("use WireGuard endpoint instead").
+        assertTrue(json.contains("\"endpoints\":[{\"type\":\"wireguard\""))
+        assertFalse(json.contains("\"outbounds\":[{\"type\":\"wireguard\""))
+        assertTrue(json.contains("\"private_key\":\"priv\""))
+        assertTrue(json.contains("\"address\":[\"10.7.0.2/32\"]"))
+        assertTrue(json.contains("\"mtu\":1420"))
+        assertTrue(
+            json.contains(
+                "\"peers\":[{\"address\":\"wg.example.com\",\"port\":51820," +
+                    "\"public_key\":\"pub\",\"pre_shared_key\":\"psk\"," +
+                    "\"allowed_ips\":[\"0.0.0.0/0\"],\"persistent_keepalive_interval\":25}]",
+            ),
+        )
+        // The route still points at the endpoint's tag — the outbound manager
+        // resolves an endpoint tag as well.
+        assertTrue(json.contains("\"final\":\"proxy\""))
+        assertTrue(json.contains("\"type\":\"direct\""))
+    }
+
+    @Test
+    fun `a config with no endpoint omits the endpoints key entirely`() {
+        assertFalse(builder.build(vlessProfile()).contains("\"endpoints\""))
     }
 
     @Test

@@ -4,6 +4,7 @@ import android.content.Context
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.ProfileType
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -51,6 +52,13 @@ class NodeLatencyTester @Inject constructor(
         val id = preferences.selectedProfileId.first()
         if (id == 0L) return context.getString(R.string.latency_no_node)
         val profile = profiles.getById(id) ?: return context.getString(R.string.latency_no_node)
+
+        // A WireGuard endpoint speaks UDP only, so a TCP handshake to it can
+        // only ever fail — reporting that as "unreachable" would be a lie
+        // about a node that works.
+        if (profile.type == ProfileType.WIREGUARD) {
+            return context.getString(R.string.latency_not_applicable)
+        }
 
         return when (val probe = measure(profile.server, profile.port)) {
             is Probe.Reached -> {

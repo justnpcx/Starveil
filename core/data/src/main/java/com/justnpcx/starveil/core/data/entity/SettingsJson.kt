@@ -17,6 +17,8 @@ import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.WireGuardPeer
+import com.justnpcx.starveil.core.model.WireGuardSettings
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
 
@@ -90,6 +92,24 @@ internal object SettingsJson {
                 "udpRelayMode" to settings.udpRelayMode?.wireName,
                 "zeroRttHandshake" to settings.zeroRttHandshake,
                 "tls" to encodeTls(settings.tls),
+            )
+
+            is WireGuardSettings -> linkedMapOf(
+                KEY_KIND to "wireguard",
+                "privateKey" to settings.privateKey,
+                "address" to settings.address,
+                "mtu" to settings.mtu,
+                "listenPort" to settings.listenPort,
+                "peers" to settings.peers.map { peer ->
+                    linkedMapOf<String, Any?>(
+                        "publicKey" to peer.publicKey,
+                        "endpointAddress" to peer.endpointAddress,
+                        "endpointPort" to peer.endpointPort,
+                        "allowedIps" to peer.allowedIps.takeIf { it.isNotEmpty() },
+                        "preSharedKey" to peer.preSharedKey,
+                        "persistentKeepalive" to peer.persistentKeepalive,
+                    )
+                },
             )
         }
         return Json.write(map)
@@ -174,6 +194,36 @@ internal object SettingsJson {
                         ?.let { TuicUdpRelayMode.fromWireName(it) },
                     zeroRttHandshake = map.bool("zeroRttHandshake") ?: false,
                     tls = decodeTls(map["tls"]),
+                )
+            }
+
+            ProfileType.WIREGUARD -> {
+                val privateKey = map.str("privateKey") ?: return null
+                val address = map["address"].asStringList()
+                if (address.isEmpty()) return null
+                val peers = (map["peers"] as? List<*>)
+                    ?.mapNotNull { it.asMap() }
+                    ?.mapNotNull { peer ->
+                        val publicKey = peer.str("publicKey") ?: return@mapNotNull null
+                        val host = peer.str("endpointAddress") ?: return@mapNotNull null
+                        val port = peer.int("endpointPort") ?: return@mapNotNull null
+                        WireGuardPeer(
+                            publicKey = publicKey,
+                            endpointAddress = host,
+                            endpointPort = port,
+                            allowedIps = peer["allowedIps"].asStringList(),
+                            preSharedKey = peer.str("preSharedKey"),
+                            persistentKeepalive = peer.int("persistentKeepalive"),
+                        )
+                    }
+                    ?: emptyList()
+                if (peers.isEmpty()) return null
+                WireGuardSettings(
+                    privateKey = privateKey,
+                    address = address,
+                    peers = peers,
+                    mtu = map.int("mtu"),
+                    listenPort = map.int("listenPort"),
                 )
             }
 

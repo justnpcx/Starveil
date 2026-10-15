@@ -193,3 +193,34 @@ data class TuicSettings(
     val zeroRttHandshake: Boolean = false,
     val tls: TlsOptions = TlsOptions.Plain,
 ) : ProfileSettings
+
+/**
+ * One WireGuard peer. [endpointAddress] / [endpointPort] are the remote host
+ * and port; [allowedIps] is the tunnel's route list (`0.0.0.0/0, ::/0` for a
+ * full tunnel).
+ */
+data class WireGuardPeer(
+    val publicKey: String,
+    val endpointAddress: String,
+    val endpointPort: Int,
+    val allowedIps: List<String> = emptyList(),
+    val preSharedKey: String? = null,
+    val persistentKeepalive: Int? = null,
+)
+
+/**
+ * WireGuard settings, parsed from a `.conf` file.
+ *
+ * WireGuard is **not an outbound** in sing-box 1.13+ — it is an *endpoint*, a
+ * top-level config section of its own. Emitting it under `outbounds` fails
+ * config construction outright ("use WireGuard endpoint instead"), which is
+ * why its descriptor's placement has to say ENDPOINT.
+ */
+data class WireGuardSettings(
+    val privateKey: String,
+    /** Tunnel addresses, e.g. `10.0.0.2/32`. */
+    val address: List<String>,
+    val peers: List<WireGuardPeer>,
+    val mtu: Int? = null,
+    val listenPort: Int? = null,
+) : ProfileSettings

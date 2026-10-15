@@ -12,6 +12,7 @@ import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.WireGuardSettings
 
 /**
  * Pure `Profile + settings -> sing-box outbound fragment` builders.
@@ -118,6 +119,39 @@ internal object SingBoxOutbounds {
             s.udpRelayMode?.let { put("udp_relay_mode", it.wireName) }
             if (s.zeroRttHandshake) put("zero_rtt_handshake", true)
             tlsBlock(s.tls)?.let { put("tls", it) }
+        }
+
+    /**
+     * A WireGuard **endpoint** fragment, not an outbound.
+     *
+     * sing-box 1.13 removed the WireGuard outbound ("use WireGuard endpoint
+     * instead"), so this map belongs in the config's top-level `endpoints`
+     * array. [ConfigBuilder] places it there by asking the descriptor's
+     * placement.
+     */
+    fun wireguard(profile: Profile, s: WireGuardSettings): Map<String, Any?> =
+        linkedMapOf<String, Any?>(
+            "type" to "wireguard",
+            "tag" to profile.name,
+            "address" to s.address,
+            "private_key" to s.privateKey,
+        ).apply {
+            s.mtu?.let { put("mtu", it) }
+            s.listenPort?.let { put("listen_port", it) }
+            put(
+                "peers",
+                s.peers.map { peer ->
+                    linkedMapOf<String, Any?>(
+                        "address" to peer.endpointAddress,
+                        "port" to peer.endpointPort,
+                        "public_key" to peer.publicKey,
+                    ).apply {
+                        peer.preSharedKey?.let { put("pre_shared_key", it) }
+                        if (peer.allowedIps.isNotEmpty()) put("allowed_ips", peer.allowedIps)
+                        peer.persistentKeepalive?.let { put("persistent_keepalive_interval", it) }
+                    }
+                },
+            )
         }
 
     /** Returns null when TLS is off, so no empty `tls` block is emitted. */

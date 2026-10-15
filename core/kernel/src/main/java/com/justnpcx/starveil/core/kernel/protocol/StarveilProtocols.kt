@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.kernel.protocol
 
 import com.justnpcx.starveil.core.kernel.config.SingBoxOutbounds
+import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.kernel.registry.ProtocolDescriptor
 import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MuxOptions
@@ -19,6 +20,8 @@ import com.justnpcx.starveil.core.model.TuicSettings
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
+import com.justnpcx.starveil.core.model.WireGuardPeer
+import com.justnpcx.starveil.core.model.WireGuardSettings
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
 
@@ -120,9 +123,30 @@ object StarveilProtocols {
         editorRoute = "editor/tuic",
     )
 
+    val WireGuard: ProtocolDescriptor = ProtocolDescriptor(
+        type = ProfileType.WIREGUARD,
+        displayName = "WireGuard",
+        defaultPort = 51820,
+        schemes = listOf("wireguard"),
+        linkParser = ::parseWireGuardConf,
+        configBuilder = { profile ->
+            val settings = profile.settings as? WireGuardSettings
+                ?: error("WireGuard profile has no WireGuard settings")
+            SingBoxOutbounds.wireguard(profile, settings)
+        },
+        editorRoute = "editor/wireguard",
+        // No URI scheme to key on: a .conf is recognised by its sections.
+        sniff = { text ->
+            text.contains("[Interface]", ignoreCase = true) &&
+                text.contains("[Peer]", ignoreCase = true)
+        },
+        // sing-box 1.13 removed the WireGuard outbound; it is an endpoint now.
+        placement = ConfigPlacement.ENDPOINT,
+    )
+
     /** The real descriptors, in the agreed priority order. */
     val all: List<ProtocolDescriptor> =
-        listOf(Vless, Trojan, Shadowsocks, Vmess, Hysteria2, Tuic)
+        listOf(Vless, Trojan, Shadowsocks, Vmess, Hysteria2, Tuic, WireGuard)
 
     // ---------------------------------------------------------------- VLESS
 
@@ -463,6 +487,88 @@ object StarveilProtocols {
             ),
         )
     }
+
+    // ------------------------------------------------------------- WireGuard
+
+    /**
+     * A WireGuard `.conf` — the `wg-quick` format every provider hands out.
+     *
+     * There is no URI scheme to key on, so the registry matches this by
+     * sniffing for the `[Interface]` / `[Peer]` sections instead.
+     *
+     * The file's `DNS` line is deliberately ignored: this app runs a tunnel
+     * inside a tun that already hijacks DNS, so a second resolver would fight
+     * it. `Address` is the tunnel address, which the endpoint does need.
+     */
+    fun parseWireGuardConf(text: String): Profile? {
+        val sections = parseIni(text)
+        val iface = sections.firstOrNull { it.first == "interface" }?.second ?: return null
+        val privateKey = iface["privatekey"]?.takeIf { it.isNotBlank() } ?: return null
+        val address = iface["address"].csv()
+        if (address.isEmpty()) return null
+
+        val peers = sections.filter { it.first == "peer" }.mapNotNull { (_, peer) ->
+            val publicKey = peer["publickey"]?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            // A peer with no endpoint cannot be dialled; skip it rather than
+            // fail the whole import — a .conf can list several.
+            val endpoint = peer["endpoint"] ?: return@mapNotNull null
+            val (host, port) = LinkParsing.splitHostPort(endpoint) ?: return@mapNotNull null
+            WireGuardPeer(
+                publicKey = publicKey,
+                endpointAddress = host,
+                endpointPort = port,
+                allowedIps = peer["allowedips"].csv(),
+                preSharedKey = peer["presharedkey"]?.takeIf { it.isNotBlank() },
+                persistentKeepalive = peer["persistentkeepalive"]
+                    ?.trim()?.toIntOrNull()?.takeIf { it > 0 },
+            )
+        }
+        if (peers.isEmpty()) return null
+
+        val first = peers.first()
+        return Profile(
+            name = "WireGuard ${first.endpointAddress}:${first.endpointPort}",
+            type = ProfileType.WIREGUARD,
+            server = first.endpointAddress,
+            port = first.endpointPort,
+            settings = WireGuardSettings(
+                privateKey = privateKey,
+                address = address,
+                peers = peers,
+                mtu = iface["mtu"]?.trim()?.toIntOrNull()?.takeIf { it > 0 },
+                listenPort = iface["listenport"]?.trim()?.toIntOrNull()?.takeIf { it > 0 },
+            ),
+        )
+    }
+
+    /**
+     * `[section]` / `key = value`, with `#` and `;` comments. Sections repeat
+     * (a `.conf` can carry several `[Peer]`s), so this returns a list rather
+     * than a map keyed by section name.
+     */
+    private fun parseIni(text: String): List<Pair<String, Map<String, String>>> {
+        val sections = mutableListOf<Pair<String, Map<String, String>>>()
+        var current: MutableMap<String, String>? = null
+        for (raw in text.lineSequence()) {
+            val line = raw.trim()
+            if (line.isEmpty() || line.startsWith("#") || line.startsWith(";")) continue
+            if (line.startsWith("[") && line.endsWith("]")) {
+                val name = line.substring(1, line.length - 1).trim().lowercase()
+                current = LinkedHashMap()
+                sections += name to current
+                continue
+            }
+            val eq = line.indexOf('=')
+            if (eq <= 0 || current == null) continue
+            val key = line.substring(0, eq).trim().lowercase()
+            val value = line.substring(eq + 1).trim()
+            if (key.isNotEmpty()) current[key] = value
+        }
+        return sections
+    }
+
+    private fun String?.csv(): List<String> =
+        this?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
 
     // ------------------------------------------------------------ shared bits
 
