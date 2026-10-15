@@ -262,6 +262,26 @@ class SparklineGestureTest {
     }
 
     @Test
+    fun `anchoring at an edge keeps the edge sample when the window is panned`() {
+        // Panned to 20 at 2x, so the sample against the left edge is 20 and the
+        // one against the right edge is 43. Zooming from there must keep the
+        // edge the fingers are on, not jump back to the ends of the history.
+        val atLeft = applySparklineGesture(
+            zoom = 2f, start = 20f, gestureZoom = 2f, panXPx = 0f, centroidXPx = 0f,
+            total = total, widthPx = widthPx,
+        )
+        assertEquals(20f, atLeft.start, 0.001f)
+
+        val atRight = applySparklineGesture(
+            zoom = 2f, start = 20f, gestureZoom = 2f, panXPx = 0f, centroidXPx = widthPx,
+            total = total, widthPx = widthPx,
+        )
+        // 4x shows 12 samples; keeping sample 43 against the right edge means
+        // start 32, so `start + count == 44` still holds.
+        assertEquals(32f, atRight.start, 0.001f)
+    }
+
+    @Test
     fun `a pinch delivered as many events does not drift off the anchor`() {
         // A real pinch arrives as a stream of small zoom steps, so the anchor
         // has to survive being applied repeatedly. Deriving it from the
