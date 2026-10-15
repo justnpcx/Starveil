@@ -44,13 +44,6 @@ interface PreferencesRepository {
     /** Last leak self-check (minimal M2 version). */
     val lastLeakCheck: Flow<LeakCheckRecord>
 
-    /**
-     * Skeleton default true: the Fake kernel is the only working kernel
-     * until RealKernelBridge lands. Flip to false when the real kernel is
-     * ready — do not delete the switch; it stays as a debug escape hatch.
-     */
-    val useFakeKernel: Flow<Boolean>
-
     /** Epoch ms of the last successful subscription refresh; 0 = never. */
     val subscriptionLastSuccessAt: Flow<Long>
 
@@ -67,7 +60,6 @@ interface PreferencesRepository {
     suspend fun recordLeakCheck(record: LeakCheckRecord)
     suspend fun setSpeedTestUrl(url: String)
     suspend fun setSelectedProfileId(id: Long)
-    suspend fun setUseFakeKernel(useFake: Boolean)
 
     /** Record a successful subscription refresh. */
     suspend fun recordSubscriptionSuccess(atEpochMs: Long)
@@ -94,7 +86,6 @@ class DataStorePreferencesRepository @Inject constructor(
         val LEAK_CHECK_BLOCKED = booleanPreferencesKey("leak_check_blocked")
         val SPEED_TEST_URL = stringPreferencesKey("speed_test_url")
         val SELECTED_PROFILE_ID = longPreferencesKey("selected_profile_id")
-        val USE_FAKE_KERNEL = booleanPreferencesKey("use_fake_kernel")
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
         val SUB_LAST_ERROR = stringPreferencesKey("subscription_last_error")
@@ -132,10 +123,6 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.SPEED_TEST_URL] ?: "http://cp.cloudflare.com/" }
 
-    override val useFakeKernel: Flow<Boolean> = dataStore.data
-        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.USE_FAKE_KERNEL] ?: true }
-
     override suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
     }
@@ -169,10 +156,6 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setSelectedProfileId(id: Long) {
         dataStore.edit { it[Keys.SELECTED_PROFILE_ID] = id }
-    }
-
-    override suspend fun setUseFakeKernel(useFake: Boolean) {
-        dataStore.edit { it[Keys.USE_FAKE_KERNEL] = useFake }
     }
 
     override val subscriptionLastSuccessAt: Flow<Long> = dataStore.data

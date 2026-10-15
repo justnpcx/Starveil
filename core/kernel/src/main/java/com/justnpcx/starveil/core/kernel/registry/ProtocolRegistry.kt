@@ -5,21 +5,6 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 
 /**
- * Everything the app needs to know about one protocol, in one place.
- *
- * Adding a protocol = registering one [ProtocolDescriptor]. No `when`
- * branches on [ProfileType] anywhere else in the app — that was the
- * enum-dispatch trap this registry replaces.
- *
- * - [linkParser]: parse a share link (`vless://…`) into a [Profile], or
- *   null if the link is not this protocol's. Pure function, no IO.
- * - [configBuilder]: build this protocol's sing-box outbound fragment
- *   from a [Profile]. Pure function; the real ConfigBuilder consumes
- *   these fragments. Must never include credentials in logs.
- * - [editorRoute]: the Compose navigation route of this protocol's edit
- *   screen. UI resolves it; `:core:kernel` never imports UI code.
- */
-/**
  * Where a protocol's config fragment belongs in the sing-box config.
  *
  * Almost everything is an outbound. WireGuard is an *endpoint*: sing-box 1.13
@@ -28,6 +13,19 @@ import com.justnpcx.starveil.core.model.ProfileType
  */
 enum class ConfigPlacement { OUTBOUND, ENDPOINT }
 
+/**
+ * Everything the app needs to know about one protocol, in one place.
+ *
+ * Adding a protocol = registering one [ProtocolDescriptor]. No `when`
+ * branches on [ProfileType] anywhere else in the app — that was the
+ * enum-dispatch trap this registry replaces.
+ *
+ * - [linkParser]: parse a share link (`vless://…`) into a [Profile], or
+ *   null if the link is not this protocol's. Pure function, no IO.
+ * - [configBuilder]: build this protocol's sing-box fragment from a
+ *   [Profile]. Pure function; the real ConfigBuilder consumes these
+ *   fragments. Must never include credentials in logs.
+ */
 data class ProtocolDescriptor(
     val type: ProfileType,
     val displayName: String,
@@ -36,7 +34,6 @@ data class ProtocolDescriptor(
     val schemes: List<String>,
     val linkParser: (String) -> Profile?,
     val configBuilder: (Profile) -> Map<String, Any?>,
-    val editorRoute: String,
     /**
      * True when [linkParser] should also be tried on text that carries no
      * scheme — a WireGuard `.conf`, for instance. Scheme-ful links never reach
