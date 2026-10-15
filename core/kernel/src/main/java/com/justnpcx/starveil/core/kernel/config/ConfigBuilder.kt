@@ -44,8 +44,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     /**
      * Multi-profile config: one outbound per profile plus an `auto` urltest
-     * group, which becomes the route's final outbound. Used for subscription
-     * imports and for the node-switch flow.
+     * group, which becomes the route's final outbound.
+     *
+     * NOT WIRED UP: nothing outside the tests calls this. Connecting goes
+     * through the single-profile [build], driven by whichever node is selected,
+     * so the urltest path is unreachable — as is the group mode that would
+     * choose it. This is the config half of that unfinished feature and is
+     * covered by tests, so it is kept rather than deleted; drop both together
+     * if the feature is dropped. The previous wording here claimed this was
+     * "used for subscription imports and for the node-switch flow", which was
+     * simply untrue.
      */
     fun build(profiles: List<Profile>, rules: List<Rule> = emptyList()): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
