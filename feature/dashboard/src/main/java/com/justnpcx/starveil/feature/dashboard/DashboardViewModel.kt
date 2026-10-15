@@ -46,7 +46,28 @@ data class DashboardUiState(
     val selectedNodeName: String = NO_NODE,
     val isBusy: Boolean = false,
     val errorMessage: String? = null,
+    /**
+     * The last self-check found traffic escaping. A warning, not a failure:
+     * the tunnel is up and carrying traffic, it just is not trustworthy.
+     */
+    val leakDetected: Boolean = false,
 ) {
+    /**
+     * What the core draws.
+     *
+     * Kept apart from [connectionState] on purpose: that one is the tunnel's
+     * own state machine, which connect/disconnect write, and "a leak was
+     * detected" is a fact about its health rather than a fifth state the
+     * machine can be in. Folding it in here keeps the mapping in one place
+     * instead of in every reader.
+     */
+    val coreState: ConnectionState
+        get() = if (connectionState == ConnectionState.CONNECTED && leakDetected) {
+            ConnectionState.WARNING
+        } else {
+            connectionState
+        }
+
     companion object {
         const val NO_NODE = "No node selected"
         const val HISTORY_SIZE = 48
@@ -126,6 +147,13 @@ class DashboardViewModel @Inject constructor(
                 }
             }
         }
+        // A leak the self-check found is what turns a healthy-looking tunnel
+        // into a warning. Observed rather than polled, like everything else.
+        scope.launch {
+            preferences.lastLeakCheck.collect { record ->
+                _uiState.update { it.copy(leakDetected = record.leaking) }
+            }
+        }
     }
 
     /** Point the running tunnel at the newly selected target. */
@@ -161,18 +189,23 @@ class DashboardViewModel @Inject constructor(
         }
 
         canAutoReconnect = false
-        _uiState.update { it.copy(errorMessage = TUNNEL_RECONNECTING) }
-        connect()
+        connect(notice = TUNNEL_RECONNECTING)
     }
 
     /** Tap on the core: connect or disconnect. */
     fun onCoreClick() {
         if (_uiState.value.isBusy) return
+        // Reads the tunnel's own state, not [DashboardUiState.coreState]: a
+        // warning means the tunnel *is* up, so a tap must still take it down.
+        //
+        // The machine never writes WARNING here — it is derived in coreState —
+        // but it is grouped with CONNECTED rather than ignored, so the tap
+        // cannot start meaning the opposite if that ever changes.
         when (_uiState.value.connectionState) {
             ConnectionState.DISCONNECTED, ConnectionState.BLOCKED ->
                 scope.launch { connect(userInitiated = true) }
 
-            ConnectionState.CONNECTED -> scope.launch { disconnect() }
+            ConnectionState.CONNECTED, ConnectionState.WARNING -> scope.launch { disconnect() }
             ConnectionState.CONNECTING -> { /* ignore taps while connecting */ }
         }
     }
@@ -180,11 +213,15 @@ class DashboardViewModel @Inject constructor(
     /**
      * @param userInitiated true when the user (or a node switch) asked for
      *   this, which re-arms the single automatic reconnect.
+     * @param notice what to tell the user while this attempt runs. A plain
+     *   connect clears whatever was there; the automatic reconnect passes the
+     *   reason it is retrying, because that is the whole message — setting it
+     *   beforehand and then calling this would wipe it on the next line.
      */
-    private suspend fun connect(userInitiated: Boolean = false) {
+    private suspend fun connect(userInitiated: Boolean = false, notice: String? = null) {
         if (userInitiated) canAutoReconnect = true
         _uiState.update {
-            it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = null)
+            it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = notice)
         }
 
         // Kill Switch, panic mode. Asked as "would traffic be allowed if we
@@ -236,6 +273,11 @@ class DashboardViewModel @Inject constructor(
                     isBusy = false,
                     connectionState = ConnectionState.CONNECTED,
                     selectedNodeName = target.label(),
+                    // A retry that succeeded must not leave "reconnecting…" on
+                    // screen. This is only reachable now that [connect] lets a
+                    // caller's notice survive: it used to be cleared on the
+                    // next line, which also hid this.
+                    errorMessage = null,
                 )
             }
             startStatsLoop()

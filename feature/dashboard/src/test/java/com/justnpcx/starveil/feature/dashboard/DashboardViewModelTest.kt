@@ -22,6 +22,7 @@ import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.ui.components.ConnectionState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -35,9 +36,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -306,6 +310,71 @@ class DashboardViewModelTest {
         assertEquals("sub", viewModel.uiState.value.selectedNodeName)
     }
 
+    @Test
+    fun `a leak found while connected turns the core into a warning`() = runBlocking {
+        val preferences = FakePreferences(ONE)
+        val viewModel = viewModel(preferences, RecordingKernel())
+        viewModel.onCoreClick()
+        yield()
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.coreState)
+
+        preferences.reportLeak(LeakCheckRecord(checkedAtEpochMs = 1L, leaking = true))
+        yield()
+
+        // The tunnel is still up and still carrying traffic: this is a warning,
+        // not a failure, so the underlying state must not change.
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(ConnectionState.WARNING, viewModel.uiState.value.coreState)
+    }
+
+    @Test
+    fun `a leak only warns while there is a tunnel to warn about`() {
+        // Pure mapping — no tunnel up means nothing to be warned about, however
+        // stale the last self-check is.
+        val leaking = DashboardUiState(leakDetected = true)
+
+        assertEquals(ConnectionState.DISCONNECTED, leaking.coreState)
+        assertEquals(
+            ConnectionState.WARNING,
+            leaking.copy(connectionState = ConnectionState.CONNECTED).coreState,
+        )
+        assertEquals(
+            ConnectionState.BLOCKED,
+            leaking.copy(connectionState = ConnectionState.BLOCKED).coreState,
+        )
+        assertEquals(
+            ConnectionState.CONNECTING,
+            leaking.copy(connectionState = ConnectionState.CONNECTING).coreState,
+        )
+    }
+
+    @Test
+    fun `an automatic reconnect says why it is retrying`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = true), kernel)
+        viewModel.onCoreClick()
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+
+        // Hold the retry open so the in-flight state can be inspected; in
+        // production that window is however long the kernel takes to start.
+        kernel.gate = CompletableDeferred()
+        kernel.crash()
+        yield()
+
+        assertEquals(ConnectionState.CONNECTING, viewModel.uiState.value.connectionState)
+        val notice = viewModel.uiState.value.errorMessage
+        // Setting the notice and then calling connect() used to wipe it on the
+        // next line, so the user saw a core spinning with no explanation.
+        assertNotNull("the retry must say why it is retrying", notice)
+        assertTrue("expected a reconnect notice, got: $notice", notice!!.contains("reconnect"))
+
+        kernel.gate!!.complete(Unit)
+        yield()
+        // And it must not outlive the attempt it described.
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
     private fun viewModel(
         preferences: FakePreferences,
         kernel: RecordingKernel,
@@ -347,6 +416,12 @@ private class FakePreferences(
 
     private val killSwitch = MutableStateFlow(initialKillSwitch)
     private val autoReconnectFlow = MutableStateFlow(autoReconnect)
+    private val leak = MutableStateFlow(LeakCheckRecord())
+
+    /** Stands in for the self-check writing its verdict. */
+    fun reportLeak(record: LeakCheckRecord) {
+        leak.value = record
+    }
 
     private val target = MutableStateFlow<ConnectionTarget>(
         if (initialId != 0L) ConnectionTarget.Node(initialId) else ConnectionTarget.None,
@@ -360,6 +435,7 @@ private class FakePreferences(
 
     override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
+    override val lastLeakCheck: Flow<LeakCheckRecord> = leak
 
     override suspend fun setSelectedProfileId(id: Long) {
         // Clearing the node must not disturb a group that is selected instead;
@@ -382,7 +458,6 @@ private class FakePreferences(
     // The rest of the preferences are not what this test is about.
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
-    override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
@@ -447,9 +522,16 @@ private class RecordingKernel : KernelBridge {
         _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
     }
 
+    /**
+     * When set, [start] waits on it. Lets a test look at the state *during* a
+     * connect, which is otherwise invisible because everything runs unconfined.
+     */
+    var gate: CompletableDeferred<Unit>? = null
+
     override suspend fun start(config: String): Result<Unit> {
         starts++
         lastConfig = config
+        gate?.await()
         if (crashOnStart) {
             _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
             return Result.failure(IllegalStateException("kernel stopped unexpectedly"))

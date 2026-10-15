@@ -34,6 +34,14 @@ object StarveilMotion {
     /** Ambient breathing loop period (ms). */
     const val BREATH_PERIOD_MS = 2600
 
+    /**
+     * Warning breathing period (ms) — slower than [BREATH_PERIOD_MS] on
+     * purpose. A warning that pulses at the healthy rate reads as "all good"
+     * with the wrong colour; the slower, shallower pulse is what makes it
+     * read as attention rather than life.
+     */
+    const val WARNING_BREATH_PERIOD_MS = 3600
+
     /** Connecting rotation period (ms). */
     const val SPIN_PERIOD_MS = 1100
 

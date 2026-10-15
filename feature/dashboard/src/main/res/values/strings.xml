@@ -8,4 +8,6 @@
     <string name="dashboard_core_connecting">Connection state: connecting. Please wait.</string>
     <string name="dashboard_core_connected">Connection state: connected. Tap to disconnect.</string>
     <string name="dashboard_core_blocked">Connection state: blocked. Tap to try again.</string>
+    <!-- The tunnel is up, but the self-check found traffic escaping. -->
+    <string name="dashboard_core_warning">Connection state: connected with a warning. Tap to disconnect.</string>
 </resources>
