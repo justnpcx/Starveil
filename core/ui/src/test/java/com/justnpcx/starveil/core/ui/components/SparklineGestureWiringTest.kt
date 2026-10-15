@@ -156,6 +156,23 @@ class SparklineGestureWiringTest {
         assertPinchAnchor(0.25f)
     }
 
+    /**
+     * A pinch focused near an edge, where the anchor is close to 0 or 1 and
+     * the anchored window is closest to the ends of the history. The middle
+     * fractions are covered above; these pin down that the anchoring does not
+     * behave differently at the ends — in particular that it neither clamps
+     * into the wrong window nor slides off the finger.
+     */
+    @Test
+    fun `a pinch next to the right edge still zooms and still anchors there`() {
+        assertPinchAnchor(0.9f)
+    }
+
+    @Test
+    fun `a pinch next to the left edge still zooms and still anchors there`() {
+        assertPinchAnchor(0.1f)
+    }
+
     private companion object {
         const val TAG = "sparkline"
     }
@@ -169,6 +186,10 @@ class SparklineGestureWiringTest {
      * at that fraction, i.e. `start == fraction * (total - n)`. The old,
      * unanchored zoom ignored the centroid and always left `start` at 0, so
      * this fails against it.
+     *
+     * The zoom is asserted first: at 1x the expected start is 0 whatever the
+     * fraction, so a gesture that failed to register would otherwise satisfy
+     * the anchor assertion trivially.
      */
     private fun assertPinchAnchor(fraction: Float) {
         val state = SparklineState()
@@ -184,6 +205,11 @@ class SparklineGestureWiringTest {
         val widthPx = rule.onNodeWithTag(TAG).fetchSemanticsNode().size.width.toFloat()
         rule.onNodeWithTag(TAG).performTouchInput { pinchOutAt(fraction, widthPx) }
 
+        assertTrue(
+            "the pinch did not zoom at all (zoom=${state.zoom}); the anchor check would be vacuous",
+            state.zoom > 1f,
+        )
+
         val visible = visibleWindow(samples.size, state.zoom, 0f).count
         val expected = fraction * (samples.size - visible)
         assertEquals("anchored at $fraction", expected, state.start, 1.5f)
@@ -193,13 +219,17 @@ class SparklineGestureWiringTest {
 /**
  * A zoom-in centred on [fraction] of the node's width.
  *
- * The spread shrinks near the edges so neither finger leaves the canvas: a
- * finger that leaves stops being reported, and the pinch would no longer be a
- * pure zoom about the centroid.
+ * The spread shrinks near the edges and stops just short of them. A pointer
+ * that runs past the canvas *is* still reported once the gesture is captured
+ * (verified: pushing a finger 40px outside changes nothing), so this is not
+ * load-bearing — it just avoids the test depending on whether a pointer
+ * exactly on the boundary counts as inside, which is the kind of detail that
+ * can shift between Compose versions.
  */
 private fun androidx.compose.ui.test.TouchInjectionScope.pinchOutAt(fraction: Float, widthPx: Float) {
     val focusX = widthPx * fraction
-    val spread = minOf(widthPx * fraction, widthPx * (1f - fraction), 60f)
+    val room = (minOf(focusX, widthPx - focusX) - EDGE_MARGIN_PX).coerceAtLeast(1f)
+    val spread = minOf(room, MAX_SPREAD_PX)
     pinch(
         start0 = Offset(focusX - spread / 3f, center.y),
         end0 = Offset(focusX - spread, center.y),
@@ -207,6 +237,12 @@ private fun androidx.compose.ui.test.TouchInjectionScope.pinchOutAt(fraction: Fl
         end1 = Offset(focusX + spread, center.y),
     )
 }
+
+/** Keeps a pinch finger just inside the canvas boundary. */
+private const val EDGE_MARGIN_PX = 8f
+
+/** Otherwise a pinch at the middle would reach far wider than it needs to. */
+private const val MAX_SPREAD_PX = 60f
 
 /** A zoom-in from the middle of the node. */
 private fun androidx.compose.ui.test.TouchInjectionScope.pinchOut() {
