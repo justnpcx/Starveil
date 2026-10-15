@@ -97,6 +97,18 @@ fun SettingsScreen(
         TextButton(onClick = onRunLeakCheck) {
             Text(stringResource(R.string.leak_check_run))
         }
+
+        SectionTitle(stringResource(R.string.settings_kernel_title))
+        Text(
+            // The core names itself; this is the version a bug report should
+            // quote, and it is read from the shipped library rather than
+            // written down here where it would drift.
+            text = state.kernelVersion.takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.settings_kernel_version, it) }
+                ?: stringResource(R.string.settings_kernel_unknown),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

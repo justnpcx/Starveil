@@ -37,7 +37,11 @@
 - `DashboardViewModel` **未改行为**：它只用 `start/stop/queryStats`（签名未变），调用点经检查无破损；消费 `kernel.state` 的完整映射属于 Phase 3 Dashboard 工作，不在此处半改状态机。
 - `KernelModule` 未变：仍提供 `FakeKernelBridge`，一处切换点保持。
 
-**仍未做**：`reload`（配置热重载）、`version()`（内核版本查询）、Kill Switch API（审计 §2.2 建议项，本次任务清单未包含，留待 Phase 2 后续）。
+**仍未做**：`reload`（配置热重载）。
+
+**后续已补**（更新于 M3）：
+- `version()`（内核版本查询）—— `KernelBridge.version()`，读 `Libbox.version()` 而不是在 Kotlin 里写死（app 发的是编好的 libbox，写死的版本号会悄悄漂移）。Settings 页「Kernel」一节展示，出问题时报这个号。
+- Kill Switch API（审计 §2.2）—— `KernelBridge.stopKeepingTunnel()`：停内核但**留住 tun**，"隧道还在但没人转发"本身就是拦截态；`KillSwitchMode` 三档在 Settings 页可选。
 
 ## 修复 3：注册表模式
 
