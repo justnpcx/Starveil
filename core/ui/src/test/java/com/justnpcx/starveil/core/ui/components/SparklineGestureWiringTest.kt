@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
 import androidx.compose.ui.test.swipeLeft
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -77,9 +78,12 @@ class SparklineGestureWiringTest {
         assertTrue("precondition: zoomed in, was ${state.zoom}", state.zoom > 1f)
 
         // swipeLeft drags towards the past, which moves the window forward.
+        // Measured as a delta: the pinch itself already anchored the window
+        // somewhere non-zero.
+        val before = state.start
         rule.onNodeWithTag(TAG).performTouchInput { swipeLeft() }
 
-        assertTrue("start should move after a pan, was ${state.start}", state.start > 0f)
+        assertTrue("start should move after a pan: $before -> ${state.start}", state.start > before)
     }
 
     /**
@@ -116,6 +120,7 @@ class SparklineGestureWiringTest {
         val windowCount = visibleWindow(count, state.zoom, state.start).count
         val samplesPerPx = windowCount / widthPx
 
+        val before = state.start
         rule.onNodeWithTag(TAG).performTouchInput {
             down(center)
             moveBy(Offset(-150f, 0f))
@@ -132,19 +137,78 @@ class SparklineGestureWiringTest {
         }
 
         // ~300px of drag. Losing the second half leaves about half the samples.
+        // A delta, because the pinch above already anchored the window.
         val expectedFull = 300f * samplesPerPx
+        val moved = state.start - before
         assertTrue(
-            "start=${state.start} should reflect the whole drag (~$expectedFull samples)",
-            state.start > expectedFull * 0.6f,
+            "the drag moved $moved samples, expected ~$expectedFull",
+            moved > expectedFull * 0.6f,
         )
+    }
+
+    @Test
+    fun `a pinch on the right half keeps the later samples under the fingers`() {
+        assertPinchAnchor(0.75f)
+    }
+
+    @Test
+    fun `a pinch on the left half keeps the earlier samples under the fingers`() {
+        assertPinchAnchor(0.25f)
     }
 
     private companion object {
         const val TAG = "sparkline"
     }
+
+    /**
+     * Pinching at [fraction] across the chart must leave the window anchored
+     * there: the sample under the fingers stays under the fingers.
+     *
+     * The whole history is on screen at 1x, so the sample under the centroid is
+     * `fraction * total`; after zooming to `n` visible samples it must still be
+     * at that fraction, i.e. `start == fraction * (total - n)`. The old,
+     * unanchored zoom ignored the centroid and always left `start` at 0, so
+     * this fails against it.
+     */
+    private fun assertPinchAnchor(fraction: Float) {
+        val state = SparklineState()
+        rule.setContent {
+            TrafficSparkline(
+                downlinkSamples = samples,
+                uplinkSamples = samples,
+                modifier = Modifier.testTag(TAG),
+                state = state,
+            )
+        }
+
+        val widthPx = rule.onNodeWithTag(TAG).fetchSemanticsNode().size.width.toFloat()
+        rule.onNodeWithTag(TAG).performTouchInput { pinchOutAt(fraction, widthPx) }
+
+        val visible = visibleWindow(samples.size, state.zoom, 0f).count
+        val expected = fraction * (samples.size - visible)
+        assertEquals("anchored at $fraction", expected, state.start, 1.5f)
+    }
 }
 
-/** Two fingers apart from the centre: a zoom-in, past touch slop. */
+/**
+ * A zoom-in centred on [fraction] of the node's width.
+ *
+ * The spread shrinks near the edges so neither finger leaves the canvas: a
+ * finger that leaves stops being reported, and the pinch would no longer be a
+ * pure zoom about the centroid.
+ */
+private fun androidx.compose.ui.test.TouchInjectionScope.pinchOutAt(fraction: Float, widthPx: Float) {
+    val focusX = widthPx * fraction
+    val spread = minOf(widthPx * fraction, widthPx * (1f - fraction), 60f)
+    pinch(
+        start0 = Offset(focusX - spread / 3f, center.y),
+        end0 = Offset(focusX - spread, center.y),
+        start1 = Offset(focusX + spread / 3f, center.y),
+        end1 = Offset(focusX + spread, center.y),
+    )
+}
+
+/** A zoom-in from the middle of the node. */
 private fun androidx.compose.ui.test.TouchInjectionScope.pinchOut() {
     pinch(
         start0 = center + Offset(-20f, 0f),

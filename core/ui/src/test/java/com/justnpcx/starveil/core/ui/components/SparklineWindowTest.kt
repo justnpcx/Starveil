@@ -67,8 +67,11 @@ class SparklineWindowTest {
  * What one gesture event does to the viewport.
  *
  * `detectTransformGestures` itself needs a real pointer stream, which is why
- * the arithmetic was pulled out here — the pixel-to-sample conversion and the
- * two clamps are the parts that actually break.
+ * the arithmetic was pulled out here — the pixel-to-sample conversion, the
+ * centroid anchoring and the two clamps are the parts that actually break.
+ *
+ * `centroidXPx = 0f` is the left edge, which is what the old, unanchored
+ * implementation did for every zoom; the pan-only cases do not depend on it.
  */
 class SparklineGestureTest {
 
@@ -84,6 +87,7 @@ class SparklineGestureTest {
             start = 0f,
             gestureZoom = 2f,
             panXPx = -100f,
+            centroidXPx = 0f,
             total = total,
             widthPx = widthPx,
         )
@@ -98,6 +102,7 @@ class SparklineGestureTest {
             start = 20f,
             gestureZoom = 1f,
             panXPx = 100f,
+            centroidXPx = 0f,
             total = total,
             widthPx = widthPx,
         )
@@ -112,6 +117,7 @@ class SparklineGestureTest {
             start = 0f,
             gestureZoom = 2f,
             panXPx = -100_000f,
+            centroidXPx = 0f,
             total = total,
             widthPx = widthPx,
         )
@@ -126,6 +132,7 @@ class SparklineGestureTest {
             start = 10f,
             gestureZoom = 1f,
             panXPx = 100_000f,
+            centroidXPx = 0f,
             total = total,
             widthPx = widthPx,
         )
@@ -134,10 +141,14 @@ class SparklineGestureTest {
 
     @Test
     fun `zoom is clamped, so a wild pinch cannot escape the history`() {
-        val pinchedIn = applySparklineGesture(1f, 0f, gestureZoom = 0.001f, panXPx = 0f, total = total, widthPx = widthPx)
+        val pinchedIn = applySparklineGesture(
+            1f, 0f, gestureZoom = 0.001f, panXPx = 0f, centroidXPx = 0f, total = total, widthPx = widthPx,
+        )
         assertEquals(1f, pinchedIn.zoom, 0.001f)
 
-        val pinchedOut = applySparklineGesture(1f, 0f, gestureZoom = 1000f, panXPx = 0f, total = total, widthPx = widthPx)
+        val pinchedOut = applySparklineGesture(
+            1f, 0f, gestureZoom = 1000f, panXPx = 0f, centroidXPx = 0f, total = total, widthPx = widthPx,
+        )
         assertEquals(8f, pinchedOut.zoom, 0.001f)
     }
 
@@ -150,10 +161,130 @@ class SparklineGestureTest {
             start = 0f,
             gestureZoom = 1f,
             panXPx = -50f,
+            centroidXPx = 0f,
             total = total,
             widthPx = 0f,
         )
         assertFalse(viewport.start.isNaN())
         assertFalse(viewport.zoom.isNaN())
+    }
+
+    @Test
+    fun `zooming keeps the sample under the centroid in place`() {
+        // The whole history (0..47) is on screen over 240px, so the sample at
+        // the centre of the canvas is the middle one, 24.
+        val viewport = applySparklineGesture(
+            zoom = 1f,
+            start = 0f,
+            gestureZoom = 2f,
+            panXPx = 0f,
+            centroidXPx = widthPx / 2f,
+            total = total,
+            widthPx = widthPx,
+        )
+
+        // 2x shows 24 samples. Anchoring on the middle puts sample 24 at the
+        // middle: start + 0.5 * 24 == 24.
+        assertEquals(2f, viewport.zoom, 0.001f)
+        assertEquals(12f, viewport.start, 0.001f)
+    }
+
+    @Test
+    fun `anchoring at the left edge keeps the oldest sample`() {
+        val viewport = applySparklineGesture(
+            zoom = 1f,
+            start = 0f,
+            gestureZoom = 2f,
+            panXPx = 0f,
+            centroidXPx = 0f,
+            total = total,
+            widthPx = widthPx,
+        )
+        assertEquals(0f, viewport.start, 0.001f)
+    }
+
+    @Test
+    fun `anchoring at the right edge keeps the newest sample`() {
+        val viewport = applySparklineGesture(
+            zoom = 1f,
+            start = 0f,
+            gestureZoom = 2f,
+            panXPx = 0f,
+            centroidXPx = widthPx,
+            total = total,
+            widthPx = widthPx,
+        )
+        // Window 24..47, so sample 47 is still against the right edge.
+        assertEquals(24f, viewport.start, 0.001f)
+    }
+
+    @Test
+    fun `a centroid outside the canvas cannot throw the window past an end`() {
+        // A pinch can put the centroid off the canvas; the anchor is clamped,
+        // not extrapolated.
+        val beyondLeft = applySparklineGesture(
+            1f, 0f, gestureZoom = 2f, panXPx = 0f, centroidXPx = -500f, total = total, widthPx = widthPx,
+        )
+        assertEquals(0f, beyondLeft.start, 0.001f)
+
+        val beyondRight = applySparklineGesture(
+            1f, 0f, gestureZoom = 2f, panXPx = 0f, centroidXPx = 500f, total = total, widthPx = widthPx,
+        )
+        assertEquals(24f, beyondRight.start, 0.001f)
+    }
+
+    @Test
+    fun `zooming out also anchors on the centroid`() {
+        // 4x shows 12 samples; window 18..29, so the middle sample is 24.
+        val viewport = applySparklineGesture(
+            zoom = 4f,
+            start = 18f,
+            gestureZoom = 0.5f,
+            panXPx = 0f,
+            centroidXPx = widthPx / 2f,
+            total = total,
+            widthPx = widthPx,
+        )
+        // 2x shows 24 samples; sample 24 must still be in the middle.
+        assertEquals(2f, viewport.zoom, 0.001f)
+        assertEquals(12f, viewport.start, 0.001f)
+    }
+
+    @Test
+    fun `a pure pan does not depend on where the fingers are`() {
+        val atLeft = applySparklineGesture(
+            2f, 10f, gestureZoom = 1f, panXPx = -50f, centroidXPx = 0f, total = total, widthPx = widthPx,
+        )
+        val atRight = applySparklineGesture(
+            2f, 10f, gestureZoom = 1f, panXPx = -50f, centroidXPx = widthPx, total = total, widthPx = widthPx,
+        )
+        assertEquals(atLeft.start, atRight.start, 0.001f)
+    }
+
+    @Test
+    fun `a pinch delivered as many events does not drift off the anchor`() {
+        // A real pinch arrives as a stream of small zoom steps, so the anchor
+        // has to survive being applied repeatedly. Deriving it from the
+        // window's floored start lost a fraction on every step and slid the
+        // window several samples away from the fingers.
+        var viewport = SparkViewport(zoom = 1f, start = 0f)
+        val centroidXPx = widthPx / 4f
+        repeat(20) {
+            viewport = applySparklineGesture(
+                zoom = viewport.zoom,
+                start = viewport.start,
+                gestureZoom = 1.05f,
+                panXPx = 0f,
+                centroidXPx = centroidXPx,
+                total = total,
+                widthPx = widthPx,
+            )
+        }
+
+        // At 1x the sample under the centroid is 0.25 * 48 == 12; it must still
+        // be under it, whatever the final zoom.
+        val visible = visibleWindow(total, viewport.zoom, viewport.start).count
+        val sampleUnderCentroid = viewport.start + 0.25f * visible
+        assertEquals(12f, sampleUnderCentroid, 1f)
     }
 }

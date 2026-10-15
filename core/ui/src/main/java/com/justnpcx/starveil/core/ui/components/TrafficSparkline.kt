@@ -30,9 +30,11 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
  * relative shape is readable at a glance. Deliberately allocation-light: the
  * caller keeps a bounded history and passes it in.
  *
- * Pinch to zoom the time axis, drag to pan. The y-scale stays global rather
- * than per-window, so panning does not make the trace jump vertically —
- * zooming changes how much time is on screen, not how tall the line looks.
+ * Pinch to zoom the time axis, drag to pan. Zoom is anchored on the pinch
+ * centroid, so the sample under the fingers stays under them. The y-scale
+ * stays global rather than per-window, so panning does not make the trace
+ * jump vertically — zooming changes how much time is on screen, not how tall
+ * the line looks.
  */
 @Composable
 fun TrafficSparkline(
@@ -58,10 +60,11 @@ fun TrafficSparkline(
             .fillMaxWidth()
             .height(height)
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, gestureZoom, _ ->
+                detectTransformGestures { centroid, pan, gestureZoom, _ ->
                     state.onGesture(
                         gestureZoom = gestureZoom,
                         panXPx = pan.x,
+                        centroidXPx = centroid.x,
                         total = latestTotal,
                         widthPx = size.width.toFloat(),
                     )
@@ -102,12 +105,19 @@ class SparklineState internal constructor() {
     internal var start by mutableFloatStateOf(0f)
 
     /** Fold one gesture event into the viewport. */
-    internal fun onGesture(gestureZoom: Float, panXPx: Float, total: Int, widthPx: Float) {
+    internal fun onGesture(
+        gestureZoom: Float,
+        panXPx: Float,
+        centroidXPx: Float,
+        total: Int,
+        widthPx: Float,
+    ) {
         val next = applySparklineGesture(
             zoom = zoom,
             start = start,
             gestureZoom = gestureZoom,
             panXPx = panXPx,
+            centroidXPx = centroidXPx,
             total = total,
             widthPx = widthPx,
         )
@@ -124,23 +134,49 @@ fun rememberSparklineState(): SparklineState = remember { SparklineState() }
  *
  * Pure on purpose. `detectTransformGestures` needs a real pointer stream, so
  * the parts of the gesture that are actually easy to get wrong — turning a
- * pixel drag into a sample offset, and clamping at both ends of the history —
- * live here where they can be tested without a device.
+ * pixel drag into a sample offset, keeping the sample under the fingers in
+ * place during a zoom, and clamping at both ends of the history — live here
+ * where they can be tested without a device.
+ *
+ * [centroidXPx] is the pinch focus in canvas pixels. Zooming keeps whatever
+ * sample sits under it under it: pinch on the right-hand spike and the spike
+ * stays put while the axis grows around it, rather than the window sliding
+ * away from the finger.
  */
 internal fun applySparklineGesture(
     zoom: Float,
     start: Float,
     gestureZoom: Float,
     panXPx: Float,
+    centroidXPx: Float,
     total: Int,
     widthPx: Float,
 ): SparkViewport {
+    val width = widthPx.coerceAtLeast(1f)
     val newZoom = (zoom * gestureZoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
-    val window = visibleWindow(total, newZoom, start)
+
+    // How many samples the current zoom shows, and how many the new one will.
+    // The counts do not depend on `start`.
+    val shownCount = visibleWindow(total, zoom, start).count
+    val nextCount = visibleWindow(total, newZoom, start).count
+
+    // Where the fingers are, as a fraction of the window. Clamped, so a
+    // centroid that lands outside the canvas (it can, mid-pinch) cannot throw
+    // the window past either end.
+    val anchor = (centroidXPx / width).coerceIn(0f, 1f)
+
+    // The sample under the centroid is `start + anchor * shownCount`. Solve
+    // `newStart + anchor * nextCount = that` for newStart.
+    //
+    // Deliberately the stored `start`, not the window's floored one: the
+    // fraction lost by flooring is re-lost on every gesture event, and a pinch
+    // delivers many, so the window slid a few samples off the fingers.
+    val anchoredStart = start + anchor * (shownCount - nextCount)
+
     // Pixels -> samples, using the window that will actually be on screen.
-    val perPixel = window.count.toFloat() / widthPx.coerceAtLeast(1f)
-    val maxStart = (total - window.count).coerceAtLeast(0).toFloat()
-    val newStart = (start - panXPx * perPixel).coerceIn(0f, maxStart)
+    val perPixel = nextCount.toFloat() / width
+    val maxStart = (total - nextCount).coerceAtLeast(0).toFloat()
+    val newStart = (anchoredStart - panXPx * perPixel).coerceIn(0f, maxStart)
     return SparkViewport(newZoom, newStart)
 }
 
