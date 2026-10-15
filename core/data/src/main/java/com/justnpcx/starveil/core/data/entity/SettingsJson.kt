@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpMode
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
 
@@ -280,6 +281,7 @@ internal object SettingsJson {
         "host" to t.host,
         "path" to t.path,
         "serviceName" to t.serviceName,
+        "mode" to t.mode?.wireName,
         "headers" to t.headers.takeIf { it.isNotEmpty() },
     )
 
@@ -297,6 +299,10 @@ internal object SettingsJson {
             host = map.str("host"),
             path = map.str("path"),
             serviceName = map.str("serviceName"),
+            // An unrecognised mode (an older/newer `packet-up`, say) decodes to
+            // null so the core picks its own default rather than being handed a
+            // mode it may not implement.
+            mode = map.str("mode")?.let { XhttpMode.fromWireName(it) },
             headers = map["headers"].asStringMap(),
         )
     }

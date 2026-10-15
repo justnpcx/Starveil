@@ -22,6 +22,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpMode
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
 
@@ -625,6 +626,11 @@ object StarveilProtocols {
             host = q["host"]?.takeIf { it.isNotBlank() },
             path = q["path"]?.takeIf { it.isNotBlank() },
             serviceName = (q["serviceName"] ?: q["servicename"])?.takeIf { it.isNotBlank() },
+            // The link carries this as a plain `mode` parameter. Xray panels also
+            // mirror it inside `extra={"mode":…}`; that copy is ignored because it
+            // is the same value, and a mode we do not implement decodes to null so
+            // the core falls back to its own default.
+            mode = q["mode"]?.takeIf { it.isNotBlank() }?.let { XhttpMode.fromWireName(it) },
         )
     }
 

@@ -14,6 +14,7 @@ import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpMode
 import java.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,6 +61,26 @@ class VlessLinkTest {
         assertEquals("chrome", s.tls.fingerprint)
         assertEquals(TransportType.XHTTP, s.transport.type)
         assertEquals("xtls-rprx-vision", s.flow)
+    }
+
+    @Test
+    fun `xhttp mode follows the link, and auto is the same as absent`() {
+        fun modeOf(extra: String) = (
+            StarveilProtocols.parseVless(
+                "vless://11111111-2222-3333-4444-555555555555@r.example.com:443" +
+                    "?security=tls&type=xhttp&path=%2Fxhttp%2F$extra",
+            )!!.settings as VlessSettings
+            ).transport.mode
+
+        assertEquals(XhttpMode.STREAM_UP, modeOf("&mode=stream-up"))
+        assertEquals(XhttpMode.STREAM_ONE, modeOf("&mode=stream-one"))
+        // The core treats an absent mode and `auto` the same way, so there is no
+        // third state to carry.
+        assertNull(modeOf("&mode=auto"))
+        assertNull(modeOf(""))
+        // Xray's `packet-up` is not implemented by the core. Null makes the core
+        // fall back to its default instead of being handed a mode it ignores.
+        assertNull(modeOf("&mode=packet-up"))
     }
 
     @Test

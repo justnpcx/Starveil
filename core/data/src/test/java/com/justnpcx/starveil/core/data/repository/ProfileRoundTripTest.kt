@@ -21,6 +21,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -89,7 +90,12 @@ class ProfileRoundTripTest {
                 fingerprint = "chrome",
                 reality = RealityOptions(publicKey = "PBK", shortId = "ab12", mlKem = true),
             ),
-            transport = TransportOptions(type = TransportType.XHTTP, path = "/x", host = "h.example"),
+            transport = TransportOptions(
+                type = TransportType.XHTTP,
+                path = "/x",
+                host = "h.example",
+                mode = XhttpMode.STREAM_UP,
+            ),
             mux = MuxOptions(enabled = true, protocol = "smux"),
         ),
     )

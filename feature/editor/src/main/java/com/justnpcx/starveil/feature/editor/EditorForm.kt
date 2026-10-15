@@ -20,6 +20,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpMode
 
 /** A field the user can get wrong. Used to attach a message to the right input. */
 enum class EditorField {
@@ -88,6 +89,8 @@ data class EditorForm(
     val transportPath: String = "",
     val transportHost: String = "",
     val transportServiceName: String = "",
+    /** XHTTP only; null means "let the core pick". */
+    val transportMode: XhttpMode? = null,
 
     // --- protocol-specific ---------------------------------------------
     val uuid: String = "",
@@ -317,6 +320,8 @@ data class EditorForm(
             type = transport,
             path = transportPath.ifBlank { null },
             host = transportHost.ifBlank { null },
+            // Only xhttp has a mode; null leaves the core to choose.
+            mode = transportMode.takeIf { transport == TransportType.XHTTP },
         )
     }
 
@@ -348,6 +353,7 @@ data class EditorForm(
                 transportPath = transport?.path.orEmpty(),
                 transportHost = transport?.host.orEmpty(),
                 transportServiceName = transport?.serviceName.orEmpty(),
+                transportMode = transport?.mode,
             ).withSettings(profile.settings)
         }
 
