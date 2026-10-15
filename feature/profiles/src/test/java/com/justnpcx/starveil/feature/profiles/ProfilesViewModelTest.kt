@@ -141,6 +141,75 @@ class ProfilesViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun `renaming a group trims the name and keeps the id`() = runBlocking {
+        val groups = FakeGroups(listOf(ProxyGroup(id = SUB, name = "old")))
+        val viewModel = viewModel(FakeProfiles(mutableListOf()), FakePreferences(ONE), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.renameGroup(ProxyGroup(id = SUB, name = "old"), "  new name  ")
+        yield()
+
+        assertEquals(SUB, groups.upserted?.id)
+        assertEquals("new name", groups.upserted?.name)
+        job.cancel()
+    }
+
+    @Test
+    fun `a blank rename is ignored`() = runBlocking {
+        val groups = FakeGroups(listOf(ProxyGroup(id = SUB, name = "old")))
+        val viewModel = viewModel(FakeProfiles(mutableListOf()), FakePreferences(ONE), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.renameGroup(ProxyGroup(id = SUB, name = "old"), "   ")
+        yield()
+
+        assertNull(groups.upserted)
+        job.cancel()
+    }
+
+    @Test
+    fun `deleting a group removes its nodes and drops the filter`() = runBlocking {
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "one").copy(groupId = SUB),
+                profile(TWO, "two").copy(groupId = 0L),
+            ),
+        )
+        val groups = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
+        val viewModel = viewModel(profiles, FakePreferences(TWO), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(SUB)
+        yield()
+        viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)))
+        yield()
+
+        assertEquals(SUB, groups.deletedId)
+        assertEquals(listOf(TWO), profiles.remainingIds())
+        // The filter pointed at a group that no longer exists.
+        assertNull(viewModel.uiState.value.groupFilter)
+        job.cancel()
+    }
+
+    @Test
+    fun `deleting a group clears the selection when it held the selected node`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one").copy(groupId = SUB)))
+        val preferences = FakePreferences(ONE)
+        val viewModel = viewModel(profiles, preferences, FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub"))))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)))
+        yield()
+
+        assertEquals(0L, preferences.selectedProfileId.first())
+        job.cancel()
+    }
+
     private fun groupsWithSub() = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
 
     private fun viewModel(
@@ -197,6 +266,10 @@ private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepos
         all.removeAll { it.id == id }
     }
 
+    override suspend fun deleteByGroup(groupId: Long) {
+        all.removeAll { it.groupId == groupId }
+    }
+
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = notUsed()
 
     fun remainingIds(): List<Long> = all.map { it.id }
@@ -233,12 +306,25 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
 }
 
 private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : GroupRepository {
+
+    var upserted: ProxyGroup? = null
+        private set
+    var deletedId: Long? = null
+        private set
+
     override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(all)
     override suspend fun getById(id: Long): ProxyGroup? = all.firstOrNull { it.id == id }
     override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? =
         all.firstOrNull { it.subscriptionUrl == url }
-    override suspend fun upsert(group: ProxyGroup): Long = notUsed()
-    override suspend fun deleteById(id: Long) { notUsed() }
+
+    override suspend fun upsert(group: ProxyGroup): Long {
+        upserted = group
+        return group.id
+    }
+
+    override suspend fun deleteById(id: Long) {
+        deletedId = id
+    }
 }
 
 private class FakeHealth : SubscriptionHealthSink {

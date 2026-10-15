@@ -43,6 +43,10 @@ private class FakeProfiles(private val failOnReplace: Boolean = false) : Profile
         stored.removeAll { it.id == id }
     }
 
+    override suspend fun deleteByGroup(groupId: Long) {
+        stored.removeAll { it.groupId == groupId }
+    }
+
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
         replaceCalls++
         if (failOnReplace) throw IllegalStateException("db down")

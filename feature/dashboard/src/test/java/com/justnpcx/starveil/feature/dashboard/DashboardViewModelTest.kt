@@ -204,6 +204,7 @@ private class FakeProfiles(private val all: List<Profile>) : ProfileRepository {
     override fun observeByGroup(groupId: Long): Flow<List<Profile>> = notUsed()
     override suspend fun upsert(profile: Profile): Long = notUsed()
     override suspend fun deleteById(id: Long) { notUsed() }
+    override suspend fun deleteByGroup(groupId: Long) { notUsed() }
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) { notUsed() }
 }
 
