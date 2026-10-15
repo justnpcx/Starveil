@@ -474,14 +474,45 @@ class ConfigBuilderTest {
         }
     }
 
+    /**
+     * A guard against an accidental super-linear rewrite, not a benchmark.
+     *
+     * Building 500 nodes is linear work that measures single-digit
+     * milliseconds; a per-node scan over all nodes would take seconds. The
+     * bound is deliberately far above the real cost, because this runs
+     * alongside every other module's tests and a wall-clock assertion tight
+     * enough to be a useful benchmark is a flake generator — one GC pause, or
+     * a JIT that never got a compiler thread, is enough to fail a correct
+     * change. That is not hypothetical: with a single warm-up and a single
+     * measurement this failed once under load and passed in isolation.
+     *
+     * Best-of-N after a real warm-up for the same reason: the fastest run is
+     * the one least polluted by whatever else the machine was doing.
+     */
     @Test
-    fun `generating a 500-node config stays under 100ms`() {
+    fun `generating a 500-node config stays linear`() {
         val profiles = (0 until 500).map { vlessProfile(uuid = "uuid-$it") }
-        builder.build(profiles) // warm up JIT
-        val start = System.nanoTime()
-        val json = builder.build(profiles)
-        val elapsedMs = (System.nanoTime() - start) / 1_000_000
-        assertTrue(json.contains("\"tag\":\"proxy-499\""))
-        assertTrue("500-node build took ${elapsedMs}ms", elapsedMs < 100)
+        repeat(WARMUP_RUNS) { builder.build(profiles) }
+
+        val fastest = (1..MEASURED_RUNS).minOf {
+            val start = System.nanoTime()
+            val json = builder.build(profiles)
+            assertTrue(json.contains("\"tag\":\"proxy-499\""))
+            (System.nanoTime() - start) / 1_000_000
+        }
+
+        assertTrue(
+            "fastest of $MEASURED_RUNS builds of 500 nodes was ${fastest}ms",
+            fastest < BUDGET_MS,
+        )
+    }
+
+    private companion object {
+        /** ~4ms measured; the headroom is for a loaded machine, not for drift. */
+        const val BUDGET_MS = 250L
+
+        /** Enough for C1/C2 to compile the hot path before anything is timed. */
+        const val WARMUP_RUNS = 5
+        const val MEASURED_RUNS = 5
     }
 }
