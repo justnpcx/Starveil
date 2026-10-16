@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -37,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.FlowOutcome
@@ -86,6 +90,16 @@ fun RulesScreen(
                 contentPadding = PaddingValues(StarveilSpacing.lg),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
+                // The preset is a switch, not a rule: it is a whole routing
+                // policy, and it belongs above both the decisions it produces
+                // and the rules it sits in front of.
+                item(key = PRESET_KEY) {
+                    MainlandPresetCard(
+                        enabled = state.bypassMainland,
+                        onToggle = viewModel::setBypassMainland,
+                    )
+                }
+
                 // The kernel's actual decisions sit above the rules that were
                 // meant to produce them: the list is what was configured, this
                 // is what happened, and the difference is the whole point.
@@ -388,6 +402,10 @@ private fun FlowOutcome.colour(): Color = when (this) {
 
 /** Keys and counts for the flow section. */
 private const val FLOW_HEADER_KEY = "flow-header"
+private const val PRESET_KEY = "mainland-preset"
+
+/** Matches the node card on the Nodes screen; the two are the same kind of thing. */
+private val CARD_CORNER = 16.dp
 
 /**
  * How many decisions are shown above the rule list.
@@ -416,3 +434,45 @@ private fun actionLabel(action: RuleAction): String = stringResource(
         RuleAction.BLOCK -> R.string.rules_action_block
     },
 )
+
+/**
+ * The mainland preset: one switch for a whole routing policy.
+ *
+ * Deliberately not a rule row. A rule is one match and one action, and this is
+ * two rule sets, a DNS split and an ordering decision — presenting it as a row
+ * would invite editing it like one, and there is nothing there to edit.
+ *
+ * The description carries the entire explanation. "Direct" and "proxy" are
+ * already the vocabulary of every row below, so a longer sentence would explain
+ * words the screen has already taught.
+ */
+@Composable
+private fun MainlandPresetCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(CARD_CORNER),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(StarveilSpacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.rules_preset_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(R.string.rules_preset_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
+    }
+}
