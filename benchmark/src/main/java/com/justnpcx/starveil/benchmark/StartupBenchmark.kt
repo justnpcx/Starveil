@@ -41,7 +41,13 @@ class StartupBenchmark {
         startupMode = StartupMode.COLD,
         compilationMode = CompilationMode.None(),
     ) {
-        pressHome()
+        // No pressHome() here. It waits for the whole device to go idle, and on
+        // this phone that never happens after the first iteration — the run
+        // stalls before `am start` is ever issued, perfetto keeps tracing, and
+        // four minutes later the harness gives up with "Process crashed".
+        //
+        // It is also redundant: StartupMode.COLD force-stops the app before
+        // every iteration, which is what makes the launch cold.
         startActivityAndWait()
     }
 
@@ -61,15 +67,29 @@ class StartupBenchmark {
         startupMode = StartupMode.COLD,
         compilationMode = CompilationMode.Partial(BaselineProfileMode.UseIfAvailable),
     ) {
-        pressHome()
+        // No pressHome() here. It waits for the whole device to go idle, and on
+        // this phone that never happens after the first iteration — the run
+        // stalls before `am start` is ever issued, perfetto keeps tracing, and
+        // four minutes later the harness gives up with "Process crashed".
+        //
+        // It is also redundant: StartupMode.COLD force-stops the app before
+        // every iteration, which is what makes the launch cold.
         startActivityAndWait()
     }
 
     private companion object {
         /**
-         * Macrobenchmark's own default. Cold start is noisy enough that a
-         * smaller run reports the device's mood rather than the app's cost.
+         * One, not macrobenchmark's default of 10.
+         *
+         * On this device the harness stalls *between* iterations: the first
+         * one completes, and the next setup never issues its `am start` — the
+         * run sits there for minutes and then `am instrument` reports "Process
+         * crashed". It is not the app being busy (gfxinfo shows the Dashboard
+         * rendering nothing while idle) and not the shader-cache broadcast
+         * (measured at 0 s). One iteration finishes every time, so the number
+         * is collected by running the whole thing repeatedly instead of by
+         * asking for ten iterations in one go.
          */
-        const val ITERATIONS = 10
+        const val ITERATIONS = 1
     }
 }
