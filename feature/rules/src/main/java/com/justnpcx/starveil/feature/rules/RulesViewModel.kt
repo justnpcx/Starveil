@@ -3,6 +3,8 @@ package com.justnpcx.starveil.feature.rules
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.repository.RuleRepository
+import com.justnpcx.starveil.core.kernel.FlowLog
+import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
@@ -11,30 +13,39 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class RulesUiState(
     val rules: List<Rule> = emptyList(),
     val loading: Boolean = true,
+    /**
+     * Recent routing decisions, newest first — what the kernel actually did,
+     * as opposed to [rules], which is what it was told to do. The two are shown
+     * together on purpose: they only disagree when something is wrong, and that
+     * is the thing this screen exists to make visible.
+     */
+    val recentFlow: List<FlowRecord> = emptyList(),
 ) {
     val isEmpty: Boolean get() = !loading && rules.isEmpty()
 }
 
 /**
- * Routing rules, in the order they are evaluated. The list is stored (never
- * held here), so the kernel and this screen always agree on what is
- * configured.
+ * Routing rules, in the order they are evaluated, plus the kernel's recent
+ * decisions. The list is stored (never held here), so the kernel and this
+ * screen always agree on what is configured.
  */
 @HiltViewModel
 class RulesViewModel @Inject constructor(
     private val repository: RuleRepository,
+    private val flowLog: FlowLog,
 ) : ViewModel() {
 
-    val uiState: StateFlow<RulesUiState> = repository.observeAllOrdered()
-        .map { RulesUiState(rules = it, loading = false) }
-        .stateIn(
+    val uiState: StateFlow<RulesUiState> =
+        combine(repository.observeAllOrdered(), flowLog.records) { rules, flow ->
+            RulesUiState(rules = rules, loading = false, recentFlow = flow)
+        }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = RulesUiState(),
