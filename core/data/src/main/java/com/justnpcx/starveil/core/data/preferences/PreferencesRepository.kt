@@ -67,6 +67,16 @@ interface PreferencesRepository {
     val killSwitchMode: Flow<KillSwitchMode>
 
     /**
+     * Route domestic traffic direct and everything else through the tunnel.
+     *
+     * Only a preference. Whether it can actually be applied depends on the two
+     * rule set files being on disk, which is [MainlandRuleSetStore]'s business —
+     * a toggle that is on while the files are missing simply builds a config
+     * without the preset, rather than failing to connect.
+     */
+    val bypassMainland: Flow<Boolean>
+
+    /**
      * Currently selected node; 0 = none chosen yet.
      *
      * A node and a group are alternative connection targets, so at most one is
@@ -99,6 +109,7 @@ interface PreferencesRepository {
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setAutoReconnect(enabled: Boolean)
+    suspend fun setBypassMainland(enabled: Boolean)
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
     suspend fun recordLeakCheck(record: LeakCheckRecord)
     suspend fun setSelectedProfileId(id: Long)
@@ -126,6 +137,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
+        val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
         val LEAK_CHECK_LEAKING = booleanPreferencesKey("leak_check_leaking")
@@ -151,6 +163,10 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.AUTO_RECONNECT] ?: true }
 
+    override val bypassMainland: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.BYPASS_MAINLAND] ?: false }
+
     override val killSwitchMode: Flow<KillSwitchMode> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> KillSwitchMode.fromStorage(prefs[Keys.KILL_SWITCH_MODE]) }
@@ -170,6 +186,10 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setDynamicColor(enabled: Boolean) {
         dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
+    }
+
+    override suspend fun setBypassMainland(enabled: Boolean) {
+        dataStore.edit { it[Keys.BYPASS_MAINLAND] = enabled }
     }
 
     override suspend fun setAutoReconnect(enabled: Boolean) {
