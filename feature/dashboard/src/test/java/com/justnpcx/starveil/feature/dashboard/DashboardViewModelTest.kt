@@ -430,6 +430,23 @@ class DashboardViewModelTest {
         assertNull(viewModel.uiState.value.health)
     }
 
+    @Test
+    fun `a stale selection has no curve`() = runBlocking {
+        // A subscription refresh replaces a group's nodes with new ids, so the
+        // selection can point at a node that is gone while its samples are
+        // still in the window. Drawing those would describe something that is
+        // gone — and it did, on device.
+        val samples = listOf(LatencySample(atMs = 1_000L, latencyMs = 100))
+        val viewModel = viewModel(
+            preferences = FakePreferences(STALE_ID),
+            kernel = RecordingKernel(),
+            nodeHealth = FakeNodeHealth(mapOf(STALE_ID to samples)),
+        )
+        yield()
+
+        assertNull(viewModel.uiState.value.health)
+    }
+
     private fun viewModel(
         preferences: FakePreferences,
         kernel: RecordingKernel,
@@ -462,6 +479,9 @@ class DashboardViewModelTest {
         const val ONE = 1L
         const val TWO = 2L
         const val GROUP_ID = 9L
+
+        /** Not in the fake node list — a node a refresh replaced. */
+        const val STALE_ID = 99L
         const val SUB = 7L
     }
 }

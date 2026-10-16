@@ -396,7 +396,7 @@ fun ProfilesScreen(
                         },
                     ) {
                         Text(
-                            text = stringResource(R.string.profiles_delete),
+                            text = stringResource(R.string.profiles_delete, profile.name),
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -781,12 +781,17 @@ private fun ProfilesMessage.text(): String = when (this) {
 private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
+            if (value == SwipeToDismissBoxValue.EndToStart) onDelete()
+            // Never let the box *hold* a dismissed state — the row leaves
+            // because the list changed, not because this state says so.
+            //
+            // Returning true here is the obvious version and it is wrong: the
+            // state is saveable, keyed by the LazyColumn item key, and the undo
+            // restores the node under the *same* id on purpose. So a restored
+            // row inherits the dismissed state and comes back as a blank red
+            // card with a bin icon — permanent, and it survives navigation.
+            // That is exactly what happened on device.
+            false
         },
     )
     SwipeToDismissBox(

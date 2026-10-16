@@ -194,11 +194,21 @@ class DashboardViewModel @Inject constructor(
         // than re-subscribed per switch: one query returns every node's
         // samples, so picking a different one out of it costs nothing.
         scope.launch {
-            combine(preferences.connectionTarget, nodeHealth.observeAll()) { target, byNode ->
+            combine(
+                preferences.connectionTarget,
+                nodeHealth.observeAll(),
+                profiles.observeAll(),
+            ) { target, byNode, nodes ->
                 // A group target has no curve of its own — the chart is about a
                 // node. A node with no samples is present-but-collecting, which
                 // the chart says in words rather than leaving blank.
                 val id = (target as? ConnectionTarget.Node)?.id ?: return@combine null
+                // A *stale* id is a different thing: a subscription refresh
+                // replaces a group's nodes with new ids, so the selection can
+                // point at a node that no longer exists while its samples are
+                // still in the window. Drawing those would describe something
+                // that is gone. Seen on device.
+                if (nodes.none { it.id == id }) return@combine null
                 nodeHealthOf(byNode[id].orEmpty())
             }.collect { health ->
                 _uiState.update { it.copy(health = health) }
