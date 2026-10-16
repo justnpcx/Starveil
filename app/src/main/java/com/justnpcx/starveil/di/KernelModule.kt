@@ -11,6 +11,8 @@ import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import com.justnpcx.starveil.leak.TunnelProbe
 import com.justnpcx.starveil.leak.VpnServiceTunnelProbe
+import com.justnpcx.starveil.latency.NodeProbe
+import com.justnpcx.starveil.latency.TcpNodeProbe
 import com.justnpcx.starveil.logs.KernelLogStream
 import dagger.Module
 import dagger.Provides
@@ -80,4 +82,13 @@ object KernelModule {
     @Provides
     @Singleton
     fun provideTunnelProbe(): TunnelProbe = VpnServiceTunnelProbe()
+
+    /**
+     * The TCP handshake probe behind both the manual latency button and the
+     * health sampler. One binding, so the number the button reports and the
+     * number the curve draws cannot come from two implementations that drift.
+     */
+    @Provides
+    @Singleton
+    fun provideNodeProbe(): NodeProbe = TcpNodeProbe()
 }

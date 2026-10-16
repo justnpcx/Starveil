@@ -18,7 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -27,12 +30,14 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
+import com.justnpcx.starveil.latency.NodeHealthSampler
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.Destination
 import com.justnpcx.starveil.core.ui.snackbar.UndoSnackbarHost
 import com.justnpcx.starveil.ui.AppUndoBus
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 /**
  * The single Activity. All screens are Compose destinations inside
@@ -52,9 +57,28 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var undoBus: AppUndoBus
 
+    /**
+     * Keeps the node health curve fed. Started and stopped by this Activity's
+     * lifecycle rather than by a scheduler: "foreground only" is the design
+     * (nothing should wake the radio while the app is closed), and
+     * [repeatOnLifecycle] is that policy expressed once.
+     */
+    @Inject
+    lateinit var healthSampler: NodeHealthSampler
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Sampling stops when the app is not visible and resumes when it is.
+        // The sampler loops until its coroutine is cancelled, so there is no
+        // job held anywhere to forget to cancel.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                healthSampler.run()
+            }
+        }
+
         setContent {
             val themeMode by preferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
