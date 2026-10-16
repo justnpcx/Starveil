@@ -5,6 +5,13 @@
     <string name="profiles_empty_body">Import a subscription or a share link to add nodes.</string>
     <string name="profiles_latency_untested">untested</string>
     <string name="profiles_latency_ms">%1$d ms</string>
+    <!-- §6.3: the last probe did not come back. -->
+    <string name="profiles_latency_timeout">timeout</string>
+    <!-- §6.3 status dot. The colour is the signal; these are what a screen
+         reader reads, so they say what the colour means rather than naming it. -->
+    <string name="profiles_status_up">Responding</string>
+    <string name="profiles_status_down">Not responding</string>
+    <string name="profiles_status_untested">Not measured yet</string>
     <string name="profiles_selected">Selected</string>
 
     <!-- Group filter chips (a group comes from a subscription import). -->
@@ -79,8 +86,4 @@
 
     <!-- Deleting a node: the row button stages it, the dialog confirms. -->
     <string name="profiles_delete">Delete %1$s</string>
-    <string name="profiles_delete_title">Delete this node?</string>
-    <string name="profiles_delete_body">%1$s will be removed from this device.</string>
-    <string name="profiles_delete_confirm">Delete</string>
-    <string name="profiles_delete_cancel">Cancel</string>
 </resources>

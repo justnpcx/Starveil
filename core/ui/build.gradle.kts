@@ -38,6 +38,10 @@ kotlin {
 }
 
 dependencies {
+    // The health chart draws a NodeHealth, so the model types are part of this
+    // module's public API — hence `api` rather than `implementation`.
+    api(project(":core:model"))
+
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
     implementation(libs.compose.ui)

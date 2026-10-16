@@ -4,4 +4,10 @@
     <string name="core_message_dismiss">Dismiss</string>
     <!-- The one action label for every undo in the app (K2/K1). -->
     <string name="core_undo">Undo</string>
+    <!--
+      §7.2: below five samples there is no curve to draw. Says how much is
+      missing rather than just "loading" — a node watched for two minutes and
+      one that has never answered are different things to know.
+    -->
+    <string name="core_health_collecting">Collecting %1$d/%2$d</string>
 </resources>

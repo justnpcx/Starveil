@@ -3,6 +3,15 @@ package com.justnpcx.starveil.feature.profiles
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.NodeStatus
+import com.justnpcx.starveil.core.ui.components.LatencySparkline
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
@@ -111,6 +120,10 @@ fun ProfilesScreen(
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
+    // Resolved once per group list rather than per row: a subscription can hold
+    // hundreds of nodes, and a linear scan per row would be hundreds of scans
+    // per recomposition.
+    val groupNames = remember(state.groups) { state.groups.associate { it.id to it.name } }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -197,6 +210,9 @@ fun ProfilesScreen(
                             SwipeToDeleteRow(onDelete = { viewModel.deleteWithUndo(profile) }) {
                                 NodeRow(
                                     profile = profile,
+                                    health = state.health[profile.id],
+                                    groupLabel = groupNames[profile.groupId]
+                                        ?: stringResource(R.string.profiles_group_none),
                                     selected = profile.id == state.selectedId,
                                     onClick = { viewModel.select(profile.id) },
                                     onLongClick = { rowMenu = profile },
@@ -798,58 +814,189 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
     }
 }
 
+/**
+ * The node card (§6.3): name, group label, status dot, latency mini-curve and
+ * the latency number.
+ *
+ * A card rather than a dense list row because it has to carry a curve, and a
+ * curve beside a name needs the vertical room a row does not have — hence the
+ * spec's 72dp minimum.
+ */
 @Composable
 private fun NodeRow(
     profile: Profile,
+    health: NodeHealth?,
+    groupLabel: String,
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    val reading = latencyReading(profile, health)
     Surface(
         // Long-press moves the node between groups; a tap stays the selection.
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = NODE_CARD_MIN_HEIGHT)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(NODE_CARD_CORNER),
+        // Selection is a border plus a halo, never a different fill: the fill
+        // says "this is a surface", and giving it a second meaning would make
+        // the card's own colour ambiguous (§2.1, §6.3).
         color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
+            lerp(
+                MaterialTheme.colorScheme.surfaceVariant,
+                StarveilColors.GlowPrimary,
+                SELECTED_HALO_ALPHA,
+            )
         } else {
             MaterialTheme.colorScheme.surfaceVariant
         },
+        border = BorderStroke(
+            width = if (selected) SELECTED_BORDER_WIDTH else IDLE_BORDER_WIDTH,
+            color = if (selected) StarveilColors.BorderGlow else StarveilColors.Border,
+        ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = StarveilSpacing.lg, top = StarveilSpacing.sm, bottom = StarveilSpacing.sm),
+                .padding(NODE_CARD_PADDING),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusDot(status = health?.status ?: NodeStatus.UNTESTED)
+                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                    Text(
+                        text = profile.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
                 Text(
-                    text = profile.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${profile.type.name.lowercase()} · ${profile.server}:${profile.port}",
+                    // Group first: it is what the user filed the node under. The
+                    // host is the detail they read second.
+                    text = "$groupLabel · ${profile.type.name.lowercase()} " +
+                        "· ${profile.server}:${profile.port}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                text = if (profile.latencyMs >= 0) {
-                    stringResource(R.string.profiles_latency_ms, profile.latencyMs)
-                } else {
-                    stringResource(R.string.profiles_latency_untested)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Spacer(modifier = Modifier.width(StarveilSpacing.md))
+            Column(horizontalAlignment = Alignment.End) {
+                // Only once there is a shape to draw: the sparkline and the
+                // chart agree on the threshold, so the card cannot imply a
+                // curve the chart would refuse to draw.
+                if (health != null && !health.collecting) {
+                    LatencySparkline(
+                        health = health,
+                        modifier = Modifier.width(SPARKLINE_WIDTH),
+                        height = SPARKLINE_HEIGHT,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                }
+                Text(
+                    text = when (reading) {
+                        is LatencyReading.Value ->
+                            stringResource(R.string.profiles_latency_ms, reading.ms)
+                        LatencyReading.Timeout ->
+                            stringResource(R.string.profiles_latency_timeout)
+                        LatencyReading.Untested ->
+                            stringResource(R.string.profiles_latency_untested)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    // Dimmed, not red, when there is no reading: the status dot
+                    // already says "down", and colouring the number too would be
+                    // the same signal twice (§6.3).
+                    color = when (reading) {
+                        is LatencyReading.Value -> MaterialTheme.colorScheme.onSurfaceVariant
+                        LatencyReading.Timeout, LatencyReading.Untested ->
+                            StarveilColors.TextDisabled
+                    },
+                )
+            }
         }
     }
 }
+
+/**
+ * The status dot (§6.3): green, grey, red.
+ *
+ * Carries a description because colour alone is not a signal for anyone using a
+ * screen reader — the dot is the only place the window's verdict appears.
+ */
+@Composable
+private fun StatusDot(status: NodeStatus) {
+    val color = when (status) {
+        NodeStatus.UP -> StarveilColors.Connected
+        NodeStatus.DOWN -> StarveilColors.Blocked
+        NodeStatus.UNTESTED -> StarveilColors.Disconnected
+    }
+    val description = when (status) {
+        NodeStatus.UP -> stringResource(R.string.profiles_status_up)
+        NodeStatus.DOWN -> stringResource(R.string.profiles_status_down)
+        NodeStatus.UNTESTED -> stringResource(R.string.profiles_status_untested)
+    }
+    Box(
+        modifier = Modifier
+            .size(STATUS_DOT_SIZE)
+            .clip(CircleShape)
+            .background(color)
+            .semantics { contentDescription = description },
+    )
+}
+
+/** What the card's latency number says, and whether it is a real reading. */
+internal sealed interface LatencyReading {
+    data class Value(val ms: Long) : LatencyReading
+
+    /** The last probe did not come back. */
+    data object Timeout : LatencyReading
+
+    /** Nothing has been measured, by the sampler or by hand. */
+    data object Untested : LatencyReading
+}
+
+/**
+ * Which number the card shows.
+ *
+ * The curve's own value wins when there is one, so the number and the line
+ * cannot disagree. A failed *latest* probe takes precedence over both: the
+ * smoothed value is still meaningful, but the card is reporting "right now",
+ * and "right now" is that the node did not answer.
+ *
+ * `Profile.latencyMs` is the fallback, not the first choice. It is what the
+ * manual "test latency" button writes, and it is the only reading a node has
+ * until the sampler has collected a few — showing "untested" next to a node the
+ * user just measured would be a lie.
+ */
+internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReading {
+    // Read once into a local: `NodeHealth` is in another module, so its
+    // properties cannot be smart-cast after a null check.
+    val ema = health?.emaMs
+    return when {
+        health?.latest?.reachable == false -> LatencyReading.Timeout
+        ema != null -> LatencyReading.Value(ema)
+        profile.latencyMs >= 0 -> LatencyReading.Value(profile.latencyMs)
+        else -> LatencyReading.Untested
+    }
+}
+
+/** §6.3 card metrics. */
+private val NODE_CARD_MIN_HEIGHT = 72.dp
+private val NODE_CARD_CORNER = 16.dp
+private val NODE_CARD_PADDING = 16.dp
+private val IDLE_BORDER_WIDTH = 1.dp
+private val SELECTED_BORDER_WIDTH = 2.dp
+private val STATUS_DOT_SIZE = 8.dp
+private val SPARKLINE_WIDTH = 64.dp
+private val SPARKLINE_HEIGHT = 20.dp
+
+/** §2.1's "GlowPrimaryDim": the halo a selected card is lit with. */
+private const val SELECTED_HALO_ALPHA = 0.16f
 
 /**
  * A group filter chip (design system §6.4): capsule, raised surface when idle,
