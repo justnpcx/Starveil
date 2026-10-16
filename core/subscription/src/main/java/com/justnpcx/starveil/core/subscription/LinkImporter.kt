@@ -16,6 +16,17 @@ fun interface LinkResolver {
     fun resolve(link: String): Profile?
 }
 
+/**
+ * The inverse of [LinkResolver]: a [Profile] as a share link, or null when the
+ * profile is not something any protocol can express.
+ *
+ * Injected by :app from the ProtocolRegistry, for the same reason as
+ * [LinkResolver] — a feature module must not depend on :core:kernel.
+ */
+fun interface LinkExporter {
+    fun export(profile: Profile): String?
+}
+
 sealed interface ImportOutcome {
     data class AddedNode(val name: String) : ImportOutcome
     data class AddedSubscription(val nodeCount: Int) : ImportOutcome

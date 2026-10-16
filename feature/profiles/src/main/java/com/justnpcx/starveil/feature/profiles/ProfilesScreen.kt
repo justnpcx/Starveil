@@ -1,10 +1,12 @@
 package com.justnpcx.starveil.feature.profiles
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,9 +52,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.zxing.BarcodeFormat
+import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
@@ -224,6 +230,10 @@ fun ProfilesScreen(
         )
     }
 
+    state.share?.let { target ->
+        ShareDialog(target = target, onDismiss = viewModel::dismissShare)
+    }
+
     pendingDelete?.let { profile ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
@@ -359,6 +369,14 @@ fun ProfilesScreen(
                         },
                     ) {
                         Text(stringResource(R.string.profiles_row_edit))
+                    }
+                    TextButton(
+                        onClick = {
+                            rowMenu = null
+                            viewModel.shareNode(profile)
+                        },
+                    ) {
+                        Text(stringResource(R.string.profiles_row_share))
                     }
                     TextButton(
                         onClick = {
@@ -629,6 +647,100 @@ private fun ImportDialog(
 }
 
 /** Reads the primary clip as text; null when there is nothing to read. */
+/**
+ * The share sheet: the node's link, a QR code for it, and a copy button.
+ *
+ * The QR is the point — a link that has to be typed by hand is not really
+ * shareable — so when a protocol has no link format the sheet says so instead
+ * of drawing a code that would scan into an empty string.
+ */
+@Composable
+private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var copied by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profiles_share_title, target.name)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val link = target.link
+                if (link == null) {
+                    Text(
+                        text = stringResource(R.string.profiles_share_unavailable),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    return@Column
+                }
+
+                QrCode(content = link, modifier = Modifier.size(QR_SIZE))
+                Text(
+                    text = link,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = {
+                        writeClipboard(context, link)
+                        copied = true
+                    },
+                ) {
+                    Text(
+                        stringResource(
+                            if (copied) R.string.profiles_share_copied else R.string.profiles_share_copy,
+                        ),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.profiles_group_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun QrCode(content: String, modifier: Modifier = Modifier) {
+    // Encoding a few hundred bytes into a bitmap is not free, and the link does
+    // not change while the sheet is open.
+    val image = remember(content) {
+        runCatching {
+            BarcodeEncoder().encodeBitmap(content, BarcodeFormat.QR_CODE, QR_PX, QR_PX)
+        }.getOrNull()
+    }
+    if (image == null) {
+        // Too long for a QR code, or the encoder refused. The link is still on
+        // screen to copy, so say what happened rather than showing a blank box.
+        Text(
+            text = stringResource(R.string.profiles_share_no_qr),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    Image(
+        bitmap = image.asImageBitmap(),
+        contentDescription = stringResource(R.string.profiles_share_qr_description),
+        modifier = modifier,
+    )
+}
+
+private fun writeClipboard(context: Context, text: String) {
+    val manager = context.getSystemService(ClipboardManager::class.java) ?: return
+    manager.setPrimaryClip(ClipData.newPlainText("Starveil node", text))
+}
+
+/** Rendered at 512px and scaled down, so the code stays crisp when scanned. */
+private const val QR_PX = 512
+private val QR_SIZE = 200.dp
+
 private fun readClipboardText(context: Context): String? {
     val manager = context.getSystemService(ClipboardManager::class.java) ?: return null
     val clip = manager.primaryClip ?: return null

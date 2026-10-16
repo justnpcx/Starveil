@@ -10,6 +10,7 @@ import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.subscription.ImportOutcome
+import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdateOutcome
@@ -42,6 +43,20 @@ data class ProfilesUiState(
     val importing: Boolean = false,
     /** Result of the last import; already user-facing. */
     val message: String? = null,
+    /** The node the share sheet is open for, with its link. */
+    val share: ShareTarget? = null,
+)
+
+/**
+ * What the share sheet renders.
+ *
+ * [link] is null when the node's protocol has no share format — the sheet says
+ * so rather than drawing a QR code for an empty string, which would scan into
+ * nothing.
+ */
+data class ShareTarget(
+    val name: String,
+    val link: String?,
 )
 
 /**
@@ -54,6 +69,7 @@ class ProfilesViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val preferences: PreferencesRepository,
     private val importer: LinkImporter,
+    private val exporter: LinkExporter,
     private val updater: SubscriptionUpdater,
     private val refreshScheduler: SubscriptionRefreshScheduler,
 ) : ViewModel() {
@@ -61,11 +77,16 @@ class ProfilesViewModel @Inject constructor(
     private val importing = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
     private val groupFilter = MutableStateFlow<Long?>(null)
+    private val share = MutableStateFlow<ShareTarget?>(null)
 
     /** Paired so the two transient signals count as one flow to [combine]. */
     private val transient = combine(importing, message) { isImporting, msg -> isImporting to msg }
 
-    val uiState: StateFlow<ProfilesUiState> = combine(
+    /**
+     * The list itself. Combined first because `combine` has no overload for six
+     * flows, and the share sheet is the one input that is not part of the list.
+     */
+    private val listState = combine(
         profiles.observeAll(),
         groups.observeAll(),
         // One atomic value rather than two ids: the two are alternatives, and
@@ -90,6 +111,10 @@ class ProfilesViewModel @Inject constructor(
             importing = isImporting,
             message = msg,
         )
+    }
+
+    val uiState: StateFlow<ProfilesUiState> = combine(listState, share) { state, sharing ->
+        state.copy(share = sharing)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -240,6 +265,22 @@ class ProfilesViewModel @Inject constructor(
             }
             importing.value = false
         }
+    }
+
+    /**
+     * Opens the share sheet for [profile].
+     *
+     * The link is built here rather than inside the sheet so the exporter stays
+     * the single place that knows the link formats, and so a protocol with no
+     * share format resolves to a null link once instead of on every
+     * recomposition.
+     */
+    fun shareNode(profile: Profile) {
+        share.value = ShareTarget(name = profile.name, link = exporter.export(profile))
+    }
+
+    fun dismissShare() {
+        share.value = null
     }
 
     fun dismissMessage() {

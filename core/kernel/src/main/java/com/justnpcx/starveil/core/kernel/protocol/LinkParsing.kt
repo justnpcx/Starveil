@@ -107,4 +107,37 @@ internal object LinkParsing {
 
     fun asAlpn(value: String?): List<String> =
         value?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+
+    /**
+     * The inverse of [percentDecode]: a space becomes `%20`, never `+`.
+     *
+     * Escapes everything outside the unreserved set rather than only the
+     * characters that must be escaped. A link is read back by other clients
+     * too, and one of them treating `+` as a space — which is exactly what
+     * [percentDecode] refuses to do — is how a password silently changes.
+     */
+    fun percentEncode(s: String): String {
+        val out = StringBuilder(s.length)
+        for (byte in s.toByteArray(Charsets.UTF_8)) {
+            val value = byte.toInt() and 0xFF
+            val c = value.toChar()
+            if (c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c in UNRESERVED) {
+                out.append(c)
+            } else {
+                out.append('%').append(HEX[value shr 4]).append(HEX[value and 0x0F])
+            }
+        }
+        return out.toString()
+    }
+
+    /** Standard base64 with padding — the shape a v2rayN `vmess://` blob takes. */
+    fun base64Encode(s: String): String =
+        Base64.getEncoder().encodeToString(s.toByteArray(Charsets.UTF_8))
+
+    /** URL-safe base64 without padding — the shape SIP002 uses for userinfo. */
+    fun base64EncodeUrl(s: String): String =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(s.toByteArray(Charsets.UTF_8))
+
+    private const val UNRESERVED = "-._~"
+    private const val HEX = "0123456789ABCDEF"
 }

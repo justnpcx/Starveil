@@ -13,6 +13,7 @@ import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.subscription.Clock
 import com.justnpcx.starveil.core.subscription.LinkImporter
+import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkResolver
 import com.justnpcx.starveil.core.subscription.SubscriptionFetcher
 import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
@@ -37,6 +38,7 @@ import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -486,6 +488,57 @@ class ProfilesViewModelTest {
         return viewModel.uiState.value.message
     }
 
+    /**
+     * The share sheet is reached through a second `combine`, so it lands a
+     * dispatch turn or two after the call.
+     */
+    private suspend fun awaitShare(viewModel: ProfilesViewModel): ShareTarget? {
+        repeat(20) {
+            viewModel.uiState.value.share?.let { return it }
+            yield()
+        }
+        return viewModel.uiState.value.share
+    }
+
+    @Test
+    fun `sharing a node puts its link in the sheet`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val viewModel = viewModel(
+            profiles,
+            FakePreferences(0L),
+            exporter = LinkExporter { "vless://one@example.com:443" },
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.shareNode(profile(ONE, "one"))
+        val share = awaitShare(viewModel)
+
+        assertEquals("one", share?.name)
+        assertEquals("vless://one@example.com:443", share?.link)
+
+        viewModel.dismissShare()
+        yield()
+        assertNull(viewModel.uiState.value.share)
+        job.cancel()
+    }
+
+    @Test
+    fun `a node with no share format still opens the sheet, with no link`() = runBlocking {
+        // The sheet has to say "no share format" rather than draw a QR code for
+        // an empty string, which would scan into nothing.
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val viewModel = viewModel(profiles, FakePreferences(0L), exporter = LinkExporter { null })
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.shareNode(profile(ONE, "one"))
+
+        assertNotNull(awaitShare(viewModel))
+        assertNull(viewModel.uiState.value.share?.link)
+        job.cancel()
+    }
+
     private fun base64Links(vararg links: String): String =
         Base64.getEncoder().encodeToString(links.joinToString("\n").toByteArray())
 
@@ -503,6 +556,7 @@ class ProfilesViewModelTest {
         groups: GroupRepository = FakeGroups(),
         refreshScheduler: SubscriptionRefreshScheduler = FakeRefreshScheduler(),
         fetcher: SubscriptionFetcher = FakeFetcher(),
+        exporter: LinkExporter = LinkExporter { null },
     ): ProfilesViewModel {
         // A subscription body is base64'd share links, so the registry needs a
         // resolver that can turn one into a profile; otherwise every body would
@@ -530,6 +584,7 @@ class ProfilesViewModelTest {
             groups = groups,
             preferences = preferences,
             refreshScheduler = refreshScheduler,
+            exporter = exporter,
             updater = updater,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(

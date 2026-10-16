@@ -3,6 +3,7 @@ package com.justnpcx.starveil.di
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkResolver
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import dagger.Module
@@ -39,6 +40,12 @@ object RegistryModule {
     @Singleton
     fun provideLinkResolver(registry: ProtocolRegistry): LinkResolver =
         LinkResolver { link -> resolveLink(registry, link) }
+
+    /** The other half: a node back into a share link, for the Share sheet. */
+    @Provides
+    @Singleton
+    fun provideLinkExporter(registry: ProtocolRegistry): LinkExporter =
+        LinkExporter { profile -> registry.writeLink(profile) }
 
     @Provides
     @Singleton
