@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.compose)
+    // Generates app/src/main/baseline-prof.txt from the :benchmark module's
+    // profile generator, so the startup classes are AOT-compiled on device
+    // instead of being JIT-warmed on every cold start.
+    alias(libs.plugins.baselineprofile)
 }
 
 /**
@@ -58,6 +62,23 @@ android {
                 "proguard-rules.pro",
             )
         }
+
+        /**
+         * What the benchmarks measure.
+         *
+         * `initWith(release)` rather than a copy of the release settings: the
+         * numbers are only worth having if they describe something close to
+         * what ships, and a hand-copied variant drifts the moment release
+         * changes. Debug-signed because it has to install on a device, and
+         * non-debuggable because a debuggable app has different runtime
+         * characteristics (assertions, no AOT) and would flatter the numbers.
+         */
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
 
     compileOptions {
@@ -111,6 +132,13 @@ dependencies {
     implementation(project(":feature:rules"))
     implementation(project(":feature:logs"))
     implementation(project(":feature:settings"))
+
+    // Installs the Baseline Profile bundled in the APK, on first run.
+    implementation(libs.androidx.profileinstaller)
+
+    // The profile generator lives with the benchmarks: both need a device and
+    // both describe the same build.
+    baselineProfile(project(":benchmark"))
 
     // Tests.
     testImplementation(libs.junit)

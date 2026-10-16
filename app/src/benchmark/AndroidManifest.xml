@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      The benchmark variant is profileable so the harness can capture method
+      traces through the shell. Without it macrobenchmark fails outright with
+      "Unable to capture profile", and it is deliberately not in the main
+      manifest: a shipped release has no reason to let anything profile it.
+    -->
+    <application>
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
+    </application>
+</manifest>

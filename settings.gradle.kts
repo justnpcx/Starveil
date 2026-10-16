@@ -28,3 +28,8 @@ include(":feature:editor")
 include(":feature:rules")
 include(":feature:logs")
 include(":feature:settings")
+
+// Performance measurement (M4). A com.android.test module, built against the
+// app's benchmark variant and never shipped — kept out of the release path on
+// purpose, since its dependencies (macrobenchmark, uiautomator) are large.
+include(":benchmark")
