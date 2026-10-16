@@ -1,6 +1,8 @@
 package com.justnpcx.starveil.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -48,6 +50,11 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // Without this the screen clips: on a 1080x2400 display the leak
+            // self-check and the kernel version sit below the fold with no way
+            // to reach them. Found on device — the version row simply was not
+            // there, and the fix is not in the version code.
+            .verticalScroll(rememberScrollState())
             .padding(StarveilSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {

@@ -66,10 +66,13 @@ fun UndoSnackbarHost(
             val result = hostState.showSnackbar(
                 message = context.getString(request.messageRes, *request.args.toTypedArray()),
                 actionLabel = actionLabel,
-                // Short, and deliberately not Indefinite: the delete has
+                // Long, and deliberately not Indefinite: the delete has
                 // already happened, so a Snackbar that waits for an answer
-                // would be a dialog wearing a different hat.
-                duration = SnackbarDuration.Short,
+                // would be a dialog wearing a different hat. But it is an undo
+                // of something destructive, and Short is ~4 s — not enough to
+                // notice a bar that appears under a finger still resting from
+                // the swipe. On device it timed out before it could be tapped.
+                duration = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) request.onUndo()
         }
