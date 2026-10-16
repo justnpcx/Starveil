@@ -97,6 +97,7 @@ dependencies {
 
     // Tests.
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.espresso.core)
 }

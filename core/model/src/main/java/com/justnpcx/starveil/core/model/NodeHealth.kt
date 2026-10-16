@@ -6,10 +6,11 @@ import kotlin.math.roundToLong
  * One latency probe of a node.
  *
  * A negative [latencyMs] is a probe that did not come back — a timeout or an
- * unreachable host. That is a *sample* rather than an absence on purpose: a
- * node that stops answering is the thing a health curve exists to show, and
- * dropping those samples would make an unreliable node look perfect. The
- * design system draws exactly these as the red loss dots (§7.2).
+ * unreachable host; see [LATENCY_UNREACHABLE]. That is a *sample* rather than
+ * an absence on purpose: a node that stops answering is the thing a health
+ * curve exists to show, and dropping those samples would make an unreliable
+ * node look perfect. The design system draws exactly these as the red loss
+ * dots (§7.2).
  */
 data class LatencySample(
     val atMs: Long,
@@ -18,6 +19,15 @@ data class LatencySample(
     /** Whether the probe came back inside the window. */
     val reachable: Boolean get() = latencyMs >= 0
 }
+
+/**
+ * A probe that did not come back, as stored.
+ *
+ * One value for both a timeout and an outright failure. The store only needs
+ * "it did not answer"; which of the two it was matters to the manual tester's
+ * wording, and it is decided there before this is written.
+ */
+const val LATENCY_UNREACHABLE = -1L
 
 /**
  * How much of the window the node answered in.
