@@ -449,7 +449,7 @@ class ConfigBuilderTest {
         // sing-box 1.14 removed the legacy {"address": ...} DNS server shape:
         // it fails config decode outright.
         val json = builder.build(vlessProfile())
-        assertTrue(json.contains("\"servers\":[{\"type\":\"local\",\"tag\":\"local\"}]"))
+        assertTrue(json.contains("\"servers\":[{\"type\":\"local\",\"tag\":\"local\",\"optimistic\":true}]"))
         assertFalse(json.contains("\"address\":\"local\""))
     }
 
@@ -509,6 +509,101 @@ class ConfigBuilderTest {
         assertTrue(
             "fastest of $MEASURED_RUNS builds of 500 nodes was ${fastest}ms",
             fastest < BUDGET_MS,
+        )
+    }
+
+    // ---- the mainland preset ----
+
+    private val mainland = MainlandRuleSets(
+        geositeCnPath = "/data/user/0/app/files/rulesets/geosite-cn.srs",
+        geoipCnPath = "/data/user/0/app/files/rulesets/geoip-cn.srs",
+    )
+
+    @Test
+    fun `the preset declares its rule sets as local files`() {
+        val json = builder.build(listOf(vlessProfile()), mainland = mainland)
+
+        // Local, not remote. A remote set is fetched during start() and the
+        // router fails the whole start when that fetch fails, which is the
+        // deadlock the preset exists to avoid.
+        assertTrue(json.contains("\"type\":\"local\",\"tag\":\"geosite-cn\""))
+        assertTrue(json.contains("\"type\":\"local\",\"tag\":\"geoip-cn\""))
+        assertTrue(json.contains("/files/rulesets/geosite-cn.srs"))
+        assertTrue(json.contains("/files/rulesets/geoip-cn.srs"))
+        assertTrue(json.contains("\"format\":\"binary\""))
+        assertFalse("a remote set would fetch during start", json.contains("\"type\":\"remote\""))
+    }
+
+    @Test
+    fun `the preset rules sit after the user's and before final`() {
+        val rules = listOf(
+            Rule(
+                matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "example.com"),
+                action = RuleAction.PROXY,
+            ),
+        )
+        val json = builder.build(listOf(vlessProfile()), rules, mainland = mainland)
+
+        val user = json.indexOf("example.com")
+        val geosite = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"direct\"")
+        val geoip = json.indexOf("\"rule_set\":\"geoip-cn\",\"action\":\"direct\"")
+        val final = json.indexOf("\"final\":\"auto\"")
+
+        assertTrue("user rule is present", user >= 0)
+        assertTrue("geosite rule is present", geosite >= 0)
+        assertTrue("geoip rule is present", geoip >= 0)
+        // The user's own rule wins, so an exception can be carved out of the
+        // preset; the preset then wins over the default.
+        assertTrue("user rule comes first", user < geosite)
+        assertTrue("geosite before geoip", geosite < geoip)
+        assertTrue("preset rules come before final", geoip < final)
+    }
+
+    @Test
+    fun `without the preset nothing about routing changes`() {
+        val without = builder.build(listOf(vlessProfile()))
+        val withPreset = builder.build(listOf(vlessProfile()), mainland = mainland)
+
+        // The degrade path: the app could not get the files, so the config is
+        // exactly what it was before the preset existed.
+        assertFalse(without.contains("rule_set"))
+        assertFalse(without.contains("geosite-cn"))
+        assertFalse(without.contains("dns-cn"))
+        assertTrue(withPreset.contains("geosite-cn"))
+    }
+
+    @Test
+    fun `the preset resolves domestic names domestically and private ones locally`() {
+        val json = builder.build(listOf(vlessProfile()), mainland = mainland)
+
+        // Private addresses first: a question about the LAN must not leave the
+        // device to be answered.
+        val privateRule = json.indexOf("\"ip_is_private\":true")
+        val geositeRule = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\"")
+        assertTrue(privateRule >= 0)
+        assertTrue(geositeRule >= 0)
+        assertTrue("private is the first DNS rule", privateRule < geositeRule)
+
+        // Domestic names go to a domestic resolver, direct: a poisoned answer
+        // would resolve outside geoip-cn and send domestic traffic abroad.
+        assertTrue(json.contains("223.5.5.5"))
+        assertTrue(json.contains("\"detour\":\"direct\""))
+
+        // Everything else resolves through the tunnel.
+        assertTrue(json.contains("\"final\":\"dns-proxy\""))
+    }
+
+    @Test
+    fun `every dns server carries the optimistic cache`() {
+        val json = builder.build(listOf(vlessProfile()), mainland = mainland)
+
+        // sing-box's serve-stale cache: a cached answer is returned at once and
+        // refreshed behind the request. This is what makes a repeat lookup a
+        // cache hit rather than a second round trip.
+        assertEquals(
+            "three servers, three optimistic flags",
+            3,
+            Regex("\"optimistic\":true").findAll(json).count(),
         )
     }
 
