@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
+import com.justnpcx.starveil.core.ui.components.MessageBanner
 import com.justnpcx.starveil.core.ui.components.TrafficSparkline
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -71,13 +72,14 @@ fun DashboardScreen(
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = state.selectedNodeName,
+            text = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        state.errorMessage?.let {
-            Text(text = it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-        }
+        // The same banner the Nodes screen uses (K3), but not dismissible: it
+        // says why the core is blocked, and dismissing it would leave a blocked
+        // core with no reason on screen (C5).
+        state.notice?.let { MessageBanner(message = it.text()) }
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         SpeedRow(stats = state.stats)
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
@@ -86,8 +88,30 @@ fun DashboardScreen(
             uplinkSamples = state.history.map { it.uplink },
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
-        CurrentNodeCard(name = state.selectedNodeName)
+        CurrentNodeCard(name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node))
     }
+}
+
+/**
+ * A notice as the user reads it.
+ *
+ * The one place the dashboard's copy lives, so the view model can stay free of
+ * it (C1) and the wording can be reviewed with the rest of the app's.
+ */
+@Composable
+private fun DashboardNotice.text(): String = when (this) {
+    DashboardNotice.KillSwitchBlocking -> stringResource(R.string.dashboard_notice_kill_switch)
+    DashboardNotice.TunnelDropped -> stringResource(R.string.dashboard_notice_tunnel_dropped)
+    DashboardNotice.TunnelReconnecting -> stringResource(R.string.dashboard_notice_tunnel_reconnecting)
+    DashboardNotice.TunnelKeepsDropping ->
+        stringResource(R.string.dashboard_notice_tunnel_keeps_dropping)
+    DashboardNotice.NoTarget -> stringResource(R.string.dashboard_notice_no_target)
+    DashboardNotice.ConfigUnbuildable -> stringResource(R.string.dashboard_notice_config)
+    // The kernel's own reason is the useful part; without one, say only that it
+    // refused rather than inventing a detail.
+    is DashboardNotice.KernelRefused -> reason
+        ?.let { stringResource(R.string.dashboard_notice_kernel_refused_reason, it) }
+        ?: stringResource(R.string.dashboard_notice_kernel_refused)
 }
 
 @Composable

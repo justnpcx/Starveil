@@ -420,7 +420,7 @@ class ProfilesViewModelTest {
         // the scheduler got its first caller has a URL and no work, so a manual
         // refresh is the only thing that can put it back on the cadence.
         assertTrue(scheduler.scheduled.contains(SUB))
-        assertEquals("Refreshed: 2 nodes", awaitMessage(viewModel))
+        assertEquals(ProfilesMessage.Refreshed(2), awaitMessage(viewModel))
         job.cancel()
     }
 
@@ -471,7 +471,7 @@ class ProfilesViewModelTest {
         // rather than silently leaving a stale list.
         assertEquals(0, profiles.replaceCalls)
         assertEquals(listOf(ONE), profiles.remainingIds())
-        assertEquals("Refresh failed: HTTP 500", awaitMessage(viewModel))
+        assertEquals(ProfilesMessage.RefreshFailed("HTTP 500"), awaitMessage(viewModel))
         job.cancel()
     }
 
@@ -480,7 +480,7 @@ class ProfilesViewModelTest {
      * a dispatch turn or two after the call returns. Asserting immediately
      * reads a stale state.
      */
-    private suspend fun awaitMessage(viewModel: ProfilesViewModel): String? {
+    private suspend fun awaitMessage(viewModel: ProfilesViewModel): ProfilesMessage? {
         repeat(20) {
             viewModel.uiState.value.message?.let { return it }
             yield()

@@ -1,7 +1,5 @@
 package com.justnpcx.starveil.feature.profiles
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -64,9 +62,13 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
+import com.justnpcx.starveil.core.ui.components.EmptyState
+import com.justnpcx.starveil.core.ui.components.MessageBanner
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.util.readClipboardText
+import com.justnpcx.starveil.core.ui.util.writeClipboard
 
 /**
  * Nodes — the real list plus the import entry points. A node arrives by
@@ -123,7 +125,7 @@ fun ProfilesScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             state.message?.let { message ->
-                MessageBanner(message = message, onDismiss = viewModel::dismissMessage)
+                MessageBanner(message = message.text(), onDismiss = viewModel::dismissMessage)
             }
             if (state.hasProfiles) {
                 Row(
@@ -170,11 +172,17 @@ fun ProfilesScreen(
                 )
             }
             when {
-                !state.hasProfiles -> EmptyState()
+                !state.hasProfiles -> EmptyState(
+                    title = stringResource(R.string.profiles_empty_title),
+                    body = stringResource(R.string.profiles_empty_body),
+                )
 
                 // Nodes exist but the filter hides them: say so, rather than
                 // reusing "No nodes yet", which would be a lie.
-                state.hasNoMatches -> NoMatchesState()
+                state.hasNoMatches -> EmptyState(
+                    title = stringResource(R.string.profiles_no_matches_title),
+                    body = stringResource(R.string.profiles_no_matches_body),
+                )
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -686,7 +694,7 @@ private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
                 )
                 TextButton(
                     onClick = {
-                        writeClipboard(context, link)
+                        writeClipboard(context, link, "Starveil node")
                         copied = true
                     },
                 ) {
@@ -732,21 +740,10 @@ private fun QrCode(content: String, modifier: Modifier = Modifier) {
     )
 }
 
-private fun writeClipboard(context: Context, text: String) {
-    val manager = context.getSystemService(ClipboardManager::class.java) ?: return
-    manager.setPrimaryClip(ClipData.newPlainText("Starveil node", text))
-}
-
 /** Rendered at 512px and scaled down, so the code stays crisp when scanned. */
 private const val QR_PX = 512
 private val QR_SIZE = 200.dp
 
-private fun readClipboardText(context: Context): String? {
-    val manager = context.getSystemService(ClipboardManager::class.java) ?: return null
-    val clip = manager.primaryClip ?: return null
-    if (clip.itemCount == 0) return null
-    return clip.getItemAt(0).coerceToText(context)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
-}
 
 /**
  * Cheap "could this be a node?" check, used only to decide whether to prefill
@@ -755,29 +752,20 @@ private fun readClipboardText(context: Context): String? {
 private fun looksImportable(text: String): Boolean =
     text.contains("://") || text.startsWith("http", ignoreCase = true)
 
+/**
+ * A message as the user reads it.
+ *
+ * The one place this feature's copy lives, so the view model can stay free of
+ * it (C1) and the wording sits with the rest of the app's.
+ */
 @Composable
-private fun MessageBanner(message: String, onDismiss: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = StarveilSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.profiles_message_dismiss)) }
-        }
-    }
+private fun ProfilesMessage.text(): String = when (this) {
+    is ProfilesMessage.AddedNode -> stringResource(R.string.profiles_msg_added, name)
+    is ProfilesMessage.ImportedNodes -> stringResource(R.string.profiles_msg_imported, count)
+    is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, reason)
+    is ProfilesMessage.Refreshed -> stringResource(R.string.profiles_msg_refreshed, count)
+    is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason)
+    is ProfilesMessage.External -> text
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -918,43 +906,6 @@ private fun GroupMode.labelRes(): Int = when (this) {
     GroupMode.MANUAL -> R.string.profiles_group_mode_folder
     GroupMode.SELECTOR -> R.string.profiles_group_mode_selector
     GroupMode.URL_TEST -> R.string.profiles_group_mode_urltest
-}
-
-@Composable
-private fun NoMatchesState() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(StarveilSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-    ) {
-        Text(
-            text = stringResource(R.string.profiles_no_matches_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.profiles_no_matches_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun EmptyState() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(StarveilSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-    ) {
-        Text(text = stringResource(R.string.profiles_empty_title), style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = stringResource(R.string.profiles_empty_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
 }
 
 private fun ProfileType.editorLabel(): String = when (this) {
