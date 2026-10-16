@@ -6,6 +6,24 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/**
+ * Versioning.
+ *
+ * [appVersionName] is semver and is the only value edited by hand; milestone N
+ * ships as `0.N.0`, so the delivered M1–M3 are `0.3.0`.
+ *
+ * [appVersionCode] is *derived* rather than written down separately. Two
+ * hand-maintained numbers that must stay in step is a rule that will be broken
+ * eventually, and the failure is silent: the store rejects an upload for a
+ * non-increasing code long after the mistake. Deriving it means the code is
+ * monotonic exactly when the name moves forward, which is the property that
+ * actually matters.
+ */
+val appVersionName = "0.3.0"
+val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
+    major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
+}
+
 android {
     namespace = "com.justnpcx.starveil"
     compileSdk = 36
@@ -14,9 +32,8 @@ android {
         applicationId = "com.justnpcx.starveil"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-skeleton"
-
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     splits {
