@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -15,8 +16,10 @@ import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
+import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -29,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -45,6 +49,12 @@ data class DashboardUiState(
     val history: List<TrafficSample> = emptyList(),
     /** The selected node or group's name, or null when nothing is selected. */
     val selectedNodeName: String? = null,
+    /**
+     * The selected node's health over the sampling window (§7.2), or null when
+     * the target is a group — a group has no single curve. A selected node with
+     * no samples yet is present but [NodeHealth.collecting].
+     */
+    val health: NodeHealth? = null,
     val isBusy: Boolean = false,
     /** What to tell the user, as data. See [DashboardNotice]. */
     val notice: DashboardNotice? = null,
@@ -114,6 +124,7 @@ class DashboardViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val rules: RuleRepository,
     private val configBuilder: ConfigBuilder,
+    private val nodeHealth: NodeHealthRepository,
 ) : ViewModel() {
 
     // Structured concurrency: one SupervisorJob per ViewModel, cancelled in
@@ -177,6 +188,20 @@ class DashboardViewModel @Inject constructor(
                 if (!_uiState.value.isBusy && _uiState.value.connectionState == ConnectionState.CONNECTED) {
                     applyTargetSwitch()
                 }
+            }
+        }
+        // The selected node's health (§7.2). Combined with the target rather
+        // than re-subscribed per switch: one query returns every node's
+        // samples, so picking a different one out of it costs nothing.
+        scope.launch {
+            combine(preferences.connectionTarget, nodeHealth.observeAll()) { target, byNode ->
+                // A group target has no curve of its own — the chart is about a
+                // node. A node with no samples is present-but-collecting, which
+                // the chart says in words rather than leaving blank.
+                val id = (target as? ConnectionTarget.Node)?.id ?: return@combine null
+                nodeHealthOf(byNode[id].orEmpty())
+            }.collect { health ->
+                _uiState.update { it.copy(health = health) }
             }
         }
         // A leak the self-check found is what turns a healthy-looking tunnel
