@@ -15,7 +15,7 @@ sealed interface ProfileSettings
 /** How the outbound secures its transport. */
 enum class SecurityMode { NONE, TLS, REALITY }
 
-/** Stream transport. [XHTTP] is the Starveil/Mirage fork's addition. */
+/** Stream transport. [XHTTP] is the Starveil fork's addition. */
 enum class TransportType(val wireName: String) {
     TCP("tcp"),
     WS("ws"),

@@ -34,7 +34,7 @@ import com.justnpcx.starveil.core.model.json.JsonException
  * [Profile] into a sing-box outbound fragment. No IO, no logging of links or
  * settings (both carry credentials).
  *
- * The ML-KEM REALITY parameter is a Starveil/Mirage fork extension: the share
+ * The ML-KEM REALITY parameter is a Starveil fork extension: the share
  * link carries the key as `spx`, and it maps to sing-box's
  * `support_x25519mlkem768` switch (there is no field for the key itself).
  */

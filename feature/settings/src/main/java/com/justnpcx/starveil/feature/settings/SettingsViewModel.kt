@@ -24,7 +24,7 @@ data class SettingsUiState(
     val autoReconnect: Boolean = true,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     /**
-     * The core's own version string, e.g. `1.14.0-mirage-1`. Empty until the
+     * The core's own version string, e.g. `1.14.3-647c447`. Empty until the
      * first read lands.
      */
     val kernelVersion: String = "",

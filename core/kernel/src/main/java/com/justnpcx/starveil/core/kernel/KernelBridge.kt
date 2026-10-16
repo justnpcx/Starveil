@@ -60,7 +60,7 @@ interface KernelBridge {
     suspend fun queryStats(): TrafficStats
 
     /**
-     * The kernel's own version string, e.g. `1.14.0-mirage-1`.
+     * The kernel's own version string, e.g. `1.14.3-647c447`.
      *
      * Read from the core rather than hard-coded here: the app ships a built
      * libbox, so a version written into Kotlin would drift from the artifact

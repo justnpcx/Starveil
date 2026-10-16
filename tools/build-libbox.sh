@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 #
-# Build sing-box `libbox` AARs for Android from the Mirage fork
-# (justnpcx/sing-box, nb-next-1.14.x — the tree at $SINGBOX_DIR).
+# Build sing-box `libbox` AARs for Android from the Starveil fork
+# (justnpcx/sing-box, starveil-1.14.x — the tree at $SINGBOX_DIR).
 #
 # Reproducibility notes (learned the hard way — see docs/04-libbox-build.md):
+#   * Build ONE ABI at a time. `gomobile bind` compiles every ABI in parallel
+#     and each one compiles the whole tree in parallel; on this 4-core box the
+#     all-ABI build reached a load average of 138 and took the machine down.
+#     One ABI peaks at ~1 GB and a load of ~3.4.
+#   * An interrupted build leaves build/<abi>/ behind and the next run fails
+#     with "open .../go_libboxmain.go: file exists". `rm -rf build/` and retry.
 #   * gomobile looks for `gobind` next to itself or on PATH. If $GOPATH/bin is
 #     not on PATH you get: "gobind was not found. Please run gomobile init".
 #   * The naive outbound pulls the prebuilt cronet-go static libs, whose
@@ -11,8 +17,9 @@
 #     "unknown relocation (315) ... libcronet.a". Use NDK 28.2.13676358.
 #
 # Usage:
-#   tools/build-libbox.sh                 # all ABIs (slow)
-#   PLATFORM=android/arm64 tools/build-libbox.sh   # one ABI (fast, for checks)
+#   PLATFORM=android/arm64 tools/build-libbox.sh   # one ABI — the normal way
+#   tools/build-libbox.sh                          # every ABI at once — read
+#                                                  # the first note before this
 #
 set -euo pipefail
 
