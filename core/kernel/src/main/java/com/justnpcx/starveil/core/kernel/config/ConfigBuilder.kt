@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
+import com.justnpcx.starveil.core.model.MainlandRuleSets
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.Rule
@@ -378,17 +379,6 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     }
 }
 
-/**
- * Local copies of the rule sets the mainland preset routes by.
- *
- * Paths rather than URLs on purpose: see [ConfigBuilder.mainlandRuleSets]. The
- * caller only builds this once both files are on disk, so its presence *is* the
- * statement that the preset can be emitted.
- */
-data class MainlandRuleSets(
-    val geositeCnPath: String,
-    val geoipCnPath: String,
-)
 
 /** A config could not be built from the given profile. Carries no credentials. */
 class ConfigBuildException(message: String) : IllegalArgumentException(message)
