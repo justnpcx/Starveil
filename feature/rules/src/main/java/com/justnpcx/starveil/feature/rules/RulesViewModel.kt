@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.rules
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.model.FlowRecord
@@ -27,6 +28,15 @@ data class RulesUiState(
      * is the thing this screen exists to make visible.
      */
     val recentFlow: List<FlowRecord> = emptyList(),
+    /**
+     * Whether domestic traffic goes direct.
+     *
+     * A preference, not a statement that the preset is in force: the rule set
+     * files may not be on disk, and the config is built without the preset when
+     * they are not. This is what the user asked for; what they get is decided
+     * at connect time.
+     */
+    val bypassMainland: Boolean = false,
 ) {
     val isEmpty: Boolean get() = !loading && rules.isEmpty()
 }
@@ -40,16 +50,30 @@ data class RulesUiState(
 class RulesViewModel @Inject constructor(
     private val repository: RuleRepository,
     private val flowLog: FlowLog,
+    private val preferences: PreferencesRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<RulesUiState> =
-        combine(repository.observeAllOrdered(), flowLog.records) { rules, flow ->
-            RulesUiState(rules = rules, loading = false, recentFlow = flow)
+        combine(
+            repository.observeAllOrdered(),
+            flowLog.records,
+            preferences.bypassMainland,
+        ) { rules, flow, bypass ->
+            RulesUiState(
+                rules = rules,
+                loading = false,
+                recentFlow = flow,
+                bypassMainland = bypass,
+            )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = RulesUiState(),
         )
+
+    fun setBypassMainland(enabled: Boolean) {
+        viewModelScope.launch { preferences.setBypassMainland(enabled) }
+    }
 
     /** Appends: the first matching rule wins, so a new one belongs last. */
     fun add(kind: MatcherKind, value: String, action: RuleAction) {

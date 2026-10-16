@@ -3,6 +3,7 @@ package com.justnpcx.starveil.feature.rules
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.model.FlowRecord
+import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
@@ -24,6 +25,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.preferences.ThemeMode
+import com.justnpcx.starveil.core.model.KillSwitchMode
 
 /**
  * The rule list. Order is the routing decision — the first match wins — so
@@ -45,7 +50,7 @@ class RulesViewModelTest {
     @Test
     fun `add appends after the last rule`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN_SUFFIX, "example.com", RuleAction.DIRECT)
@@ -65,7 +70,7 @@ class RulesViewModelTest {
     @Test
     fun `a blank value is not stored`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN, "   ", RuleAction.PROXY)
@@ -83,7 +88,7 @@ class RulesViewModelTest {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY, order = 0))
             seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 0))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -100,7 +105,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -116,7 +121,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -163,3 +168,40 @@ private class FakeFlowLog : FlowLog {
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
+
+
+/**
+ * Only [bypassMainland] is real; everything else is unreachable from this
+ * ViewModel, so `notUsed()` is the honest implementation rather than a
+ * plausible-looking default that nothing checks.
+ */
+private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRepository {
+    private val bypass = MutableStateFlow(initiallyBypass)
+
+    override val bypassMainland: Flow<Boolean> = bypass
+
+    override val themeMode: Flow<ThemeMode> get() = notUsed()
+    override val dynamicColor: Flow<Boolean> get() = notUsed()
+    override val autoReconnect: Flow<Boolean> get() = notUsed()
+    override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
+    override val selectedProfileId: Flow<Long> get() = notUsed()
+    override val selectedGroupId: Flow<Long> get() = notUsed()
+    override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
+    override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
+    override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
+    override val subscriptionLastError: Flow<String?> get() = notUsed()
+
+    override suspend fun setBypassMainland(enabled: Boolean) { bypass.value = enabled }
+    override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
+    override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
+    override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
+    override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
+    override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
+    override suspend fun setSelectedProfileId(id: Long) { notUsed() }
+    override suspend fun setSelectedGroupId(id: Long) { notUsed() }
+    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
+    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
+
+    private fun notUsed(): Nothing = error("not used by RulesViewModel")
+}
