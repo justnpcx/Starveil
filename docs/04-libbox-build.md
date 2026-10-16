@@ -1,13 +1,44 @@
-# libbox (sing-box core) build — M2 task 1
+# libbox (sing-box core) build
 
 How Starveil gets the sing-box core it runs: the Go `libbox` shared library,
-built from the Mirage fork and consumed as an Android AAR.
+built from the Starveil fork and consumed as an Android AAR.
 
 ## Source
 
-- Fork: `justnpcx/sing-box` (Mirage), branch `nb-next-1.14.x`, local tree `/root/sing-box`.
-- Pinned commit used for the spike: **`027f5d1`** (`feat(xhttp): add stream-up mode and downloadSettings`), version string `1.14.0-mirage-1`.
-- XHTTP / REALITY ML-KEM are fork patches kept as their own commits — do not squash them into sync commits.
+| | |
+|---|---|
+| Upstream | `SagerNet/sing-box`, tag **`v1.14.3`** (`7054cac`) |
+| Fork | `justnpcx/sing-box`, branch **`starveil-1.14.x`** |
+| Pinned commit | **`647c447`** |
+| Reported version | **`1.14.3-647c447`** |
+| Local tree | `/root/sing-box` |
+
+The branch is upstream v1.14.3 plus four commits, and nothing else:
+
+| Commit | What | Why it exists |
+|---|---|---|
+| `a267ba4` | XHTTP `stream-one` transport | not in upstream |
+| `74f4725` | XHTTP `stream-up` + `downloadSettings` | not in upstream |
+| `c7e5523` | REALITY `support_x25519mlkem768` | upstream still strips X25519MLKEM768 from the ClientHello unconditionally |
+| `647c447` | VLESS: multiplex wins over flow | upstream sends both when a node carries both |
+
+**The reported version is derived, not written down.** `cmd/internal/build_libbox`
+runs `git describe --tags` and injects the result as
+`-X github.com/sagernet/sing-box/constant.Version=…`, overriding the literal in
+`constant/version.go`. Because the four commits sit on top of the tag,
+`ReadTag()` returns the tag plus the short sha — which is exactly what a bug
+report needs. This is also why an untagged tree builds a core that reports
+`unknown`: the tag is the source of truth, and a tree without one has nothing
+to report. (`ReadTag` is in `cmd/internal/build_shared/tag.go`.)
+
+### The branch has no history in common with the old one
+
+`starveil-1.14.x` was not rebased from `nb-next-1.14.x`; it was started from
+upstream `v1.14.3` and the four commits were replayed onto it. The old branch
+descended from the MatsuriDayo/neko fork's 1.14.x, which is a *different* base —
+so a rebase would have carried that layer along. Replaying meant deciding about
+it, and the answer was that almost none of it was ours to keep: see
+"Upgrading the core" below.
 
 ## Toolchain (exact — these are load-bearing)
 
@@ -178,7 +209,7 @@ rather than let a non-arm64 device install and then die on `loadLibrary`.
 To ship to armeabi-v7a and x86_64 as well, rebuild the AAR and let the app
 emit one APK per ABI.
 
-### Building
+### Building — one ABI at a time, always
 
 ```sh
 # All three env vars matter — see the traps below.
@@ -186,8 +217,23 @@ export PATH=/opt/jdk17/bin:/opt/go/bin:$PATH
 export JAVA_HOME=/opt/jdk17
 export ANDROID_HOME=/opt/android-sdk
 
-cd /root/Starveil && bash tools/build-libbox.sh     # ~7 min, writes into /root/sing-box
+cd /root/Starveil
+PLATFORM=android/arm64 bash tools/build-libbox.sh   # then arm, amd64, 386
 ```
+
+**Do not run it with no `PLATFORM`.** `gomobile bind` compiles every ABI in
+parallel and each one compiles the whole sing-box tree in parallel, so the
+all-ABI build on this 4-core / 12 GiB box reached a load average of **138** and
+took the machine down. One ABI peaks at ~1 GB and a load of ~3.4, which is
+comfortable, and four of those in sequence cost wall time and nothing else.
+
+The per-ABI build also fails cleanly where the parallel one did not: an
+interrupted run leaves `build/<abi>/` behind and the next run refuses to start
+with `open …/go_libboxmain.go: file exists`. `rm -rf build/` and go again.
+
+`/root/build-one-abi.sh <abi>` wraps a single-ABI build with a memory guard
+that kills it if available memory falls below 1.5 GB, and logs to disk rather
+than to `/tmp` (which is tmpfs here, so a build log is RAM).
 
 It produces `libbox.aar` (main variant) and `libbox-legacy.aar` (drops
 `with_naive_outbound`). Starveil uses the **main** one.
@@ -227,6 +273,62 @@ for item in zin.infolist():
 zout.close()
 PY
 ```
+
+## Upgrading the core
+
+Written from the v1.14.0 → v1.14.3 upgrade, which is the one to copy.
+
+```sh
+cd /root/sing-box
+git fetch upstream tag vX.Y.Z              # upstream = SagerNet/sing-box
+git checkout -b starveil-X.Y.x vX.Y.Z
+git cherry-pick <our xhttp commits>        # usually clean
+# then re-apply whatever upstream still has not taken, as new commits
+```
+
+**Do not rebase the old branch.** The old branch descends from a different
+base, so a rebase drags that base's changes in silently. Start from the tag and
+replay, which forces every carried change to be looked at and justified.
+
+### Deciding what to carry
+
+The method matters more than the answer, because the answer changes every
+upgrade. For each candidate:
+
+1. **Does Starveil emit a config key that depends on it?** If the app writes
+   `support_x25519mlkem768` or an XHTTP `mode`, the core must understand it —
+   grep the app for the key, not the fork for the patch.
+2. **Is anything in the build actually reachable?** One patch looked essential
+   until the constructor it hung off turned out never to be registered, which
+   made the whole package dead code. Check for a caller before carrying
+   anything.
+3. **Is it already upstream?** Two of the four candidates from the old base
+   had been fixed upstream between 1.14.0 and 1.14.3, and one of them
+   (`protocol/group/selector.go`) had been a *regression* in the fork — upstream
+   was strictly better.
+
+From the v1.14.3 upgrade the answers were: carry XHTTP, REALITY ML-KEM and the
+VLESS mux fix; drop the rest, including a flag that was declared and read but
+never assigned anywhere in the tree.
+
+### After the upgrade, check these three
+
+```sh
+# 1. the version the core will report — must be tag + short sha
+git describe --tags                       # v1.14.3-4-g647c447 -> "1.14.3-647c447"
+
+# 2. the patches really are in the binary
+unzip -o -q libbox.aar -d /tmp/aar && strings /tmp/aar/jni/arm64-v8a/libbox.so \
+  | grep -oE "1\.14\.[0-9]+-[0-9a-f]{7,8}"
+
+# 3. no stale naming in the artifact
+strings /tmp/aar/jni/arm64-v8a/libbox.so | grep -c mirage      # must be 0
+```
+
+Then: build one ABI, put it in `core/kernel/libs/`, and connect a
+VLESS + REALITY + XHTTP node on a device. A core that builds is not a core that
+carries traffic, and the patches above are exactly the parts no unit test
+reaches.
 
 ### Packaging
 
