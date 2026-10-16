@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import java.util.Locale
+import kotlin.math.round
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -159,15 +161,53 @@ private fun CurrentNodeCard(name: String) {
     }
 }
 
-private fun formatRate(bytesPerSecond: Long): String = when {
-    bytesPerSecond < 1_024 -> "$bytesPerSecond B/s"
-    bytesPerSecond < 1_024 * 1_024 -> "${bytesPerSecond / 1_024} KB/s"
-    else -> String.format("%.1f MB/s", bytesPerSecond / 1_048_576.0)
+private val RATE_UNITS = listOf("B/s", "KB/s", "MB/s", "GB/s")
+private val BYTE_UNITS = listOf("B", "KB", "MB", "GB")
+
+/** One kibibyte, the step between every pair of units above. */
+private const val SCALE = 1024.0
+
+internal fun formatRate(bytesPerSecond: Long): String =
+    formatScaled(bytesPerSecond.toDouble(), RATE_UNITS)
+
+internal fun formatBytes(bytes: Long): String =
+    formatScaled(bytes.toDouble(), BYTE_UNITS)
+
+/**
+ * [value] in the largest unit that keeps it readable.
+ *
+ * The unit is chosen from the **rounded** value, not the raw one, and that is
+ * the whole point: rounding inside a unit is how "1023.6 KB" is shown as
+ * "1023 KB/s" when it is really 1.0 MB/s, and §6.2 names that string as
+ * forbidden. (A value that genuinely is 1023.0–1023.4 KB still reads
+ * "1023 KB/s", because that is what it is.)
+ *
+ * Whole bytes and kilobytes — a fractional byte is noise — and one decimal
+ * from megabytes up. `Locale.US` so the decimal point is a point: the default
+ * locale renders "1,0 MB/s" in half of Europe, and the design is explicit about
+ * the shape of the number.
+ *
+ * Zero reads "0 B/s", never "--": zero is a measurement.
+ */
+private fun formatScaled(value: Double, units: List<String>): String {
+    var scaled = value
+    for (index in units.indices) {
+        val decimals = if (index <= 1) 0 else 1
+        val rounded = roundTo(scaled, decimals)
+        if (index == units.lastIndex || rounded < SCALE) {
+            return if (decimals == 0) {
+                "${rounded.toLong()} ${units[index]}"
+            } else {
+                String.format(Locale.US, "%.1f %s", rounded, units[index])
+            }
+        }
+        scaled /= SCALE
+    }
+    // The loop returns on the last unit; this is here to satisfy the compiler.
+    return "${value.toLong()} ${units.first()}"
 }
 
-private fun formatBytes(bytes: Long): String = when {
-    bytes < 1_024 -> "$bytes B"
-    bytes < 1_024 * 1_024 -> "${bytes / 1_024} KB"
-    bytes < 1_024 * 1_024 * 1_024 -> String.format("%.1f MB", bytes / 1_048_576.0)
-    else -> String.format("%.2f GB", bytes / 1_073_741_824.0)
+private fun roundTo(value: Double, decimals: Int): Double {
+    val factor = if (decimals == 0) 1.0 else 10.0
+    return round(value * factor) / factor
 }
