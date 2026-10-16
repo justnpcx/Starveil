@@ -35,14 +35,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.model.FlowOutcome
+import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -76,14 +80,22 @@ fun RulesScreen(
                 ),
             )
 
-            if (state.isEmpty) {
-                EmptyState()
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(StarveilSpacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-                ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(StarveilSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                // The kernel's actual decisions sit above the rules that were
+                // meant to produce them: the list is what was configured, this
+                // is what happened, and the difference is the whole point.
+                item(key = FLOW_HEADER_KEY) { FlowHeader(state.recentFlow.isEmpty()) }
+                state.recentFlow.take(SHOWN_FLOW_ROWS).forEach { record ->
+                    item(key = "flow-${record.connectionId}") { FlowRow(record) }
+                }
+
+                if (state.isEmpty) {
+                    item(key = "empty") { EmptyState() }
+                } else {
                     itemsIndexed(state.rules, key = { _, rule -> rule.id }) { index, rule ->
                         // §5.2: rows settle in top-down. The index also replaces
                         // the per-row indexOfFirst lookup this used to do.
@@ -293,7 +305,7 @@ private fun RuleDialog(
 private fun EmptyState() {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(StarveilSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
@@ -305,6 +317,97 @@ private fun EmptyState() {
         )
     }
 }
+
+@Composable
+private fun FlowHeader(empty: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+        Text(
+            text = stringResource(R.string.rules_flow_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = StarveilSpacing.sm),
+        )
+        if (empty) {
+            Text(
+                text = stringResource(R.string.rules_flow_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * One real decision: where the request went, which rule sent it there, and how.
+ *
+ * Three lines rather than a drawn graph. A graph would have to be laid out from
+ * something, and the only honest something is this record — so it is shown
+ * directly instead of being redrawn as a diagram that could drift from it.
+ */
+@Composable
+private fun FlowRow(record: FlowRecord) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = record.label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = stringResource(record.outcome.labelRes()),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = record.outcome.colour(),
+                )
+            }
+            // The rule in the kernel's own words. Deliberately not translated
+            // into the list's vocabulary: it is quoted, not restated, and
+            // restating it is how a viewer starts disagreeing with the kernel.
+            if (record.rule.isNotBlank()) {
+                Text(
+                    text = record.rule,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowOutcome.labelRes(): Int = when (this) {
+    // The same three words the rule list uses for its actions, so the two
+    // halves of this screen cannot end up calling one outcome two things (K1).
+    FlowOutcome.PROXY -> R.string.rules_action_proxy
+    FlowOutcome.DIRECT -> R.string.rules_action_direct
+    FlowOutcome.BLOCK -> R.string.rules_action_block
+}
+
+@Composable
+private fun FlowOutcome.colour(): Color = when (this) {
+    FlowOutcome.PROXY -> StarveilColors.GlowPrimary
+    FlowOutcome.DIRECT -> StarveilColors.Connected
+    FlowOutcome.BLOCK -> StarveilColors.Blocked
+}
+
+/** Keys and counts for the flow section. */
+private const val FLOW_HEADER_KEY = "flow-header"
+
+/**
+ * How many decisions are shown above the rule list.
+ *
+ * The adapter keeps a longer ring; this is what is glanceable. Showing the
+ * whole ring here would push the rules off the screen, and the rules are what
+ * this screen is for.
+ */
+private const val SHOWN_FLOW_ROWS = 5
 
 @Composable
 private fun kindLabel(kind: MatcherKind): String = stringResource(

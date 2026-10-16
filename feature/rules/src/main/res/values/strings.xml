@@ -20,6 +20,10 @@
     <string name="rules_match_label">Match</string>
     <string name="rules_value_label">Value</string>
     <string name="rules_action_label">Then</string>
+    <!-- Recent flow: what the kernel actually did, shown above the rules that
+         were supposed to produce it. -->
+    <string name="rules_flow_title">Recent flow</string>
+    <string name="rules_flow_empty">Nothing routed yet. Decisions appear here as the kernel makes them.</string>
     <string name="rules_save">Save</string>
     <string name="rules_cancel">Cancel</string>
 

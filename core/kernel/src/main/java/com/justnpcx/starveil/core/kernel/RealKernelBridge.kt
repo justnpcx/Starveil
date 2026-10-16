@@ -13,6 +13,7 @@ import io.nekohasekai.libbox.SetupOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,10 +57,25 @@ class RealKernelBridge(
     private val _logs = MutableSharedFlow<KernelLogLine>(replay = 64, extraBufferCapacity = 64)
     override val logs = _logs.asSharedFlow()
 
+    // Replay is small: the flow view wants the last few decisions, not a
+    // session's worth, and the adapter keeps its own bounded ring.
+    //
+    // DROP_OLDEST, not the default: with a full buffer the default policy
+    // rejects the *newest* events, which is backwards for a "what just
+    // happened" feed — the decisions most worth showing are the ones it would
+    // throw away.
+    private val _connections = MutableSharedFlow<KernelConnection>(
+        replay = 32,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    override val connections = _connections.asSharedFlow()
+
     private val clientHandler = StarveilCommandClientHandler(
         onConnected = { log(LogLevel.INFO, "kernel connected") },
         onDisconnected = { onCommandChannelDropped() },
         onLog = { line -> _logs.tryEmit(line) },
+        onConnection = { connection -> _connections.tryEmit(connection) },
     )
 
     private var server: CommandServer? = null
@@ -254,9 +270,18 @@ class RealKernelBridge(
         const val COMMAND_LOG = 0
         const val COMMAND_STATUS = 1
 
+        /**
+         * `libbox.CommandConnections` — same reasoning as the two above: the
+         * Go constants are not exported, so this is the value from
+         * `experimental/libbox/command.go`. Without it the kernel never pushes
+         * [writeConnectionEvents], and the flow view has nothing to show.
+         */
+        const val COMMAND_CONNECTIONS = 4
+
         fun clientOptions(): CommandClientOptions = CommandClientOptions().apply {
             addCommand(COMMAND_LOG)
             addCommand(COMMAND_STATUS)
+            addCommand(COMMAND_CONNECTIONS)
         }
     }
 }

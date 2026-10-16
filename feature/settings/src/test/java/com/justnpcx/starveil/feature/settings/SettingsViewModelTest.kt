@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -83,6 +84,7 @@ class SettingsViewModelTest {
 private class FakeKernel(private val reportedVersion: String) : KernelBridge {
     override val state: StateFlow<KernelState> = MutableStateFlow(KernelState.Stopped)
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
+    override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
 
     override suspend fun start(config: String): Result<Unit> = Result.success(Unit)
     override suspend fun stop(): Result<Unit> = Result.success(Unit)

@@ -8,6 +8,7 @@ import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelError
+import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -516,6 +517,7 @@ private class RecordingKernel : KernelBridge {
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
     override val state: StateFlow<KernelState> = _state
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
+    override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
 
     /** The kernel died under us, the way the real bridge reports a crash. */
     fun crash() {

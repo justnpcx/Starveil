@@ -40,6 +40,9 @@ dependencies {
 
     implementation(project(":core:ui"))
     implementation(project(":core:model"))
+    // For FlowLog — the port, not the kernel. :app implements it, so this
+    // module still never touches libbox or the VpnService.
+    implementation(project(":core:kernel"))
     // Rules are stored, so the screen reads them through the repository port.
     implementation(project(":core:data"))
 

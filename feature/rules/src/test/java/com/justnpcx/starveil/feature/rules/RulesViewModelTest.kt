@@ -1,6 +1,8 @@
 package com.justnpcx.starveil.feature.rules
 
 import com.justnpcx.starveil.core.data.repository.RuleRepository
+import com.justnpcx.starveil.core.kernel.FlowLog
+import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
@@ -9,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -42,7 +45,7 @@ class RulesViewModelTest {
     @Test
     fun `add appends after the last rule`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository)
+        val viewModel = RulesViewModel(repository, FakeFlowLog())
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN_SUFFIX, "example.com", RuleAction.DIRECT)
@@ -62,7 +65,7 @@ class RulesViewModelTest {
     @Test
     fun `a blank value is not stored`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository)
+        val viewModel = RulesViewModel(repository, FakeFlowLog())
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN, "   ", RuleAction.PROXY)
@@ -80,7 +83,7 @@ class RulesViewModelTest {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY, order = 0))
             seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 0))
         }
-        val viewModel = RulesViewModel(repository)
+        val viewModel = RulesViewModel(repository, FakeFlowLog())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -97,7 +100,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository)
+        val viewModel = RulesViewModel(repository, FakeFlowLog())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -113,7 +116,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository)
+        val viewModel = RulesViewModel(repository, FakeFlowLog())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -153,3 +156,10 @@ private class FakeRules : RuleRepository {
 
     fun ordered(): List<Rule> = state.value.sortedWith(compareBy({ it.order }, { it.id }))
 }
+
+/** The flow view is not what these tests are about; it only has to exist. */
+private class FakeFlowLog : FlowLog {
+    override val records: Flow<List<FlowRecord>> = flowOf(emptyList())
+}
+
+private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

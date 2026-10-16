@@ -1,10 +1,12 @@
 package com.justnpcx.starveil.di
 
 import android.content.Context
+import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelPaths
 import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
+import com.justnpcx.starveil.flows.KernelFlowLog
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import com.justnpcx.starveil.leak.TunnelProbe
@@ -61,6 +63,14 @@ object KernelModule {
     @Provides
     @Singleton
     fun provideLogStream(bridge: KernelBridge): LogStream = KernelLogStream(bridge)
+
+    /**
+     * The Rules screen's view of the kernel's routing decisions, on the same
+     * terms: :app owns the adapter, the feature sees a bounded list.
+     */
+    @Provides
+    @Singleton
+    fun provideFlowLog(bridge: KernelBridge): FlowLog = KernelFlowLog(bridge)
 
     /**
      * What the leak self-check watches: whether the tunnel the Kill Switch

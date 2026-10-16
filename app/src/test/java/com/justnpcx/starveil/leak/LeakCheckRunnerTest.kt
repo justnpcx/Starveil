@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -95,6 +96,7 @@ class LeakCheckRunnerTest {
 private class FakeKernel(initial: KernelState) : KernelBridge {
     override val state: StateFlow<KernelState> = MutableStateFlow(initial)
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
+    override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
     override suspend fun start(config: String): Result<Unit> = Result.success(Unit)
     override suspend fun stop(): Result<Unit> = Result.success(Unit)
     override suspend fun stopKeepingTunnel(): Result<Unit> = Result.success(Unit)

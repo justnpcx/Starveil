@@ -29,6 +29,16 @@ interface KernelBridge {
      */
     val logs: SharedFlow<KernelLogLine>
 
+    /**
+     * Routing decisions the kernel made, pushed as they happen.
+     *
+     * This is the *actual* path each connection took — which rule matched and
+     * which outbound carried it — not a reading of the configured rules. The
+     * two disagree precisely when something is wrong, which is the only time
+     * anyone looks.
+     */
+    val connections: SharedFlow<KernelConnection>
+
     /** Start the kernel with a fully-built config (JSON). Idempotent. */
     suspend fun start(config: String): Result<Unit>
 
@@ -131,6 +141,25 @@ data class KernelLogLine(
 )
 
 enum class LogLevel { DEBUG, INFO, WARN, ERROR }
+
+/**
+ * One routing decision, as the kernel reported it.
+ *
+ * [rule] is the kernel's own rendering of the matched rule (its matcher text),
+ * and [outboundType] is the *type* of the outbound that carried it — `direct`,
+ * `block`, or a protocol name — not its tag. Both are deliberately passed
+ * through unmapped: turning them into app vocabulary is the adapter's job, and
+ * this stays a faithful copy of what the kernel said.
+ */
+data class KernelConnection(
+    val id: String,
+    val destination: String,
+    val domain: String,
+    val rule: String,
+    val outbound: String,
+    val outboundType: String,
+    val createdAtMs: Long,
+)
 
 /** Traffic snapshot. All values are cumulative bytes + instantaneous rate. */
 data class TrafficStats(

@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.logs
 
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.LogLevel
@@ -47,6 +48,7 @@ private class RecordingBridge : KernelBridge {
     private val flow = MutableSharedFlow<KernelLogLine>(replay = 16, extraBufferCapacity = 16)
 
     override val logs: SharedFlow<KernelLogLine> = flow
+    override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
     override val state: StateFlow<KernelState> = MutableStateFlow<KernelState>(KernelState.Stopped)
 
     fun emit(line: KernelLogLine) {
