@@ -50,7 +50,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.0-mirage-1"))
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"))
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -64,7 +64,7 @@ class SettingsViewModelTest {
             return viewModel.uiState.value.kernelVersion
         }
 
-        assertEquals("1.14.0-mirage-1", awaitVersion())
+        assertEquals("1.14.3-647c447", awaitVersion())
         job.cancel()
     }
 

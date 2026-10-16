@@ -27,7 +27,7 @@
     <string name="leak_check_run">Run self-check</string>
 
     <string name="settings_kernel_title">Kernel</string>
-    <!-- The core's own version string, e.g. "1.14.0-mirage-1". -->
+    <!-- The core's own version string, e.g. "1.14.3-647c447". -->
     <string name="settings_kernel_version">sing-box core %1$s</string>
     <string name="settings_kernel_unknown">Version unavailable.</string>
 </resources>
