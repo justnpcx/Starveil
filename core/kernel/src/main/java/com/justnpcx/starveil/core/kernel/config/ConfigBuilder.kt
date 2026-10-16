@@ -61,6 +61,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         profiles: List<Profile>,
         rules: List<Rule> = emptyList(),
         mode: GroupMode = GroupMode.URL_TEST,
+        mainland: MainlandRuleSets? = null,
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -113,6 +114,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             endpoints = endpoints,
             finalTag = AUTO_TAG,
             rules = rules,
+            mainland = mainland,
         )
     }
 
@@ -141,8 +143,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      * `{"outbound": "direct"}` shape is deprecated, and `reject` has no
      * outbound at all, so the union is the only shape that covers all three.
      */
-    private fun routeRules(rules: List<Rule>, proxyTag: String): List<Map<String, Any?>> =
-        rules.filter { it.enabled }.map { rule ->
+    private fun routeRules(
+        rules: List<Rule>,
+        proxyTag: String,
+        mainland: MainlandRuleSets?,
+    ): List<Map<String, Any?>> {
+        val userRules = rules.filter { it.enabled }.map { rule ->
             val matcher = linkedMapOf<String, Any?>(
                 rule.matcher.kind.wireName to listOf(rule.matcher.value),
             )
@@ -153,6 +159,112 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             }
             matcher + action
         }
+        if (mainland == null) return userRules
+        // After the user's own rules and before `final`: the user's intent wins
+        // over the preset, which is the only order that lets someone carve an
+        // exception out of it. geosite-cn is a domain match, so a domestic
+        // name is sent direct before any DNS answer is needed; geoip-cn then
+        // catches the addresses that were already resolved elsewhere.
+        return userRules + listOf(
+            linkedMapOf<String, Any?>("rule_set" to GEOSITE_CN_TAG, "action" to "direct"),
+            linkedMapOf<String, Any?>("rule_set" to GEOIP_CN_TAG, "action" to "direct"),
+        )
+    }
+
+    /**
+     * The rule sets the preset routes by, as **files**.
+     *
+     * Not `type: "remote"`: sing-box fetches a remote rule set inside `start()`
+     * and the router runs those fetches with `FastFail`, so a first fetch that
+     * fails — offline, blocked, CDN down — fails the whole start and the tunnel
+     * never comes up. That is the exact deadlock this preset has to avoid, so
+     * the app downloads the files and hands over paths; when they are missing
+     * the preset is simply not emitted and everything falls through to `final`.
+     *
+     * `format` is inferred from the `.srs` extension anyway; stating it means a
+     * renamed file cannot quietly change how it is parsed.
+     */
+    private fun mainlandRuleSets(mainland: MainlandRuleSets): List<Map<String, Any?>> = listOf(
+        linkedMapOf<String, Any?>(
+            "type" to "local",
+            "tag" to GEOSITE_CN_TAG,
+            "format" to "binary",
+            "path" to mainland.geositeCnPath,
+        ),
+        linkedMapOf<String, Any?>(
+            "type" to "local",
+            "tag" to GEOIP_CN_TAG,
+            "format" to "binary",
+            "path" to mainland.geoipCnPath,
+        ),
+    )
+
+    /**
+     * DNS, with or without the preset.
+     *
+     * The problem the preset solves is not speed but honesty: a poisoned answer
+     * for a domestic name resolves to an address that is not in geoip-cn, so the
+     * address-based rule sends domestic traffic abroad. Resolving domestic names
+     * through a domestic resolver keeps the two rules agreeing with each other.
+     *
+     * `optimistic` is on for every server. It is sing-box's own serve-stale
+     * cache: a cached answer is returned immediately and refreshed behind the
+     * request, which is what makes the second lookup of a name fast rather than
+     * a second round trip.
+     */
+    private fun dnsBlock(mainland: MainlandRuleSets?): Map<String, Any?> {
+        val servers = mutableListOf<Map<String, Any?>>(
+            linkedMapOf<String, Any?>(
+                "type" to "local",
+                "tag" to LOCAL_DNS_TAG,
+                "optimistic" to true,
+            ),
+        )
+        if (mainland == null) {
+            // New DNS server format. The legacy {"address": "local"} shape was
+            // deprecated in sing-box 1.12 and REMOVED in 1.14, where it fails
+            // config decode with an explicit migration message.
+            return linkedMapOf("servers" to servers)
+        }
+        servers += linkedMapOf<String, Any?>(
+            "type" to "https",
+            "tag" to DNS_CN_TAG,
+            "server" to DNS_CN_SERVER,
+            // Direct: this is the resolver that knows domestic names, and
+            // sending it through the tunnel would both slow it down and make it
+            // answer with the node's view of the world instead.
+            "detour" to DIRECT_TAG,
+            "domain_resolver" to LOCAL_DNS_TAG,
+            "optimistic" to true,
+        )
+        servers += linkedMapOf<String, Any?>(
+            "type" to "https",
+            "tag" to DNS_PROXY_TAG,
+            "server" to DNS_PROXY_SERVER,
+            "detour" to AUTO_TAG,
+            "domain_resolver" to LOCAL_DNS_TAG,
+            "optimistic" to true,
+        )
+        return linkedMapOf(
+            "servers" to servers,
+            "rules" to listOf(
+                // First, and on its own: a private address is not a question
+                // about the wider internet and must never leave the device to
+                // be answered.
+                linkedMapOf<String, Any?>(
+                    "ip_is_private" to true,
+                    "action" to "route",
+                    "server" to LOCAL_DNS_TAG,
+                ),
+                linkedMapOf<String, Any?>(
+                    "rule_set" to GEOSITE_CN_TAG,
+                    "action" to "route",
+                    "server" to DNS_CN_TAG,
+                ),
+            ),
+            "final" to DNS_PROXY_TAG,
+        )
+    }
 
     /** Where this profile's fragment belongs; unknown types default to outbound. */
     private fun placementOf(profile: Profile): ConfigPlacement =
@@ -200,17 +312,11 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         endpoints: List<Map<String, Any?>>,
         finalTag: String,
         rules: List<Rule>,
+        mainland: MainlandRuleSets? = null,
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
-            "dns" to linkedMapOf(
-                // New DNS server format. The legacy {"address": "local"} shape
-                // was deprecated in sing-box 1.12 and REMOVED in 1.14, where it
-                // fails config decode with an explicit migration message.
-                "servers" to listOf(
-                    linkedMapOf<String, Any?>("type" to "local", "tag" to LOCAL_DNS_TAG),
-                ),
-            ),
+            "dns" to dnsBlock(mainland),
             "inbounds" to listOf(tunInbound()),
             "outbounds" to outbounds,
         )
@@ -221,7 +327,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             config["endpoints"] = endpoints
         }
         config["route"] = linkedMapOf<String, Any?>(
-            "rules" to routeRules(rules, finalTag),
+            "rules" to routeRules(rules, finalTag, mainland),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
             // The dialer installs the bind/protect control, which reaches
@@ -232,6 +338,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // only an A/B and made no difference to the dial.
             "auto_detect_interface" to true,
         )
+        if (mainland != null) {
+            // Inserted rather than appended so the emitted JSON reads in the
+            // order it is evaluated: the sets are declared, then the rules
+            // that reference them.
+            val route = config["route"] as LinkedHashMap<String, Any?>
+            route["rule_set"] = mainlandRuleSets(mainland)
+        }
         // Present, though empty. sing-box only builds its traffic manager —
         // and therefore only reports uplink/downlink to the CommandClient —
         // when `experimental.clash_api` is set (box.go: `needClashAPI`).
@@ -252,8 +365,30 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val BLOCK_TAG = "block"
         const val TUN_TAG = "tun-in"
         const val LOCAL_DNS_TAG = "local"
+        const val DNS_CN_TAG = "dns-cn"
+        const val DNS_PROXY_TAG = "dns-proxy"
+        const val GEOSITE_CN_TAG = "geosite-cn"
+        const val GEOIP_CN_TAG = "geoip-cn"
+
+        /** AliDNS over HTTPS: reachable from the mainland without a proxy. */
+        const val DNS_CN_SERVER = "223.5.5.5"
+
+        /** Cloudflare, reached through the tunnel, for everything else. */
+        const val DNS_PROXY_SERVER = "1.1.1.1"
     }
 }
+
+/**
+ * Local copies of the rule sets the mainland preset routes by.
+ *
+ * Paths rather than URLs on purpose: see [ConfigBuilder.mainlandRuleSets]. The
+ * caller only builds this once both files are on disk, so its presence *is* the
+ * statement that the preset can be emitted.
+ */
+data class MainlandRuleSets(
+    val geositeCnPath: String,
+    val geoipCnPath: String,
+)
 
 /** A config could not be built from the given profile. Carries no credentials. */
 class ConfigBuildException(message: String) : IllegalArgumentException(message)
