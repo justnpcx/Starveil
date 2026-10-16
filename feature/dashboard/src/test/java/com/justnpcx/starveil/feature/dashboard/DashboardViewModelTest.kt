@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -26,7 +27,9 @@ import com.justnpcx.starveil.core.ui.components.ConnectionState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.justnpcx.starveil.core.model.LatencySample
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -378,10 +381,60 @@ class DashboardViewModelTest {
         assertNull(viewModel.uiState.value.notice)
     }
 
+    @Test
+    fun `the dashboard carries the selected node's health`() = runBlocking {
+        // §7.2's curve is about a node, so the dashboard reads the same history
+        // the Nodes tab draws its card from.
+        val samples = listOf(
+            LatencySample(atMs = 1_000L, latencyMs = 100),
+            LatencySample(atMs = 2_000L, latencyMs = 200),
+        )
+        val viewModel = viewModel(
+            preferences = FakePreferences(ONE),
+            kernel = RecordingKernel(),
+            nodeHealth = FakeNodeHealth(mapOf(ONE to samples)),
+        )
+        yield()
+
+        val health = viewModel.uiState.value.health
+        assertNotNull("expected the selected node's health", health)
+        assertEquals(2, health!!.samples.size)
+    }
+
+    @Test
+    fun `a node with no history is collecting, not absent`() = runBlocking {
+        // "Nothing measured yet" and "no curve at all" are different, and the
+        // chart says the first in words. Returning null here would leave the
+        // area blank instead.
+        val viewModel = viewModel(
+            preferences = FakePreferences(ONE),
+            kernel = RecordingKernel(),
+            nodeHealth = FakeNodeHealth(emptyMap()),
+        )
+        yield()
+
+        val health = viewModel.uiState.value.health
+        assertNotNull(health)
+        assertTrue(health!!.collecting)
+    }
+
+    @Test
+    fun `a group target has no curve of its own`() = runBlocking {
+        val preferences = FakePreferences(ONE)
+        val viewModel = viewModel(preferences, RecordingKernel())
+        yield()
+
+        preferences.setSelectedGroupId(GROUP_ID)
+        yield()
+
+        assertNull(viewModel.uiState.value.health)
+    }
+
     private fun viewModel(
         preferences: FakePreferences,
         kernel: RecordingKernel,
         groups: FakeGroups = FakeGroups(emptyList()),
+        nodeHealth: NodeHealthRepository = FakeNodeHealth(),
     ) =
         DashboardViewModel(
             kernel = kernel,
@@ -390,6 +443,7 @@ class DashboardViewModelTest {
             groups = groups,
             rules = FakeRules(),
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
+            nodeHealth = nodeHealth,
         )
 
     private fun profile(id: Long, name: String) = Profile(
@@ -407,6 +461,7 @@ class DashboardViewModelTest {
     private companion object {
         const val ONE = 1L
         const val TWO = 2L
+        const val GROUP_ID = 9L
         const val SUB = 7L
     }
 }
@@ -558,6 +613,15 @@ private class RecordingKernel : KernelBridge {
 
     override suspend fun queryStats(): TrafficStats = TrafficStats()
     override suspend fun version(): String = "test"
+}
+
+/** Health history, keyed by node id. */
+private class FakeNodeHealth(
+    private val byNode: Map<Long, List<LatencySample>> = emptyMap(),
+) : NodeHealthRepository {
+    override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = flowOf(byNode)
+    override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) = notUsed()
+    override suspend fun forget(profileId: Long) = notUsed()
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

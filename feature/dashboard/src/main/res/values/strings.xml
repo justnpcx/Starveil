@@ -23,5 +23,9 @@
     <string name="dashboard_notice_no_target">Pick a node or a group on the Nodes tab first</string>
     <string name="dashboard_notice_config">Cannot build the config for this target</string>
     <string name="dashboard_notice_kernel_refused">Kernel failed to start</string>
+
+    <!-- §7.2 node health history. -->
+    <string name="dashboard_health_title">Node health · last 30 min</string>
+    <string name="dashboard_health_availability">%1$d%% up</string>
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
 </resources>

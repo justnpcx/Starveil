@@ -1,6 +1,8 @@
 package com.justnpcx.starveil.feature.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,15 +20,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import java.util.Locale
 import kotlin.math.round
+import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
+import com.justnpcx.starveil.core.model.AvailabilityBand
+import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.MessageBanner
+import com.justnpcx.starveil.core.ui.components.NodeHealthChart
 import com.justnpcx.starveil.core.ui.components.TrafficSparkline
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -47,6 +54,7 @@ fun DashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(StarveilSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
@@ -91,6 +99,53 @@ fun DashboardScreen(
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         CurrentNodeCard(name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node))
+        // §7.2: the selected node's health over the window. Only for a node —
+        // a group has no single curve — and the chart says "collecting" in
+        // words until there is a shape worth drawing.
+        state.health?.let { health ->
+            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+            NodeHealthSection(health)
+        }
+    }
+}
+
+/**
+ * §7.2's health history: the curve, its availability bar and its loss dots,
+ * under a line that says what the area is.
+ */
+@Composable
+private fun NodeHealthSection(health: NodeHealth) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.dashboard_health_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            // The bar's colour is the band; the number makes it readable
+            // without having to judge a shade — and colour alone is not a
+            // signal for everyone.
+            if (!health.collecting) {
+                Text(
+                    text = stringResource(
+                        R.string.dashboard_health_availability,
+                        health.availabilityPct.roundToInt(),
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = when (health.band) {
+                        AvailabilityBand.GOOD -> StarveilColors.Connected
+                        AvailabilityBand.FAIR -> StarveilColors.Warning
+                        AvailabilityBand.POOR -> StarveilColors.Blocked
+                    },
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+        NodeHealthChart(health = health)
     }
 }
 
