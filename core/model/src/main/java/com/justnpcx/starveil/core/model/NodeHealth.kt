@@ -90,6 +90,15 @@ data class NodeHealth(
 const val EMA_ALPHA = 0.2
 
 /**
+ * How far back a node's health is kept and drawn (§7.2).
+ *
+ * One value for both the chart's query and the store's pruning, so the window
+ * on screen and the window retained can never disagree — a chart asking for
+ * more than is kept would silently show a shorter history than it claims.
+ */
+const val HEALTH_WINDOW_MS = 30 * 60 * 1000L
+
+/**
  * Share of [samples] that came back, 0–100. An empty window is 0.
  */
 fun availabilityPct(samples: List<LatencySample>): Float {
