@@ -26,7 +26,11 @@ import com.justnpcx.starveil.core.model.json.Json
 class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     /** Single-profile config: one `proxy` outbound, route final = `proxy`. */
-    fun build(profile: Profile, rules: List<Rule> = emptyList()): String {
+    fun build(
+        profile: Profile,
+        rules: List<Rule> = emptyList(),
+        mainland: MainlandRuleSets? = null,
+    ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
         // top-level section — and the route still points at its tag, because
@@ -41,6 +45,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             endpoints = if (isEndpoint) listOf(proxy) else emptyList(),
             finalTag = PROXY_TAG,
             rules = rules,
+            mainland = mainland,
         )
     }
 

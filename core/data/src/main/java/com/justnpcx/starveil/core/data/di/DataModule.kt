@@ -11,6 +11,9 @@ import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
 import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.ruleset.FileMainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import java.io.File
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -38,6 +41,17 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
+
+    @Provides
+    @Singleton
+    fun provideMainlandRuleSetStore(
+        @ApplicationContext context: Context,
+    ): MainlandRuleSetStore = FileMainlandRuleSetStore(
+        directory = File(context.filesDir, "rulesets"),
+        // Straight to logcat. A failed download is not worth a screen, but it
+        // has to be findable when someone asks why the preset did nothing.
+        warn = { android.util.Log.w("StarveilRuleSets", it) },
+    )
 
     @Provides
     @Singleton

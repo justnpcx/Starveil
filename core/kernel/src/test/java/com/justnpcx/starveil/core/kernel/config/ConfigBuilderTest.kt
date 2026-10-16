@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Hysteria2Settings
+import com.justnpcx.starveil.core.model.MainlandRuleSets
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.GroupMode
