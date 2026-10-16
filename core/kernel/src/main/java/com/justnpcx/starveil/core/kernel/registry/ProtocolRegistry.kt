@@ -33,6 +33,16 @@ data class ProtocolDescriptor(
     /** URI schemes this protocol claims, without "://" (e.g. "vless"). */
     val schemes: List<String>,
     val linkParser: (String) -> Profile?,
+    /**
+     * The inverse of [linkParser]: this protocol's share link for a profile, or
+     * null when the profile is not something this protocol can express.
+     *
+     * Registered here rather than dispatched on in the writer, so adding a
+     * protocol means registering both halves and neither can be forgotten.
+     * Whatever it emits, [linkParser] must read back into an equal profile —
+     * that round trip is the entire contract, and the tests pin it per protocol.
+     */
+    val linkWriter: (Profile) -> String?,
     val configBuilder: (Profile) -> Map<String, Any?>,
     /**
      * Navigation route of this protocol's editor (e.g. `editor/vless`).
@@ -65,6 +75,17 @@ class ProtocolRegistry(private val descriptors: Map<ProfileType, ProtocolDescrip
     }
 
     fun get(type: ProfileType): ProtocolDescriptor? = descriptors[type]
+
+    /**
+     * This profile as a share link, or null when no registered protocol can
+     * express it.
+     *
+     * A blank result is treated as "cannot" rather than passed on: an empty
+     * link is not something anything can import, and handing it to the UI would
+     * put an empty QR code on screen.
+     */
+    fun writeLink(profile: Profile): String? =
+        get(profile.type)?.linkWriter?.invoke(profile)?.takeIf { it.isNotBlank() }
 
     fun all(): List<ProtocolDescriptor> = descriptors.values.toList()
 

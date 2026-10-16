@@ -11,6 +11,7 @@
     <string name="profiles_new_node">New node</string>
     <string name="profiles_new_node_title">Which protocol?</string>
     <string name="profiles_row_edit">Edit</string>
+    <string name="profiles_row_share">Share</string>
     <string name="profiles_row_move">Move to group</string>
     <string name="profiles_row_menu_title">%1$s</string>
     <string name="profiles_group_all">All</string>
@@ -34,6 +35,13 @@
     <string name="profiles_group_name_label">Name</string>
     <string name="profiles_group_save">Save</string>
     <string name="profiles_group_cancel">Cancel</string>
+
+    <string name="profiles_share_title">Share %1$s</string>
+    <string name="profiles_share_copy">Copy link</string>
+    <string name="profiles_share_copied">Link copied</string>
+    <string name="profiles_share_qr_description">QR code for this node</string>
+    <string name="profiles_share_no_qr">This link is too long to show as a QR code. Copy it instead.</string>
+    <string name="profiles_share_unavailable">This node has no share format.</string>
     <string name="profiles_group_delete">Delete</string>
     <string name="profiles_group_delete_title">Delete this group?</string>
     <string name="profiles_group_delete_body">%1$s and its %2$d nodes will be removed.</string>

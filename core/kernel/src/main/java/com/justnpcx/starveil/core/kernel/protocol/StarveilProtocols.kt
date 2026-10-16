@@ -47,6 +47,7 @@ object StarveilProtocols {
         defaultPort = 443,
         schemes = listOf("vless"),
         linkParser = ::parseVless,
+        linkWriter = StarveilLinkWriters::vless,
         configBuilder = { profile ->
             val settings = profile.settings as? VlessSettings
                 ?: error("VLESS profile has no VLESS settings")
@@ -61,6 +62,7 @@ object StarveilProtocols {
         defaultPort = 443,
         schemes = listOf("trojan"),
         linkParser = ::parseTrojan,
+        linkWriter = StarveilLinkWriters::trojan,
         configBuilder = { profile ->
             val settings = profile.settings as? TrojanSettings
                 ?: error("Trojan profile has no Trojan settings")
@@ -75,6 +77,7 @@ object StarveilProtocols {
         defaultPort = 8388,
         schemes = listOf("ss"),
         linkParser = ::parseShadowsocks,
+        linkWriter = StarveilLinkWriters::shadowsocks,
         configBuilder = { profile ->
             val settings = profile.settings as? ShadowsocksSettings
                 ?: error("Shadowsocks profile has no Shadowsocks settings")
@@ -89,6 +92,7 @@ object StarveilProtocols {
         defaultPort = 443,
         schemes = listOf("vmess"),
         linkParser = ::parseVmess,
+        linkWriter = StarveilLinkWriters::vmess,
         configBuilder = { profile ->
             val settings = profile.settings as? VmessSettings
                 ?: error("VMess profile has no VMess settings")
@@ -103,6 +107,7 @@ object StarveilProtocols {
         defaultPort = 443,
         schemes = listOf("hysteria2", "hy2"),
         linkParser = ::parseHysteria2,
+        linkWriter = StarveilLinkWriters::hysteria2,
         configBuilder = { profile ->
             val settings = profile.settings as? Hysteria2Settings
                 ?: error("Hysteria2 profile has no Hysteria2 settings")
@@ -117,6 +122,7 @@ object StarveilProtocols {
         defaultPort = 443,
         schemes = listOf("tuic"),
         linkParser = ::parseTuic,
+        linkWriter = StarveilLinkWriters::tuic,
         configBuilder = { profile ->
             val settings = profile.settings as? TuicSettings
                 ?: error("TUIC profile has no TUIC settings")
@@ -131,6 +137,7 @@ object StarveilProtocols {
         defaultPort = 51820,
         schemes = listOf("wireguard"),
         linkParser = ::parseWireGuardConf,
+        linkWriter = StarveilLinkWriters::wireGuard,
         configBuilder = { profile ->
             val settings = profile.settings as? WireGuardSettings
                 ?: error("WireGuard profile has no WireGuard settings")
@@ -638,6 +645,14 @@ object StarveilProtocols {
         val raw = q["mux"] ?: return null
         val enabled = LinkParsing.asBool(raw) || (raw.toIntOrNull() ?: 0) > 0
         if (!enabled) return null
-        return MuxOptions(enabled = true)
+        return MuxOptions(
+            enabled = true,
+            // The link ecosystem treats mux as a client-side setting, so these
+            // two names are this app's own extension. Harmless to other clients
+            // — they ignore parameters they do not know — and the only way this
+            // app's own export can come back whole.
+            protocol = q["mux_protocol"]?.takeIf { it.isNotBlank() },
+            padding = q["mux_padding"]?.let { LinkParsing.asBool(it) },
+        )
     }
 }
