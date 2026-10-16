@@ -2,4 +2,6 @@
 <resources>
     <!-- The one word both screens' banners use to dismiss themselves. -->
     <string name="core_message_dismiss">Dismiss</string>
+    <!-- The one action label for every undo in the app (K2/K1). -->
+    <string name="core_undo">Undo</string>
 </resources>

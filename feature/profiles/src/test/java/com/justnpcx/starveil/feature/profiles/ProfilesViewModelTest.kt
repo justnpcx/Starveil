@@ -15,6 +15,8 @@ import com.justnpcx.starveil.core.subscription.Clock
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkResolver
+import com.justnpcx.starveil.core.ui.snackbar.UndoBus
+import com.justnpcx.starveil.core.ui.snackbar.UndoRequest
 import com.justnpcx.starveil.core.subscription.SubscriptionFetcher
 import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
@@ -539,6 +541,28 @@ class ProfilesViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun `deleting a node offers the way back, and the undo restores it`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val undo = RecordingUndo()
+        val viewModel = viewModel(profiles, FakePreferences(ONE), undo = undo)
+
+        viewModel.deleteWithUndo(profile(ONE, "one"))
+        yield()
+
+        // Gone at once — no dialog stands between the gesture and the delete —
+        // and the reversal is offered by name.
+        assertNull(profiles.getById(ONE))
+        assertEquals(R.string.profiles_deleted, undo.request?.messageRes)
+        assertEquals(listOf("one"), undo.request?.args)
+
+        undo.request!!.onUndo()
+        yield()
+
+        // Back exactly as it was: same id, so the row is the same row.
+        assertNotNull(profiles.getById(ONE))
+    }
+
     private fun base64Links(vararg links: String): String =
         Base64.getEncoder().encodeToString(links.joinToString("\n").toByteArray())
 
@@ -557,6 +581,7 @@ class ProfilesViewModelTest {
         refreshScheduler: SubscriptionRefreshScheduler = FakeRefreshScheduler(),
         fetcher: SubscriptionFetcher = FakeFetcher(),
         exporter: LinkExporter = LinkExporter { null },
+        undo: UndoBus = RecordingUndo(),
     ): ProfilesViewModel {
         // A subscription body is base64'd share links, so the registry needs a
         // resolver that can turn one into a profile; otherwise every body would
@@ -586,6 +611,7 @@ class ProfilesViewModelTest {
             refreshScheduler = refreshScheduler,
             exporter = exporter,
             updater = updater,
+            undo = undo,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(
                 resolver = LinkResolver { null },
@@ -627,6 +653,11 @@ private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepos
 
     override suspend fun upsert(profile: Profile): Long {
         upserted = profile
+        // Mirrors the real repository: an upsert replaces the row with that id.
+        // Without this the fake accepted writes and kept none of them, which
+        // is how a restore test passes while the restore does nothing.
+        all.removeAll { it.id == profile.id }
+        all += profile
         return profile.id
     }
 
@@ -763,3 +794,13 @@ private class FakeRefreshScheduler : SubscriptionRefreshScheduler {
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
+
+/** Records the undo the view model offered, so the test can run it. */
+private class RecordingUndo : UndoBus {
+    var request: UndoRequest? = null
+        private set
+
+    override fun show(messageRes: Int, args: List<Any>, onUndo: () -> Unit) {
+        request = UndoRequest(messageRes = messageRes, args = args, onUndo = onUndo)
+    }
+}

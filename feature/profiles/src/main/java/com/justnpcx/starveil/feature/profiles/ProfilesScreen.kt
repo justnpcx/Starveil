@@ -35,6 +35,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -92,9 +95,6 @@ fun ProfilesScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showImport by remember { mutableStateOf(false) }
-    // Deleting is destructive, so the row's button only stages the node; the
-    // confirmation below is what actually removes it.
-    var pendingDelete by remember { mutableStateOf<Profile?>(null) }
     // Group management sits behind a long-press on a chip, because a tap has to
     // stay the filter. Three stages, like the node delete: menu, then the
     // rename or the confirmation.
@@ -194,13 +194,14 @@ fun ProfilesScreen(
                         // as a block. `appeared` lives out here so a row that
                         // scrolls away and back does not replay its entrance.
                         AppearOnFirstShow(key = profile.id, index = index, seen = appeared) {
-                            NodeRow(
-                                profile = profile,
-                                selected = profile.id == state.selectedId,
-                                onClick = { viewModel.select(profile.id) },
-                                onLongClick = { rowMenu = profile },
-                                onDelete = { pendingDelete = profile },
-                            )
+                            SwipeToDeleteRow(onDelete = { viewModel.deleteWithUndo(profile) }) {
+                                NodeRow(
+                                    profile = profile,
+                                    selected = profile.id == state.selectedId,
+                                    onClick = { viewModel.select(profile.id) },
+                                    onLongClick = { rowMenu = profile },
+                                )
+                            }
                         }
                     }
                 }
@@ -242,28 +243,6 @@ fun ProfilesScreen(
         ShareDialog(target = target, onDismiss = viewModel::dismissShare)
     }
 
-    pendingDelete?.let { profile ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.profiles_delete_title)) },
-            text = { Text(stringResource(R.string.profiles_delete_body, profile.name)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.delete(profile.id)
-                        pendingDelete = null
-                    },
-                ) {
-                    Text(stringResource(R.string.profiles_delete_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.profiles_delete_cancel))
-                }
-            },
-        )
-    }
 
     groupMenu?.let { menuGroup ->
         // Read through to the live row: the captured value is a snapshot, so
@@ -397,7 +376,7 @@ fun ProfilesScreen(
                     TextButton(
                         onClick = {
                             rowMenu = null
-                            pendingDelete = profile
+                            viewModel.deleteWithUndo(profile)
                         },
                     ) {
                         Text(
@@ -769,13 +748,62 @@ private fun ProfilesMessage.text(): String = when (this) {
 }
 
 @OptIn(ExperimentalFoundationApi::class)
+/**
+ * Swipe left to delete, with the reversal offered in the app's one Snackbar (K2).
+ *
+ * The delete happens on the gesture rather than after a confirmation: it is
+ * reversible, so a dialog in front of it would be asking permission for
+ * something that can be taken back. The row leaving is the feedback, and the
+ * Snackbar is the way back.
+ *
+ * This replaced a trailing delete button, which existed because "a node carries
+ * credentials and re-importing one is not always possible". That is still true,
+ * and it is exactly what the undo answers: the credentials are not lost, they
+ * are one tap away.
+ */
+@Composable
+private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else {
+                false
+            }
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = StarveilSpacing.lg)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.errorContainer),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    // Decorative: the row already announces itself, and a
+                    // second "Delete <node>" would read it out twice.
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        },
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun NodeRow(
     profile: Profile,
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     Surface(
         // Long-press moves the node between groups; a tap stays the selection.
@@ -819,16 +847,6 @@ private fun NodeRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // Its own button rather than a swipe: a node carries credentials
-            // and re-importing one is not always possible, so the gesture has
-            // to be deliberate and visible.
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.profiles_delete, profile.name),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
     }
 }
