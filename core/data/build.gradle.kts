@@ -19,6 +19,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    sourceSets {
+        // MigrationTestHelper reads the exported schemas as assets, so a
+        // migration can be validated against the exact v1 file Room shipped.
+        // Without this the helper finds no schema and every migration test
+        // fails to open.
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
 }
 
 ksp {

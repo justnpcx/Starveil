@@ -29,13 +29,21 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** A v2 schema used only to force a migration failure against a v1 file. */
+/**
+ * A database at the same version as [StarveilDatabase] but with no migration
+ * registered, used only to force a migration failure against an older file.
+ *
+ * Its entity set deliberately differs from the real one: what is under test is
+ * the *policy* (a missing migration must throw rather than wipe), not any
+ * particular migration. The real migrations are covered by
+ * [StarveilMigrationTest].
+ */
 @Database(
     entities = [ProfileEntity::class, GroupEntity::class, RuleEntity::class],
     version = 2,
     exportSchema = false,
 )
-abstract class V2Database : RoomDatabase() {
+abstract class NoMigrationDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
 }
 
@@ -148,11 +156,11 @@ class SqlCipherDatabaseTest {
         val sizeBefore = context.getDatabasePath(name).length()
         assertTrue(sizeBefore > 0)
 
-        // Open it as v2 with no migration registered: Room must throw, and must
-        // NOT fall back to destroying the user's data.
+        // Open it at the next version with no migration registered: Room must
+        // throw, and must NOT fall back to destroying the user's data.
         var threw = false
         try {
-            val v2 = Room.databaseBuilder(context, V2Database::class.java, name)
+            val v2 = Room.databaseBuilder(context, NoMigrationDatabase::class.java, name)
                 .openHelperFactory(SupportOpenHelperFactory(passphrase))
                 .build()
             v2.profileDao().getById(1L)

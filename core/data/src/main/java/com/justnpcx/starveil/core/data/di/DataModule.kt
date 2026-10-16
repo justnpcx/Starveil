@@ -6,13 +6,16 @@ import com.justnpcx.starveil.core.data.StarveilDatabase
 import com.justnpcx.starveil.core.data.StarveilMigrations
 import com.justnpcx.starveil.core.data.crypto.KeystoreSecretStore
 import com.justnpcx.starveil.core.data.dao.GroupDao
+import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
 import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RoomGroupRepository
+import com.justnpcx.starveil.core.data.repository.RoomNodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.RoomProfileRepository
 import com.justnpcx.starveil.core.data.repository.RoomRuleRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
@@ -65,9 +68,18 @@ object DataModule {
     fun provideRuleDao(database: StarveilDatabase): RuleDao = database.ruleDao()
 
     @Provides
+    fun provideLatencySampleDao(database: StarveilDatabase): LatencySampleDao =
+        database.latencySampleDao()
+
+    @Provides
     @Singleton
     fun provideProfileRepository(dao: ProfileDao): ProfileRepository =
         RoomProfileRepository(dao)
+
+    @Provides
+    @Singleton
+    fun provideNodeHealthRepository(dao: LatencySampleDao): NodeHealthRepository =
+        RoomNodeHealthRepository(dao)
 
     @Provides
     @Singleton

@@ -3,9 +3,11 @@ package com.justnpcx.starveil.core.data
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.justnpcx.starveil.core.data.dao.GroupDao
+import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
 import com.justnpcx.starveil.core.data.entity.GroupEntity
+import com.justnpcx.starveil.core.data.entity.LatencySampleEntity
 import com.justnpcx.starveil.core.data.entity.ProfileEntity
 import com.justnpcx.starveil.core.data.entity.RuleEntity
 
@@ -24,14 +26,20 @@ import com.justnpcx.starveil.core.data.entity.RuleEntity
  *   so every schema change is reviewable in git.
  */
 @Database(
-    entities = [ProfileEntity::class, GroupEntity::class, RuleEntity::class],
-    version = 1,
+    entities = [
+        ProfileEntity::class,
+        GroupEntity::class,
+        RuleEntity::class,
+        LatencySampleEntity::class,
+    ],
+    version = 2,
     exportSchema = true,
 )
 abstract class StarveilDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
     abstract fun groupDao(): GroupDao
     abstract fun ruleDao(): RuleDao
+    abstract fun latencySampleDao(): LatencySampleDao
 
     companion object {
         const val DATABASE_NAME = "starveil.db"
