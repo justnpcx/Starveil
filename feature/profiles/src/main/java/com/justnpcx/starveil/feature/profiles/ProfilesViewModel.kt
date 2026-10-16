@@ -41,11 +41,33 @@ data class ProfilesUiState(
     val selectedGroupId: Long = 0L,
     val loading: Boolean = true,
     val importing: Boolean = false,
-    /** Result of the last import; already user-facing. */
-    val message: String? = null,
+    /** Result of the last import or refresh, as data. See [ProfilesMessage]. */
+    val message: ProfilesMessage? = null,
     /** The node the share sheet is open for, with its link. */
     val share: ShareTarget? = null,
 )
+
+/**
+ * What the screen is telling the user, as data rather than as a sentence.
+ *
+ * The view model has no Context, and copy written into it is copy the resource
+ * system never sees: untranslatable, and invisible to a review of the app's
+ * wording (C1). The reasons carried here come from the importer and the
+ * updater, which already redact them.
+ */
+sealed interface ProfilesMessage {
+    data class AddedNode(val name: String) : ProfilesMessage
+    data class ImportedNodes(val count: Int) : ProfilesMessage
+    data class ImportFailed(val reason: String) : ProfilesMessage
+    data class Refreshed(val count: Int) : ProfilesMessage
+    data class RefreshFailed(val reason: String) : ProfilesMessage
+
+    /**
+     * A message produced outside this feature — the latency tester, which is
+     * in :app and already resolves its own string resources.
+     */
+    data class External(val text: String) : ProfilesMessage
+}
 
 /**
  * What the share sheet renders.
@@ -75,7 +97,7 @@ class ProfilesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
-    private val message = MutableStateFlow<String?>(null)
+    private val message = MutableStateFlow<ProfilesMessage?>(null)
     private val groupFilter = MutableStateFlow<Long?>(null)
     private val share = MutableStateFlow<ShareTarget?>(null)
 
@@ -235,9 +257,9 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             importing.value = true
             message.value = when (val outcome = importer.import(text)) {
-                is ImportOutcome.AddedNode -> "Added ${outcome.name}"
-                is ImportOutcome.AddedSubscription -> "Imported ${outcome.nodeCount} nodes"
-                is ImportOutcome.Failed -> "Import failed: ${outcome.reason}"
+                is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
+                is ImportOutcome.AddedSubscription -> ProfilesMessage.ImportedNodes(outcome.nodeCount)
+                is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.reason)
             }
             importing.value = false
         }
@@ -260,8 +282,8 @@ class ProfilesViewModel @Inject constructor(
             importing.value = true
             refreshScheduler.schedule(group.id)
             message.value = when (val outcome = updater.update(group.id, url)) {
-                is SubscriptionUpdateOutcome.Success -> "Refreshed: ${outcome.profileCount} nodes"
-                is SubscriptionUpdateOutcome.Failure -> "Refresh failed: ${outcome.reason}"
+                is SubscriptionUpdateOutcome.Success -> ProfilesMessage.Refreshed(outcome.profileCount)
+                is SubscriptionUpdateOutcome.Failure -> ProfilesMessage.RefreshFailed(outcome.reason)
             }
             importing.value = false
         }
@@ -289,6 +311,6 @@ class ProfilesViewModel @Inject constructor(
 
     /** Surfaces a message produced outside this feature (e.g. the latency tester). */
     fun postMessage(text: String) {
-        message.value = text
+        message.value = ProfilesMessage.External(text)
     }
 }

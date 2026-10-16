@@ -43,9 +43,11 @@ data class DashboardUiState(
     val stats: TrafficStats = TrafficStats(),
     /** Bounded ring of recent rates; never grows past [HISTORY_SIZE]. */
     val history: List<TrafficSample> = emptyList(),
-    val selectedNodeName: String = NO_NODE,
+    /** The selected node or group's name, or null when nothing is selected. */
+    val selectedNodeName: String? = null,
     val isBusy: Boolean = false,
-    val errorMessage: String? = null,
+    /** What to tell the user, as data. See [DashboardNotice]. */
+    val notice: DashboardNotice? = null,
     /**
      * The last self-check found traffic escaping. A warning, not a failure:
      * the tunnel is up and carrying traffic, it just is not trustworthy.
@@ -69,9 +71,39 @@ data class DashboardUiState(
         }
 
     companion object {
-        const val NO_NODE = "No node selected"
         const val HISTORY_SIZE = 48
     }
+}
+
+/**
+ * What the dashboard is telling the user, as data rather than as a sentence.
+ *
+ * The view model has no Context, and copy written into it is copy the resource
+ * system never sees: untranslatable, and invisible to anyone reviewing the
+ * app's wording (C1). [KernelRefused] carries the one part that is not fixed
+ * text — the kernel's own reason, which the bridge has already redacted.
+ */
+sealed interface DashboardNotice {
+    /** The Kill Switch is blocking every connection, on purpose. */
+    data object KillSwitchBlocking : DashboardNotice
+
+    /** The tunnel died and auto-reconnect is off. */
+    data object TunnelDropped : DashboardNotice
+
+    /** The tunnel died and is being brought back. */
+    data object TunnelReconnecting : DashboardNotice
+
+    /** The reconnect died too; we stop rather than loop. */
+    data object TunnelKeepsDropping : DashboardNotice
+
+    /** Nothing is selected to connect to. */
+    data object NoTarget : DashboardNotice
+
+    /** The selected target cannot be turned into a config. */
+    data object ConfigUnbuildable : DashboardNotice
+
+    /** The kernel refused to start. [reason] is already redacted. */
+    data class KernelRefused(val reason: String?) : DashboardNotice
 }
 
 @HiltViewModel
@@ -177,19 +209,19 @@ class DashboardViewModel @Inject constructor(
 
         if (!preferences.autoReconnect.first()) {
             _uiState.update {
-                it.copy(connectionState = ConnectionState.BLOCKED, errorMessage = TUNNEL_DROPPED)
+                it.copy(connectionState = ConnectionState.BLOCKED, notice = DashboardNotice.TunnelDropped)
             }
             return
         }
         if (!canAutoReconnect) {
             _uiState.update {
-                it.copy(connectionState = ConnectionState.BLOCKED, errorMessage = TUNNEL_KEEPS_DROPPING)
+                it.copy(connectionState = ConnectionState.BLOCKED, notice = DashboardNotice.TunnelKeepsDropping)
             }
             return
         }
 
         canAutoReconnect = false
-        connect(notice = TUNNEL_RECONNECTING)
+        connect(notice = DashboardNotice.TunnelReconnecting)
     }
 
     /** Tap on the core: connect or disconnect. */
@@ -218,10 +250,13 @@ class DashboardViewModel @Inject constructor(
      *   reason it is retrying, because that is the whole message — setting it
      *   beforehand and then calling this would wipe it on the next line.
      */
-    private suspend fun connect(userInitiated: Boolean = false, notice: String? = null) {
+    private suspend fun connect(
+        userInitiated: Boolean = false,
+        notice: DashboardNotice? = null,
+    ) {
         if (userInitiated) canAutoReconnect = true
         _uiState.update {
-            it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, errorMessage = notice)
+            it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, notice = notice)
         }
 
         // Kill Switch, panic mode. Asked as "would traffic be allowed if we
@@ -249,7 +284,7 @@ class DashboardViewModel @Inject constructor(
                         it.copy(
                             isBusy = false,
                             connectionState = ConnectionState.DISCONNECTED,
-                            errorMessage = "Pick a node or a group on the Nodes tab first",
+                            notice = DashboardNotice.NoTarget,
                         )
                     }
                     return
@@ -260,7 +295,7 @@ class DashboardViewModel @Inject constructor(
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.BLOCKED,
-                    errorMessage = "Cannot build the config for this target",
+                    notice = DashboardNotice.ConfigUnbuildable,
                 )
             }
             return
@@ -277,7 +312,7 @@ class DashboardViewModel @Inject constructor(
                     // screen. This is only reachable now that [connect] lets a
                     // caller's notice survive: it used to be cleared on the
                     // next line, which also hid this.
-                    errorMessage = null,
+                    notice = null,
                 )
             }
             startStatsLoop()
@@ -289,7 +324,7 @@ class DashboardViewModel @Inject constructor(
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.BLOCKED,
-                    errorMessage = reason ?: "Kernel failed to start",
+                    notice = DashboardNotice.KernelRefused(reason),
                 )
             }
         }
@@ -321,7 +356,7 @@ class DashboardViewModel @Inject constructor(
                 },
                 stats = TrafficStats(),
                 history = emptyList(),
-                errorMessage = if (keepTunnel) KILL_SWITCH_BLOCKING else null,
+                notice = if (keepTunnel) DashboardNotice.KillSwitchBlocking else null,
             )
         }
     }
@@ -335,11 +370,12 @@ class DashboardViewModel @Inject constructor(
                 connectionState = ConnectionState.BLOCKED,
                 stats = TrafficStats(),
                 history = emptyList(),
-                errorMessage = if (result.isSuccess) {
-                    KILL_SWITCH_BLOCKING
+                notice = if (result.isSuccess) {
+                    DashboardNotice.KillSwitchBlocking
                 } else {
-                    result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
-                        ?: "Kernel failed to start"
+                    DashboardNotice.KernelRefused(
+                        result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() },
+                    )
                 },
             )
         }
@@ -382,10 +418,11 @@ class DashboardViewModel @Inject constructor(
 
         data class Group(val name: String, val members: List<Profile>, val mode: GroupMode) : Target
 
-        fun label(): String = when (this) {
+        /** Null for [None]: there is no name to show, and no copy belongs here. */
+        fun label(): String? = when (this) {
             is Node -> profile.name
             is Group -> name
-            None -> DashboardUiState.NO_NODE
+            None -> null
         }
     }
 
@@ -421,26 +458,14 @@ class DashboardViewModel @Inject constructor(
         ConnectionTarget.None -> NO_TARGET
     }
 
-    private suspend fun targetLabel(target: ConnectionTarget): String = when (target) {
-        is ConnectionTarget.Node -> profiles.getById(target.id)?.name ?: DashboardUiState.NO_NODE
-        is ConnectionTarget.Group -> groups.getById(target.id)?.name ?: DashboardUiState.NO_NODE
-        ConnectionTarget.None -> DashboardUiState.NO_NODE
+    private suspend fun targetLabel(target: ConnectionTarget): String? = when (target) {
+        is ConnectionTarget.Node -> profiles.getById(target.id)?.name
+        is ConnectionTarget.Group -> groups.getById(target.id)?.name
+        ConnectionTarget.None -> null
     }
 
     private companion object {
-        /** Why the dashboard is in BLOCKED: the user has to turn it off. */
-        const val KILL_SWITCH_BLOCKING = "Kill Switch is blocking all traffic"
-
-        /** The tunnel died and auto-reconnect is off. */
-        const val TUNNEL_DROPPED = "Tunnel dropped"
-
-        /** The tunnel died and is being brought back. */
-        const val TUNNEL_RECONNECTING = "Tunnel dropped; reconnecting…"
-
-        /** The reconnect also died; stop rather than loop. */
-        const val TUNNEL_KEEPS_DROPPING = "Tunnel keeps dropping; not reconnecting again"
-
-        /** No target key: nothing is selected. */
+        /** No target key: nothing is selected. Not copy — a map key. */
         const val NO_TARGET = "none"
     }
 }

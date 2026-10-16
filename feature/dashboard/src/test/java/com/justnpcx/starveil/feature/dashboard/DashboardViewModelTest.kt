@@ -272,7 +272,7 @@ class DashboardViewModelTest {
 
         assertEquals(0, kernel.starts)
         assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
-        assertTrue(viewModel.uiState.value.errorMessage.orEmpty().contains("Pick a node or a group"))
+        assertEquals(DashboardNotice.NoTarget, viewModel.uiState.value.notice)
     }
 
     @Test
@@ -286,7 +286,7 @@ class DashboardViewModelTest {
         viewModel.onCoreClick()
 
         assertEquals(0, kernel.starts)
-        assertTrue(viewModel.uiState.value.errorMessage.orEmpty().contains("Pick a node or a group"))
+        assertEquals(DashboardNotice.NoTarget, viewModel.uiState.value.notice)
     }
 
     @Test
@@ -363,17 +363,19 @@ class DashboardViewModelTest {
         yield()
 
         assertEquals(ConnectionState.CONNECTING, viewModel.uiState.value.connectionState)
-        val notice = viewModel.uiState.value.errorMessage
+        val notice = viewModel.uiState.value.notice
         // Setting the notice and then calling connect() used to wipe it on the
         // next line, so the user saw a core spinning with no explanation.
-        assertNotNull("the retry must say why it is retrying", notice)
-        assertTrue("expected a reconnect notice, got: $notice", notice!!.contains("reconnect"))
+        // The notice is now data, so this asserts the *reason* rather than
+        // grepping the sentence for a word — which is what the old string
+        // version of this test had to do.
+        assertEquals(DashboardNotice.TunnelReconnecting, notice)
 
         kernel.gate!!.complete(Unit)
         yield()
         // And it must not outlive the attempt it described.
         assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
-        assertNull(viewModel.uiState.value.errorMessage)
+        assertNull(viewModel.uiState.value.notice)
     }
 
     private fun viewModel(

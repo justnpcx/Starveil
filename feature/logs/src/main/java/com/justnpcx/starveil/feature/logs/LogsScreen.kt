@@ -1,7 +1,5 @@
 package com.justnpcx.starveil.feature.logs
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -42,7 +40,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.AppLogLevel
 import com.justnpcx.starveil.core.model.AppLogLine
+import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.util.writeClipboard
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -94,7 +94,7 @@ fun LogsScreen(
             )
             TextButton(
                 onClick = {
-                    copyToClipboard(context, exportText(state.lines))
+                    writeClipboard(context, exportText(state.lines), "Starveil logs")
                     copySignal++
                 },
                 enabled = state.lines.isNotEmpty(),
@@ -204,23 +204,6 @@ private fun LogRow(line: AppLogLine) {
     }
 }
 
-@Composable
-private fun EmptyState(title: String, body: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(StarveilSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-    ) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 /**
  * The lines as plain text, oldest first — what a log file looks like. The
  * caller passes the currently visible lines (already filtered), so what is
@@ -234,11 +217,6 @@ private fun exportText(lines: List<AppLogLine>): String =
         val time = TIME_FORMAT.format(Instant.ofEpochMilli(line.timestampMs).atZone(ZoneId.systemDefault()))
         "$time ${line.level.name.take(1)} ${line.message}"
     }
-
-private fun copyToClipboard(context: Context, text: String) {
-    val manager = context.getSystemService(ClipboardManager::class.java) ?: return
-    manager.setPrimaryClip(ClipData.newPlainText("Starveil logs", text))
-}
 
 /** Warn and error carry the theme's error colour; the rest stay neutral. */
 @Composable

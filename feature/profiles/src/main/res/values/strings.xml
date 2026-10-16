@@ -12,6 +12,14 @@
     <string name="profiles_new_node_title">Which protocol?</string>
     <string name="profiles_row_edit">Edit</string>
     <string name="profiles_row_share">Share</string>
+
+    <!-- Import and refresh results. These were built as sentences in the view
+         model, where the resource system never saw them (C1). -->
+    <string name="profiles_msg_added">Added %1$s</string>
+    <string name="profiles_msg_imported">Imported %1$d nodes</string>
+    <string name="profiles_msg_import_failed">Import failed: %1$s</string>
+    <string name="profiles_msg_refreshed">Refreshed: %1$d nodes</string>
+    <string name="profiles_msg_refresh_failed">Refresh failed: %1$s</string>
     <string name="profiles_row_move">Move to group</string>
     <string name="profiles_row_menu_title">%1$s</string>
     <string name="profiles_group_all">All</string>
@@ -59,7 +67,6 @@
     <string name="profiles_import_action">Import</string>
     <string name="profiles_import_cancel">Cancel</string>
     <string name="profiles_import_working">Importing…</string>
-    <string name="profiles_message_dismiss">Dismiss</string>
     <string name="profiles_test_latency">Test latency</string>
 
     <!-- Import entry points: scan a QR code, paste from the clipboard, or type. -->

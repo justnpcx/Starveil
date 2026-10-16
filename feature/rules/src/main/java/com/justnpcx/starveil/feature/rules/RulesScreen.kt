@@ -46,6 +46,7 @@ import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
+import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -94,7 +95,12 @@ fun RulesScreen(
                 }
 
                 if (state.isEmpty) {
-                    item(key = "empty") { EmptyState() }
+                    item(key = "empty") {
+                        EmptyState(
+                            title = stringResource(R.string.rules_empty_title),
+                            body = stringResource(R.string.rules_empty_body),
+                        )
+                    }
                 } else {
                     itemsIndexed(state.rules, key = { _, rule -> rule.id }) { index, rule ->
                         // §5.2: rows settle in top-down. The index also replaces
@@ -299,23 +305,6 @@ private fun RuleDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.rules_cancel)) }
         },
     )
-}
-
-@Composable
-private fun EmptyState() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(StarveilSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-    ) {
-        Text(text = stringResource(R.string.rules_empty_title), style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = stringResource(R.string.rules_empty_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
 }
 
 @Composable
