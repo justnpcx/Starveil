@@ -172,7 +172,7 @@ private class FakeProfiles(private val byId: Map<Long, Profile>) : ProfileReposi
 private class FakeHealth : NodeHealthRepository {
     val recorded = mutableListOf<Triple<Long, Long, Long>>()
 
-    override fun observeSince(sinceMs: Long): Flow<List<LatencySample>> = notUsed()
+    override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = notUsed()
     override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) {
         recorded += Triple(profileId, latencyMs, atMs)
     }

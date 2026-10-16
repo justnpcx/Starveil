@@ -10,14 +10,20 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LatencySampleDao {
     /**
-     * Every node's samples at or after [sinceMs], oldest first.
+     * Every stored sample, oldest first.
      *
-     * One query for the whole list rather than one per node: a subscription
-     * can hold hundreds of nodes, and subscribing per node would mean hundreds
-     * of live queries for one screen.
+     * Not filtered by a cutoff here on purpose. The store is already pruned to
+     * the window on write, so this is not an unbounded read; applying the
+     * window again on the reading side is what lets its boundary *slide* with
+     * the clock instead of freezing at whatever `now` was when the query was
+     * built.
+     *
+     * One query for the whole list rather than one per node: a subscription can
+     * hold hundreds of nodes, and subscribing per node would mean hundreds of
+     * live queries for one screen.
      */
-    @Query("SELECT * FROM latency_samples WHERE atMs >= :sinceMs ORDER BY atMs ASC")
-    fun observeSince(sinceMs: Long): Flow<List<LatencySampleEntity>>
+    @Query("SELECT * FROM latency_samples ORDER BY atMs ASC")
+    fun observeAll(): Flow<List<LatencySampleEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: LatencySampleEntity)

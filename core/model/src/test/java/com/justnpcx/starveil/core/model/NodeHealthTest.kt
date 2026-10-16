@@ -36,6 +36,25 @@ class NodeHealthTest {
     }
 
     @Test
+    fun `the ema series is null until the first success, then carries forward`() {
+        // null, null, then 200 seeded, then 0.2*300 + 0.8*200 = 220.
+        assertEquals(listOf(null, null, 200L, 220L), emaSeries(samples(-1, -1, 200, 300)))
+    }
+
+    @Test
+    fun `a failure carries the ema forward rather than breaking the curve`() {
+        // The loss is the dot below the curve; a gap in the line would read as
+        // "no reading" instead of "no answer".
+        assertEquals(listOf(100L, 100L, 120L), emaSeries(samples(100, -1, 200)))
+    }
+
+    @Test
+    fun `the scalar ema is the series' last entry`() {
+        val samples = samples(100, -1, 200, -1)
+        assertEquals(emaSeries(samples).last(), emaMs(samples))
+    }
+
+    @Test
     fun `availability is the share of the window that answered`() {
         assertEquals(100f, availabilityPct(samples(1, 2, 3)))
         assertEquals(50f, availabilityPct(samples(1, -1, -1, 2)))

@@ -125,6 +125,31 @@ fun bandOf(pct: Float): AvailabilityBand = when {
 }
 
 /**
+ * The EMA after each sample — the trace §7.2 draws.
+ *
+ * One entry per sample, so the curve and the loss dots share an x-axis and
+ * stay aligned. An entry is null until the first success (there is nothing to
+ * draw yet), and a *failure* carries the previous value forward rather than
+ * producing a gap: the loss is the red dot below the curve, and breaking the
+ * line there would say "no reading" instead of "no answer".
+ *
+ * This is the primitive; [emaMs] is its last entry, so the number and the
+ * curve cannot disagree.
+ */
+fun emaSeries(samples: List<LatencySample>, alpha: Double = EMA_ALPHA): List<Long?> {
+    var ema: Double? = null
+    return samples.map { sample ->
+        if (sample.reachable) {
+            val value = sample.latencyMs.toDouble()
+            // Seed on the first success rather than on an assumed baseline:
+            // there is no honest prior for a node we have never measured.
+            ema = ema?.let { alpha * value + (1 - alpha) * it } ?: value
+        }
+        ema?.roundToLong()
+    }
+}
+
+/**
  * Exponential moving average of the successful probes, or null when none
  * succeeded.
  *
@@ -134,17 +159,8 @@ fun bandOf(pct: Float): AvailabilityBand = when {
  * Loss is expressed by the red dots and the availability bar, not by bending
  * the latency line.
  */
-fun emaMs(samples: List<LatencySample>, alpha: Double = EMA_ALPHA): Long? {
-    var ema: Double? = null
-    for (sample in samples) {
-        if (!sample.reachable) continue
-        val value = sample.latencyMs.toDouble()
-        // Seed on the first success rather than on an assumed baseline: there
-        // is no honest prior for a node we have never measured.
-        ema = ema?.let { alpha * value + (1 - alpha) * it } ?: value
-    }
-    return ema?.roundToLong()
-}
+fun emaMs(samples: List<LatencySample>, alpha: Double = EMA_ALPHA): Long? =
+    emaSeries(samples, alpha).lastOrNull()
 
 /**
  * Derive a node's health from its samples.

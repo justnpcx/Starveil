@@ -16,10 +16,21 @@ import javax.inject.Inject
  */
 interface NodeHealthRepository {
     /**
-     * Every node's samples at or after [sinceMs], oldest first, across all
-     * nodes in one query. Callers group by node.
+     * The current window's samples, grouped by node and oldest first within
+     * each node.
+     *
+     * Grouped here rather than in the UI because the node id is a storage
+     * detail — the domain sample is only (when, how long). One query for the
+     * whole list rather than one per node: a subscription can hold hundreds of
+     * nodes, and subscribing per node would mean hundreds of live queries for
+     * one screen.
+     *
+     * The window is applied at read time as well as at write time. The store is
+     * already pruned, so this is bounded, but reading it fresh is what lets the
+     * boundary *slide* with the clock instead of freezing at whatever `now` was
+     * when the query was built.
      */
-    fun observeSince(sinceMs: Long): Flow<List<LatencySample>>
+    fun observeAll(): Flow<Map<Long, List<LatencySample>>>
 
     /**
      * Record one probe and prune the store.
@@ -37,8 +48,8 @@ class RoomNodeHealthRepository @Inject constructor(
     private val dao: LatencySampleDao,
 ) : NodeHealthRepository {
 
-    override fun observeSince(sinceMs: Long): Flow<List<LatencySample>> =
-        dao.observeSince(sinceMs).map { rows -> rows.map { it.toDomain() } }
+    override fun observeAll(): Flow<Map<Long, List<LatencySample>>> =
+        dao.observeAll().map { rows -> windowSamples(rows, nowMs = System.currentTimeMillis()) }
 
     override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) {
         dao.insert(
@@ -63,3 +74,25 @@ class RoomNodeHealthRepository @Inject constructor(
 
 internal fun LatencySampleEntity.toDomain(): LatencySample =
     LatencySample(atMs = atMs, latencyMs = latencyMs)
+
+/**
+ * The window's samples, grouped by node, oldest first within each node.
+ *
+ * Pure, and the clock is a parameter, so the boundary can be pinned exactly —
+ * including that a sample *at* the edge is inside. [observeAll] reads the clock
+ * once per emission, which is what makes the boundary slide rather than freeze
+ * at subscription time.
+ */
+internal fun windowSamples(
+    rows: List<LatencySampleEntity>,
+    nowMs: Long,
+): Map<Long, List<LatencySample>> {
+    val cutoff = nowMs - HEALTH_WINDOW_MS
+    return rows.asSequence()
+        .filter { it.atMs >= cutoff }
+        .groupBy({ it.profileId }, { it.toDomain() })
+        // Sorted here rather than relying on the query's ORDER BY: the chart's
+        // x-axis and the loss dots are both positional, so "oldest first" is
+        // part of this function's contract, not of the caller's.
+        .mapValues { (_, samples) -> samples.sortedBy { it.atMs } }
+}

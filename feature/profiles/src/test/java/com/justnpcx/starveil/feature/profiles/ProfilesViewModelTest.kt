@@ -4,10 +4,12 @@ import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.LatencySample
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -582,6 +584,7 @@ class ProfilesViewModelTest {
         fetcher: SubscriptionFetcher = FakeFetcher(),
         exporter: LinkExporter = LinkExporter { null },
         undo: UndoBus = RecordingUndo(),
+        nodeHealth: NodeHealthRepository = FakeNodeHealth(),
     ): ProfilesViewModel {
         // A subscription body is base64'd share links, so the registry needs a
         // resolver that can turn one into a profile; otherwise every body would
@@ -612,6 +615,7 @@ class ProfilesViewModelTest {
             exporter = exporter,
             updater = updater,
             undo = undo,
+            nodeHealth = nodeHealth,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(
                 resolver = LinkResolver { null },
@@ -791,6 +795,13 @@ private class FakeRefreshScheduler : SubscriptionRefreshScheduler {
     val cancelled = mutableListOf<Long>()
     override fun schedule(groupId: Long) { scheduled += groupId }
     override fun cancel(groupId: Long) { cancelled += groupId }
+}
+
+/** No history: the list tests are about the list, not the curve. */
+private class FakeNodeHealth : NodeHealthRepository {
+    override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = flowOf(emptyMap())
+    override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) = notUsed()
+    override suspend fun forget(profileId: Long) = notUsed()
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

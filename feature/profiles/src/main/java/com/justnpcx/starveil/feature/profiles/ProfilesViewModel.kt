@@ -5,10 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
+import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
@@ -18,11 +21,13 @@ import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
 import com.justnpcx.starveil.core.ui.snackbar.UndoBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -46,6 +51,11 @@ data class ProfilesUiState(
     val message: ProfilesMessage? = null,
     /** The node the share sheet is open for, with its link. */
     val share: ShareTarget? = null,
+    /**
+     * Per-node health over the sampling window (§6.3), keyed by node id.
+     * A node with no samples is simply absent — the card draws it as untested.
+     */
+    val health: Map<Long, NodeHealth> = emptyMap(),
 )
 
 /**
@@ -96,6 +106,7 @@ class ProfilesViewModel @Inject constructor(
     private val updater: SubscriptionUpdater,
     private val undo: UndoBus,
     private val refreshScheduler: SubscriptionRefreshScheduler,
+    private val nodeHealth: NodeHealthRepository,
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
@@ -137,8 +148,21 @@ class ProfilesViewModel @Inject constructor(
         )
     }
 
-    val uiState: StateFlow<ProfilesUiState> = combine(listState, share) { state, sharing ->
-        state.copy(share = sharing)
+    /**
+     * Per-node health, derived from the one query the sampler writes to.
+     *
+     * The windowing and grouping happen in the repository; this is the pure
+     * part — samples in, a score out.
+     */
+    private val health: Flow<Map<Long, NodeHealth>> =
+        nodeHealth.observeAll().map { byNode -> byNode.mapValues { (_, s) -> nodeHealthOf(s) } }
+
+    val uiState: StateFlow<ProfilesUiState> = combine(
+        listState,
+        share,
+        health,
+    ) { state, sharing, healthByNode ->
+        state.copy(share = sharing, health = healthByNode)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
