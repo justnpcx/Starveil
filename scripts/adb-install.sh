@@ -106,12 +106,26 @@ elif button:
 }
 
 answered=0
+last_tap_at=0
+last_tap_at_xy=""
+
 for _ in $(seq 1 150); do
   kill -0 "$INSTALL_PID" 2>/dev/null || break
 
   action=$(next_action)
   if [ -n "$action" ]; then
     read -r verb cx cy <<<"$action"
+    now=$(date +%s)
+
+    # The same control, twice in a row, within a couple of seconds is the loop
+    # reading a stale tree and pressing again — not a new prompt. Without this
+    # a single install reported 62 "prompts" answered, all of them the same
+    # button.
+    if [ "$cx $cy" = "$last_tap_at_xy" ] && [ $((now - last_tap_at)) -lt 3 ]; then
+      sleep 1
+      continue
+    fi
+
     if [ "$verb" = "TICK" ]; then
       adb shell input tap "$cx" "$cy" >/dev/null 2>&1
       echo "  ticked the risk notice at ($cx,$cy)"
@@ -120,9 +134,12 @@ for _ in $(seq 1 150); do
       echo "  tapped the install button at ($cx,$cy)"
     fi
     answered=$((answered + 1))
+    last_tap_at=$now
+    last_tap_at_xy="$cx $cy"
+
     # Give the dialog a moment to react before looking again; without this the
     # next dump reads the pre-tap tree and we act on stale state.
-    sleep 1.2
+    sleep 1.5
   else
     sleep 0.8
   fi
