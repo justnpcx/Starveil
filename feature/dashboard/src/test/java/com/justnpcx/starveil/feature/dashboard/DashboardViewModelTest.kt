@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.dashboard
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
@@ -461,7 +462,16 @@ class DashboardViewModelTest {
             rules = FakeRules(),
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
             nodeHealth = nodeHealth,
+            mainlandRuleSets = mainlandRuleSets,
         )
+
+    /**
+     * No rule set files. The preset is off in these tests, so nothing asks for
+     * them; a test that turns it on would provide paths here.
+     */
+    private val mainlandRuleSets = object : MainlandRuleSetStore {
+        override suspend fun ensure() = null
+    }
 
     private fun profile(id: Long, name: String) = Profile(
         id = id,
@@ -513,6 +523,8 @@ private class FakePreferences(
 
     override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
+    // Off, like the app's default: a test that wants the preset on says so.
+    override val bypassMainland: Flow<Boolean> = flowOf(false)
     override val lastLeakCheck: Flow<LeakCheckRecord> = leak
 
     override suspend fun setSelectedProfileId(id: Long) {
@@ -541,6 +553,7 @@ private class FakePreferences(
     override val subscriptionLastError: Flow<String?> get() = notUsed()
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
+    override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }

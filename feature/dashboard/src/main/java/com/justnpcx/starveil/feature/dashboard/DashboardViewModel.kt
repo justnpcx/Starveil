@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -125,6 +126,7 @@ class DashboardViewModel @Inject constructor(
     private val rules: RuleRepository,
     private val configBuilder: ConfigBuilder,
     private val nodeHealth: NodeHealthRepository,
+    private val mainlandRuleSets: MainlandRuleSetStore,
 ) : ViewModel() {
 
     // Structured concurrency: one SupervisorJob per ViewModel, cancelled in
@@ -310,10 +312,18 @@ class DashboardViewModel @Inject constructor(
         // single node, or a group the kernel picks within.
         val target = resolveTarget()
         val rules = rules.observeAllOrdered().first()
+        // Resolved before the build, and only when the switch is on: a failed
+        // download leaves this null and the config comes out without the
+        // preset, which is a working state rather than a failed connect.
+        val mainland = if (preferences.bypassMainland.first()) {
+            mainlandRuleSets.ensure()
+        } else {
+            null
+        }
         val config = try {
             when (target) {
-                is Target.Node -> configBuilder.build(target.profile, rules)
-                is Target.Group -> configBuilder.build(target.members, rules, target.mode)
+                is Target.Node -> configBuilder.build(target.profile, rules, mainland = mainland)
+                is Target.Group -> configBuilder.build(target.members, rules, target.mode, mainland)
                 Target.None -> {
                     _uiState.update {
                         it.copy(
