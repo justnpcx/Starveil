@@ -501,6 +501,11 @@ class ConfigBuilderTest {
             (System.nanoTime() - start) / 1_000_000
         }
 
+        // Printed as well as asserted: the budget is deliberately loose (see
+        // above), so the number itself is the thing worth reading, and a
+        // failing build should not be the only way to learn it.
+        println("CONFIGBUILD_500_NODES_MS=$fastest")
+
         assertTrue(
             "fastest of $MEASURED_RUNS builds of 500 nodes was ${fastest}ms",
             fastest < BUDGET_MS,
