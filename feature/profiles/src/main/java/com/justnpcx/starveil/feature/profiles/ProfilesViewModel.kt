@@ -15,6 +15,7 @@ import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdateOutcome
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
+import com.justnpcx.starveil.core.ui.snackbar.UndoBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,6 +94,7 @@ class ProfilesViewModel @Inject constructor(
     private val importer: LinkImporter,
     private val exporter: LinkExporter,
     private val updater: SubscriptionUpdater,
+    private val undo: UndoBus,
     private val refreshScheduler: SubscriptionRefreshScheduler,
 ) : ViewModel() {
 
@@ -250,6 +252,32 @@ class ProfilesViewModel @Inject constructor(
                 preferences.setSelectedProfileId(0L)
             }
         }
+    }
+
+    /**
+     * Remove a node, offering the way back.
+     *
+     * Deletion is one interaction app-wide (K2): it happens at once and the
+     * Snackbar offers the reversal, rather than a dialog asking permission
+     * first. That is what makes a swipe acceptable for something that carries
+     * credentials — the credentials are not lost, they are one tap away.
+     */
+    fun deleteWithUndo(profile: Profile) {
+        viewModelScope.launch {
+            delete(profile.id)
+            undo.show(R.string.profiles_deleted, listOf(profile.name)) { restore(profile) }
+        }
+    }
+
+    /**
+     * Put a node back exactly as it was.
+     *
+     * `upsert` with the stored id restores the same row, credentials included —
+     * the settings blob is re-encoded from the profile the caller held, so an
+     * undo is a real reversal rather than a re-import.
+     */
+    fun restore(profile: Profile) {
+        viewModelScope.launch { profiles.upsert(profile) }
     }
 
     /** Paste a share link, or a subscription URL. */

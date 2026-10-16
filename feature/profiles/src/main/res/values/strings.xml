@@ -15,6 +15,7 @@
 
     <!-- Import and refresh results. These were built as sentences in the view
          model, where the resource system never saw them (C1). -->
+    <string name="profiles_deleted">%1$s deleted</string>
     <string name="profiles_msg_added">Added %1$s</string>
     <string name="profiles_msg_imported">Imported %1$d nodes</string>
     <string name="profiles_msg_import_failed">Import failed: %1$s</string>

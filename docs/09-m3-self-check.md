@@ -14,7 +14,7 @@ a result.
 | C4 | Zero placeholder copy shipped | **pass** |
 | C5 | Empty / error / loading states are designed | **fixed** — see below |
 | K1 | One term per concept | **pass** |
-| K2 | One interaction per operation | **open** — see below |
+| K2 | One interaction per operation | **fixed** — see below |
 | K3 | One implementation per component | **fixed** — see below |
 | K4 | Copy tone: expert, short, no marketing | **pass** |
 
@@ -94,17 +94,39 @@ One soft spot: the import FAB's accessibility label is "Add nodes" while the
 visible button is "New node". Both mean "create", and only one is ever read
 aloud, so it is left alone rather than churned.
 
-## K2 — open, and the only real work left
+## K2 — done
 
 The guide says deletes use **swipe + undo Snackbar** and confirmations use
-dialogs. Today every delete (node, group, rule) is a confirmation dialog, and
-the app has no `SnackbarHost` at all.
+dialogs. Before this, every delete (node, group, rule) was a confirmation
+dialog and the app had no `SnackbarHost` at all.
 
-Reading the two halves together: **reversible deletes get swipe + undo**
-(a node can be re-inserted exactly), **irreversible ones keep the dialog** (a
-group delete takes its nodes with it, and its dialog already names the count).
+Reading the two halves together: **reversible deletes get swipe + undo**,
+**irreversible ones keep the dialog** (a group delete takes its nodes with it,
+and its dialog already names the count).
 
-That needs, in order: a `SnackbarHost` in the app shell; a cross-module undo
-channel (the "§6.8 Snackbar" prerequisite); swipe-to-dismiss on the node row
-with an undo action. Left for its own change rather than bundled here — it is
-a feature, not a tidy-up, and bundling it would make this commit unreviewable.
+What that needed, and what landed:
+
+- **A `SnackbarHost` in the shell** (`MainActivity`'s `Scaffold`), because a
+  Snackbar has to outlive the screen that raised it — one owned by the Nodes
+  screen would vanish the moment the user navigated away from what they just
+  deleted, taking the undo with it.
+- **A cross-module undo channel** — `UndoBus` (what a feature uses) and
+  `UndoRequests` (what the shell collects), both provided from one
+  `AppUndoBus`. Two providers would make two buses, and the failure is silent:
+  the delete happens and no Snackbar appears.
+- **Swipe-to-dismiss on the node row**, replacing its trailing delete button.
+
+The button's comment said it was there because "a node carries credentials and
+re-importing one is not always possible, so the gesture has to be deliberate
+and visible". That is still true, and it is exactly what the undo answers: the
+credentials are not lost, they are one tap away. The delete now happens on the
+gesture with the reversal offered afterwards, rather than a dialog asking
+permission for something that can be taken back.
+
+The long-press menu keeps its Delete item, and it runs the *same* interaction —
+delete at once, offer the undo. That is one interaction reached two ways, not
+two interactions: the guide's rule is about what happens, and what happens is
+identical.
+
+Undo is a real reversal, not a re-import: `upsert` with the stored id restores
+the same row, credentials included.

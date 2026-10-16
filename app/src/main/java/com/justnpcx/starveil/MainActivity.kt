@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -27,6 +29,8 @@ import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.Destination
+import com.justnpcx.starveil.core.ui.snackbar.UndoSnackbarHost
+import com.justnpcx.starveil.ui.AppUndoBus
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -40,6 +44,13 @@ class MainActivity : ComponentActivity() {
     /** The Activity is the composition root, so it reads the theme directly. */
     @Inject
     lateinit var preferences: PreferencesRepository
+
+    /**
+     * The app's undo channel. The shell owns the Snackbar because it has to
+     * outlive the screen that raised it (K2).
+     */
+    @Inject
+    lateinit var undoBus: AppUndoBus
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,9 +66,13 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = dynamicColor,
             ) {
                 val navController = rememberNavController()
+                val snackbarHostState = remember { SnackbarHostState() }
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     bottomBar = { StarveilBottomBar(navController) },
+                    snackbarHost = {
+                        UndoSnackbarHost(requests = undoBus, hostState = snackbarHostState)
+                    },
                 ) { innerPadding ->
                     StarveilNavHost(
                         navController = navController,
