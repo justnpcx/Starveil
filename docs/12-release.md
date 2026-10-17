@@ -55,6 +55,11 @@ GH_TOKEN=<token> scripts/set-signing-secrets.sh
 5. **等 Release workflow**（tag 触发）：构建、签名、上传三个 ABI 的 APK，并创建 **draft** release
 6. **检查并发布 draft**——更新通道读的是 `releases/latest`，**draft 不会被看到**，发布之后才算上线
 
+2026-10-17 这条流水线第一次跑通（run `39034766016`，v0.7.0）：draft 里三个 APK
+（arm64 85.7 MB / armeabi-v7a 76.7 MB / x86_64 90.0 MB），`apksigner verify` 的证书
+SHA-256 是 `f904a417…0b268c`，与 `/root/release.jks` 里 alias `starveil` 的
+一致；`mapping-v0.7.0` 作为 artifact 保留。**draft 还没发布**，所以更新通道仍然看不到它。
+
 ## 更新通道怎么读到它
 
 `UpdateChecker` 请求 `https://api.github.com/repos/justnpcx/Starveil/releases/latest`，
