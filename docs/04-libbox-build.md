@@ -337,3 +337,20 @@ ABI rather than a single universal one — the three ABIs together are ~230 MB
 of native code, which is not a sensible APK. CI uploads all of them under the
 `starveil-debug-apk` artifact, and `tools/install-device.sh` defaults to the
 arm64 split.
+
+## 裁剪构建（体积）
+
+sing-box 的 Android 构建默认把**所有**出站协议都编进去，包括 tailscale、naive（会链入
+cronet-go）、openvpn、openconnect、usbip —— Starveil 一个都到不了。默认标签表在
+`cmd/internal/build_libbox/main.go`，`LIBBOX_TAGS` 可以整体替换它：
+
+```bash
+export LIBBOX_TAGS="with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0"
+bash /root/build-one-abi.sh android/arm64
+```
+
+保留的五项对应 App 真正支持的协议：gvisor（tun 栈）、quic（Hysteria2/TUIC）、
+wireguard、utls（REALITY）、clash_api（连接与流量统计）。
+
+效果：`libbox.so` 81.2 MB → 61.7 MB，arm64 APK 134.7 MB → 115.2 MB。三个 ABI 都按这个
+标签表重建后再合并，合并方式与上面相同。
