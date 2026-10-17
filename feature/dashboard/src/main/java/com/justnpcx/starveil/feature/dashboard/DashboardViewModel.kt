@@ -18,6 +18,8 @@ import com.justnpcx.starveil.core.model.NodePicker
 import com.justnpcx.starveil.core.model.NodeRecommendation
 import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.RecommendationReason
+import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -207,9 +209,27 @@ class DashboardViewModel @Inject constructor(
                     return@collect
                 }
                 if (!_uiState.value.isBusy && _uiState.value.connectionState == ConnectionState.CONNECTED) {
-                    applyTargetSwitch()
+                    applyConfigChange()
                 }
             }
+        }
+        // The routing policy is part of the config for the same reason the node
+        // is: the kernel runs what it built at connect time. Without this, the
+        // rules page would say "in force" about a policy the tunnel has not
+        // been told, which is exactly what happened on device.
+        scope.launch {
+            var lastPolicy: Pair<RoutePreset, Boolean>? = null
+            combine(preferences.routePreset, preferences.blockAds) { preset, ads -> preset to ads }
+                .collect { policy ->
+                    val previous = lastPolicy
+                    lastPolicy = policy
+                    // The first emission is the stored value, not a change.
+                    if (previous == null || previous == policy) return@collect
+                    if (_uiState.value.isBusy) return@collect
+                    if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
+                        applyConfigChange()
+                    }
+                }
         }
         // The selected node's health (§7.2). Combined with the target rather
         // than re-subscribed per switch: one query returns every node's
@@ -244,8 +264,8 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /** Point the running tunnel at the newly selected target. */
-    private fun applyTargetSwitch() {
+    /** Rebuild the running tunnel against the stored config. */
+    private fun applyConfigChange() {
         scope.launch {
             disconnect()
             connect(userInitiated = true)
@@ -577,7 +597,11 @@ class DashboardViewModel @Inject constructor(
     }
 
     private suspend fun targetLabel(target: ConnectionTarget): String? = when (target) {
-        is ConnectionTarget.Node -> profiles.getById(target.id)?.name
+        // displayName, not name: the same node is drawn with its flag on the
+        // Nodes tab and in the connect outcome, and a preference write that
+        // makes this collector run again must not be the moment the flag
+        // disappears. It did, on device.
+        is ConnectionTarget.Node -> profiles.getById(target.id)?.displayName()
         is ConnectionTarget.Group -> groups.getById(target.id)?.name
         ConnectionTarget.None -> null
     }
