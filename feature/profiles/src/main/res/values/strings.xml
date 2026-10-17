@@ -28,7 +28,7 @@
     <string name="profiles_msg_import_failed">Import failed: %1$s</string>
     <string name="profiles_msg_refreshed">Refreshed: %1$d nodes</string>
     <string name="profiles_msg_grouped">Grouped by region: %1$d groups</string>
-    <string name="profiles_msg_no_regions">No node name matched a region.</string>
+    <string name="profiles_msg_no_regions">No node name contains a region. Rename a node to include one — Hong Kong, Japan, US, 香港, 日本…</string>
     <string name="profiles_msg_refresh_failed">Refresh failed: %1$s</string>
     <string name="profiles_row_move">Move to group</string>
     <string name="profiles_row_menu_title">%1$s</string>
