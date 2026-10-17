@@ -679,8 +679,22 @@ class ConfigBuilderTest {
     }
 
     private companion object {
-        /** ~4ms measured; the headroom is for a loaded machine, not for drift. */
-        const val BUDGET_MS = 250L
+        /**
+         * The M4 target, and the CI gate for it.
+         *
+         * This is the one M4 number a runner without a device can measure, so
+         * it is the one that can fail a pull request. The rest — cold start,
+         * frame times, resident memory, reconnect, interaction latency — need
+         * the `benchmark` module on real hardware.
+         *
+         * ~4 ms measured, so the budget is 25x the real cost. That is still a
+         * gate: a per-node scan over all nodes would take seconds, and even a
+         * tenfold regression fails here. It is not tighter because a wall-clock
+         * assertion with no headroom is a flake generator — one GC pause or a
+         * runner without a spare compiler thread is enough — and a gate that
+         * cries wolf gets disabled, which is worse than a loose one.
+         */
+        const val BUDGET_MS = 100L
 
         /** Enough for C1/C2 to compile the hot path before anything is timed. */
         const val WARMUP_RUNS = 5

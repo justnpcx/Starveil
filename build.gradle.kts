@@ -11,3 +11,15 @@ plugins {
     alias(libs.plugins.hilt.android) apply false
     alias(libs.plugins.baselineprofile) apply false
 }
+
+// The performance tests print their measurement (CONFIGBUILD_500_NODES_MS, and
+// whatever comes after it). Without this Gradle swallows stdout, so the number
+// only ever appears when the assertion fails — too late to see a regression
+// coming, and no way to tell a slow runner from a slow change.
+subprojects {
+    tasks.withType<Test>().configureEach {
+        testLogging {
+            showStandardStreams = true
+        }
+    }
+}
