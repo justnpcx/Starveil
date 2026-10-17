@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Privacy policy / 隐私政策
+    url: https://github.com/justnpcx/Starveil/blob/main/docs/10-privacy-policy.md
+    about: What the app collects (nothing) and what it connects to. / 应用收集什么（什么都不收集）、会连接到哪里。
+  - name: Changelog and known issues / 更新日志与已知问题
+    url: https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md
+    about: Check the known-issues list before reporting. / 提 issue 前先看已知问题。

@@ -1,0 +1,76 @@
+name: Bug report / 问题反馈
+description: Something does not work as described / 有功能没有按预期工作
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before you file / 提交之前**
+
+        - **Do not paste node links, UUIDs, passwords, subscription URLs or private keys.** Redact them. A bug report is public.
+        - **不要粘贴节点链接、UUID、密码、订阅地址或私钥。** 请先打码——issue 是公开的。
+        - This is a beta. Known gaps are listed in the [changelog](https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md#known-issues); check there first.
+        - 这是内测版，未验证的项目列在[更新日志](https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md#known-issues)里，先看一眼。
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / 版本
+      description: Settings → About shows it. / 设置 → 关于 里有。
+      placeholder: "0.7.0"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version / 机型和系统版本
+      placeholder: "vivo V2238A, Android 14"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where / 哪个部分
+      options:
+        - Connecting / 连接
+        - Nodes and subscriptions / 节点与订阅
+        - Routing rules / 路由规则
+        - Per-app routing / 按应用分流
+        - Widget, tile or notification / 小组件、磁贴、通知
+        - Backup or restore / 备份与恢复
+        - Settings / 设置
+        - Other / 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / 发生了什么
+      description: What you did, what you expected, and what happened instead. / 你做了什么、期望什么、实际是什么。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: Only if it happens every time. / 只在能稳定复现时填写。
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / 日志
+      description: Optional. Logs → Copy, after checking them for credentials. / 可选。日志页「复制」，复制前先检查有没有凭证。
+      render: text
+    validations:
+      required: false

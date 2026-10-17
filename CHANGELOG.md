@@ -1,0 +1,61 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Milestone N ships as `0.N.0`; `versionCode` is derived from it.
+
+## [Unreleased]
+
+## [0.7.0] — 2026-10-17
+
+First beta. There was no earlier public release, so this entry describes what
+the app does rather than what changed.
+
+### Added
+
+- **Connection**: sing-box 1.14.3 core (self-maintained fork) behind a Compose
+  UI, with VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC and WireGuard.
+  REALITY, uTLS fingerprints, WebSocket, gRPC, HTTP and XHTTP transports.
+- **Nodes**: import from share links, subscription URLs, clipboard or QR;
+  latency probing with a health curve over the last 30 minutes; groups with
+  folder, selector and fastest-node modes.
+- **Routing**: ordered rules by domain, domain suffix, domain keyword or CIDR,
+  with proxy / direct / block actions, plus a one-tap mainland-China preset
+  that sends domestic sites direct and everything else through the tunnel.
+- **Per-app routing**: send an individual app direct, or through a specific
+  node, independently of the tunnel's default.
+- **Auto select**: picks the healthiest node, breaking ties by preferred
+  region, and parks a node that failed three times in a row for 30 minutes.
+  With the tunnel up, an unexpected drop can switch to the next-best node
+  instead of retrying the one that just failed.
+- **Grouping by region**: derives groups from node names (Chinese names, city
+  names, flags, and ISO codes as whole tokens) and keeps membership derived, so
+  a subscription refresh cannot undo it.
+- **Kill Switch**: off, block-on-disconnect, or always-block, enforced in the
+  kernel rather than in the UI.
+- **Backup**: export and restore nodes, groups and rules as one file encrypted
+  with scrypt and AES-256-GCM.
+- **Surfaces**: home-screen widget, quick-settings tile, and a notification
+  with a Disconnect action — all three go through the same connection path, so
+  the Kill Switch and per-app rules behave identically from any of them.
+- **Languages**: English and Simplified Chinese.
+- **Accessibility**: content descriptions on every chart and icon, 48dp touch
+  targets, and a contrast test in CI.
+
+### Known issues
+
+These are unverified on a device, not known-broken. They are listed because a
+beta should say what it has not proven.
+
+- Frame rate at 1000 nodes, resident memory, reconnect timing, interaction
+  latency and DNS cache p50 have not been measured on hardware.
+- The mainland preset and per-app routing have been verified against the real
+  kernel off-device (routing decisions, config acceptance) but not end-to-end
+  on a phone.
+- REALITY over the XHTTP transport was fixed in the kernel and starts, but the
+  full data path needs a real xhttp server to confirm.
+- The database migration from schema 2 to 3 is covered by an instrumented test
+  that CI does not run.
+- Traditional Chinese is not translated; `values-zh` is Simplified.

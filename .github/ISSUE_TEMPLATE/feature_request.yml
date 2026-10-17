@@ -1,0 +1,44 @@
+name: Feature request / 功能建议
+description: Something the app should do and does not / 希望应用能做但目前不能做的事
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Scope / 范围**
+
+        Starveil is a phone client, not a platform. These are out of scope by
+        design: in-app purchases, node sharing or rating, a TV/watch interface,
+        and a rule-set marketplace.
+
+        Starveil 是手机客户端，不是平台。以下方向明确不做：内购、节点分享或测评、TV/手表界面、规则集市场。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem / 遇到的问题
+      description: What are you trying to do that the app makes hard or impossible? / 你想做什么，而应用现在做不到或很别扭？
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind / 你希望怎么做
+      description: A rough idea is enough. / 粗略的想法就够。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often would you use it? / 你会多久用一次？
+      description: The product guide's first filter for a new feature. / 产品指南里新功能的第一个判断标准。
+      options:
+        - Several times a week / 每周好几次
+        - About once a week / 每周一次左右
+        - Occasionally / 偶尔
+        - Rarely, but it matters when I do / 很少，但用到时很重要
+    validations:
+      required: true

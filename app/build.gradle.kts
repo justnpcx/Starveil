@@ -14,7 +14,10 @@ plugins {
  * Versioning.
  *
  * [appVersionName] is semver and is the only value edited by hand; milestone N
- * ships as `0.N.0`, so the delivered M1–M3 are `0.3.0`.
+ * ships as `0.N.0`, so the delivered M1–M3 are `0.3.0` and the M7 beta is
+ * `0.7.0`. M4–M6 were never released on their own, so they have no version of
+ * their own either — the number tracks the milestone that ships, not the count
+ * of milestones passed.
  *
  * [appVersionCode] is *derived* rather than written down separately. Two
  * hand-maintained numbers that must stay in step is a rule that will be broken
@@ -23,7 +26,7 @@ plugins {
  * monotonic exactly when the name moves forward, which is the property that
  * actually matters.
  */
-val appVersionName = "0.3.0"
+val appVersionName = "0.7.0"
 val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
     major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
 }
