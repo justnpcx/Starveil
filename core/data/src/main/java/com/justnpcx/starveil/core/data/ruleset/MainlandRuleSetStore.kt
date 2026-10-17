@@ -25,6 +25,14 @@ interface MainlandRuleSetStore {
      * state and the caller has nothing useful to do with a throw.
      */
     suspend fun ensure(): MainlandRuleSets?
+
+    /**
+     * The path of the advertising-domain set, downloading it if missing.
+     *
+     * Separate from [ensure] because it stacks: it is wanted under every
+     * preset, and a failure here must not take the mainland split down with it.
+     */
+    suspend fun ensureAds(): String?
 }
 
 class FileMainlandRuleSetStore(
@@ -47,6 +55,9 @@ class FileMainlandRuleSetStore(
             geoipCnPath = geoip.absolutePath,
         )
     }
+
+    override suspend fun ensureAds(): String? =
+        obtain("geosite-ads.srs", ADS_URLS)?.absolutePath
 
     private suspend fun obtain(name: String, urls: List<String>): File? {
         val target = File(directory, name)
@@ -85,6 +96,10 @@ class FileMainlandRuleSetStore(
         val GEOSITE_CN_URLS = listOf(
             "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-cn.srs",
             "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs",
+        )
+        val ADS_URLS = listOf(
+            "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-category-ads-all.srs",
+            "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs",
         )
         val GEOIP_CN_URLS = listOf(
             "https://cdn.jsdelivr.net/gh/Loyalsoldier/geoip@release/srs/cn.srs",

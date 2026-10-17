@@ -15,6 +15,7 @@ import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.ProxyGroup
 import javax.inject.Inject
@@ -94,11 +95,15 @@ class ConnectionController @Inject constructor(
         // Resolved before the build, and only when the switch is on: a failed
         // download leaves this null and the config comes out without the
         // preset, which is a working state rather than a failed connect.
-        val mainland = if (preferences.bypassMainland.first()) {
+        val preset = preferences.routePreset.first()
+        val mainland = if (preset == RoutePreset.BYPASS_MAINLAND) {
             mainlandRuleSets.ensure()
         } else {
             null
         }
+        // Stacked on top of any preset, and independent of it: a failed
+        // download leaves ads unblocked rather than taking the routing with it.
+        val ads = if (preferences.blockAds.first()) mainlandRuleSets.ensureAds() else null
 
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
@@ -108,6 +113,8 @@ class ConnectionController @Inject constructor(
                     rules,
                     mainland = mainland,
                     perApp = perApp,
+                    preset = preset,
+                    adsPath = ads,
                 )
                 is Target.Group -> configBuilder.build(
                     target.members,
@@ -115,6 +122,8 @@ class ConnectionController @Inject constructor(
                     target.mode,
                     mainland,
                     perApp = perApp,
+                    preset = preset,
+                    adsPath = ads,
                 )
                 Target.None -> return ConnectionOutcome.NoTarget
             }

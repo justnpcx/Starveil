@@ -31,4 +31,22 @@
     <string name="rules_preset_title">绕过中国大陆</string>
     <string name="rules_preset_desc">国内网站直连，其余走代理</string>
     <string name="rules_preset_unavailable">规则文件未就绪，连接时不启用</string>
+    <string name="rules_preset_proxy_title">全局代理</string>
+    <string name="rules_preset_proxy_desc">全部走代理。</string>
+    <string name="rules_preset_direct_title">全局直连</string>
+    <string name="rules_preset_direct_desc">全部直连；隧道仍在，但不转发任何流量。</string>
+    <string name="rules_block_ads_title">去广告</string>
+    <string name="rules_block_ads_desc">拦截广告域名，可与上面的任一预设叠加。</string>
+    <string name="rules_effective_count">当前生效 %1$d 条规则</string>
+    <string name="rules_effective_expand">展开</string>
+    <string name="rules_effective_collapse">收起</string>
+    <string name="rules_effective_ads">广告域名 → 阻断</string>
+    <string name="rules_effective_domestic_names">国内域名（geosite-cn）→ 直连</string>
+    <string name="rules_effective_domestic_addresses">国内地址（geoip-cn）→ 直连</string>
+    <string name="rules_effective_user">你自己的 %1$d 条规则</string>
+    <string name="rules_per_app_title">分应用路由</string>
+    <string name="rules_per_app_desc">让单个应用直连，或走指定节点。</string>
+    <string name="rules_empty_body_bypass">还没有你自己的规则。当前生效：绕过中国大陆（国内直连，其余走代理）。</string>
+    <string name="rules_empty_body_proxy">还没有规则。当前生效：全局代理（全部走代理）。</string>
+    <string name="rules_empty_body_direct">还没有规则。当前生效：全局直连（全部直连）。</string>
 </resources>

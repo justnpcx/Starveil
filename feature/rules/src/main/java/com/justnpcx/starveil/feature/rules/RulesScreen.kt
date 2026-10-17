@@ -24,7 +24,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -38,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +52,7 @@ import com.justnpcx.starveil.core.model.FlowOutcome
 import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
@@ -63,6 +69,8 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
  */
 @Composable
 fun RulesScreen(
+    /** Opens the per-app routing screen, which lives with the other settings. */
+    onOpenPerApp: () -> Unit = {},
     viewModel: RulesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -94,9 +102,14 @@ fun RulesScreen(
                 // policy, and it belongs above both the decisions it produces
                 // and the rules it sits in front of.
                 item(key = PRESET_KEY) {
-                    MainlandPresetCard(
-                        enabled = state.bypassMainland,
-                        onToggle = viewModel::setBypassMainland,
+                    RoutePresetCard(
+                        preset = state.preset,
+                        blockAds = state.blockAds,
+                        presetRules = state.presetRules,
+                        userRuleCount = state.enabledUserRules,
+                        onSelect = viewModel::setPreset,
+                        onToggleAds = viewModel::setBlockAds,
+                        onOpenPerApp = onOpenPerApp,
                     )
                 }
 
@@ -112,7 +125,13 @@ fun RulesScreen(
                     item(key = "empty") {
                         EmptyState(
                             title = stringResource(R.string.rules_empty_title),
-                            body = stringResource(R.string.rules_empty_body),
+                            body = stringResource(
+                                when (state.preset) {
+                                    RoutePreset.BYPASS_MAINLAND -> R.string.rules_empty_body_bypass
+                                    RoutePreset.GLOBAL_PROXY -> R.string.rules_empty_body_proxy
+                                    RoutePreset.GLOBAL_DIRECT -> R.string.rules_empty_body_direct
+                                },
+                            ),
                         )
                     }
                 } else {
@@ -436,18 +455,27 @@ private fun actionLabel(action: RuleAction): String = stringResource(
 )
 
 /**
- * The mainland preset: one switch for a whole routing policy.
+ * The routing policy, as a choice rather than a switch.
  *
- * Deliberately not a rule row. A rule is one match and one action, and this is
- * two rule sets, a DNS split and an ordering decision — presenting it as a row
- * would invite editing it like one, and there is nothing there to edit.
+ * "Proxy everything" used to be the absence of a setting, which made the empty
+ * state below say "everything goes through the proxy" even while the mainland
+ * preset was on. Three named presets remove the contradiction: whatever is
+ * selected is what the text can name.
  *
- * The description carries the entire explanation. "Direct" and "proxy" are
- * already the vocabulary of every row below, so a longer sentence would explain
- * words the screen has already taught.
+ * Ads stack on top rather than being a fourth preset, because blocking ads and
+ * deciding where unblocked traffic goes are independent questions.
  */
 @Composable
-private fun MainlandPresetCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
+private fun RoutePresetCard(
+    preset: RoutePreset,
+    blockAds: Boolean,
+    presetRules: List<PresetRule>,
+    userRuleCount: Int,
+    onSelect: (RoutePreset) -> Unit,
+    onToggleAds: (Boolean) -> Unit,
+    onOpenPerApp: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(CARD_CORNER),
@@ -455,24 +483,150 @@ private fun MainlandPresetCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(StarveilSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+            PresetRow(
+                title = stringResource(R.string.rules_preset_title),
+                description = stringResource(R.string.rules_preset_desc),
+                selected = preset == RoutePreset.BYPASS_MAINLAND,
+                onSelect = { onSelect(RoutePreset.BYPASS_MAINLAND) },
+            )
+            PresetRow(
+                title = stringResource(R.string.rules_preset_proxy_title),
+                description = stringResource(R.string.rules_preset_proxy_desc),
+                selected = preset == RoutePreset.GLOBAL_PROXY,
+                onSelect = { onSelect(RoutePreset.GLOBAL_PROXY) },
+            )
+            PresetRow(
+                title = stringResource(R.string.rules_preset_direct_title),
+                description = stringResource(R.string.rules_preset_direct_desc),
+                selected = preset == RoutePreset.GLOBAL_DIRECT,
+                onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.rules_block_ads_title),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.rules_block_ads_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = blockAds, onCheckedChange = onToggleAds)
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
+
+            // What the kernel will actually be told, not what the switches
+            // look like: a preset that could not download its files degrades
+            // at connect time, and this is where the user would notice.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = stringResource(R.string.rules_preset_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    text = stringResource(
+                        R.string.rules_effective_count,
+                        presetRules.size + userRuleCount,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = stringResource(R.string.rules_preset_desc),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = stringResource(
+                        if (expanded) R.string.rules_effective_collapse else R.string.rules_effective_expand,
+                    ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (expanded) {
+                Column(
+                    modifier = Modifier.padding(top = StarveilSpacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
+                ) {
+                    presetRules.forEach { rule ->
+                        Text(
+                            text = stringResource(
+                                when (rule) {
+                                    PresetRule.ADS -> R.string.rules_effective_ads
+                                    PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
+                                    PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (userRuleCount > 0) {
+                        Text(
+                            text = stringResource(R.string.rules_effective_user, userRuleCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenPerApp)
+                    .padding(vertical = StarveilSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.rules_per_app_title),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.rules_per_app_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = "›",
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
+    }
+}
+
+@Composable
+private fun PresetRow(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = StarveilSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(modifier = Modifier.padding(start = StarveilSpacing.sm)) {
+            Text(text = title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

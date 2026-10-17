@@ -7,6 +7,7 @@ import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.model.RuleMatcher
@@ -36,10 +37,32 @@ data class RulesUiState(
      * they are not. This is what the user asked for; what they get is decided
      * at connect time.
      */
-    val bypassMainland: Boolean = false,
+    val preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
+    /** Whether advertising domains are rejected, on top of any preset. */
+    val blockAds: Boolean = false,
 ) {
     val isEmpty: Boolean get() = !loading && rules.isEmpty()
+
+    /**
+     * Rules the preset itself contributes, in the order they are evaluated.
+     *
+     * Shown rather than counted: "3 rules in force" answers how many, and the
+     * next question is always which.
+     */
+    val presetRules: List<PresetRule>
+        get() = buildList {
+            if (blockAds) add(PresetRule.ADS)
+            if (preset == RoutePreset.BYPASS_MAINLAND) {
+                add(PresetRule.DOMESTIC_NAMES)
+                add(PresetRule.DOMESTIC_ADDRESSES)
+            }
+        }
+
+    val enabledUserRules: Int get() = rules.count { it.enabled }
 }
+
+/** One rule the preset emits, for the transparency list. */
+enum class PresetRule { ADS, DOMESTIC_NAMES, DOMESTIC_ADDRESSES }
 
 /**
  * Routing rules, in the order they are evaluated, plus the kernel's recent
@@ -57,13 +80,15 @@ class RulesViewModel @Inject constructor(
         combine(
             repository.observeAllOrdered(),
             flowLog.records,
-            preferences.bypassMainland,
-        ) { rules, flow, bypass ->
+            preferences.routePreset,
+            preferences.blockAds,
+        ) { rules, flow, preset, ads ->
             RulesUiState(
                 rules = rules,
                 loading = false,
                 recentFlow = flow,
-                bypassMainland = bypass,
+                preset = preset,
+                blockAds = ads,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -71,8 +96,12 @@ class RulesViewModel @Inject constructor(
             initialValue = RulesUiState(),
         )
 
-    fun setBypassMainland(enabled: Boolean) {
-        viewModelScope.launch { preferences.setBypassMainland(enabled) }
+    fun setPreset(preset: RoutePreset) {
+        viewModelScope.launch { preferences.setRoutePreset(preset) }
+    }
+
+    fun setBlockAds(enabled: Boolean) {
+        viewModelScope.launch { preferences.setBlockAds(enabled) }
     }
 
     /** Appends: the first matching rule wins, so a new one belongs last. */
