@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
@@ -569,6 +570,7 @@ class DashboardViewModelTest {
      */
     private val mainlandRuleSets = object : MainlandRuleSetStore {
         override suspend fun ensure() = null
+        override suspend fun ensureAds(): String? = null
     }
 
     private fun profile(id: Long, name: String) = Profile(
@@ -626,6 +628,8 @@ private class FakePreferences(
     override val autoSwitchOnDrop: Flow<Boolean> = flowOf(switchOnDrop)
     // Off, like the app's default: a test that wants the preset on says so.
     override val bypassMainland: Flow<Boolean> = flowOf(false)
+    override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
+    override val blockAds: Flow<Boolean> = flowOf(false)
     // Real rather than notUsed(): the connect path reads it on every build.
     private val perAppRoutesFlow = MutableStateFlow<Map<String, AppRoute>>(emptyMap())
     override val perAppRoutes: Flow<Map<String, AppRoute>> = perAppRoutesFlow
@@ -658,6 +662,8 @@ private class FakePreferences(
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
+    override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
+    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }

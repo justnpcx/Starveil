@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.RealityOptions
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
@@ -484,7 +485,7 @@ class ConfigBuilderTest {
         // That was true of the preset-off config too, so this guard covers
         // both shapes.
         val without = builder.build(vlessProfile())
-        val withPreset = builder.build(listOf(vlessProfile()), mainland = mainland)
+        val withPreset = builder.build(listOf(vlessProfile()), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
         assertFalse("preset-off config must decode", without.contains("\"optimistic\""))
         assertEquals(
@@ -563,7 +564,7 @@ class ConfigBuilderTest {
 
     @Test
     fun `the preset declares its rule sets as local files`() {
-        val json = builder.build(listOf(vlessProfile()), mainland = mainland)
+        val json = builder.build(listOf(vlessProfile()), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
         // Local, not remote. A remote set is fetched during start() and the
         // router fails the whole start when that fetch fails, which is the
@@ -584,7 +585,7 @@ class ConfigBuilderTest {
                 action = RuleAction.PROXY,
             ),
         )
-        val json = builder.build(listOf(vlessProfile()), rules, mainland = mainland)
+        val json = builder.build(listOf(vlessProfile()), rules, mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
         val user = json.indexOf("example.com")
         val geosite = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\",\"outbound\":\"direct\"")
@@ -604,7 +605,7 @@ class ConfigBuilderTest {
     @Test
     fun `without the preset nothing about routing changes`() {
         val without = builder.build(listOf(vlessProfile()))
-        val withPreset = builder.build(listOf(vlessProfile()), mainland = mainland)
+        val withPreset = builder.build(listOf(vlessProfile()), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
         // The degrade path: the app could not get the files, so the config is
         // exactly what it was before the preset existed.
@@ -616,7 +617,7 @@ class ConfigBuilderTest {
 
     @Test
     fun `the preset keeps LAN names on the device and domestic names domestic`() {
-        val json = builder.build(listOf(vlessProfile()), mainland = mainland)
+        val json = builder.build(listOf(vlessProfile()), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
         // A LAN name is settled before anything is resolved — the only way to
         // keep the question from leaving the device. It comes first because it
@@ -659,8 +660,8 @@ class ConfigBuilderTest {
         // Naming one the config does not define fails the start with
         // "outbound detour not found: auto" — which is what a hardcoded `auto`
         // did for every single-node connection.
-        val single = builder.build(vlessProfile(), mainland = mainland)
-        val group = builder.build(listOf(vlessProfile()), mainland = mainland)
+        val single = builder.build(vlessProfile(), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
+        val group = builder.build(listOf(vlessProfile()), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
         assertTrue(single.contains("\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\",\"detour\":\"proxy\""))
         assertTrue(group.contains("\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\",\"detour\":\"auto\""))
@@ -672,7 +673,7 @@ class ConfigBuilderTest {
         // with it and says nothing; with two or more it will not choose, and
         // refuses the start with "missing route.default_domain_resolver". The
         // preset takes the count from one to three.
-        val single = builder.build(vlessProfile(), mainland = mainland)
+        val single = builder.build(vlessProfile(), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
         val without = builder.build(vlessProfile())
 
         assertTrue(single.contains("\"default_domain_resolver\":\"local\""))
@@ -680,6 +681,56 @@ class ConfigBuilderTest {
     }
 
     // ---- per-app routing ----
+
+    @Test
+    fun `global proxy is the absence of preset rules`() {
+        val json = builder.build(vlessProfile(), preset = RoutePreset.GLOBAL_PROXY)
+
+        assertTrue(json.contains("\"final\":\"proxy\""))
+        assertFalse(json.contains("rule_set"))
+    }
+
+    @Test
+    fun `global direct sends everything to the direct outbound`() {
+        val json = builder.build(vlessProfile(), preset = RoutePreset.GLOBAL_DIRECT)
+
+        assertTrue(json.contains("\"final\":\"direct\""))
+        // The node is still in the config: switching the policy back must not
+        // need a different profile.
+        assertTrue(json.contains("\"tag\":\"proxy\""))
+        assertFalse(json.contains("rule_set"))
+    }
+
+    @Test
+    fun `blocking ads adds a reject rule before everything else`() {
+        val json = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            preset = RoutePreset.BYPASS_MAINLAND,
+            adsPath = "/files/rulesets/geosite-ads.srs",
+        )
+        // Start at the route block: the DNS rules above it also mention
+        // geosite-cn, and comparing indices across the two would be nonsense.
+        val route = json.substringAfter("\"route\":{").substringAfter("\"rules\":[")
+        val ads = route.indexOf("\"rule_set\":\"ads\",\"action\":\"reject\"")
+        val domestic = route.indexOf("\"rule_set\":\"geosite-cn\"")
+
+        assertTrue(ads >= 0)
+        assertTrue("ads come before the preset", ads < domestic)
+        // And the set is declared, or the rule would reference nothing.
+        assertTrue(json.contains("\"tag\":\"ads\""))
+    }
+
+    @Test
+    fun `ads stack on global direct too`() {
+        val json = builder.build(
+            vlessProfile(),
+            preset = RoutePreset.GLOBAL_DIRECT,
+            adsPath = "/files/rulesets/geosite-ads.srs",
+        )
+        assertTrue(json.contains("\"final\":\"direct\""))
+        assertTrue(json.contains("\"rule_set\":\"ads\",\"action\":\"reject\""))
+    }
 
     @Test
     fun `per-app exceptions are the first rule and name the packages`() {
@@ -727,7 +778,7 @@ class ConfigBuilderTest {
         // must still take the route it was given.
         val json = builder.build(
             vlessProfile(),
-            mainland = mainland,
+            mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND,
             perApp = listOf(PerAppOutbound.Direct(setOf("com.example.bank"))),
         )
         val route = json.substringAfter("\"route\":{")

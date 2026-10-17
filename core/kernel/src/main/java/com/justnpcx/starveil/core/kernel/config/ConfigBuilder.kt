@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.model.MainlandRuleSets
 import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.model.json.Json
@@ -32,6 +33,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rules: List<Rule> = emptyList(),
         mainland: MainlandRuleSets? = null,
         perApp: List<PerAppOutbound> = emptyList(),
+        preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
+        adsPath: String? = null,
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
@@ -47,10 +50,15 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 add(blockOutbound())
             },
             endpoints = (if (isEndpoint) listOf(proxy) else emptyList()) + perAppEmission.endpoints,
-            finalTag = PROXY_TAG,
+            // "Direct everything" still builds the proxy outbound: the node is
+            // what the user configured, and switching the policy back must not
+            // require reconnecting to something else.
+            finalTag = if (preset == RoutePreset.GLOBAL_DIRECT) DIRECT_TAG else PROXY_TAG,
             rules = rules,
             mainland = mainland,
             perAppRules = perAppEmission.rules,
+            preset = preset,
+            adsPath = adsPath,
         )
     }
 
@@ -74,6 +82,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         mode: GroupMode = GroupMode.URL_TEST,
         mainland: MainlandRuleSets? = null,
         perApp: List<PerAppOutbound> = emptyList(),
+        preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
+        adsPath: String? = null,
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -126,10 +136,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         return render(
             outbounds = outbounds,
             endpoints = endpoints + perAppEmission.endpoints,
-            finalTag = AUTO_TAG,
+            finalTag = if (preset == RoutePreset.GLOBAL_DIRECT) DIRECT_TAG else AUTO_TAG,
             rules = rules,
             mainland = mainland,
             perAppRules = perAppEmission.rules,
+            preset = preset,
+            adsPath = adsPath,
         )
     }
 
@@ -167,6 +179,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         proxyTag: String,
         mainland: MainlandRuleSets?,
         perAppRules: List<Map<String, Any?>>,
+        preset: RoutePreset,
+        adsPath: String?,
     ): List<Map<String, Any?>> {
         // Per-app first, and that is a deliberate precedence: someone who says
         // "this app goes this way" means it more specifically than any domain
@@ -189,13 +203,28 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             }
             matcher + action
         }
-        if (mainland == null) return perApp + userRules
+        // Ads first: blocking them is a policy the user turned on explicitly,
+        // and a later rule that would route the request somewhere must not
+        // quietly undo it. Only the per-app direct exception could argue
+        // otherwise, and an ad request is not the reason anyone whitelists an
+        // app.
+        val ads = if (adsPath == null) {
+            emptyList()
+        } else {
+            listOf(linkedMapOf<String, Any?>("rule_set" to ADS_TAG, "action" to "reject"))
+        }
+        // The preset, not the files, decides whether domestic traffic is split
+        // out: a missing rule set means the preset silently degrades, and the
+        // rules must degrade with it.
+        if (preset != RoutePreset.BYPASS_MAINLAND || mainland == null) {
+            return ads + perApp + userRules
+        }
         // After the user's own rules and before `final`: the user's intent wins
         // over the preset, which is the only order that lets someone carve an
         // exception out of it. geosite-cn is a domain match, so a domestic
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
-        return perApp + userRules + listOf(
+        return ads + perApp + userRules + listOf(
             linkedMapOf<String, Any?>(
                 "rule_set" to GEOSITE_CN_TAG,
                 "action" to "route",
@@ -281,6 +310,18 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             "format" to "binary",
             "path" to mainland.geoipCnPath,
         ),
+    )
+
+    /**
+     * The ad set, on the same terms as the preset's: a local file the app
+     * downloaded, never a remote one. An ads list that cannot be fetched must
+     * not be able to keep the tunnel down.
+     */
+    private fun adsRuleSet(path: String): Map<String, Any?> = linkedMapOf(
+        "type" to "local",
+        "tag" to ADS_TAG,
+        "format" to "binary",
+        "path" to path,
     )
 
     /**
@@ -448,6 +489,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rules: List<Rule>,
         mainland: MainlandRuleSets? = null,
         perAppRules: List<Map<String, Any?>> = emptyList(),
+        preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
+        adsPath: String? = null,
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
@@ -462,7 +505,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             config["endpoints"] = endpoints
         }
         config["route"] = linkedMapOf<String, Any?>(
-            "rules" to routeRules(rules, finalTag, mainland, perAppRules),
+            "rules" to routeRules(rules, finalTag, mainland, perAppRules, preset, adsPath),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
             // The dialer installs the bind/protect control, which reaches
@@ -473,12 +516,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // only an A/B and made no difference to the dial.
             "auto_detect_interface" to true,
         )
-        if (mainland != null) {
+        val ruleSets = buildList {
+            if (mainland != null) addAll(mainlandRuleSets(mainland))
+            if (adsPath != null) add(adsRuleSet(adsPath))
+        }
+        if (ruleSets.isNotEmpty()) {
             // Inserted rather than appended so the emitted JSON reads in the
             // order it is evaluated: the sets are declared, then the rules
             // that reference them.
             val route = config["route"] as LinkedHashMap<String, Any?>
-            route["rule_set"] = mainlandRuleSets(mainland)
+            route["rule_set"] = ruleSets
             // Needed the moment there is more than one DNS server. With one,
             // the kernel resolves an outbound's own address with it and says
             // nothing; with several it will not choose, and refuses the start
@@ -513,6 +560,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val DNS_CN_TAG = "dns-cn"
         const val DNS_PROXY_TAG = "dns-proxy"
         const val GEOSITE_CN_TAG = "geosite-cn"
+        const val ADS_TAG = "ads"
         const val GEOIP_CN_TAG = "geoip-cn"
 
         /** Tag prefix for an outbound that exists only because an app names it. */

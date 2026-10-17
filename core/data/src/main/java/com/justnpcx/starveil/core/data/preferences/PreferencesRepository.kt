@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -88,6 +89,18 @@ interface PreferencesRepository {
     val bypassMainland: Flow<Boolean>
 
     /**
+     * The routing policy in force.
+     *
+     * Read from its own key, falling back to the old boolean so an install
+     * that had the preset on keeps it on: the setting changed shape, not
+     * meaning.
+     */
+    val routePreset: Flow<RoutePreset>
+
+    /** Whether advertising domains are rejected, whatever the preset is. */
+    val blockAds: Flow<Boolean>
+
+    /**
      * Currently selected node; 0 = none chosen yet.
      *
      * A node and a group are alternative connection targets, so at most one is
@@ -134,6 +147,10 @@ interface PreferencesRepository {
     suspend fun setAutoSwitchOnDrop(enabled: Boolean)
     suspend fun setBypassMainland(enabled: Boolean)
 
+    suspend fun setRoutePreset(preset: RoutePreset)
+
+    suspend fun setBlockAds(enabled: Boolean)
+
     suspend fun setPerAppRoutes(routes: Map<String, AppRoute>)
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
     suspend fun recordLeakCheck(record: LeakCheckRecord)
@@ -164,6 +181,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         val AUTO_SWITCH_ON_DROP = booleanPreferencesKey("auto_switch_on_drop")
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
+        val ROUTE_PRESET = stringPreferencesKey("route_preset")
+        val BLOCK_ADS = booleanPreferencesKey("block_ads")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
@@ -227,6 +246,25 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setBypassMainland(enabled: Boolean) {
         dataStore.edit { it[Keys.BYPASS_MAINLAND] = enabled }
+    }
+
+    override val routePreset: Flow<RoutePreset> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs ->
+            prefs[Keys.ROUTE_PRESET]?.let(RoutePreset::fromStorage)
+                ?: if (prefs[Keys.BYPASS_MAINLAND] == true) RoutePreset.BYPASS_MAINLAND else RoutePreset.GLOBAL_PROXY
+        }
+
+    override val blockAds: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.BLOCK_ADS] ?: false }
+
+    override suspend fun setRoutePreset(preset: RoutePreset) {
+        dataStore.edit { it[Keys.ROUTE_PRESET] = preset.name }
+    }
+
+    override suspend fun setBlockAds(enabled: Boolean) {
+        dataStore.edit { it[Keys.BLOCK_ADS] = enabled }
     }
 
     override suspend fun setAutoReconnect(enabled: Boolean) {

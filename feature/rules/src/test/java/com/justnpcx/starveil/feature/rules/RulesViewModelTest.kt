@@ -30,6 +30,7 @@ import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.RoutePreset
 
 /**
  * The rule list. Order is the routing decision — the first match wins — so
@@ -180,6 +181,8 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     private val bypass = MutableStateFlow(initiallyBypass)
 
     override val bypassMainland: Flow<Boolean> = bypass
+    override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
+    override val blockAds: Flow<Boolean> = flowOf(false)
 
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
@@ -196,6 +199,8 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
 
     override suspend fun setBypassMainland(enabled: Boolean) { bypass.value = enabled }
+    override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
+    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }

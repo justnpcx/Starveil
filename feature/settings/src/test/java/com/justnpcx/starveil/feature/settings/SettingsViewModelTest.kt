@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
@@ -143,12 +144,16 @@ private class FakePreferences : PreferencesRepository {
     override val autoReconnect: Flow<Boolean> = flowOf(true)
     override val autoSwitchOnDrop: Flow<Boolean> = flowOf(true)
     override val bypassMainland: Flow<Boolean> = flowOf(false)
+    override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
+    override val blockAds: Flow<Boolean> = flowOf(false)
     override val killSwitchMode: Flow<KillSwitchMode> = flowOf(KillSwitchMode.OFF)
     override val lastLeakCheck: Flow<LeakCheckRecord> = flowOf(LeakCheckRecord())
 
     override suspend fun setThemeMode(mode: ThemeMode) = notUsed()
     override suspend fun setDynamicColor(enabled: Boolean) = notUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = notUsed()
+    override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
+    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = notUsed()
