@@ -83,7 +83,9 @@ class ConnectionController @Inject constructor(
             connected = true,
         ) == TrafficPolicy.BLOCK
         if (alwaysBlocked) {
-            val result = kernel.start(configBuilder.buildBlocking())
+            // block(), not start(buildBlocking()): the bridge owns what
+            // "blocking" means, and reports it through `blocking`.
+            val result = kernel.block()
             return ConnectionOutcome.Blocked(
                 started = result.isSuccess,
                 reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() },
@@ -142,17 +144,27 @@ class ConnectionController @Inject constructor(
     }
 
     /**
-     * "Block on disconnect" means the tunnel stays up with nothing forwarding
-     * it. Tearing it down here is exactly the leak that mode exists to prevent:
-     * whatever was in flight would go out directly.
+     * "Block on disconnect" swaps the running config for one that forwards
+     * nothing. Tearing the tunnel down here is exactly the leak that mode
+     * exists to prevent: whatever was in flight would go out directly.
+     *
+     * A reload rather than a stop-and-start: the tun never goes away, so the
+     * block begins at the config swap and not a moment later.
      */
     suspend fun disconnect(): ConnectionOutcome {
-        val keepTunnel = KillSwitchController.policyFor(
+        val blocking = KillSwitchController.policyFor(
             preferences.killSwitchMode.first(),
             connected = false,
         ) == TrafficPolicy.BLOCK
-        if (keepTunnel) kernel.stopKeepingTunnel() else kernel.stop()
-        return if (keepTunnel) ConnectionOutcome.Blocked() else ConnectionOutcome.Disconnected
+        if (!blocking) {
+            kernel.stop()
+            return ConnectionOutcome.Disconnected
+        }
+        val result = kernel.block()
+        return ConnectionOutcome.Blocked(
+            started = result.isSuccess,
+            reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() },
+        )
     }
 
     /**

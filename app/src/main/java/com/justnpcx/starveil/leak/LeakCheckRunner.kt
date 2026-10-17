@@ -33,6 +33,12 @@ fun interface TunnelProbe {
  * the failure worth catching: if the policy says "block" while nothing is
  * holding traffic back, traffic is going out unproxied. That is a leak.
  *
+ * "Blocked" is now a running kernel with a block-only config, so the question
+ * "is the tunnel forwarding?" is asked of [KernelBridge.blocking] rather than
+ * inferred from the kernel being absent. A tun that is up and refusing is
+ * exactly as blocking as no tun at all, and this is the difference between
+ * reporting a working Kill Switch as a leak and not.
+ *
  * The reverse is not a proof — a standing tunnel that forwards is a different
  * failure this cannot see. So the record says "found a leak", never "is safe".
  */
@@ -45,11 +51,14 @@ class LeakCheckRunner @Inject constructor(
 
     suspend fun run(): LeakCheckRecord {
         val mode = preferences.killSwitchMode.first()
-        val connected = kernel.state.value == KernelState.Running
+        // "Forwarding", not merely "running": a blocking kernel runs too.
+        val forwarding = kernel.state.value == KernelState.Running && !kernel.blocking.value
+        // Unproxied traffic can leave when nothing is holding the tun up. A
+        // blocking kernel holds it up, so this stays false while blocked.
         val trafficAllowed = !tunnel.isUp()
         val record = LeakCheckRecord(
             checkedAtEpochMs = System.currentTimeMillis(),
-            leaking = LeakCheck.isLeaking(mode, connected, trafficAllowed),
+            leaking = LeakCheck.isLeaking(mode, forwarding, trafficAllowed),
         )
         preferences.recordLeakCheck(record)
         return record

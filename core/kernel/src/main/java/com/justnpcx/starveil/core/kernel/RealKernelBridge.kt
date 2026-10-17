@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel
 
+import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.libbox.LogRedactor
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandClientHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandServerHandler
@@ -34,6 +35,12 @@ import kotlinx.coroutines.withContext
 class RealKernelBridge(
     /** Filesystem roots libbox needs; without real paths setup throws. */
     private val paths: KernelPaths,
+    /**
+     * Builds the block-only config. Owned here rather than passed in as a
+     * string so "what does blocking mean" has one answer, in the module that
+     * also owns the routing rules.
+     */
+    private val configBuilder: ConfigBuilder,
     /** Built by :app so it can carry the Context the DNS resolver needs. */
     private val platform: StarveilPlatformInterface,
     private val prepareVpn: () -> Unit = {},
@@ -53,6 +60,9 @@ class RealKernelBridge(
 
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
     override val state: StateFlow<KernelState> = _state.asStateFlow()
+
+    private val _blocking = MutableStateFlow(false)
+    override val blocking: StateFlow<Boolean> = _blocking.asStateFlow()
 
     private val _logs = MutableSharedFlow<KernelLogLine>(replay = 64, extraBufferCapacity = 64)
     override val logs = _logs.asSharedFlow()
@@ -98,14 +108,47 @@ class RealKernelBridge(
         _logs.tryEmit(KernelLogLine(level = level, tag = "kernel", message = message))
     }
 
-    override suspend fun start(config: String): Result<Unit> = withContext(Dispatchers.IO) {
-        lastConfig = config
-        restarted = false
-        doStart(config)
-    }
+    override suspend fun start(config: String): Result<Unit> = apply(config, blocking = false)
 
-    private suspend fun doStart(config: String): Result<Unit> {
-        if (server != null) return Result.success(Unit) // idempotent
+    override suspend fun block(): Result<Unit> =
+        apply(configBuilder.buildBlocking(), blocking = true)
+
+    /**
+     * Start, or swap the running kernel's config.
+     *
+     * The swap is `startOrReloadService` on the live server: the tun, the
+     * VpnService and the command channel all stay exactly as they were, so
+     * there is no moment between "proxying" and "blocking" in which a packet
+     * could leave directly. That gap is the whole reason this is a reload
+     * rather than a stop followed by a start.
+     */
+    private suspend fun apply(config: String, blocking: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            lastConfig = config
+            restarted = false
+            val current = server ?: return@withContext doStart(config, blocking)
+            try {
+                current.startOrReloadService(config, OverrideOptions())
+                _blocking.value = blocking
+                _state.value = KernelState.Running
+                log(
+                    LogLevel.INFO,
+                    if (blocking) "kernel reloaded: forwarding nothing" else "kernel reloaded",
+                )
+                Result.success(Unit)
+            } catch (e: Exception) {
+                // The old config is still in force — that is the safer failure:
+                // whatever the kernel was doing, it keeps doing. Nothing is
+                // torn down, and the caller is told the swap did not happen.
+                val detail = LogRedactor.redact(e.message.orEmpty())
+                    .ifBlank { e::class.java.simpleName }
+                android.util.Log.e(LOG_TAG, "kernel reload failed: $detail")
+                log(LogLevel.ERROR, "kernel reload failed: $detail")
+                Result.failure(KernelStartException(detail, e))
+            }
+        }
+
+    private suspend fun doStart(config: String, blocking: Boolean): Result<Unit> {
         _state.value = KernelState.Starting
         log(LogLevel.INFO, "kernel starting")
         return try {
@@ -133,8 +176,9 @@ class RealKernelBridge(
             newClient.connect()
             client = newClient
 
+            _blocking.value = blocking
             _state.value = KernelState.Running
-            log(LogLevel.INFO, "kernel running")
+            log(LogLevel.INFO, if (blocking) "kernel running, forwarding nothing" else "kernel running")
             Result.success(Unit)
         } catch (e: Exception) {
             client = null
@@ -153,31 +197,24 @@ class RealKernelBridge(
         }
     }
 
-    override suspend fun stop(): Result<Unit> = closeKernel(keepTunnel = false)
-
-    override suspend fun stopKeepingTunnel(): Result<Unit> = closeKernel(keepTunnel = true)
-
     /**
-     * Closes the kernel. [keepTunnel] decides whether the VpnService goes with
-     * it.
+     * Closes the kernel and the tunnel.
      *
-     * Normally it must: a tunnel that outlives its kernel leaves the VPN icon
-     * in the status bar and routes every app into an interface that forwards
-     * nothing. The Kill Switch wants exactly that state — the tunnel *is* the
-     * block — so it is opt-in rather than the default.
+     * A tunnel that outlives its kernel leaves the VPN icon in the status bar
+     * and routes every app into an interface that forwards nothing — which is
+     * why the Kill Switch's block is a *config* now, not this state.
      */
-    private suspend fun closeKernel(keepTunnel: Boolean): Result<Unit> =
+    override suspend fun stop(): Result<Unit> =
         withContext(Dispatchers.IO) {
             val current = server
             if (current == null) {
-                if (!keepTunnel) {
-                    // prepareVpn() starts the VpnService *before* the kernel, so
-                    // the service can be up with a tun even though nothing is
-                    // running. Returning early here without stopping it is what
-                    // left the VPN icon in the status bar after a disconnect.
-                    log(LogLevel.DEBUG, "stop: no kernel running, stopping the VpnService anyway")
-                    stopVpn()
-                }
+                // prepareVpn() starts the VpnService *before* the kernel, so
+                // the service can be up with a tun even though nothing is
+                // running. Returning early here without stopping it is what
+                // left the VPN icon in the status bar after a disconnect.
+                log(LogLevel.DEBUG, "stop: no kernel running, stopping the VpnService anyway")
+                stopVpn()
+                _blocking.value = false
                 _state.value = KernelState.Stopped
                 return@withContext Result.success(Unit) // idempotent
             }
@@ -190,12 +227,9 @@ class RealKernelBridge(
                 current.closeService()
                 current.close()
                 server = null
-                if (keepTunnel) {
-                    log(LogLevel.INFO, "kernel stopped; tunnel left standing (Kill Switch)")
-                } else {
-                    log(LogLevel.DEBUG, "stop: kernel closed, stopping the VpnService")
-                    stopVpn()
-                }
+                log(LogLevel.DEBUG, "stop: kernel closed, stopping the VpnService")
+                stopVpn()
+                _blocking.value = false
                 _state.value = KernelState.Stopped
                 log(LogLevel.INFO, "kernel stopped")
                 Result.success(Unit)
@@ -204,6 +238,7 @@ class RealKernelBridge(
                 server = null
                 // Never leave a stray tunnel behind on an error path.
                 stopVpn()
+                _blocking.value = false
                 _state.value = KernelState.Error(KernelError.Unknown("kernel failed to stop cleanly", e))
                 Result.failure(e)
             }
@@ -218,8 +253,9 @@ class RealKernelBridge(
             restarted = true
             log(LogLevel.WARN, "kernel dropped unexpectedly; restarting once")
             scope.launch {
+                val wasBlocking = _blocking.value
                 teardownQuietly()
-                lastConfig?.let { doStart(it) }
+                lastConfig?.let { doStart(it, wasBlocking) }
             }
         } else {
             server = null

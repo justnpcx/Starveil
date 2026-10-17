@@ -163,14 +163,15 @@ class DashboardViewModelTest {
         viewModel.onCoreClick()
 
         assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
-        assertEquals(1, kernel.starts)
-        // No node at all: nothing to reach the network with.
-        assertFalse(kernel.lastConfig.orEmpty().contains("one.example"))
-        assertTrue(kernel.lastConfig.orEmpty().contains("\"final\":\"block\""))
+        // The node is never built: the block config has no outbound but
+        // `block`, which is asserted where that config is built.
+        assertEquals(0, kernel.starts)
+        assertEquals(1, kernel.blocks)
+        assertTrue(kernel.blocking.value)
     }
 
     @Test
-    fun `block on disconnect keeps the tunnel standing`() = runBlocking {
+    fun `block on disconnect swaps in a kernel that forwards nothing`() = runBlocking {
         val kernel = RecordingKernel()
         val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.BLOCK_ON_DISCONNECT), kernel)
 
@@ -180,7 +181,8 @@ class DashboardViewModelTest {
         viewModel.onCoreClick() // disconnect
         // Tearing the tunnel down here is the leak this mode exists to stop.
         assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
-        assertEquals(1, kernel.stopKeepingTunnelCalls)
+        assertEquals(1, kernel.blocks)
+        assertTrue(kernel.blocking.value)
     }
 
     @Test
@@ -271,7 +273,7 @@ class DashboardViewModelTest {
         viewModel.onCoreClick()
 
         assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
-        assertEquals(0, kernel.stopKeepingTunnelCalls)
+        assertEquals(0, kernel.blocks)
     }
 
     @Test
@@ -777,7 +779,7 @@ private class RecordingKernel : KernelBridge {
 
     var starts = 0
         private set
-    var stopKeepingTunnelCalls = 0
+    var blocks = 0
         private set
     var lastConfig: String? = null
         private set
@@ -787,6 +789,8 @@ private class RecordingKernel : KernelBridge {
 
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
     override val state: StateFlow<KernelState> = _state
+    private val _blocking = MutableStateFlow(false)
+    override val blocking: StateFlow<Boolean> = _blocking
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
     override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
 
@@ -809,18 +813,20 @@ private class RecordingKernel : KernelBridge {
             _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
             return Result.failure(IllegalStateException("kernel stopped unexpectedly"))
         }
+        _blocking.value = false
+        _state.value = KernelState.Running
+        return Result.success(Unit)
+    }
+
+    override suspend fun block(): Result<Unit> {
+        blocks++
+        _blocking.value = true
         _state.value = KernelState.Running
         return Result.success(Unit)
     }
 
     override suspend fun stop(): Result<Unit> {
-        _state.value = KernelState.Stopped
-        return Result.success(Unit)
-    }
-
-    /** Records that the Kill Switch asked for the tunnel to stay standing. */
-    override suspend fun stopKeepingTunnel(): Result<Unit> {
-        stopKeepingTunnelCalls++
+        _blocking.value = false
         _state.value = KernelState.Stopped
         return Result.success(Unit)
     }

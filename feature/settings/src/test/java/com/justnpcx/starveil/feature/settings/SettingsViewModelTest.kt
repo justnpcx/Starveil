@@ -131,7 +131,9 @@ private class FakeKernel(private val reportedVersion: String) : KernelBridge {
 
     override suspend fun start(config: String): Result<Unit> = Result.success(Unit)
     override suspend fun stop(): Result<Unit> = Result.success(Unit)
-    override suspend fun stopKeepingTunnel(): Result<Unit> = Result.success(Unit)
+    override val blocking: StateFlow<Boolean> = MutableStateFlow(false)
+
+    override suspend fun block(): Result<Unit> = Result.success(Unit)
     override suspend fun queryStats(): TrafficStats = TrafficStats()
     override suspend fun version(): String = reportedVersion
 }

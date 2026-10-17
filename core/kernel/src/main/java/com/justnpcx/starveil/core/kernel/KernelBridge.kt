@@ -39,22 +39,40 @@ interface KernelBridge {
      */
     val connections: SharedFlow<KernelConnection>
 
-    /** Start the kernel with a fully-built config (JSON). Idempotent. */
+    /**
+     * Start the kernel with a fully-built config (JSON), or reload the running
+     * one with it.
+     *
+     * Reloading rather than refusing is what makes a policy change take effect
+     * without a window: the tun stays up across the swap, so "stop forwarding"
+     * and "start forwarding again" never pass through a moment where packets
+     * leave directly.
+     */
     suspend fun start(config: String): Result<Unit>
 
-    /** Stop the kernel. Idempotent. */
+    /**
+     * Forward nothing.
+     *
+     * The Kill Switch's block is a *configuration*, not a side effect of the
+     * kernel being absent: a config whose only outbound is `block` rejects
+     * every connection the tun hands it. This replaces the old trick of
+     * closing the kernel and hoping the tun's file descriptor stayed dead —
+     * which depended on libbox internals and would turn a block into a silent
+     * leak the moment they changed.
+     */
+    suspend fun block(): Result<Unit>
+
+    /** Stop the kernel and take the tunnel down. Idempotent. */
     suspend fun stop(): Result<Unit>
 
     /**
-     * Stop the kernel but leave the tunnel standing, so every packet still
-     * goes into a tun that nothing is reading. That state *is* the Kill
-     * Switch's block: with no kernel to forward anything, connections cannot
-     * leave. [stop] is what takes the tunnel down again.
+     * Whether the running kernel is the block-only one.
      *
-     * Separate from [stop] on purpose — a tunnel outliving its kernel is
-     * normally a defect, so it only happens when the user asked for it.
+     * A blocking kernel is *running* — it holds the tun and refuses traffic —
+     * so [state] alone cannot tell "connected" from "blocked". Everything that
+     * needs to know asks this.
      */
-    suspend fun stopKeepingTunnel(): Result<Unit>
+    val blocking: StateFlow<Boolean>
 
     /** Current traffic snapshot. Returns zeroed stats when not running. */
     suspend fun queryStats(): TrafficStats

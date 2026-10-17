@@ -539,7 +539,9 @@ class DashboardViewModel @Inject constructor(
     private suspend fun onRunningElsewhere() {
         if (_uiState.value.isBusy) return
         if (_uiState.value.connectionState == ConnectionState.CONNECTED) return
-        val blocked = KillSwitchController.policyFor(
+        // A blocking kernel is running too, so the policy alone would call it
+        // "connected" — the bridge's own flag is what tells them apart.
+        val blocked = kernel.blocking.value || KillSwitchController.policyFor(
             preferences.killSwitchMode.first(),
             connected = true,
         ) == TrafficPolicy.BLOCK

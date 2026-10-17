@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelPaths
 import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
+import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.flows.KernelFlowLog
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
@@ -40,6 +41,9 @@ object KernelModule {
     @Singleton
     fun provideKernelBridge(
         @ApplicationContext context: Context,
+        // Needed for the Kill Switch's block-only config: "forward nothing" is
+        // a config the bridge can build, not a state it can fake.
+        configBuilder: ConfigBuilder,
     ): KernelBridge = RealKernelBridge(
         // libbox needs real, writable roots; empty paths make Libbox.setup
         // throw (it runs MkdirAll on them). See KernelPaths.
@@ -52,6 +56,7 @@ object KernelModule {
         // Android sing-box resolves `local` through us, and we resolve on the
         // underlying network so a query cannot loop back into our own tunnel.
         platform = StarveilPlatformInterface(context),
+        configBuilder = configBuilder,
         prepareVpn = { StarveilVpnService.start(context) },
         // Without this the tun outlives the kernel: the VPN icon stays in the
         // status bar and all app traffic keeps being routed into a dead tunnel.

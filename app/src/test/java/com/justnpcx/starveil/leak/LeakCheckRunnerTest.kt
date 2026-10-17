@@ -60,6 +60,32 @@ class LeakCheckRunnerTest {
     }
 
     @Test
+    fun `a blocking kernel holding the tun is clean, not a leak`() = runBlocking {
+        // The block is a running kernel with a block-only config now. Calling
+        // that "connected" would report a working Kill Switch as a leak.
+        val runner = LeakCheckRunner(
+            preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel = FakeKernel(KernelState.Running, blockingNow = true),
+            tunnel = TunnelProbe { true },
+        )
+
+        assertFalse(runner.run().leaking)
+    }
+
+    @Test
+    fun `a blocking kernel whose tunnel died is a leak`() = runBlocking {
+        // The kernel believes it is blocking, but nothing is holding the tun:
+        // traffic leaves directly, which is exactly the failure to report.
+        val runner = LeakCheckRunner(
+            preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel = FakeKernel(KernelState.Running, blockingNow = true),
+            tunnel = TunnelProbe { false },
+        )
+
+        assertTrue(runner.run().leaking)
+    }
+
+    @Test
     fun `the kill switch off is never a leak`() = runBlocking {
         // No tunnel and traffic flowing freely is the intended state here.
         val runner = LeakCheckRunner(
@@ -96,13 +122,15 @@ class LeakCheckRunnerTest {
     }
 }
 
-private class FakeKernel(initial: KernelState) : KernelBridge {
+private class FakeKernel(initial: KernelState, blockingNow: Boolean = false) : KernelBridge {
     override val state: StateFlow<KernelState> = MutableStateFlow(initial)
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
     override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
     override suspend fun start(config: String): Result<Unit> = Result.success(Unit)
     override suspend fun stop(): Result<Unit> = Result.success(Unit)
-    override suspend fun stopKeepingTunnel(): Result<Unit> = Result.success(Unit)
+    override val blocking: StateFlow<Boolean> = MutableStateFlow(blockingNow)
+
+    override suspend fun block(): Result<Unit> = Result.success(Unit)
     override suspend fun queryStats(): TrafficStats = TrafficStats()
     override suspend fun version(): String = "test"
 }
