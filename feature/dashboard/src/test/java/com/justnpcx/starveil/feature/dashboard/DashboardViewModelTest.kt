@@ -143,6 +143,38 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `a stop from outside the dashboard is reflected in the ui`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.OFF), kernel)
+        viewModel.onCoreClick()
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+
+        // The notification's Disconnect: the kernel stops and this view model
+        // never hears about it through its own code path.
+        kernel.stop()
+        yield()
+
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+    }
+
+    @Test
+    fun `a stop from outside honours the kill switch`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(
+            FakePreferences(ONE, KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel,
+        )
+        viewModel.onCoreClick()
+
+        kernel.stop()
+        yield()
+
+        // Blocked, not exposed: whoever pressed Disconnect, the policy is the
+        // same one this view model would have applied itself.
+        assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
+    }
+
+    @Test
     fun `with the kill switch off, disconnecting really disconnects`() = runBlocking {
         val kernel = RecordingKernel()
         val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.OFF), kernel)

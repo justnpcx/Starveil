@@ -3,12 +3,15 @@ package com.justnpcx.starveil.core.kernel.vpn
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.drawable.Icon
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
+import com.justnpcx.starveil.core.kernel.R
 import io.nekohasekai.libbox.RoutePrefixIterator
 import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.TunOptions
@@ -256,10 +259,39 @@ class StarveilVpnService : VpnService() {
             )
             getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }
+
+        // The launch intent rather than a class reference: this module does not
+        // depend on :app, and it should not start to just to open a screen.
+        val open = packageManager.getLaunchIntentForPackage(packageName)?.let { intent ->
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            PendingIntent.getActivity(this, REQUEST_OPEN, intent, PendingIntent.FLAG_IMMUTABLE)
+        }
+
+        // Package-scoped, so only this app can receive it. The receiver is
+        // declared in :app, which is where the kernel can actually be stopped
+        // from — this module has no handle on the bridge.
+        val disconnect = PendingIntent.getBroadcast(
+            this,
+            REQUEST_DISCONNECT,
+            Intent(ACTION_DISCONNECT).setPackage(packageName),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(NOTIFICATION_TITLE)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            // The system tints a small icon, so it has to be a silhouette. The
+            // framework's dialog icon was a placeholder and looked like one.
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
+            .setShowWhen(false)
+            .setContentIntent(open)
+            .addAction(
+                Notification.Action.Builder(
+                    Icon.createWithResource(this, R.drawable.ic_notification),
+                    getString(R.string.notification_disconnect),
+                    disconnect,
+                ).build(),
+            )
             .build()
     }
 
@@ -278,6 +310,17 @@ class StarveilVpnService : VpnService() {
         const val NOTIFICATION_CHANNEL_NAME = "Starveil"
         const val NOTIFICATION_TITLE = "Starveil is running"
         const val NOTIFICATION_ID = 1001
+
+        /**
+         * Sent by the notification's Disconnect action.
+         *
+         * A broadcast rather than a direct call because the code that can stop
+         * the kernel lives in :app; this module only knows the action name.
+         */
+        const val ACTION_DISCONNECT = "com.justnpcx.starveil.action.DISCONNECT"
+
+        private const val REQUEST_OPEN = 1
+        private const val REQUEST_DISCONNECT = 2
 
         /** The running instance, so the platform interface can reach openTun. */
         @Volatile
