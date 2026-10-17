@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.AvailabilityBand
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.MessageBanner
@@ -105,7 +107,10 @@ fun DashboardScreen(
             ),
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
-        CurrentNodeCard(name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node))
+        CurrentNodeCard(
+            name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
+            onAutoSelect = viewModel::autoSelect,
+        )
         // §7.2: the selected node's health over the window. Only for a node —
         // a group has no single curve — and the chart says "collecting" in
         // words until there is a shape worth drawing.
@@ -189,6 +194,29 @@ private fun DashboardNotice.text(): String = when (this) {
     is DashboardNotice.KernelRefused -> reason
         ?.let { stringResource(R.string.dashboard_notice_kernel_refused_reason, it) }
         ?: stringResource(R.string.dashboard_notice_kernel_refused)
+    is DashboardNotice.AutoSelected ->
+        stringResource(R.string.dashboard_notice_auto_selected, nodeName, reason.text())
+    DashboardNotice.SwitchingNode ->
+        stringResource(R.string.dashboard_notice_switching_node)
+}
+
+/**
+ * The picker's reason, as a clause.
+ *
+ * A clause rather than a sentence because it is used as the second half of the
+ * "auto-selected X — Y" notice.
+ */
+@Composable
+private fun RecommendationReason.text(): String = when (this) {
+    is RecommendationReason.Healthiest ->
+        stringResource(R.string.dashboard_reason_healthiest, score)
+    is RecommendationReason.TiedOnScore -> region
+        ?.let { stringResource(R.string.dashboard_reason_tied_region, score, it.displayName) }
+        ?: stringResource(R.string.dashboard_reason_tied, score)
+    is RecommendationReason.AllCoolingDown ->
+        stringResource(R.string.dashboard_reason_cooling_down, minutesLeft)
+    RecommendationReason.NothingMeasured ->
+        stringResource(R.string.dashboard_reason_unmeasured)
 }
 
 @Composable
@@ -215,23 +243,31 @@ private fun SpeedCell(label: String, rate: Long, total: Long) {
     }
 }
 
-/** The node the next connect will use; the in-place selector is M3 D5. */
+/** The node the next connect will use, with the one-tap pick beside it. */
 @Composable
-private fun CurrentNodeCard(name: String) {
+private fun CurrentNodeCard(name: String, onAutoSelect: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
-            Text(
-                text = stringResource(R.string.dashboard_current_node),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Row(
+            modifier = Modifier.padding(StarveilSpacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.dashboard_current_node),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onAutoSelect) {
+                Text(stringResource(R.string.dashboard_auto_select))
+            }
         }
     }
 }

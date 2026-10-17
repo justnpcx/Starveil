@@ -65,6 +65,16 @@ interface PreferencesRepository {
     val themeMode: Flow<ThemeMode>
     val dynamicColor: Flow<Boolean>
     val autoReconnect: Flow<Boolean>
+
+    /**
+     * When the tunnel drops, switch to the next-best node rather than retrying
+     * the one that just failed.
+     *
+     * Only consulted when [autoReconnect] is on and the target is a single
+     * node — a group already has urltest picking within it, and switching away
+     * from the group would throw that away.
+     */
+    val autoSwitchOnDrop: Flow<Boolean>
     val killSwitchMode: Flow<KillSwitchMode>
 
     /**
@@ -120,6 +130,8 @@ interface PreferencesRepository {
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setAutoReconnect(enabled: Boolean)
+
+    suspend fun setAutoSwitchOnDrop(enabled: Boolean)
     suspend fun setBypassMainland(enabled: Boolean)
 
     suspend fun setPerAppRoutes(routes: Map<String, AppRoute>)
@@ -150,6 +162,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
+        val AUTO_SWITCH_ON_DROP = booleanPreferencesKey("auto_switch_on_drop")
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
@@ -176,6 +189,12 @@ class DataStorePreferencesRepository @Inject constructor(
     override val autoReconnect: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.AUTO_RECONNECT] ?: true }
+
+    // On by default: retrying the node that just died is the least useful
+    // thing to do with a drop, and the user can still turn it off.
+    override val autoSwitchOnDrop: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.AUTO_SWITCH_ON_DROP] ?: true }
 
     override val bypassMainland: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
@@ -212,6 +231,10 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setAutoReconnect(enabled: Boolean) {
         dataStore.edit { it[Keys.AUTO_RECONNECT] = enabled }
+    }
+
+    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) {
+        dataStore.edit { it[Keys.AUTO_SWITCH_ON_DROP] = enabled }
     }
 
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) {

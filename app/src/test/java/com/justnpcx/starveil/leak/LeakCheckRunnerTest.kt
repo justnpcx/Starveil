@@ -123,6 +123,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
+    override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
     override val bypassMainland: Flow<Boolean> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
@@ -133,6 +134,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
+    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun setSelectedProfileId(id: Long) { notUsed() }
     override suspend fun setSelectedGroupId(id: Long) { notUsed() }

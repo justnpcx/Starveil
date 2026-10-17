@@ -727,6 +727,7 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
+    override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
     override val bypassMainland: Flow<Boolean> get() = notUsed()
     override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
@@ -738,6 +739,7 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
+    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }

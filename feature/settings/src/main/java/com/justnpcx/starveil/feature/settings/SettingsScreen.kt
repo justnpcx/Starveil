@@ -128,6 +128,12 @@ fun SettingsScreen(
             checked = state.autoReconnect,
             onCheckedChange = viewModel::setAutoReconnect,
         )
+        SwitchRow(
+            title = stringResource(R.string.auto_switch_title),
+            description = stringResource(R.string.auto_switch_desc),
+            checked = state.autoSwitchOnDrop,
+            onCheckedChange = viewModel::setAutoSwitchOnDrop,
+        )
 
         SectionTitle(stringResource(R.string.per_app_entry_title))
         Row(verticalAlignment = Alignment.CenterVertically) {
