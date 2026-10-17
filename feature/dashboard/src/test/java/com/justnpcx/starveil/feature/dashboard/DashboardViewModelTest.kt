@@ -17,6 +17,7 @@ import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.AppRoute
+import com.justnpcx.starveil.core.model.CountryFlags
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.RoutePreset
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -91,6 +93,43 @@ class DashboardViewModelTest {
         assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
         assertEquals(2, kernel.starts)
         assertTrue(kernel.lastConfig.orEmpty().contains("\"server\":\"two.example\""))
+    }
+
+    @Test
+    fun `the node label keeps its flag when another setting changes`() = runBlocking {
+        val preferences = FakePreferences(ONE)
+        val viewModel = viewModel(
+            preferences,
+            RecordingKernel(),
+            nodes = listOf(profile(ONE, "one", country = "US"), profile(TWO, "two")),
+        )
+
+        viewModel.onCoreClick()
+        assertEquals("${CountryFlags.flag("US")} one", viewModel.uiState.value.selectedNodeName)
+
+        // Any write re-reads the store, which re-emits the target even though
+        // the target did not change. The label is rebuilt from the profile, and
+        // on device it came back without the flag — the node tab still had one.
+        preferences.setBlockAds(true)
+
+        assertEquals("${CountryFlags.flag("US")} one", viewModel.uiState.value.selectedNodeName)
+    }
+
+    @Test
+    fun `changing the preset while connected restarts the kernel on it`() = runBlocking {
+        val preferences = FakePreferences(ONE)
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(preferences, kernel)
+
+        viewModel.onCoreClick()
+        assertEquals(1, kernel.starts)
+
+        // The policy is part of the config, so a tunnel already up is running
+        // the old one until it is rebuilt.
+        preferences.setRoutePreset(RoutePreset.GLOBAL_DIRECT)
+
+        assertEquals(2, kernel.starts)
+        assertTrue(kernel.lastConfig.orEmpty().contains("\"final\":\"direct\""))
     }
 
     @Test
@@ -541,8 +580,9 @@ class DashboardViewModelTest {
         kernel: RecordingKernel,
         groups: FakeGroups = FakeGroups(emptyList()),
         nodeHealth: NodeHealthRepository = FakeNodeHealth(),
+        nodes: List<Profile> = listOf(profile(ONE, "one"), profile(TWO, "two")),
     ): DashboardViewModel {
-        val profiles = FakeProfiles(listOf(profile(ONE, "one"), profile(TWO, "two")))
+        val profiles = FakeProfiles(nodes)
         // The view model delegates the connect path to this; giving both the
         // same fakes is what makes the tests exercise the real decision.
         val connection = ConnectionController(
@@ -573,13 +613,14 @@ class DashboardViewModelTest {
         override suspend fun ensureAds(): String? = null
     }
 
-    private fun profile(id: Long, name: String) = Profile(
+    private fun profile(id: Long, name: String, country: String? = null) = Profile(
         id = id,
         name = name,
         type = ProfileType.VLESS,
         server = "$name.example",
         port = 443,
         settings = VlessSettings(uuid = "11111111-2222-3333-4444-555555555555"),
+        country = country,
     )
 
     private fun group(id: Long, mode: GroupMode, members: List<Long>) =
@@ -616,11 +657,24 @@ private class FakePreferences(
         if (initialId != 0L) ConnectionTarget.Node(initialId) else ConnectionTarget.None,
     )
 
+    /**
+     * Bumped by every write. DataStore re-reads the whole file on any edit, so
+     * every derived flow re-emits — including one whose value did not change.
+     * Without this the fake is quieter than the real repository and the bug
+     * that made the flag vanish after an unrelated setting is invisible here.
+     */
+    private val write = MutableStateFlow(0)
+
+    private fun wrote() {
+        write.value += 1
+    }
+
     override val selectedProfileId: Flow<Long> =
         target.map { (it as? ConnectionTarget.Node)?.id ?: 0L }
     override val selectedGroupId: Flow<Long> =
         target.map { (it as? ConnectionTarget.Group)?.id ?: 0L }
-    override val connectionTarget: Flow<ConnectionTarget> = target
+    override val connectionTarget: Flow<ConnectionTarget> =
+        combine(target, write) { t, _ -> t }
 
     override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
@@ -628,8 +682,10 @@ private class FakePreferences(
     override val autoSwitchOnDrop: Flow<Boolean> = flowOf(switchOnDrop)
     // Off, like the app's default: a test that wants the preset on says so.
     override val bypassMainland: Flow<Boolean> = flowOf(false)
-    override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
-    override val blockAds: Flow<Boolean> = flowOf(false)
+    private val preset = MutableStateFlow(RoutePreset.GLOBAL_PROXY)
+    private val ads = MutableStateFlow(false)
+    override val routePreset: Flow<RoutePreset> = preset
+    override val blockAds: Flow<Boolean> = ads
     // Real rather than notUsed(): the connect path reads it on every build.
     private val perAppRoutesFlow = MutableStateFlow<Map<String, AppRoute>>(emptyMap())
     override val perAppRoutes: Flow<Map<String, AppRoute>> = perAppRoutesFlow
@@ -643,6 +699,7 @@ private class FakePreferences(
             target.value is ConnectionTarget.Node -> ConnectionTarget.None
             else -> target.value
         }
+        wrote()
     }
 
     override suspend fun setSelectedGroupId(id: Long) {
@@ -651,6 +708,7 @@ private class FakePreferences(
             target.value is ConnectionTarget.Group -> ConnectionTarget.None
             else -> target.value
         }
+        wrote()
     }
 
     // The rest of the preferences are not what this test is about.
@@ -662,8 +720,14 @@ private class FakePreferences(
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
-    override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
-    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
+    override suspend fun setRoutePreset(value: RoutePreset) {
+        preset.value = value
+        wrote()
+    }
+    override suspend fun setBlockAds(enabled: Boolean) {
+        ads.value = enabled
+        wrote()
+    }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
