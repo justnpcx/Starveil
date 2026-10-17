@@ -355,16 +355,6 @@ fun ProfilesScreen(
                 showImport = false
                 viewModel.import(text)
             },
-            onScan = {
-                scanLauncher.launch(
-                    ScanOptions().apply {
-                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                        setPrompt(context.getString(R.string.profiles_scan_prompt))
-                        setBeepEnabled(false)
-                        setOrientationLocked(false)
-                    },
-                )
-            },
         )
     }
 
@@ -693,7 +683,6 @@ private fun ImportDialog(
     importing: Boolean,
     onDismiss: () -> Unit,
     onImport: (String) -> Unit,
-    onScan: () -> Unit,
 ) {
     val context = LocalContext.current
     var text by remember { mutableStateOf("") }
@@ -729,21 +718,19 @@ private fun ImportDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    TextButton(
-                        onClick = {
-                            val clip = readClipboardText(context)
-                            if (clip == null) hint = clipboardEmptyHint else {
-                                text = clip
-                                hint = null
-                            }
-                        },
-                    ) {
-                        Text(stringResource(R.string.profiles_import_paste))
-                    }
-                    TextButton(onClick = onScan) {
-                        Text(stringResource(R.string.profiles_import_scan))
-                    }
+                // Paste only. The scan entry lives in the add sheet, one level
+                // up: two ways to open the same scanner from the same flow is
+                // one button too many, and this one is the harder to find.
+                TextButton(
+                    onClick = {
+                        val clip = readClipboardText(context)
+                        if (clip == null) hint = clipboardEmptyHint else {
+                            text = clip
+                            hint = null
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.profiles_import_paste))
                 }
             }
         },
@@ -1180,10 +1167,32 @@ private fun GroupChip(
                 if (stateText != null) stateDescription = stateText
             },
         shape = RoundedCornerShape(percent = 50),
+        // Theme colours, not the HUD's dark constants. In dark mode primary is
+        // GlowPrimary and surfaceVariant is Raised, so this is the spec's
+        // "GlowPrimary 20%" exactly; in light mode the same two tokens are a
+        // deep blue and a pale slate, which is what keeps the row looking like
+        // it belongs to the page instead of a dark-mode island.
+        // Mixed with the chip's own surface rather than alpha-composited over
+        // the page: a 20% wash of a dark primary over a light page moved the
+        // fill by nine levels out of 255, which is not a difference anyone can
+        // see. Mixing keeps the same recipe meaningful in both themes.
         color = if (selected) {
-            StarveilColors.GlowPrimary.copy(alpha = GROUP_SELECTED_ALPHA)
+            lerp(
+                MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.colorScheme.primary,
+                GROUP_SELECTED_MIX,
+            )
         } else {
-            StarveilColors.Raised
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        // The accent lives on the border, not in the label: primary as text on
+        // a 24% primary fill measured 3.55:1 in the light scheme, and a chip's
+        // label is 12sp, so it has to clear 4.5. The border says "selected"
+        // without spending the label's contrast.
+        border = if (selected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+        } else {
+            null
         },
     ) {
         Row(
@@ -1208,14 +1217,23 @@ private fun GroupChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (selected) StarveilColors.GlowPrimary else StarveilColors.TextDim,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
         }
     }
 }
 
-/** Selected chip fill: the spec's "GlowPrimary 20%". */
-private const val GROUP_SELECTED_ALPHA = 0.2f
+/**
+ * Selected chip fill: how far the surface moves toward primary.
+ *
+ * The spec says "GlowPrimary 20%", which was written for a dark page; 24% is
+ * where the same idea survives on a light one.
+ */
+private const val GROUP_SELECTED_MIX = 0.24f
 
 /** Tap target padding around the latency badge. */
 private val LATENCY_TOUCH_CORNER = 8.dp

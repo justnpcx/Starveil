@@ -84,7 +84,6 @@
     <string name="profiles_import_working">导入中…</string>
     <string name="profiles_test_latency">测试延迟</string>
 
-    <string name="profiles_import_scan">扫描二维码</string>
     <string name="profiles_import_paste">粘贴</string>
     <string name="profiles_import_clipboard_empty">剪贴板没有文本</string>
     <string name="profiles_import_scan_cancelled">已取消扫描</string>
