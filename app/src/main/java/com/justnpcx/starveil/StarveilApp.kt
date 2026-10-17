@@ -1,7 +1,9 @@
 package com.justnpcx.starveil
 
 import android.app.Application
+import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.crash.CrashReporting
 import com.justnpcx.starveil.widget.StarveilWidget
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.HiltAndroidApp
@@ -24,10 +26,16 @@ class StarveilApp : Application() {
     @Inject
     lateinit var kernel: KernelBridge
 
+    @Inject
+    lateinit var crashReporting: CrashReportingSwitch
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
+        // Before anything else can throw. Inert when the build has no DSN.
+        CrashReporting.install(this, crashReporting)
+
         // SQLCipher is a native library and must be loaded before the first
         // database access; the Room instance is built lazily on first injection.
         System.loadLibrary("sqlcipher")

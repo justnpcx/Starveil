@@ -13,6 +13,9 @@ workmanager = "2.10.1"
 lifecycle = "2.9.3"
 activityCompose = "1.11.0"
 glance = "1.2.0"
+# Crash reporting. The only third-party service the app talks to, and the only
+# dependency here whose absence changes behaviour rather than just features.
+sentry = "8.61.0"
 snakeyaml = "2.3"
 zxing = "4.3.0"
 sqlcipher = "4.19.1"
@@ -78,6 +81,11 @@ workmanager = { group = "androidx.work", name = "work-runtime-ktx", version.ref 
 # Home-screen widget. Glance is Compose's RemoteViews dialect — a separate
 # rendering path, so it is a dependency of its own rather than part of the BOM.
 glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+
+# Crash reporting. `sentry-android` pulls in the NDK integration too, which
+# matters here: the kernel is native code, so a crash in libbox is exactly the
+# kind of failure a Java-only handler would never see.
+sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "sentry" }
 
 # YAML — Clash subscription parsing only (SafeConstructor, never load arbitrary objects).
 snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" }

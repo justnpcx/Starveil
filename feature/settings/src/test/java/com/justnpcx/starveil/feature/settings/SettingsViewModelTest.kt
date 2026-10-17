@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.settings
 
 import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
+import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
@@ -37,6 +38,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 
@@ -60,8 +62,32 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `turning crash reports off writes through immediately`() = runBlocking {
+        // The switch is the only thing standing between a crash and the
+        // network, so it must reach the store the sender reads — not just the
+        // ui state.
+        val crash = FakeCrashReporting(enabled = true)
+        val viewModel = SettingsViewModel(
+            FakePreferences(),
+            FakeKernel(""),
+            emptyBackup(),
+            NoFiles(),
+            crash,
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setCrashReports(false)
+        yield()
+
+        assertFalse(crash.isEnabled())
+        assertFalse(viewModel.uiState.value.crashReports)
+        job.cancel()
+    }
+
+    @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting())
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -81,7 +107,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -175,4 +201,16 @@ private class NoRules : RuleRepository {
     override suspend fun getById(id: Long): Rule? = notUsed()
     override suspend fun upsert(rule: Rule): Long = notUsed()
     override suspend fun deleteById(id: Long) = notUsed()
+}
+
+/**
+ * In memory, and default on — the same default the real preference has, so a
+ * test that cares about the switch has to say so.
+ */
+private class FakeCrashReporting(private var enabled: Boolean = true) : CrashReportingSwitch {
+    override fun isEnabled(): Boolean = enabled
+
+    override fun setEnabled(enabled: Boolean) {
+        this.enabled = enabled
+    }
 }

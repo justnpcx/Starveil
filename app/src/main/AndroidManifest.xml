@@ -33,6 +33,19 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Starveil">
+
+        <!--
+            Sentry ships a ContentProvider that initialises the SDK from
+            manifest meta-data before Application.onCreate. With no DSN there it
+            calls Sentry.init with an empty string, which throws
+            "DSN is required" and kills the process on every launch — a crash
+            reporting library that crashes the app it is meant to report on.
+            Init is done by StarveilApp instead, where the DSN is a build
+            constant and the redaction callback lives.
+        -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
         <activity
             android:name=".MainActivity"
             android:configChanges="uiMode|orientation|screenSize|screenLayout|density|keyboardHidden"

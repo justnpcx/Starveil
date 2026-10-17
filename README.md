@@ -11,6 +11,8 @@
 > 这是内测版：**不承诺 SLA**，也不保证数据不丢——重要配置请先导出备份。
 >
 > 反馈：提 [Issue](https://github.com/justnpcx/Starveil/issues)；隐私说明见 [docs/10-privacy-policy.md](docs/10-privacy-policy.md)，App 内「设置 → 关于 → 隐私政策」是同一份内容。
+>
+> 崩溃上报默认开启（设置 → 诊断可关闭）；节点地址、链接、UUID 和密钥在发送前会被替换。
 
 ## 愿景
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.justnpcx.starveil.BuildConfig
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.latency.NodeLatencyTesterEntryPoint
@@ -149,6 +150,9 @@ fun StarveilNavHost(
                 onRunLeakCheck = onRunLeakCheck,
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
                 onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) },
+                // A build with no DSN has no crash reporting, so the switch is
+                // hidden rather than shown doing nothing.
+                crashReportingAvailable = BuildConfig.SENTRY_DSN.isNotBlank(),
             )
         }
         composable(PER_APP_ROUTE) {
