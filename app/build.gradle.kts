@@ -136,6 +136,9 @@ dependencies {
     // Installs the Baseline Profile bundled in the APK, on first run.
     implementation(libs.androidx.profileinstaller)
 
+    // The home-screen widget. Its own rendering path (RemoteViews), not Compose.
+    implementation(libs.glance.appwidget)
+
     // The profile generator lives with the benchmarks: both need a device and
     // both describe the same build.
     baselineProfile(project(":benchmark"))
