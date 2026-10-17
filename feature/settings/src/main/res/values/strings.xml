@@ -67,6 +67,11 @@
     <string name="settings_app_version">Starveil %1$s</string>
     <string name="settings_privacy">Privacy policy</string>
 
+    <!-- Only shown when the build carries a Sentry DSN. -->
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="crash_reports_title">Send crash reports</string>
+    <string name="crash_reports_desc">Stack trace, app version, Android version and device model. Node addresses, links, UUIDs and keys are replaced before anything is sent. Off sends nothing.</string>
+
     <!--
       The privacy screen. Every claim here is checkable against the code, and
       the crash-reporting item in M7 will make the first one false — at which
@@ -76,7 +81,9 @@
     <string name="privacy_close">Close</string>
     <string name="privacy_intro">Starveil runs on this device. This page lists everything that leaves it, and there is nothing you did not ask it to send.</string>
     <string name="privacy_data_title">What is collected</string>
-    <string name="privacy_data_body">Nothing. No account, no analytics, no advertising identifier, and no crash reporting in this version. The project runs no server of its own, so there is nowhere for data to be sent even if it were collected.</string>
+    <string name="privacy_data_body">One report exists, and only when something crashes. No account, no analytics, no advertising identifier. The project runs no server of its own — the report goes to Sentry, described next.</string>
+    <string name="privacy_crash_title">Crash reports</string>
+    <string name="privacy_crash_body">A crash sends the stack trace, app version, Android version and device model to Sentry. Node addresses, UUIDs, share links, subscription URLs and keys are replaced before it leaves the device. Nothing else is attached: no screenshots, no screen contents, and no record of which screens you opened. Settings → Diagnostics turns it off, and off means nothing is sent.</string>
     <string name="privacy_storage_title">What stays on the device</string>
     <string name="privacy_storage_body">Nodes, groups, routing rules, logs and latency history live in a SQLCipher-encrypted database in the app’s private storage. The database key is held in the Android keystore.</string>
     <string name="privacy_network_title">What it connects to</string>

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.backup.BackupCryptoException
 import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
+import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -37,6 +38,11 @@ data class SettingsUiState(
     val kernelVersion: String = "",
     /** How many apps are set to bypass the tunnel; shown on the entry row. */
     val perAppDirectCount: Int = 0,
+    /**
+     * Whether crash reports are sent. Only meaningful when the build carries a
+     * DSN; the screen hides the row otherwise.
+     */
+    val crashReports: Boolean = true,
 )
 
 /**
@@ -59,6 +65,7 @@ class SettingsViewModel @Inject constructor(
     private val kernel: KernelBridge,
     private val backup: BackupManager,
     private val files: BackupFileStore,
+    private val crashReporting: CrashReportingSwitch,
 ) : ViewModel() {
 
     private val _backupMessage = MutableStateFlow<BackupMessage?>(null)
@@ -122,6 +129,10 @@ class SettingsViewModel @Inject constructor(
 
     private val kernelVersion = MutableStateFlow("")
 
+    // Not a DataStore flow: see CrashReportingPreference for why this one is
+    // synchronous, and why the screen mirrors it rather than observing it.
+    private val crashReports = MutableStateFlow(crashReporting.isEnabled())
+
     init {
         // Read once. It is a build constant, and Settings is the one place it
         // is worth showing — a bug report needs to name the core it ran.
@@ -156,8 +167,13 @@ class SettingsViewModel @Inject constructor(
             // Counted rather than listed: the row says how many, the screen
             // says which.
             preferences.perAppRoutes.map { it.size },
-        ) { state, version, perAppCount ->
-            state.copy(kernelVersion = version, perAppDirectCount = perAppCount)
+            crashReports,
+        ) { state, version, perAppCount, reports ->
+            state.copy(
+                kernelVersion = version,
+                perAppDirectCount = perAppCount,
+                crashReports = reports,
+            )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -182,5 +198,12 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoSwitchOnDrop(enabled: Boolean) {
         viewModelScope.launch { preferences.setAutoSwitchOnDrop(enabled) }
+    }
+
+    fun setCrashReports(enabled: Boolean) {
+        // Written synchronously so the next crash already sees the new value;
+        // Sentry reads it from its own thread, not from this flow.
+        crashReporting.setEnabled(enabled)
+        crashReports.value = enabled
     }
 }

@@ -13,9 +13,17 @@ Starveil 在本机运行。它没有服务器，不上报数据，也没有账�
 
 ### 收集什么
 
-什么都不收集。没有账号体系、没有统计分析、没有广告标识符，当前版本也不做崩溃上报。
+只有一种上报：崩溃时的一份报告。没有账号体系、没有统计分析、没有广告标识符。
 
-本项目没有自建服务端，因此即使想收集也没有可发送的目的地。
+本项目没有自建服务端——报告发往 Sentry，内容见下一节。
+
+### 崩溃报告
+
+崩溃时会把堆栈、应用版本、Android 版本和设备型号发往 Sentry。
+
+**节点地址、UUID、分享链接、订阅地址和密钥在离开设备前会被替换成占位符。** 不附带其他内容：没有截图、没有屏幕内容，也不记录你打开过哪些页面。
+
+可在「设置 → 诊断 → 发送崩溃报告」关闭，关闭后不发送任何内容。
 
 ### 什么留在设备上
 
@@ -48,7 +56,7 @@ Starveil 在本机运行。它没有服务器，不上报数据，也没有账�
 
 ### 政策变更
 
-崩溃上报会在后续版本加入，届时本文件与 App 内的「隐私」页面会同时更新，并在更新日志中说明。
+崩溃报告是本政策描述的唯一外发数据，由「设置 → 诊断」控制。若上报内容发生变化，本文件与 App 内的「隐私」页面会同时更新，并在更新日志中说明。
 
 ### 联系方式
 
@@ -64,9 +72,17 @@ Starveil runs on your device. It has no server, reports nothing, and has no acco
 
 ### What is collected
 
-Nothing. No accounts, no analytics, no advertising identifier, and no crash reporting in this version.
+One report exists, and only when something crashes. No accounts, no analytics, no advertising identifier.
 
-The project runs no server of its own, so there is nowhere for data to be sent even if it were collected.
+The project runs no server of its own — the report goes to Sentry, described next.
+
+### Crash reports
+
+A crash sends the stack trace, app version, Android version and device model to Sentry.
+
+**Node addresses, UUIDs, share links, subscription URLs and keys are replaced with placeholders before they leave the device.** Nothing else is attached: no screenshots, no screen contents, and no record of which screens you opened.
+
+Settings → Diagnostics → Send crash reports turns it off, and off means nothing is sent.
 
 ### What stays on the device
 
@@ -99,7 +115,7 @@ Uninstalling removes the database and the keystore entries with it. Exported bac
 
 ### Changes
 
-Crash reporting will be added in a later version. When it is, this document and the in-app Privacy screen will change together, and the changelog will say so.
+The crash report is the only outbound data this policy describes, and it is controlled by Settings → Diagnostics. If what it contains changes, this document and the in-app Privacy screen change together, and the changelog says so.
 
 ### Contact
 

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -31,6 +33,28 @@ val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
     major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
 }
 
+/**
+ * The Sentry DSN is injected, never committed.
+ *
+ * It is not a secret in the usual sense — it ships inside every client that
+ * uses it — but committing it bakes one person's project into every fork and
+ * makes swapping to a self-hosted instance a code change. It is also the only
+ * switch that decides whether the app has crash reporting at all: an empty DSN
+ * means `SentryAndroid.init` is never called and the setting does not appear.
+ *
+ * Three sources, in the order a build is most likely to have one:
+ * `-PsentryDsn=…`, `SENTRY_DSN` in the environment (CI), and `sentry.dsn` in
+ * `local.properties` (the local sideload build). `local.properties` is
+ * gitignored, which is why it is the one written down for a developer.
+ */
+val sentryDsn: String = providers.gradleProperty("sentryDsn").orNull
+    ?: providers.environmentVariable("SENTRY_DSN").orNull
+    ?: Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }.getProperty("sentry.dsn")
+    ?: ""
+
 android {
     namespace = "com.justnpcx.starveil"
     compileSdk = 36
@@ -41,6 +65,10 @@ android {
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersionName
+        // Empty means "no crash reporting in this build". Read at runtime, so a
+        // debug build without a DSN is a build without Sentry rather than a
+        // build that fails on a missing key.
+        buildConfigField("String", "SENTRY_DSN", "\"${sentryDsn.replace("\"", "\\\"")}\"")
     }
 
     splits {
@@ -91,6 +119,8 @@ android {
 
     buildFeatures {
         compose = true
+        // SENTRY_DSN above; nothing else in the app uses BuildConfig.
+        buildConfig = true
     }
 
     packaging {
@@ -141,6 +171,9 @@ dependencies {
 
     // The home-screen widget. Its own rendering path (RemoteViews), not Compose.
     implementation(libs.glance.appwidget)
+
+    // Crash reporting. Opt-out, and redacted before it leaves the device.
+    implementation(libs.sentry.android)
 
     // The profile generator lives with the benchmarks: both need a device and
     // both describe the same build.

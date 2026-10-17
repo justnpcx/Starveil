@@ -22,10 +22,7 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
  *
  * A policy behind a link is a policy nobody reads. This one is short enough to
  * be a screen, and it is written as claims that can be checked against the
- * code: no account, no analytics, no server of our own.
- *
- * It is scoped to this version on purpose — the crash-reporting item in M7 will
- * add one outbound request, and this page has to change when it does.
+ * code: no account, no analytics, one crash report and a switch to turn it off.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +56,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
             )
             PolicySection(R.string.privacy_data_title, R.string.privacy_data_body)
+            PolicySection(R.string.privacy_crash_title, R.string.privacy_crash_body)
             PolicySection(R.string.privacy_storage_title, R.string.privacy_storage_body)
             PolicySection(R.string.privacy_network_title, R.string.privacy_network_body)
             PolicySection(R.string.privacy_permissions_title, R.string.privacy_permissions_body)

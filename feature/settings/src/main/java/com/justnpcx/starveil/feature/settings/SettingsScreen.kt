@@ -62,6 +62,11 @@ fun SettingsScreen(
     onOpenPerApp: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
+    /**
+     * Whether this build has a Sentry DSN. A switch that cannot do anything is
+     * worse than no switch, so the row is hidden rather than disabled.
+     */
+    crashReportingAvailable: Boolean = false,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
@@ -214,6 +219,16 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (crashReportingAvailable) {
+            SectionTitle(stringResource(R.string.diagnostics_title))
+            SwitchRow(
+                title = stringResource(R.string.crash_reports_title),
+                description = stringResource(R.string.crash_reports_desc),
+                checked = state.crashReports,
+                onCheckedChange = viewModel::setCrashReports,
+            )
+        }
 
         SectionTitle(stringResource(R.string.settings_about_title))
         Row(verticalAlignment = Alignment.CenterVertically) {

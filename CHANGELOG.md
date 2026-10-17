@@ -40,6 +40,9 @@ the app does rather than what changed.
 - **Surfaces**: home-screen widget, quick-settings tile, and a notification
   with a Disconnect action — all three go through the same connection path, so
   the Kill Switch and per-app rules behave identically from any of them.
+- **Crash reporting**: opt-out Sentry reports. Node addresses, UUIDs, share
+  links, subscription URLs and keys are replaced before the report leaves the
+  device; Settings → Diagnostics turns it off.
 - **Languages**: English and Simplified Chinese.
 - **Accessibility**: content descriptions on every chart and icon, 48dp touch
   targets, and a contrast test in CI.
