@@ -19,6 +19,8 @@ sentry = "8.61.0"
 snakeyaml = "2.3"
 zxing = "4.3.0"
 sqlcipher = "4.19.1"
+# Offline IP → country, so a node can be placed without asking a server.
+ip2region = "3.3.7"
 bouncycastle = "1.86"
 junit = "4.13.2"
 androidxJunit = "1.2.1"
@@ -96,6 +98,7 @@ zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embe
 
 # Encrypted storage + backup.
 sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
+ip2region = { group = "org.lionsoul", name = "ip2region", version.ref = "ip2region" }
 bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 
 # Test

@@ -86,7 +86,7 @@ class RoomGroupRepository @Inject constructor(
 private fun regionMembers(profiles: List<ProfileEntity>): Map<NodeRegion, List<Long>> =
     profiles
         .mapNotNull { profile ->
-            NodeRegions.classify(profile.name)?.region?.let { it to profile.id }
+            NodeRegions.resolve(profile.name, profile.country)?.let { it to profile.id }
         }
         .groupBy({ it.first }, { it.second })
 

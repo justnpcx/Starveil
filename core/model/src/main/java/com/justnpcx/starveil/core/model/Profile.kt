@@ -16,6 +16,12 @@ data class Profile(
     /** Belongs to this group (by group id). */
     val groupId: Long = 0L,
     /**
+     * ISO-3166 alpha-2 of the node's address, resolved once from the GeoIP
+     * database. Null until resolved, or when the address could not be looked
+     * up — the node still works, it just has no flag.
+     */
+    val country: String? = null,
+    /**
      * Per-protocol settings (UUID, password, TLS/REALITY, transport, mux).
      * Null when the profile came from a source that carried no settings, or
      * for a protocol whose settings are not modelled yet (see the stub

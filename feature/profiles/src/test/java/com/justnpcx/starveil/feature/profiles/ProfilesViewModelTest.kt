@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
+import com.justnpcx.starveil.core.data.geo.CountryResolver
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
@@ -618,6 +619,7 @@ class ProfilesViewModelTest {
             updater = updater,
             undo = undo,
             nodeHealth = nodeHealth,
+            countryResolver = NoCountries,
             // Import is not what this test exercises; it only has to exist.
             importer = LinkImporter(
                 resolver = LinkResolver { null },
@@ -825,4 +827,9 @@ private class RecordingUndo : UndoBus {
     override fun show(messageRes: Int, args: List<Any>, onUndo: () -> Unit) {
         request = UndoRequest(messageRes = messageRes, args = args, onUndo = onUndo)
     }
+}
+
+/** Nothing is looked up in these tests; the list only has to render. */
+private object NoCountries : CountryResolver {
+    override suspend fun countryOf(host: String): String? = null
 }

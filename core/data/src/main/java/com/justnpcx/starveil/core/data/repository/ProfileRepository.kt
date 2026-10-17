@@ -82,6 +82,7 @@ internal fun ProfileEntity.toDomain(): Profile {
         port = port,
         latencyMs = latencyMs,
         groupId = groupId,
+        country = country,
         settings = SettingsJson.decode(settingsJson, profileType),
     )
 }
@@ -95,5 +96,6 @@ internal fun Profile.toEntity(settingsJson: String = SettingsJson.encode(setting
         port = port,
         latencyMs = latencyMs,
         groupId = groupId,
+        country = country,
         settingsJson = settingsJson,
     )
