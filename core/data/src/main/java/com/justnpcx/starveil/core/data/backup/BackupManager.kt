@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -98,6 +99,10 @@ internal object BackupSerializer {
                     "name" to g.name,
                     "mode" to g.mode.name,
                     "subscriptionUrl" to g.subscriptionUrl,
+                    // A region group owns no profiles; without this marker the
+                    // restore would produce an ordinary empty group and the
+                    // membership would be gone for good.
+                    "region" to g.region?.name,
                 )
             },
             "rules" to snapshot.rules.map { r ->
@@ -140,6 +145,9 @@ internal object BackupSerializer {
                 name = row.str("name").orEmpty(),
                 mode = runCatching { GroupMode.valueOf(row.str("mode") ?: "MANUAL") }.getOrDefault(GroupMode.MANUAL),
                 subscriptionUrl = row.str("subscriptionUrl"),
+                region = row.str("region")?.let {
+                    runCatching { NodeRegion.valueOf(it) }.getOrNull()
+                },
             )
         }
         val rules = root.list("rules").map { row ->

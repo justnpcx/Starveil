@@ -127,6 +127,29 @@ class BackupManagerTest {
     }
 
     @Test
+    fun `a region group keeps its marker through the round trip`() = runBlocking {
+        val srcGroups = MemGroups().apply {
+            upsert(
+                ProxyGroup(
+                    id = 9L,
+                    name = "香港",
+                    mode = GroupMode.URL_TEST,
+                    region = NodeRegion.HONG_KONG,
+                ),
+            )
+        }
+
+        val blob = BackupManager(MemProfiles(), srcGroups, MemRules()).export(passphrase)
+        val dstGroups = MemGroups()
+        BackupManager(MemProfiles(), dstGroups, MemRules()).restore(blob, passphrase)
+
+        // A region group owns no profiles, so the marker IS its membership.
+        // Dropping it would restore an ordinary empty group and the members
+        // would be gone for good.
+        assertEquals(NodeRegion.HONG_KONG, dstGroups.rows[9L]?.region)
+    }
+
+    @Test
     fun `restore with the wrong passphrase writes nothing`() = runBlocking {
         val srcProfiles = MemProfiles().apply { upsert(node) }
         val blob = BackupManager(srcProfiles, MemGroups(), MemRules()).export(passphrase)
