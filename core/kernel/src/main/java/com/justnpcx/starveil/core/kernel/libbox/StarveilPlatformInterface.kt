@@ -276,12 +276,34 @@ class StarveilPlatformInterface(
     ) {
         val capabilities = manager.getNetworkCapabilities(network) ?: return
         val physical = if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-            manager.allNetworks.firstOrNull { candidate ->
-                candidate != network && manager.getNetworkCapabilities(candidate)?.let { it ->
-                    !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
-                        it.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                } == true
-            } ?: return
+            // The network the VPN runs over. Android does not expose the VPN's
+            // underlying network to an app, so it is inferred: a validated
+            // network first, and an unmetered one over a metered one — the same
+            // preference the platform itself applies when choosing a default.
+            //
+            // `allNetworks` alone is not good enough and was actively wrong: it
+            // has no order, and on a phone with Wi-Fi and mobile data both up it
+            // handed back the cellular network while the user was on Wi-Fi. The
+            // kernel binds every outbound dial to whatever is reported here, so
+            // that mistake sends all traffic over mobile data.
+            manager.allNetworks
+                .filter { candidate ->
+                    candidate != network && manager.getNetworkCapabilities(candidate)?.let { candidateCapabilities ->
+                        !candidateCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                            candidateCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    } == true
+                }
+                .sortedWith(
+                    compareByDescending<android.net.Network> { candidate ->
+                        manager.getNetworkCapabilities(candidate)
+                            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+                    }.thenByDescending { candidate ->
+                        manager.getNetworkCapabilities(candidate)
+                            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
+                    },
+                )
+                .firstOrNull()
+                ?: return
         } else {
             network
         }
