@@ -62,8 +62,11 @@ sealed interface UpdateUiState {
     data object Checking : UpdateUiState
     data class Available(val info: UpdateInfo) : UpdateUiState
     data object UpToDate : UpdateUiState
+    /** The check itself failed — no network, no release, unreadable answer. */
     data class Failed(val reason: String) : UpdateUiState
     data object Downloading : UpdateUiState
+    /** The download or its verification failed; [reason] names which check. */
+    data class DownloadFailed(val reason: String) : UpdateUiState
     /** Downloaded and verified; the screen hands it to the installer. */
     data class Ready(val file: java.io.File) : UpdateUiState
 }
@@ -106,7 +109,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _update.value = when (val result = updateDownloader.download(info)) {
                 is UpdateDownloadPort.Result.Ready -> UpdateUiState.Ready(result.file)
-                is UpdateDownloadPort.Result.Failed -> UpdateUiState.Failed(result.reason)
+                is UpdateDownloadPort.Result.Failed -> UpdateUiState.DownloadFailed(result.reason)
             }
         }
     }

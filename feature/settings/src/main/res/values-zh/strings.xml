@@ -75,6 +75,7 @@
     <string name="update_downloading">正在下载…</string>
     <string name="update_up_to_date">已是最新版本。</string>
     <string name="update_failed">无法检查更新：%1$s</string>
+    <string name="update_download_failed">下载失败：%1$s</string>
     <string name="update_needs_permission">请允许 Starveil 安装未知应用，然后重试。</string>
     <string name="update_open_settings">打开设置</string>
 

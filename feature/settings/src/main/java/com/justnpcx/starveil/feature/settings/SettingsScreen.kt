@@ -381,6 +381,15 @@ private fun UpdateDialog(
             },
         )
 
+        is UpdateUiState.DownloadFailed -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.update_check)) },
+            text = { Text(stringResource(R.string.update_download_failed, state.reason)) },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.per_app_close)) }
+            },
+        )
+
         UpdateUiState.Downloading -> AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.update_downloading)) },
