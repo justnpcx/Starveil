@@ -16,6 +16,12 @@
 
     <!-- Group filter chips (a group comes from a subscription import). -->
     <string name="profiles_new_node">New node</string>
+    <string name="profiles_add">Add</string>
+    <string name="profiles_add_manual">Create manually</string>
+    <string name="profiles_add_clipboard">Import from clipboard</string>
+    <string name="profiles_add_scan">Scan QR code</string>
+    <string name="profiles_add_subscription">Add subscription</string>
+    <string name="profiles_test_all">Test all nodes</string>
     <string name="profiles_new_node_title">Which protocol?</string>
     <string name="profiles_row_edit">Edit</string>
     <string name="profiles_row_share">Share</string>
@@ -67,6 +73,7 @@
 
     <!-- Creating a group, and moving a node between groups. -->
     <string name="profiles_group_new">New group</string>
+    <string name="profiles_group_actions">Group actions</string>
     <string name="profiles_group_state_in_use">In use</string>
     <string name="profiles_group_state_selected">Selected</string>
     <string name="profiles_node_long_press">Move to group</string>

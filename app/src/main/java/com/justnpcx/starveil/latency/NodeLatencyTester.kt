@@ -47,6 +47,17 @@ class NodeLatencyTester @Inject constructor(
     suspend fun testSelectedNode(): String {
         val id = preferences.selectedProfileId.first()
         if (id == 0L) return context.getString(R.string.latency_no_node)
+        return testNode(id)
+    }
+
+    /**
+     * The same measurement for one named node.
+     *
+     * Tapping a card's latency badge is the gesture people already make on the
+     * card, and testing the *selected* node from there would quietly measure a
+     * different node than the one under the finger.
+     */
+    suspend fun testNode(id: Long): String {
         val profile = profiles.getById(id) ?: return context.getString(R.string.latency_no_node)
 
         // A WireGuard endpoint speaks UDP only, so a TCP handshake to it can

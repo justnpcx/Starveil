@@ -83,6 +83,11 @@ fun StarveilNavHost(
     val onTestLatency: ((String) -> Unit) -> Unit = { onResult ->
         scope.launch { onResult(latencyTester.testSelectedNode()) }
     }
+    // The same probe for one node: tapping a card's badge should measure that
+    // card, not whichever node happens to be selected.
+    val onTestNode: (Long, (String) -> Unit) -> Unit = { id, onResult ->
+        scope.launch { onResult(latencyTester.testNode(id)) }
+    }
 
     // The leak self-check watches the VpnService, so it also lives in :app and
     // Settings only gets a callback.
@@ -139,11 +144,14 @@ fun StarveilNavHost(
         composable(Destination.PROFILES.route) {
             ProfilesScreen(
                 onTestLatency = onTestLatency,
+                onTestNode = onTestNode,
                 onNewNode = { type -> navController.navigate(editorRouteFor(type)) },
                 onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
             )
         }
-        composable(Destination.RULES.route) { RulesScreen() }
+        composable(Destination.RULES.route) {
+            RulesScreen(onOpenPerApp = { navController.navigate(PER_APP_ROUTE) })
+        }
         composable(Destination.LOGS.route) { LogsScreen() }
         composable(Destination.SETTINGS.route) {
             SettingsScreen(

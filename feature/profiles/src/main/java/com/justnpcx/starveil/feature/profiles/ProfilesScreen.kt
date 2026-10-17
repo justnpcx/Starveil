@@ -28,6 +28,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.FilterChip
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.size
@@ -50,7 +53,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -91,6 +103,7 @@ import com.justnpcx.starveil.core.ui.util.writeClipboard
  * scanning a QR code, pasting from the clipboard, or typing a share link /
  * subscription URL; all three funnel through the same importer.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfilesScreen(
     viewModel: ProfilesViewModel = hiltViewModel(),
@@ -104,6 +117,8 @@ fun ProfilesScreen(
     onNewNode: (ProfileType) -> Unit = {},
     /** Opens the editor for an existing node. */
     onEditNode: (ProfileType, Long) -> Unit = { _, _ -> },
+    /** Measures one node by id, and reports what happened. */
+    onTestNode: (Long, (String) -> Unit) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -121,6 +136,10 @@ fun ProfilesScreen(
     // that is what the dashboard connects to.
     var rowMenu by remember { mutableStateOf<Profile?>(null) }
     var pickingProtocol by remember { mutableStateOf(false) }
+    // One add entry, four ways in. Two buttons that looked alike but did
+    // different things was the original complaint.
+    var showAddSheet by remember { mutableStateOf(false) }
+    var showGroupMenu by remember { mutableStateOf(false) }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
@@ -139,8 +158,108 @@ fun ProfilesScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    if (showAddSheet) {
+        ModalBottomSheet(onDismissRequest = { showAddSheet = false }) {
+            Column(modifier = Modifier.navigationBarsPadding()) {
+                AddSheetRow(stringResource(R.string.profiles_add_manual)) {
+                    showAddSheet = false
+                    pickingProtocol = true
+                }
+                AddSheetRow(stringResource(R.string.profiles_add_clipboard)) {
+                    showAddSheet = false
+                    val clip = readClipboardText(context)
+                    if (clip.isNullOrBlank()) {
+                        viewModel.postMessage(context.getString(R.string.profiles_import_clipboard_empty))
+                    } else {
+                        viewModel.import(clip)
+                    }
+                }
+                AddSheetRow(stringResource(R.string.profiles_add_scan)) {
+                    showAddSheet = false
+                    scanLauncher.launch(
+                        ScanOptions().apply {
+                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            setPrompt(context.getString(R.string.profiles_scan_prompt))
+                            setBeepEnabled(false)
+                            setOrientationLocked(false)
+                        },
+                    )
+                }
+                AddSheetRow(stringResource(R.string.profiles_add_subscription)) {
+                    showAddSheet = false
+                    showImport = true
+                }
+            }
+        }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    // A Snackbar instead of a banner above the list: the banner pushed the
+    // whole list down every time a message appeared, which is a layout shift in
+    // exchange for information that is transient anyway.
+    val transientMessage = state.message
+        ?.takeIf { it !is ProfilesMessage.NoRegionsFound }
+        ?.text()
+    LaunchedEffect(transientMessage) {
+        if (transientMessage != null) {
+            snackbarHostState.showSnackbar(transientMessage)
+            viewModel.dismissMessage()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.profiles_title)) },
+                actions = {
+                    // Whole-list test, as an icon: the text button cost a row
+                    // above the list for something used occasionally.
+                    IconButton(onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } }) {
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = stringResource(R.string.profiles_test_all),
+                        )
+                    }
+                    // Group actions are not filters, so they do not belong in
+                    // the filter row: that row is now only "which nodes".
+                    Box {
+                        IconButton(onClick = { showGroupMenu = true }) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.profiles_group_actions),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showGroupMenu,
+                            onDismissRequest = { showGroupMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profiles_group_new)) },
+                                onClick = {
+                                    showGroupMenu = false
+                                    creatingGroup = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profiles_group_by_region)) },
+                                onClick = {
+                                    showGroupMenu = false
+                                    viewModel.groupByRegion()
+                                },
+                            )
+                        }
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddSheet = true }) {
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.profiles_add))
+            }
+        },
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             state.message?.let { message ->
                 if (message is ProfilesMessage.NoRegionsFound) {
                     // A dialog, not the banner. "By region" is the one action
@@ -157,23 +276,6 @@ fun ProfilesScreen(
                             }
                         },
                     )
-                } else {
-                    MessageBanner(message = message.text(), onDismiss = viewModel::dismissMessage)
-                }
-            }
-            if (state.hasProfiles) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = StarveilSpacing.lg),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = { pickingProtocol = true }) {
-                        Text(stringResource(R.string.profiles_new_node))
-                    }
-                    TextButton(onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } }) {
-                        Text(stringResource(R.string.profiles_test_latency))
-                    }
                 }
             }
             // Always shown, even with no groups: creating the first one has to
@@ -199,16 +301,6 @@ fun ProfilesScreen(
                         inUse = state.selectedGroupId == group.id,
                     )
                 }
-                GroupChip(
-                    label = stringResource(R.string.profiles_group_new),
-                    selected = false,
-                    onClick = { creatingGroup = true },
-                )
-                GroupChip(
-                    label = stringResource(R.string.profiles_group_by_region),
-                    selected = false,
-                    onClick = viewModel::groupByRegion,
-                )
             }
             when {
                 !state.hasProfiles -> EmptyState(
@@ -242,6 +334,9 @@ fun ProfilesScreen(
                                     selected = profile.id == state.selectedId,
                                     onClick = { viewModel.select(profile.id) },
                                     onLongClick = { rowMenu = profile },
+                                    onTestClick = {
+                                        onTestNode(profile.id) { msg -> viewModel.postMessage(msg) }
+                                    },
                                 )
                             }
                         }
@@ -250,14 +345,6 @@ fun ProfilesScreen(
             }
         }
 
-        FloatingActionButton(
-            onClick = { showImport = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(StarveilSpacing.lg),
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.profiles_import_add))
-        }
     }
 
     if (showImport) {
@@ -866,6 +953,7 @@ private fun NodeRow(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onTestClick: () -> Unit,
 ) {
     val reading = latencyReading(profile, health)
     Surface(
@@ -950,6 +1038,14 @@ private fun NodeRow(
                         LatencyReading.Untested ->
                             stringResource(R.string.profiles_latency_untested)
                     },
+                    // The badge is the node's own measurement, so tapping it
+                    // measures *this* node — testing the selected one from here
+                    // would quietly measure a different node than the one under
+                    // the finger.
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(LATENCY_TOUCH_CORNER))
+                        .clickable(role = Role.Button, onClick = onTestClick)
+                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
                     style = MaterialTheme.typography.labelSmall,
                     // Dimmed, not red, when there is no reading: the status dot
                     // already says "down", and colouring the number too would be
@@ -1121,6 +1217,9 @@ private fun GroupChip(
 /** Selected chip fill: the spec's "GlowPrimary 20%". */
 private const val GROUP_SELECTED_ALPHA = 0.2f
 
+/** Tap target padding around the latency badge. */
+private val LATENCY_TOUCH_CORNER = 8.dp
+
 /** The "tunnel goes through this group" marker on a chip. */
 private val IN_USE_DOT = 6.dp
 
@@ -1151,4 +1250,19 @@ private fun ProfileType.editorLabel(): String = when (this) {
     ProfileType.TUIC -> "TUIC"
     ProfileType.WIREGUARD -> "WireGuard"
     ProfileType.OTHER -> "Node"
+}
+
+/** One line in the add sheet: a title, and a tap. */
+@Composable
+private fun AddSheetRow(title: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = StarveilSpacing.sm),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.fillMaxWidth().padding(vertical = StarveilSpacing.sm),
+        )
+    }
 }

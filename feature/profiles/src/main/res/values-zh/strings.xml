@@ -12,6 +12,12 @@
     <string name="profiles_selected">已选中</string>
 
     <string name="profiles_new_node">新建节点</string>
+    <string name="profiles_add">添加</string>
+    <string name="profiles_add_manual">手动创建</string>
+    <string name="profiles_add_clipboard">从剪贴板导入</string>
+    <string name="profiles_add_scan">扫描二维码</string>
+    <string name="profiles_add_subscription">添加订阅</string>
+    <string name="profiles_test_all">测试全部节点</string>
     <string name="profiles_new_node_title">选择协议</string>
     <string name="profiles_row_edit">编辑</string>
     <string name="profiles_row_share">分享</string>
@@ -59,6 +65,7 @@
     <string name="profiles_group_delete_body_empty">%1$s 将被删除。</string>
 
     <string name="profiles_group_new">新建分组</string>
+    <string name="profiles_group_actions">分组操作</string>
     <string name="profiles_group_state_in_use">使用中</string>
     <string name="profiles_group_state_selected">已选中</string>
     <string name="profiles_node_long_press">移到分组</string>
