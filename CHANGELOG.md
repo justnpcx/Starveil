@@ -8,6 +8,8 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-10-18
+
 ### Added
 
 - **Routing presets**: the single "bypass mainland" switch becomes three
@@ -23,13 +25,19 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ### Changed
 
-- Release builds are minified by R8 (arm64 APK 131 MB → 90 MB). The
-  `benchmark` build type inherits it, so performance numbers now describe the
-  shipping configuration; the recorded cold-start baseline predates it.
 - The node page has one add entry (a sheet with import, subscription,
   clipboard and QR) and its actions live in the app bar, so the filter row
   holds filters and nothing else.
 - The kernel version reads `1.14.3`, without the fork's commit hash.
+
+### Fixed
+
+- The node label keeps its flag when any other setting changes. The label was
+  rebuilt from the stored name on every preference write, while the connect
+  path used the flagged name, so the two disagreed until the screen reloaded.
+- Changing a routing preset while connected now rebuilds the tunnel. The rules
+  page said the policy was in force while the kernel kept running the config
+  it was started with.
 
 ## [0.7.0] — 2026-10-17
 
@@ -77,6 +85,12 @@ the app does rather than what changed.
 - **Languages**: English and Simplified Chinese.
 - **Accessibility**: content descriptions on every chart and icon, 48dp touch
   targets, and a contrast test in CI.
+
+### Changed
+
+- Release builds are minified by R8 (arm64 APK 131 MB → 90 MB). The
+  `benchmark` build type inherits it, so performance numbers now describe the
+  shipping configuration; the recorded cold-start baseline predates it.
 
 ### Known issues
 
