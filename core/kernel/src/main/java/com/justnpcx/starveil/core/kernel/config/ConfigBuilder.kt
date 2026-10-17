@@ -277,18 +277,47 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 ),
             ),
             "rules" to listOf(
-                // First, and on its own: a private address is not a question
-                // about the wider internet and must never leave the device to
-                // be answered.
+                // A name only the LAN can answer must not be sent anywhere.
+                // This matches the *name*, before anything is resolved, which
+                // is the only way to know a question is about the LAN without
+                // first asking a resolver that is not on it.
                 linkedMapOf<String, Any?>(
-                    "ip_is_private" to true,
+                    "domain_suffix" to LAN_DNS_SUFFIXES,
                     "action" to "route",
                     "server" to LOCAL_DNS_TAG,
                 ),
+                // Domestic names next. This is the rule that keeps a poisoned
+                // answer from sending domestic traffic abroad, and putting it
+                // first means the common case costs exactly one lookup.
                 linkedMapOf<String, Any?>(
                     "rule_set" to GEOSITE_CN_TAG,
                     "action" to "route",
                     "server" to DNS_CN_TAG,
+                ),
+                // Everything else resolves through the tunnel, and then the
+                // answer is inspected: a private one means a split-horizon
+                // name, and only the LAN resolver has the right address.
+                //
+                // `evaluate` fetches the response once and `match_response`
+                // decides on it — the form 1.14 defines. The bare
+                // `ip_is_private` this replaces was a Legacy Address Filter:
+                // it resolved through `local` first, rejected every public
+                // answer, and then resolved again through the rule that
+                // actually applied. Every new name paid two lookups for an
+                // answer that was thrown away, and 1.16 removes the form
+                // outright.
+                //
+                // The evaluated server is the route's `final`, so the final
+                // lookup is a cache hit rather than a second round trip.
+                linkedMapOf<String, Any?>(
+                    "action" to "evaluate",
+                    "server" to DNS_PROXY_TAG,
+                ),
+                linkedMapOf<String, Any?>(
+                    "match_response" to true,
+                    "ip_is_private" to true,
+                    "action" to "route",
+                    "server" to LOCAL_DNS_TAG,
                 ),
             ),
             "final" to DNS_PROXY_TAG,
@@ -425,6 +454,15 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
         /** Cloudflare, reached through the tunnel, for everything else. */
         const val DNS_PROXY_SERVER = "1.1.1.1"
+
+        /**
+         * Names that can only be answered on the LAN.
+         *
+         * Matched as suffixes, so `.lan` covers `nas.lan`. These are the
+         * special-use names that never resolve publicly; a split-horizon name
+         * on a public domain is caught by the response check instead.
+         */
+        val LAN_DNS_SUFFIXES = listOf(".lan", ".local", ".home.arpa", ".internal")
     }
 }
 

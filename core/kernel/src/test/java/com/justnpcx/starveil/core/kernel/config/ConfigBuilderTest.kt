@@ -614,16 +614,17 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun `the preset resolves domestic names domestically and private ones locally`() {
+    fun `the preset keeps LAN names on the device and domestic names domestic`() {
         val json = builder.build(listOf(vlessProfile()), mainland = mainland)
 
-        // Private addresses first: a question about the LAN must not leave the
-        // device to be answered.
-        val privateRule = json.indexOf("\"ip_is_private\":true")
-        val geositeRule = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\",\"server\":\"dns-cn\"")
-        assertTrue(privateRule >= 0)
-        assertTrue(geositeRule >= 0)
-        assertTrue("private is the first DNS rule", privateRule < geositeRule)
+        // A LAN name is settled before anything is resolved — the only way to
+        // keep the question from leaving the device. It comes first because it
+        // is the cheapest and most specific rule there is.
+        val lan = json.indexOf("\"domain_suffix\":[\".lan\",\".local\"")
+        val geosite = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\",\"server\":\"dns-cn\"")
+        assertTrue(lan >= 0)
+        assertTrue(geosite >= 0)
+        assertTrue("LAN names are matched first", lan < geosite)
 
         // Domestic names go to a domestic resolver, direct: a poisoned answer
         // would resolve outside geoip-cn and send domestic traffic abroad.
@@ -633,6 +634,19 @@ class ConfigBuilderTest {
         // outbound makes no sense". Left unset, the dialer falls back to the
         // default outbound, which is that same direct one.
         assertFalse(json.contains("\"detour\":\"direct\""))
+
+        // The private-address check is a response match now, not a Legacy
+        // Address Filter. That form resolved through `local` first, rejected
+        // every public answer and resolved again on the rule that actually
+        // applied — two lookups for an answer that was thrown away — and 1.16
+        // removes it outright.
+        assertTrue(json.contains("\"action\":\"evaluate\",\"server\":\"dns-proxy\""))
+        assertTrue(json.contains("\"match_response\":true,\"ip_is_private\":true"))
+        assertEquals(
+            "the only ip_is_private is the response-matched one",
+            1,
+            Regex("\"ip_is_private\":true").findAll(json).count(),
+        )
 
         // Everything else resolves through the tunnel.
         assertTrue(json.contains("\"final\":\"dns-proxy\""))
