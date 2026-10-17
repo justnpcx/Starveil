@@ -8,6 +8,12 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Changed
+
+- Release builds are minified by R8 (arm64 APK 131 MB → 90 MB). The
+  `benchmark` build type inherits it, so performance numbers now describe the
+  shipping configuration; the recorded cold-start baseline predates it.
+
 ## [0.7.0] — 2026-10-17
 
 First beta. There was no earlier public release, so this entry describes what

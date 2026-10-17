@@ -87,7 +87,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 was off through the betas: a minified build that has not been
+            // run on a device is worse than a large one, and there was no
+            // device to run it on. On now, because a public release cannot ship
+            // 127 MB of unshrunk code — and the keeps below are the parts that
+            // break silently when it is wrong (JNI, reflection, Room).
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
