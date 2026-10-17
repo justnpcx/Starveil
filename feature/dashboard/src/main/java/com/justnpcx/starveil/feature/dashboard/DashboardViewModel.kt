@@ -4,24 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
-import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
-import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
-import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
-import com.justnpcx.starveil.core.model.AppRoute
-import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.NodeHealth
-import com.justnpcx.starveil.core.model.PerAppOutbound
-import com.justnpcx.starveil.core.model.Profile
-import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -125,10 +116,8 @@ class DashboardViewModel @Inject constructor(
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
     private val groups: GroupRepository,
-    private val rules: RuleRepository,
-    private val configBuilder: ConfigBuilder,
+    private val connection: ConnectionController,
     private val nodeHealth: NodeHealthRepository,
-    private val mainlandRuleSets: MainlandRuleSetStore,
 ) : ViewModel() {
 
     // Structured concurrency: one SupervisorJob per ViewModel, cancelled in
@@ -160,9 +149,10 @@ class DashboardViewModel @Inject constructor(
                 when (state) {
                     is KernelState.Error ->
                         if (state.error.recoverable) onKernelDropped()
-                    // Stopped without this view model asking: the notification's
-                    // Disconnect, or the system revoking the VPN. Reconcile
-                    // rather than assume — see onStoppedElsewhere.
+                    // Started or stopped without this view model asking: the
+                    // quick-settings tile, or the notification's Disconnect.
+                    // Reconcile rather than assume — see the two handlers.
+                    KernelState.Running -> onRunningElsewhere()
                     KernelState.Stopped -> onStoppedElsewhere()
                     else -> Unit
                 }
@@ -306,94 +296,68 @@ class DashboardViewModel @Inject constructor(
             it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, notice = notice)
         }
 
-        // Kill Switch, panic mode. Asked as "would traffic be allowed if we
-        // were up?", so the decision comes from the one policy function rather
-        // than a second reading of the mode here.
-        val alwaysBlocked = KillSwitchController.policyFor(
-            preferences.killSwitchMode.first(),
-            connected = true,
-        ) == TrafficPolicy.BLOCK
-        if (alwaysBlocked) {
-            startBlocked()
-            return
-        }
-
-        // The real outbound: whatever is selected on the Nodes tab — either a
-        // single node, or a group the kernel picks within.
-        val target = resolveTarget()
-        val rules = rules.observeAllOrdered().first()
-        // Resolved before the build, and only when the switch is on: a failed
-        // download leaves this null and the config comes out without the
-        // preset, which is a working state rather than a failed connect.
-        val mainland = if (preferences.bypassMainland.first()) {
-            mainlandRuleSets.ensure()
-        } else {
-            null
-        }
-        val config = try {
-            val perApp = resolvePerApp(preferences.perAppRoutes.first())
-            when (target) {
-                is Target.Node -> configBuilder.build(
-                    target.profile,
-                    rules,
-                    mainland = mainland,
-                    perApp = perApp,
-                )
-                is Target.Group -> configBuilder.build(
-                    target.members,
-                    rules,
-                    target.mode,
-                    mainland,
-                    perApp = perApp,
-                )
-                Target.None -> {
-                    _uiState.update {
-                        it.copy(
-                            isBusy = false,
-                            connectionState = ConnectionState.DISCONNECTED,
-                            notice = DashboardNotice.NoTarget,
-                        )
-                    }
-                    return
+        // The whole decision — kill switch, target, rules, preset files,
+        // per-app exceptions — belongs to ConnectionController, because the
+        // quick-settings tile needs exactly the same answer. This maps the
+        // outcome onto what the screen says.
+        when (val outcome = connection.connect()) {
+            is ConnectionOutcome.Connected -> {
+                _uiState.update {
+                    it.copy(
+                        isBusy = false,
+                        connectionState = ConnectionState.CONNECTED,
+                        selectedNodeName = outcome.label,
+                        // A retry that succeeded must not leave "reconnecting…"
+                        // on screen. This is only reachable now that [connect]
+                        // lets a caller's notice survive: it used to be cleared
+                        // on the next line, which also hid this.
+                        notice = null,
+                    )
                 }
+                startStatsLoop()
             }
-        } catch (e: ConfigBuildException) {
-            _uiState.update {
+
+            is ConnectionOutcome.Blocked -> _uiState.update {
+                it.copy(
+                    isBusy = false,
+                    connectionState = ConnectionState.BLOCKED,
+                    stats = TrafficStats(),
+                    history = emptyList(),
+                    notice = if (outcome.started) {
+                        DashboardNotice.KillSwitchBlocking
+                    } else {
+                        DashboardNotice.KernelRefused(outcome.reason)
+                    },
+                )
+            }
+
+            ConnectionOutcome.NoTarget -> _uiState.update {
+                it.copy(
+                    isBusy = false,
+                    connectionState = ConnectionState.DISCONNECTED,
+                    notice = DashboardNotice.NoTarget,
+                )
+            }
+
+            ConnectionOutcome.ConfigUnbuildable -> _uiState.update {
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.BLOCKED,
                     notice = DashboardNotice.ConfigUnbuildable,
                 )
             }
-            return
-        }
 
-        val result = kernel.start(config)
-        if (result.isSuccess) {
-            _uiState.update {
-                it.copy(
-                    isBusy = false,
-                    connectionState = ConnectionState.CONNECTED,
-                    selectedNodeName = target.label(),
-                    // A retry that succeeded must not leave "reconnecting…" on
-                    // screen. This is only reachable now that [connect] lets a
-                    // caller's notice survive: it used to be cleared on the
-                    // next line, which also hid this.
-                    notice = null,
-                )
-            }
-            startStatsLoop()
-        } else {
-            // The bridge reports a redacted reason (PRD §8.3: tell the
-            // truth on failure, never a bare "failed to start").
-            val reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
-            _uiState.update {
+            is ConnectionOutcome.Refused -> _uiState.update {
                 it.copy(
                     isBusy = false,
                     connectionState = ConnectionState.BLOCKED,
-                    notice = DashboardNotice.KernelRefused(reason),
+                    notice = DashboardNotice.KernelRefused(outcome.reason),
                 )
             }
+
+            // Only disconnect() produces this; listed so the mapping stays
+            // exhaustive when a variant is added.
+            ConnectionOutcome.Disconnected -> Unit
         }
     }
 
@@ -401,49 +365,20 @@ class DashboardViewModel @Inject constructor(
         _uiState.update { it.copy(isBusy = true) }
         statsJob?.cancel()
 
-        // "Block on disconnect" means the tunnel stays up with nothing
-        // forwarding it. Tearing it down here is exactly the leak this mode
-        // exists to prevent: whatever was in flight would go out directly.
-        //
-        // Asked as "once we are down, would traffic be allowed?" — that is the
-        // question the policy answers, and it covers ALWAYS_BLOCK too.
-        val keepTunnel = KillSwitchController.policyFor(
-            preferences.killSwitchMode.first(),
-            connected = false,
-        ) == TrafficPolicy.BLOCK
-        if (keepTunnel) kernel.stopKeepingTunnel() else kernel.stop()
-
+        // Same controller the tile uses. The Kill Switch decides whether the
+        // tunnel stays up, so the two entry points cannot disagree about it.
+        val blocked = connection.disconnect() is ConnectionOutcome.Blocked
         _uiState.update {
             it.copy(
                 isBusy = false,
-                connectionState = if (keepTunnel) {
+                connectionState = if (blocked) {
                     ConnectionState.BLOCKED
                 } else {
                     ConnectionState.DISCONNECTED
                 },
                 stats = TrafficStats(),
                 history = emptyList(),
-                notice = if (keepTunnel) DashboardNotice.KillSwitchBlocking else null,
-            )
-        }
-    }
-
-    /** Bring the tunnel up with nothing but a reject, and say why. */
-    private suspend fun startBlocked() {
-        val result = kernel.start(configBuilder.buildBlocking())
-        _uiState.update {
-            it.copy(
-                isBusy = false,
-                connectionState = ConnectionState.BLOCKED,
-                stats = TrafficStats(),
-                history = emptyList(),
-                notice = if (result.isSuccess) {
-                    DashboardNotice.KillSwitchBlocking
-                } else {
-                    DashboardNotice.KernelRefused(
-                        result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() },
-                    )
-                },
+                notice = if (blocked) DashboardNotice.KillSwitchBlocking else null,
             )
         }
     }
@@ -472,50 +407,37 @@ class DashboardViewModel @Inject constructor(
     }
 
     /**
-     * What the tunnel should point at.
+     * The kernel came up without this view model asking — the tile, most
+     * likely. Without this the screen would sit on DISCONNECTED over a working
+     * tunnel, and the next tap would try to connect again.
      *
-     * A group carries its name and members rather than the [ProxyGroup] itself,
-     * so the connect path cannot accidentally re-read a group that changed
-     * underneath it.
-     */
-    private sealed interface Target {
-        data object None : Target
-
-        data class Node(val profile: Profile) : Target
-
-        data class Group(val name: String, val members: List<Profile>, val mode: GroupMode) : Target
-
-        /** Null for [None]: there is no name to show, and no copy belongs here. */
-        fun label(): String? = when (this) {
-            is Node -> profile.name
-            is Group -> name
-            None -> null
-        }
-    }
-
-    /**
-     * Turns the stored selection into something buildable.
+     * A running kernel is not always a connected one: under "always block" the
+     * tunnel is up with nothing forwarding it, so the state is BLOCKED. The
+     * policy is the only thing that can tell the two apart from here.
      *
-     * A group only counts as a target when its mode produces a group outbound
-     * and it has at least one member left: a plain folder is not something you
-     * connect *through*, and an empty group has nothing to build from. Both
-     * degrade to [Target.None] rather than failing later.
+     * Ignored while this view model is mid-connect — it is about to set the
+     * same state from the outcome it already has.
      */
-    private suspend fun resolveTarget(): Target {
-        return when (val selected = preferences.connectionTarget.first()) {
-            is ConnectionTarget.Group -> {
-                val group: ProxyGroup = groups.getById(selected.id) ?: return Target.None
-                if (group.mode == GroupMode.MANUAL) return Target.None
-                val members = group.profileIds.mapNotNull { profiles.getById(it) }
-                if (members.isEmpty()) return Target.None
-                Target.Group(group.name, members, group.mode)
-            }
-
-            is ConnectionTarget.Node ->
-                profiles.getById(selected.id)?.let { Target.Node(it) } ?: Target.None
-
-            ConnectionTarget.None -> Target.None
+    private suspend fun onRunningElsewhere() {
+        if (_uiState.value.isBusy) return
+        if (_uiState.value.connectionState == ConnectionState.CONNECTED) return
+        val blocked = KillSwitchController.policyFor(
+            preferences.killSwitchMode.first(),
+            connected = true,
+        ) == TrafficPolicy.BLOCK
+        _uiState.update {
+            it.copy(
+                isBusy = false,
+                connectionState = if (blocked) {
+                    ConnectionState.BLOCKED
+                } else {
+                    ConnectionState.CONNECTED
+                },
+                selectedNodeName = targetLabel(preferences.connectionTarget.first()),
+                notice = if (blocked) DashboardNotice.KillSwitchBlocking else null,
+            )
         }
+        if (!blocked) startStatsLoop()
     }
 
     /**
@@ -547,35 +469,6 @@ class DashboardViewModel @Inject constructor(
                 history = emptyList(),
             )
         }
-    }
-
-    /**
-     * Per-app targets, resolved to the nodes they name.
-     *
-     * Grouped by target so two apps pointing at the same node share one
-     * outbound and one connection pool. Sorted by profile id so the same
-     * settings always produce the same config.
-     *
-     * A node that no longer exists is dropped rather than failing the connect:
-     * that app then follows the tunnel's default, which is what would have
-     * happened before it was ever configured. Refusing to connect because
-     * someone deleted a node would be a worse trade.
-     */
-    private suspend fun resolvePerApp(routes: Map<String, AppRoute>): List<PerAppOutbound> {
-        if (routes.isEmpty()) return emptyList()
-        val packagesByTarget = linkedMapOf<AppRoute, MutableSet<String>>()
-        routes.forEach { (packageName, route) ->
-            packagesByTarget.getOrPut(route) { mutableSetOf() } += packageName
-        }
-        val result = mutableListOf<PerAppOutbound>()
-        packagesByTarget.remove(AppRoute.Direct)?.let { packages ->
-            result += PerAppOutbound.Direct(packages)
-        }
-        result += packagesByTarget.mapNotNull { (route, packages) ->
-            val profileId = (route as? AppRoute.Node)?.profileId ?: return@mapNotNull null
-            profiles.getById(profileId)?.let { PerAppOutbound.Node(packages, it) }
-        }.sortedBy { it.profile.id }
-        return result
     }
 
     /** Identity of the current target, so a change can be told from a repeat. */
