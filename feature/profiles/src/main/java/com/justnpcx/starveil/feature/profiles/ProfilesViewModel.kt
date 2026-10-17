@@ -289,6 +289,10 @@ class ProfilesViewModel @Inject constructor(
      */
     fun groupByRegion() {
         viewModelScope.launch {
+            // Cleared first so the same answer is still an answer: a StateFlow
+            // does not emit an equal value, and without this a second tap on a
+            // node list that matches nothing looked like the button was dead.
+            message.value = null
             val regions = profiles.observeAll().first()
                 .mapNotNull { NodeRegions.classify(it.name)?.region }
                 .distinct()

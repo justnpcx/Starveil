@@ -22,7 +22,7 @@
     <string name="profiles_msg_import_failed">导入失败：%1$s</string>
     <string name="profiles_msg_refreshed">已刷新：%1$d 个节点</string>
     <string name="profiles_msg_grouped">按地区分组：%1$d 个分组</string>
-    <string name="profiles_msg_no_regions">没有节点名匹配到地区。</string>
+    <string name="profiles_msg_no_regions">没有节点名包含地区。把节点名改成含「香港」「日本」「US」这类词即可分组。</string>
     <string name="profiles_msg_refresh_failed">刷新失败：%1$s</string>
     <string name="profiles_row_move">移到分组</string>
     <string name="profiles_row_menu_title">%1$s</string>
