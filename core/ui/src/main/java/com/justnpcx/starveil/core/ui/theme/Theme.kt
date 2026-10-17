@@ -102,7 +102,7 @@ object StarveilColors {
     val ChartGrid = Color(0xFF1E293B)
 }
 
-private val DarkScheme = darkColorScheme(
+internal val DarkScheme = darkColorScheme(
     primary = StarveilColors.GlowPrimary,
     secondary = StarveilColors.GlowSecondary,
     tertiary = StarveilColors.Connected,
@@ -115,7 +115,7 @@ private val DarkScheme = darkColorScheme(
     error = StarveilColors.Blocked,
 )
 
-private val LightScheme = lightColorScheme(
+internal val LightScheme = lightColorScheme(
     primary = Color(0xFF0369A1),
     secondary = Color(0xFF4F46E5),
     tertiary = Color(0xFF047857),
@@ -124,7 +124,9 @@ private val LightScheme = lightColorScheme(
     surfaceVariant = Color(0xFFE2E8F0),
     onBackground = Color(0xFF0F172A),
     onSurface = Color(0xFF0F172A),
-    onSurfaceVariant = Color(0xFF64748B),
+    // Darker than the dark theme's TextDim on purpose: on a light raised
+    // surface the slate-500 value measured 3.86:1, below AA for body text.
+    onSurfaceVariant = Color(0xFF475569),
     error = Color(0xFFDC2626),
 )
 
