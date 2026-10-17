@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profiles_title">节点</string>
+    <string name="profiles_empty_title">还没有节点</string>
+    <string name="profiles_empty_body">导入订阅或分享链接来添加节点。</string>
+    <string name="profiles_latency_untested">未测</string>
+    <string name="profiles_latency_ms">%1$d ms</string>
+    <string name="profiles_latency_timeout">超时</string>
+    <string name="profiles_status_up">有响应</string>
+    <string name="profiles_status_down">无响应</string>
+    <string name="profiles_status_untested">尚未测量</string>
+    <string name="profiles_selected">已选中</string>
+
+    <string name="profiles_new_node">新建节点</string>
+    <string name="profiles_new_node_title">选择协议</string>
+    <string name="profiles_row_edit">编辑</string>
+    <string name="profiles_row_share">分享</string>
+
+    <string name="profiles_deleted">已删除 %1$s</string>
+    <string name="profiles_msg_added">已添加 %1$s</string>
+    <string name="profiles_msg_imported">已导入 %1$d 个节点</string>
+    <string name="profiles_msg_import_failed">导入失败：%1$s</string>
+    <string name="profiles_msg_refreshed">已刷新：%1$d 个节点</string>
+    <string name="profiles_msg_grouped">按地区分组：%1$d 个分组</string>
+    <string name="profiles_msg_no_regions">没有节点名匹配到地区。</string>
+    <string name="profiles_msg_refresh_failed">刷新失败：%1$s</string>
+    <string name="profiles_row_move">移到分组</string>
+    <string name="profiles_row_menu_title">%1$s</string>
+    <string name="profiles_group_all">全部</string>
+    <string name="profiles_no_matches_title">该分组内没有节点</string>
+    <string name="profiles_no_matches_body">换一个分组，或导入订阅。</string>
+
+    <string name="profiles_group_menu_body">%1$d 个节点</string>
+    <string name="profiles_group_mode_title">模式</string>
+    <string name="profiles_group_mode_folder">文件夹</string>
+    <string name="profiles_group_mode_selector">手动选择</string>
+    <string name="profiles_group_mode_urltest">最快</string>
+    <string name="profiles_group_connect">通过该分组连接</string>
+    <string name="profiles_group_connect_stop">停止使用该分组</string>
+    <string name="profiles_group_connect_folder_hint">文件夹不是用来连接的。给它设置一个模式，或选择其中的节点。</string>
+    <string name="profiles_group_connect_empty_hint">该分组没有可用于连接的节点。</string>
+    <string name="profiles_group_in_use">使用中</string>
+    <string name="profiles_group_refresh">刷新订阅</string>
+    <string name="profiles_group_rename">重命名</string>
+    <string name="profiles_group_rename_title">重命名分组</string>
+    <string name="profiles_group_name_label">名称</string>
+    <string name="profiles_group_save">保存</string>
+    <string name="profiles_group_cancel">取消</string>
+
+    <string name="profiles_share_title">分享 %1$s</string>
+    <string name="profiles_share_copy">复制链接</string>
+    <string name="profiles_share_copied">链接已复制</string>
+    <string name="profiles_share_qr_description">该节点的二维码</string>
+    <string name="profiles_share_no_qr">链接太长，无法显示为二维码。请复制链接。</string>
+    <string name="profiles_share_unavailable">该节点没有可分享的格式。</string>
+    <string name="profiles_group_delete">删除</string>
+    <string name="profiles_group_delete_title">删除该分组？</string>
+    <string name="profiles_group_delete_body">%1$s 及其 %2$d 个节点将被删除。</string>
+    <string name="profiles_group_delete_body_empty">%1$s 将被删除。</string>
+
+    <string name="profiles_group_new">新建分组</string>
+    <string name="profiles_group_state_in_use">使用中</string>
+    <string name="profiles_group_state_selected">已选中</string>
+    <string name="profiles_node_long_press">移到分组</string>
+    <string name="profiles_group_by_region">按地区</string>
+    <string name="profiles_group_delete_body_derived">删除「%1$s」？节点会留在原处，只删除分组。</string>
+    <string name="profiles_group_new_title">新建分组</string>
+    <string name="profiles_group_move_title">移动 %1$s</string>
+    <string name="profiles_group_none">不分组</string>
+
+    <string name="profiles_import_add">添加节点</string>
+    <string name="profiles_import_title">导入节点</string>
+    <string name="profiles_import_hint">粘贴分享链接（vless://…）或订阅地址</string>
+    <string name="profiles_import_action">导入</string>
+    <string name="profiles_import_cancel">取消</string>
+    <string name="profiles_import_working">导入中…</string>
+    <string name="profiles_test_latency">测试延迟</string>
+
+    <string name="profiles_import_scan">扫描二维码</string>
+    <string name="profiles_import_paste">粘贴</string>
+    <string name="profiles_import_clipboard_empty">剪贴板没有文本</string>
+    <string name="profiles_import_scan_cancelled">已取消扫描</string>
+    <string name="profiles_scan_prompt">对准分享链接或订阅二维码</string>
+
+    <string name="profiles_delete">删除 %1$s</string>
+</resources>

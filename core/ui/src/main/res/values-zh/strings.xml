@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_message_dismiss">关闭</string>
+    <string name="core_undo">撤销</string>
+    <string name="core_health_collecting">采集中 %1$d/%2$d</string>
+</resources>

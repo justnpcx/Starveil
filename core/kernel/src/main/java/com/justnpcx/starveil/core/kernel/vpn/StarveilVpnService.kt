@@ -278,7 +278,7 @@ class StarveilVpnService : VpnService() {
         )
 
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle(NOTIFICATION_TITLE)
+            .setContentTitle(getString(R.string.notification_running))
             // The system tints a small icon, so it has to be a silhouette. The
             // framework's dialog icon was a placeholder and looked like one.
             .setSmallIcon(R.drawable.ic_notification)
@@ -308,7 +308,6 @@ class StarveilVpnService : VpnService() {
         const val SESSION_NAME = "Starveil"
         const val CHANNEL_ID = "starveil.kernel"
         const val NOTIFICATION_CHANNEL_NAME = "Starveil"
-        const val NOTIFICATION_TITLE = "Starveil is running"
         const val NOTIFICATION_ID = 1001
 
         /**

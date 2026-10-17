@@ -2,8 +2,13 @@
 <resources>
     <!--
         The notification lives with the service that owns the tunnel, so its
-        strings do here too. Only the action is a resource; the title is a
-        constant because the service is not a user-facing screen.
+        strings do here too. The title used to be a Kotlin constant on the
+        grounds that a service is not a user-facing screen — but this one is on
+        screen whenever the tunnel is up, and it was the only English sentence
+        left in an otherwise translated app.
     -->
     <string name="notification_disconnect">Disconnect</string>
+    <!-- The ongoing notification's title. It is on screen for as long as the
+         tunnel is up, so it is the most-seen string in the app. -->
+    <string name="notification_running">Starveil is running</string>
 </resources>

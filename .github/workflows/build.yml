@@ -25,6 +25,11 @@ jobs:
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+      # Neither gap is visible in a build that only ever runs in one locale:
+      # a missing key falls back to English, and a translation that drops
+      # `%1$s` compiles fine and throws when the screen is opened in Chinese.
+      - name: Translations
+        run: ./gradlew checkTranslations --no-daemon
       # No signing, no secrets, no keystore: CI only proves the skeleton compiles.
       # Use the wrapper so CI and local builds share the pinned Gradle 8.13.
       - name: Assemble debug
