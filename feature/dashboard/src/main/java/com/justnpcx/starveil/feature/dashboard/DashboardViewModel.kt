@@ -16,8 +16,10 @@ import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.nodeHealthOf
@@ -321,20 +323,20 @@ class DashboardViewModel @Inject constructor(
             null
         }
         val config = try {
-            val perAppDirect = preferences.perAppDirectPackages.first()
+            val perApp = resolvePerApp(preferences.perAppRoutes.first())
             when (target) {
                 is Target.Node -> configBuilder.build(
                     target.profile,
                     rules,
                     mainland = mainland,
-                    perAppDirect = perAppDirect,
+                    perApp = perApp,
                 )
                 is Target.Group -> configBuilder.build(
                     target.members,
                     rules,
                     target.mode,
                     mainland,
-                    perAppDirect = perAppDirect,
+                    perApp = perApp,
                 )
                 Target.None -> {
                     _uiState.update {
@@ -506,6 +508,35 @@ class DashboardViewModel @Inject constructor(
 
             ConnectionTarget.None -> Target.None
         }
+    }
+
+    /**
+     * Per-app targets, resolved to the nodes they name.
+     *
+     * Grouped by target so two apps pointing at the same node share one
+     * outbound and one connection pool. Sorted by profile id so the same
+     * settings always produce the same config.
+     *
+     * A node that no longer exists is dropped rather than failing the connect:
+     * that app then follows the tunnel's default, which is what would have
+     * happened before it was ever configured. Refusing to connect because
+     * someone deleted a node would be a worse trade.
+     */
+    private suspend fun resolvePerApp(routes: Map<String, AppRoute>): List<PerAppOutbound> {
+        if (routes.isEmpty()) return emptyList()
+        val packagesByTarget = linkedMapOf<AppRoute, MutableSet<String>>()
+        routes.forEach { (packageName, route) ->
+            packagesByTarget.getOrPut(route) { mutableSetOf() } += packageName
+        }
+        val result = mutableListOf<PerAppOutbound>()
+        packagesByTarget.remove(AppRoute.Direct)?.let { packages ->
+            result += PerAppOutbound.Direct(packages)
+        }
+        result += packagesByTarget.mapNotNull { (route, packages) ->
+            val profileId = (route as? AppRoute.Node)?.profileId ?: return@mapNotNull null
+            profiles.getById(profileId)?.let { PerAppOutbound.Node(packages, it) }
+        }.sortedBy { it.profile.id }
+        return result
     }
 
     /** Identity of the current target, so a change can be told from a repeat. */

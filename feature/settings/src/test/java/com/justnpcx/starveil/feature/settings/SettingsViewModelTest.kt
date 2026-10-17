@@ -8,6 +8,7 @@ import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
+import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import kotlinx.coroutines.Dispatchers
@@ -117,12 +118,12 @@ private class FakePreferences : PreferencesRepository {
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
     // Real rather than notUsed(): the ui state counts it on every emission.
-    override val perAppDirectPackages: Flow<Set<String>> = flowOf(emptySet())
+    override val perAppRoutes: Flow<Map<String, AppRoute>> = flowOf(emptyMap())
     override suspend fun setSelectedProfileId(id: Long) = notUsed()
     override suspend fun setSelectedGroupId(id: Long) = notUsed()
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) = notUsed()
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) = notUsed()
-    override suspend fun setPerAppDirectPackages(packages: Set<String>) = notUsed()
+    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) = notUsed()
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

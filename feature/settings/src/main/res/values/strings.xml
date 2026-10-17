@@ -21,14 +21,18 @@
     <string name="auto_reconnect_desc">Bring the tunnel back up if it drops unexpectedly. Retries once per drop.</string>
 
     <string name="per_app_entry_title">Per-app routing</string>
-    <string name="per_app_entry_desc">Choose apps that never use the tunnel. Nothing selected by default.</string>
-    <string name="per_app_entry_count">%1$d apps bypass the tunnel</string>
+    <string name="per_app_entry_desc">Send individual apps direct, or through a specific node.</string>
+    <string name="per_app_entry_count">%1$d apps have their own route</string>
     <string name="per_app_manage">Manage</string>
     <string name="per_app_title">Per-app routing</string>
     <string name="per_app_done">Done</string>
-    <string name="per_app_explainer">Ticked apps never enter the tunnel — their traffic leaves the device directly. This is applied when the tunnel is built, so it takes effect from the next connection.</string>
+    <string name="per_app_close">Close</string>
+    <string name="per_app_explainer">Each app can follow the tunnel, leave the device directly, or use a specific node. This is applied when the tunnel is built, so it takes effect from the next connection.</string>
     <string name="per_app_search">Search apps</string>
     <string name="per_app_empty">No apps match.</string>
+    <string name="per_app_target_default">Tunnel default</string>
+    <string name="per_app_target_direct">Direct</string>
+    <string name="per_app_target_missing">Deleted node</string>
 
     <string name="leak_check_title">Leak self-check</string>
     <string name="leak_check_never">No self-check has run yet.</string>

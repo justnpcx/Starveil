@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.feature.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,12 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,14 +32,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.model.AppRoute
+import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
- * Pick the apps that never enter the tunnel.
+ * Choose where each app's traffic goes.
  *
- * A list, not a switch, and the explainer says when it takes effect: the
- * exception becomes a `package_name` route rule, and those are built when the
- * tunnel is, so a change applies on the next connect.
+ * Only apps that deviate are listed as configured; the tunnel is the default.
+ * The explainer says when a change takes effect, because it does: the target
+ * becomes a `package_name` route rule, and those are built when the tunnel is.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,33 +108,40 @@ fun PerAppScreen(
                     items(state.visible, key = { it.packageName }) { app ->
                         AppRow(
                             app = app,
-                            checked = app.packageName in state.selected,
-                            onToggle = { viewModel.toggle(app.packageName) },
+                            target = targetLabel(state.routes[app.packageName], state.nodes),
+                            onEdit = { viewModel.edit(app.packageName) },
                         )
                     }
                 }
             }
         }
     }
+
+    val editing = state.editing
+    if (editing != null) {
+        TargetDialog(
+            title = state.apps.firstOrNull { it.packageName == editing }?.label ?: editing,
+            selected = state.routes[editing],
+            nodes = state.nodes,
+            onSelect = { viewModel.setRoute(editing, it) },
+            onDismiss = viewModel::dismiss,
+        )
+    }
 }
 
 @Composable
 private fun AppRow(
     app: InstalledApp,
-    checked: Boolean,
-    onToggle: () -> Unit,
+    target: String,
+    onEdit: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
-            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.xs),
+            .clickable(onClick = onEdit)
+            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
-        // onCheckedChange = null: the whole row is the target, so the box must
-        // not be a second one (it would toggle twice).
-        Checkbox(checked = checked, onCheckedChange = null)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = app.label,
@@ -144,5 +157,90 @@ private fun AppRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        Text(
+            text = target,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
+}
+
+/**
+ * The route picker.
+ *
+ * "Tunnel default" is first and is the absence of an entry, not a third kind of
+ * value — that keeps the stored map meaning exactly what it says.
+ */
+@Composable
+private fun TargetDialog(
+    title: String,
+    selected: AppRoute?,
+    nodes: List<Profile>,
+    onSelect: (AppRoute?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                TargetOption(
+                    label = stringResource(R.string.per_app_target_default),
+                    selected = selected == null,
+                    onSelect = { onSelect(null) },
+                )
+                TargetOption(
+                    label = stringResource(R.string.per_app_target_direct),
+                    selected = selected == AppRoute.Direct,
+                    onSelect = { onSelect(AppRoute.Direct) },
+                )
+                nodes.forEach { node ->
+                    TargetOption(
+                        label = node.name,
+                        selected = selected == AppRoute.Node(node.id),
+                        onSelect = { onSelect(AppRoute.Node(node.id)) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.per_app_close))
+            }
+        },
+    )
+}
+
+@Composable
+private fun TargetOption(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = StarveilSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun targetLabel(route: AppRoute?, nodes: List<Profile>): String = when (route) {
+    null -> stringResource(R.string.per_app_target_default)
+    AppRoute.Direct -> stringResource(R.string.per_app_target_direct)
+    is AppRoute.Node -> nodes.firstOrNull { it.id == route.profileId }?.name
+        ?: stringResource(R.string.per_app_target_missing)
 }

@@ -7,8 +7,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -96,14 +96,14 @@ interface PreferencesRepository {
     val connectionTarget: Flow<ConnectionTarget>
 
     /**
-     * Packages that must never enter the tunnel.
+     * Where each listed app's traffic goes.
      *
-     * An exception list rather than a switch, because the tunnel is the
-     * default and these are the apps that step outside it. Applied as
-     * `package_name` route rules at connect time, so a change takes effect on
-     * the next connection — the config is built then, not continuously.
+     * Absence from the map means "follow the tunnel's default target", so this
+     * is an exception list rather than a switch. Applied as `package_name`
+     * route rules at connect time, so a change takes effect on the next
+     * connection — the config is built then, not continuously.
      */
-    val perAppDirectPackages: Flow<Set<String>>
+    val perAppRoutes: Flow<Map<String, AppRoute>>
 
     /** Last leak self-check (minimal M2 version). */
     val lastLeakCheck: Flow<LeakCheckRecord>
@@ -122,7 +122,7 @@ interface PreferencesRepository {
     suspend fun setAutoReconnect(enabled: Boolean)
     suspend fun setBypassMainland(enabled: Boolean)
 
-    suspend fun setPerAppDirectPackages(packages: Set<String>)
+    suspend fun setPerAppRoutes(routes: Map<String, AppRoute>)
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
     suspend fun recordLeakCheck(record: LeakCheckRecord)
     suspend fun setSelectedProfileId(id: Long)
@@ -151,7 +151,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
-        val PER_APP_DIRECT = stringSetPreferencesKey("per_app_direct")
+        val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
         val LEAK_CHECK_LEAKING = booleanPreferencesKey("leak_check_leaking")
@@ -185,11 +185,9 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> KillSwitchMode.fromStorage(prefs[Keys.KILL_SWITCH_MODE]) }
 
-    // Copied out of the Preferences snapshot: DataStore hands back its own
-    // set, and callers hold this one long enough to build a config from it.
-    override val perAppDirectPackages: Flow<Set<String>> = dataStore.data
+    override val perAppRoutes: Flow<Map<String, AppRoute>> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.PER_APP_DIRECT]?.toSet() ?: emptySet() }
+        .map { prefs -> PerAppRouteCodec.decode(prefs[Keys.PER_APP_DIRECT]) }
 
     override val lastLeakCheck: Flow<LeakCheckRecord> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
@@ -220,8 +218,8 @@ class DataStorePreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.KILL_SWITCH_MODE] = mode.name }
     }
 
-    override suspend fun setPerAppDirectPackages(packages: Set<String>) {
-        dataStore.edit { it[Keys.PER_APP_DIRECT] = packages }
+    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) {
+        dataStore.edit { it[Keys.PER_APP_DIRECT] = PerAppRouteCodec.encode(routes) }
     }
 
     override suspend fun recordLeakCheck(record: LeakCheckRecord) {

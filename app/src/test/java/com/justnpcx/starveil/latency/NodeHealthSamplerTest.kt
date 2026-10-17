@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LATENCY_UNREACHABLE
 import com.justnpcx.starveil.core.model.LatencySample
@@ -195,7 +196,7 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
-    override val perAppDirectPackages: Flow<Set<String>> get() = notUsed()
+    override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
     override suspend fun setThemeMode(mode: ThemeMode) = notUsed()
     override suspend fun setDynamicColor(enabled: Boolean) = notUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = notUsed()
@@ -206,7 +207,7 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override suspend fun setSelectedGroupId(id: Long) = notUsed()
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) = notUsed()
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) = notUsed()
-    override suspend fun setPerAppDirectPackages(packages: Set<String>) = notUsed()
+    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) = notUsed()
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

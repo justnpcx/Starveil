@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.rules
 
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.FlowLog
+import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.MatcherKind
@@ -191,14 +192,14 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
-    override val perAppDirectPackages: Flow<Set<String>> get() = notUsed()
+    override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
 
     override suspend fun setBypassMainland(enabled: Boolean) { bypass.value = enabled }
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
-    override suspend fun setPerAppDirectPackages(packages: Set<String>) { notUsed() }
+    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) { notUsed() }
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun setSelectedProfileId(id: Long) { notUsed() }
     override suspend fun setSelectedGroupId(id: Long) { notUsed() }
