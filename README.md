@@ -103,6 +103,7 @@
 
 - [产品指南与里程碑定义](docs/03-top-tier-product-guide.md)
 - [隐私政策](docs/10-privacy-policy.md)
+- [真机验证记录](docs/11-device-verification.md)
 - [更新日志](CHANGELOG.md)
 - [libbox 构建](docs/04-libbox-build.md)
 
