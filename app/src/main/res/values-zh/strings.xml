@@ -2,6 +2,12 @@
 <resources>
     <!-- The brand name, so it does not fall back to the merged library value. -->
     <string name="app_name">Starveil</string>
+    <string name="nav_home">首页</string>
+    <string name="nav_nodes">节点</string>
+    <string name="nav_rules">规则</string>
+    <string name="nav_logs">日志</string>
+    <string name="nav_settings">设置</string>
+
 
     <!-- Quick-settings tile. The label is the app name; the subtitle is the state. -->
     <string name="tile_connected">已连接</string>

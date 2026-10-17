@@ -79,7 +79,15 @@ fun DashboardScreen(
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.sm))
         Text(
-            text = state.coreState.name,
+            text = stringResource(
+                when (state.coreState) {
+                    ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
+                    ConnectionState.CONNECTING -> R.string.dashboard_state_connecting
+                    ConnectionState.CONNECTED -> R.string.dashboard_state_connected
+                    ConnectionState.BLOCKED -> R.string.dashboard_state_blocked
+                    ConnectionState.WARNING -> R.string.dashboard_state_warning
+                },
+            ),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )
@@ -225,8 +233,16 @@ private fun SpeedRow(stats: TrafficStats) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        SpeedCell(label = "↓ DOWN", rate = stats.downlinkRate, total = stats.downlinkBytes)
-        SpeedCell(label = "↑ UP", rate = stats.uplinkRate, total = stats.uplinkBytes)
+        SpeedCell(
+            label = stringResource(R.string.dashboard_speed_down),
+            rate = stats.downlinkRate,
+            total = stats.downlinkBytes,
+        )
+        SpeedCell(
+            label = stringResource(R.string.dashboard_speed_up),
+            rate = stats.uplinkRate,
+            total = stats.uplinkBytes,
+        )
     }
 }
 
@@ -236,7 +252,7 @@ private fun SpeedCell(label: String, rate: Long, total: Long) {
         Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(text = formatRate(rate), style = MaterialTheme.typography.displayMedium)
         Text(
-            text = "total ${formatBytes(total)}",
+            text = stringResource(R.string.dashboard_speed_total, formatBytes(total)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

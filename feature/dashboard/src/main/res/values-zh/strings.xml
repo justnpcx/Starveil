@@ -11,6 +11,15 @@
     <string name="dashboard_core_warning">连接状态：已连接，但有警告。点按断开。</string>
 
     <string name="dashboard_no_node">未选择节点</string>
+    <string name="dashboard_state_disconnected">未连接</string>
+    <string name="dashboard_state_connecting">连接中</string>
+    <string name="dashboard_state_connected">已连接</string>
+    <string name="dashboard_state_blocked">已阻断</string>
+    <string name="dashboard_state_warning">有警告</string>
+    <string name="dashboard_speed_down">↓ 下行</string>
+    <string name="dashboard_speed_up">↑ 上行</string>
+    <string name="dashboard_speed_total">累计 %1$s</string>
+
     <string name="dashboard_notice_kill_switch">Kill Switch 正在阻断全部流量</string>
     <string name="dashboard_notice_tunnel_dropped">隧道已断开</string>
     <string name="dashboard_notice_tunnel_reconnecting">隧道已断开，正在重连…</string>
