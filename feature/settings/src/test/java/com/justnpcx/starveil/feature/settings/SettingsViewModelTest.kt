@@ -1,8 +1,13 @@
 package com.justnpcx.starveil.feature.settings
 
+import com.justnpcx.starveil.core.data.backup.BackupFileStore
+import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
+import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
@@ -11,6 +16,11 @@ import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.NodeRegion
+import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.ProxyGroup
+import com.justnpcx.starveil.core.model.Rule
+import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -51,7 +61,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"))
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles())
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -71,7 +81,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""))
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -127,3 +137,40 @@ private class FakePreferences : PreferencesRepository {
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
+
+/**
+ * A [BackupManager] over empty stores. This test is about the preference and
+ * kernel state; backup is constructed only because the view model needs one.
+ */
+private fun emptyBackup() = BackupManager(NoProfiles(), NoGroups(), NoRules())
+
+private class NoFiles : BackupFileStore {
+    override suspend fun write(uri: Uri, bytes: ByteArray) = notUsed()
+    override suspend fun read(uri: Uri): ByteArray = notUsed()
+}
+
+private class NoProfiles : ProfileRepository {
+    override fun observeAll(): Flow<List<Profile>> = flowOf(emptyList())
+    override fun observeByGroup(groupId: Long): Flow<List<Profile>> = flowOf(emptyList())
+    override suspend fun getById(id: Long): Profile? = notUsed()
+    override suspend fun upsert(profile: Profile): Long = notUsed()
+    override suspend fun deleteById(id: Long) = notUsed()
+    override suspend fun deleteByGroup(groupId: Long) = notUsed()
+    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = notUsed()
+}
+
+private class NoGroups : GroupRepository {
+    override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(emptyList())
+    override suspend fun getById(id: Long): ProxyGroup? = notUsed()
+    override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? = notUsed()
+    override suspend fun findByRegion(region: NodeRegion): ProxyGroup? = notUsed()
+    override suspend fun upsert(group: ProxyGroup): Long = notUsed()
+    override suspend fun deleteById(id: Long) = notUsed()
+}
+
+private class NoRules : RuleRepository {
+    override fun observeAllOrdered(): Flow<List<Rule>> = flowOf(emptyList())
+    override suspend fun getById(id: Long): Rule? = notUsed()
+    override suspend fun upsert(rule: Rule): Long = notUsed()
+    override suspend fun deleteById(id: Long) = notUsed()
+}

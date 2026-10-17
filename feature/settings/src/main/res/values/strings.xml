@@ -34,8 +34,23 @@
     <string name="per_app_target_direct">Direct</string>
     <string name="per_app_target_missing">Deleted node</string>
 
-    <string name="leak_check_title">Leak self-check</string>
-    <string name="leak_check_never">No self-check has run yet.</string>
+    <string name="backup_title">Backup</string>
+    <string name="backup_explainer">Nodes, groups and rules in one encrypted file. It is useless without the passphrase — there is no recovery.</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_restore">Restore</string>
+    <string name="backup_export_title">Choose a passphrase</string>
+    <string name="backup_restore_title">Enter the passphrase</string>
+    <string name="backup_passphrase">Passphrase</string>
+    <string name="backup_passphrase_hint">scrypt + AES-256-GCM. The passphrase is never stored.</string>
+    <string name="backup_passphrase_min">At least %1$d characters.</string>
+    <string name="backup_continue">Continue</string>
+    <string name="backup_result_title">Backup</string>
+    <string name="backup_exported">Backup written: %1$d bytes.</string>
+    <string name="backup_restored">Restored %1$d nodes, %2$d groups, %3$d rules.</string>
+    <string name="backup_wrong_passphrase">Wrong passphrase, or the file is damaged.</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+
+    <string name="leak_check_title">Leak self-check</string>    <string name="leak_check_never">No self-check has run yet.</string>
     <string name="leak_check_clean">Last check: no leak (%1$s).</string>
     <string name="leak_check_leaking">Last check: LEAK DETECTED (%1$s).</string>
     <string name="leak_check_run">Run self-check</string>

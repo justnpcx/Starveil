@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.justnpcx.starveil.core.data.StarveilDatabase
 import com.justnpcx.starveil.core.data.StarveilMigrations
+import com.justnpcx.starveil.core.data.backup.BackupFileStore
+import com.justnpcx.starveil.core.data.backup.ContentResolverBackupFileStore
 import com.justnpcx.starveil.core.data.crypto.KeystoreSecretStore
 import com.justnpcx.starveil.core.data.dao.GroupDao
 import com.justnpcx.starveil.core.data.dao.LatencySampleDao
@@ -58,6 +60,12 @@ object DataModule {
     fun provideKeystoreSecretStore(
         @ApplicationContext context: Context,
     ): KeystoreSecretStore = KeystoreSecretStore(context)
+
+    @Provides
+    @Singleton
+    fun provideBackupFileStore(
+        @ApplicationContext context: Context,
+    ): BackupFileStore = ContentResolverBackupFileStore(context)
 
     @Provides
     @Singleton
