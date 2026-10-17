@@ -127,6 +127,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
+    override val perAppDirectPackages: Flow<Set<String>> get() = notUsed()
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
@@ -136,6 +137,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override suspend fun setSelectedGroupId(id: Long) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
+    override suspend fun setPerAppDirectPackages(packages: Set<String>) { notUsed() }
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

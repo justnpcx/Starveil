@@ -678,6 +678,52 @@ class ConfigBuilderTest {
         assertFalse(without.contains("default_domain_resolver"))
     }
 
+    // ---- per-app routing ----
+
+    @Test
+    fun `per-app exceptions are the first rule and name the packages`() {
+        val json = builder.build(
+            vlessProfile(),
+            perAppDirect = setOf("com.example.broker", "com.example.bank"),
+        )
+
+        // Sorted, so the emitted config is deterministic regardless of the set's
+        // iteration order.
+        assertTrue(
+            json.contains(
+                "\"rules\":[{\"package_name\":[\"com.example.bank\",\"com.example.broker\"]," +
+                    "\"action\":\"route\",\"outbound\":\"direct\"}",
+            ),
+        )
+    }
+
+    @Test
+    fun `a per-app exception outranks the preset`() {
+        // Someone who says "this app never enters the tunnel" means it more
+        // specifically than any domain rule, so a bank app reaching a
+        // preset-matched domain must still stay out.
+        val json = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            perAppDirect = setOf("com.example.bank"),
+        )
+        val route = json.substringAfter("\"route\":{")
+        val perApp = route.indexOf("\"package_name\"")
+        val geosite = route.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\",\"outbound\":\"direct\"")
+
+        assertTrue(perApp >= 0)
+        assertTrue(geosite >= 0)
+        assertTrue("per-app comes before the preset", perApp < geosite)
+    }
+
+    @Test
+    fun `no per-app selection emits no package rule`() {
+        // The rule only works because the platform answers "which app owns
+        // this connection"; when nothing is selected there is no reason to ask.
+        assertFalse(builder.build(vlessProfile()).contains("package_name"))
+        assertFalse(builder.build(listOf(vlessProfile())).contains("package_name"))
+    }
+
     private companion object {
         /**
          * The M4 target, and the CI gate for it.

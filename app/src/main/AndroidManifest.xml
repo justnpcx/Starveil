@@ -13,6 +13,19 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!--
+        Package visibility. The per-app screen lists apps with a launcher entry,
+        and on Android 11+ queryIntentActivities returns only our own package
+        unless the intent is declared here. Without this the list is empty and
+        the feature looks broken rather than unpermitted.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".StarveilApp"
         android:allowBackup="false"
