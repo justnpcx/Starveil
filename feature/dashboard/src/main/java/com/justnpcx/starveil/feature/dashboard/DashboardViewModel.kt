@@ -12,7 +12,12 @@ import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
+import com.justnpcx.starveil.core.model.NodeCandidate
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.NodePicker
+import com.justnpcx.starveil.core.model.NodeRecommendation
+import com.justnpcx.starveil.core.model.NodeRegions
+import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -108,6 +113,12 @@ sealed interface DashboardNotice {
 
     /** The kernel refused to start. [reason] is already redacted. */
     data class KernelRefused(val reason: String?) : DashboardNotice
+
+    /** Auto-select picked a node; [reason] is what the picker decided on. */
+    data class AutoSelected(val nodeName: String, val reason: RecommendationReason) : DashboardNotice
+
+    /** The tunnel died and a different node is being tried instead. */
+    data object SwitchingNode : DashboardNotice
 }
 
 @HiltViewModel
@@ -124,6 +135,15 @@ class DashboardViewModel @Inject constructor(
     // onCleared(). No GlobalScope anywhere in this project.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var statsJob: Job? = null
+
+    /**
+     * The last target the collector acted on.
+     *
+     * A field rather than a local so [switchToNextBest] can pre-empt it: a
+     * switch this view model made on purpose must not come back around as a
+     * "the user changed the target" event and restart the tunnel a second time.
+     */
+    private var lastTargetKey: String? = null
 
     /**
      * One automatic reconnect per user-initiated connection.
@@ -168,16 +188,15 @@ class DashboardViewModel @Inject constructor(
             // keeps at most one set. combine can still emit twice for a single
             // user action, because both keys change in the same edit, so the
             // target is compared by identity and duplicates are dropped.
-            var lastKey: String? = null
             preferences.connectionTarget.collect { target ->
                 _uiState.update { it.copy(selectedNodeName = targetLabel(target)) }
 
                 val key = target.key()
-                if (key == lastKey) return@collect
+                if (key == lastTargetKey) return@collect
                 // The first value is the flow replaying what is already stored;
                 // that is not a switch and must not restart anything.
-                val isReplay = lastKey == null
-                lastKey = key
+                val isReplay = lastTargetKey == null
+                lastTargetKey = key
                 if (isReplay) return@collect
 
                 if (target is ConnectionTarget.None) {
@@ -258,7 +277,86 @@ class DashboardViewModel @Inject constructor(
         }
 
         canAutoReconnect = false
-        connect(notice = DashboardNotice.TunnelReconnecting)
+
+        // Switching before reconnecting, when asked to: retrying the node that
+        // just died is the least useful thing to do with a drop.
+        val switched = preferences.autoSwitchOnDrop.first() && switchToNextBest()
+        connect(notice = if (switched) DashboardNotice.SwitchingNode else DashboardNotice.TunnelReconnecting)
+    }
+
+    /**
+     * Pick the best node by the picker's rules and select it.
+     *
+     * Selecting is the whole action: if the tunnel is up, the target-switch
+     * path already reconnects to whatever is selected; if it is down, this
+     * arms the next connect. Doing the connect here as well would race that
+     * path.
+     */
+    fun autoSelect() {
+        if (_uiState.value.isBusy) return
+        scope.launch {
+            val pick = bestNode() ?: run {
+                _uiState.update { it.copy(notice = DashboardNotice.NoTarget) }
+                return@launch
+            }
+            val name = profiles.getById(pick.profileId)?.name.orEmpty()
+            _uiState.update { it.copy(notice = DashboardNotice.AutoSelected(name, pick.reason)) }
+            // The target collector does the rest: it reconnects when the tunnel
+            // is up, and only arms the selection when it is not. Doing the
+            // connect here as well would race that path.
+            preferences.setSelectedProfileId(pick.profileId)
+        }
+    }
+
+    /**
+     * Point the selection at the best node that is not [excluding].
+     *
+     * Only for a single-node target. A group already has urltest choosing
+     * within it, and switching away from the group would throw that away —
+     * the very thing it is good at.
+     */
+    private suspend fun switchToNextBest(): Boolean {
+        val current = (preferences.connectionTarget.first() as? ConnectionTarget.Node)?.id
+            ?: return false
+        val pick = bestNode(exclude = current) ?: return false
+        if (pick.profileId == current) return false
+        // Claim the change before it is delivered: otherwise the collector
+        // sees a target it did not act on and starts a second reconnect.
+        lastTargetKey = ConnectionTarget.Node(pick.profileId).key()
+        preferences.setSelectedProfileId(pick.profileId)
+        return true
+    }
+
+    /**
+     * The picker's answer over the current node list, or null when there is
+     * nothing to choose from.
+     *
+     * The preferred region is the region of the node the user already chose:
+     * that is the only manual preference the app stores, and inventing a
+     * second one would be a setting nobody asked for.
+     */
+    private suspend fun bestNode(exclude: Long? = null): NodeRecommendation? {
+        val nodes = profiles.observeAll().first()
+        if (nodes.isEmpty()) return null
+        val samples = nodeHealth.observeAll().first()
+        val selectedId = preferences.selectedProfileId.first()
+        val preferredRegion = nodes.firstOrNull { it.id == selectedId }
+            ?.let { NodeRegions.classify(it.name)?.region }
+
+        val candidates = nodes
+            .filter { it.id != exclude }
+            .map { profile ->
+                NodeCandidate(
+                    profileId = profile.id,
+                    region = NodeRegions.classify(profile.name)?.region,
+                    health = samples[profile.id]?.let(::nodeHealthOf),
+                )
+            }
+        return NodePicker.recommend(
+            candidates = candidates,
+            preferredRegion = preferredRegion,
+            nowMs = System.currentTimeMillis(),
+        )
     }
 
     /** Tap on the core: connect or disconnect. */

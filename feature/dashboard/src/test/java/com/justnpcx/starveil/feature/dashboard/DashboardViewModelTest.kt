@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.justnpcx.starveil.core.model.LatencySample
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -140,6 +141,38 @@ class DashboardViewModelTest {
         // Tearing the tunnel down here is the leak this mode exists to stop.
         assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
         assertEquals(1, kernel.stopKeepingTunnelCalls)
+    }
+
+    @Test
+    fun `a drop switches to another node when the switch is on`() = runBlocking {
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(ONE, switchOnDrop = true)
+        val viewModel = viewModel(preferences, kernel)
+
+        viewModel.onCoreClick()
+        assertEquals(ONE, preferences.selectedProfileId.first())
+
+        kernel.crash()
+        yield()
+
+        // Retrying the node that just died is the least useful thing to do
+        // with a drop, so the selection moved.
+        assertEquals(TWO, preferences.selectedProfileId.first())
+        assertEquals(2, kernel.starts)
+    }
+
+    @Test
+    fun `with the switch off a drop retries the same node`() = runBlocking {
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(ONE, switchOnDrop = false)
+        val viewModel = viewModel(preferences, kernel)
+
+        viewModel.onCoreClick()
+        kernel.crash()
+        yield()
+
+        assertEquals(ONE, preferences.selectedProfileId.first())
+        assertEquals(2, kernel.starts)
     }
 
     @Test
@@ -405,7 +438,12 @@ class DashboardViewModelTest {
     @Test
     fun `an automatic reconnect says why it is retrying`() = runBlocking {
         val kernel = RecordingKernel()
-        val viewModel = viewModel(FakePreferences(ONE, autoReconnect = true), kernel)
+        // Node switching off, so the notice is the plain retry one. The
+        // switching path has its own notice and its own test.
+        val viewModel = viewModel(
+            FakePreferences(ONE, autoReconnect = true, switchOnDrop = false),
+            kernel,
+        )
         viewModel.onCoreClick()
         assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
 
@@ -560,6 +598,7 @@ private class FakePreferences(
     initialId: Long,
     initialKillSwitch: KillSwitchMode = KillSwitchMode.OFF,
     autoReconnect: Boolean = true,
+    switchOnDrop: Boolean = true,
 ) : PreferencesRepository {
 
     private val killSwitch = MutableStateFlow(initialKillSwitch)
@@ -583,6 +622,8 @@ private class FakePreferences(
 
     override val killSwitchMode: Flow<KillSwitchMode> = killSwitch
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
+    // Real: the drop handler reads it before deciding whether to switch.
+    override val autoSwitchOnDrop: Flow<Boolean> = flowOf(switchOnDrop)
     // Off, like the app's default: a test that wants the preset on says so.
     override val bypassMainland: Flow<Boolean> = flowOf(false)
     // Real rather than notUsed(): the connect path reads it on every build.
@@ -618,6 +659,7 @@ private class FakePreferences(
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
+    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
     override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) {
         perAppRoutesFlow.value = routes

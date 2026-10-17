@@ -28,6 +28,7 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = false,
     val autoReconnect: Boolean = true,
+    val autoSwitchOnDrop: Boolean = true,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     /**
      * The core's own version string, e.g. `1.14.3-647c447`. Empty until the
@@ -131,14 +132,19 @@ class SettingsViewModel @Inject constructor(
         preferences.killSwitchMode,
         preferences.themeMode,
         preferences.dynamicColor,
-        preferences.autoReconnect,
+        // Paired so the typed five-argument combine stays available; the two
+        // reconnect switches are read together and always shown together.
+        combine(preferences.autoReconnect, preferences.autoSwitchOnDrop) { reconnect, switch ->
+            reconnect to switch
+        },
         preferences.lastLeakCheck,
     ) { mode, theme, dynamic, reconnect, leak ->
         SettingsUiState(
             killSwitchMode = mode,
             themeMode = theme,
             dynamicColor = dynamic,
-            autoReconnect = reconnect,
+            autoReconnect = reconnect.first,
+            autoSwitchOnDrop = reconnect.second,
             lastLeakCheck = leak,
         )
     }
@@ -172,5 +178,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoReconnect(enabled: Boolean) {
         viewModelScope.launch { preferences.setAutoReconnect(enabled) }
+    }
+
+    fun setAutoSwitchOnDrop(enabled: Boolean) {
+        viewModelScope.launch { preferences.setAutoSwitchOnDrop(enabled) }
     }
 }

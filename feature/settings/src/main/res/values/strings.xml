@@ -19,6 +19,8 @@
 
     <string name="auto_reconnect_title">Auto-reconnect</string>
     <string name="auto_reconnect_desc">Bring the tunnel back up if it drops unexpectedly. Retries once per drop.</string>
+    <string name="auto_switch_title">Switch node on drop</string>
+    <string name="auto_switch_desc">When the tunnel drops, reconnect through the next-best node instead of the one that just failed. Groups already pick for themselves, so this only applies to a single node.</string>
 
     <string name="per_app_entry_title">Per-app routing</string>
     <string name="per_app_entry_desc">Send individual apps direct, or through a specific node.</string>

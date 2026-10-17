@@ -30,5 +30,14 @@
     <string name="dashboard_health_chart_desc">Latency curve over %1$d probes: lowest %2$d ms, highest %3$d ms.</string>
     <string name="dashboard_health_chart_empty">Latency curve: no successful probes in this window.</string>
     <string name="dashboard_traffic_chart_desc">Traffic history for the last %1$d seconds, peak downlink %2$s.</string>
+
+    <string name="dashboard_auto_select">Auto select</string>
+    <string name="dashboard_notice_auto_selected">Auto-selected %1$s — %2$s.</string>
+    <string name="dashboard_notice_switching_node">Connection dropped; trying another node.</string>
+    <string name="dashboard_reason_healthiest">healthiest, score %1$d</string>
+    <string name="dashboard_reason_tied">tied on score %1$d</string>
+    <string name="dashboard_reason_tied_region">tied on score %1$d, %2$s preferred</string>
+    <string name="dashboard_reason_cooling_down">every node is cooling down, %1$d min left</string>
+    <string name="dashboard_reason_unmeasured">nothing measured yet</string>
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
 </resources>
