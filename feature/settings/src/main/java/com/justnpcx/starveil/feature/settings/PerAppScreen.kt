@@ -138,7 +138,7 @@ private fun AppRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit)
+            .clickable(onClick = onEdit, role = Role.Button)
             .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {

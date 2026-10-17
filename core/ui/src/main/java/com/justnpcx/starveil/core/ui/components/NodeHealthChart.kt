@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.justnpcx.starveil.core.model.AvailabilityBand
@@ -69,6 +71,11 @@ fun LatencySparkline(
 @Composable
 fun NodeHealthChart(
     health: NodeHealth,
+    /**
+     * Required: the curve is a canvas, and its shape — how low it got, how
+     * high, how often it dropped — is not in the availability number beside it.
+     */
+    contentDescription: String,
     modifier: Modifier = Modifier.fillMaxWidth(),
     height: Dp = 72.dp,
 ) {
@@ -80,7 +87,11 @@ fun NodeHealthChart(
     val band = health.band.color()
     val trace = emaSeries(health.samples)
 
-    Box(modifier = modifier.height(height)) {
+    Box(
+        modifier = modifier
+            .height(height)
+            .semantics { this.contentDescription = contentDescription },
+    ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             // The background bar. Tinted across the plot so the band reads at a
             // glance, and solid along the bottom edge so it is unambiguous

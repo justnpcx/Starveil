@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
@@ -40,6 +42,11 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 fun TrafficSparkline(
     downlinkSamples: List<Long>,
     uplinkSamples: List<Long>,
+    /**
+     * Required: a canvas is invisible to a screen reader, and the shape is the
+     * only thing here that the numbers above it do not say.
+     */
+    contentDescription: String,
     modifier: Modifier = Modifier,
     height: Dp = 56.dp,
     state: SparklineState = rememberSparklineState(),
@@ -59,6 +66,7 @@ fun TrafficSparkline(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .semantics { this.contentDescription = contentDescription }
             .pointerInput(Unit) {
                 detectTransformGestures { centroid, pan, gestureZoom, _ ->
                     state.onGesture(

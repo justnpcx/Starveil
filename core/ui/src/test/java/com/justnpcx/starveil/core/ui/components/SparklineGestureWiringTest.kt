@@ -52,6 +52,7 @@ class SparklineGestureWiringTest {
             TrafficSparkline(
                 downlinkSamples = samples,
                 uplinkSamples = samples,
+                contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
             )
@@ -69,6 +70,7 @@ class SparklineGestureWiringTest {
             TrafficSparkline(
                 downlinkSamples = samples,
                 uplinkSamples = samples,
+                contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
             )
@@ -108,6 +110,7 @@ class SparklineGestureWiringTest {
             TrafficSparkline(
                 downlinkSamples = List(count) { it.toLong() },
                 uplinkSamples = List(count) { it.toLong() },
+                contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
             )
@@ -197,6 +200,7 @@ class SparklineGestureWiringTest {
             TrafficSparkline(
                 downlinkSamples = samples,
                 uplinkSamples = samples,
+                contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
             )

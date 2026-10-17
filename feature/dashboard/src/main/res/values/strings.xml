@@ -27,5 +27,8 @@
     <!-- §7.2 node health history. -->
     <string name="dashboard_health_title">Node health · last 30 min</string>
     <string name="dashboard_health_availability">%1$d%% up</string>
+    <string name="dashboard_health_chart_desc">Latency curve over %1$d probes: lowest %2$d ms, highest %3$d ms.</string>
+    <string name="dashboard_health_chart_empty">Latency curve: no successful probes in this window.</string>
+    <string name="dashboard_traffic_chart_desc">Traffic history for the last %1$d seconds, peak downlink %2$s.</string>
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
 </resources>
