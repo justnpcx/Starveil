@@ -70,6 +70,35 @@ class StarveilMigrationTest {
     }
 
     @Test
+    fun migration_2_to_3_keeps_every_row_and_adds_the_region_column() {
+        val name = "migration-v3-${System.nanoTime()}.db"
+
+        helper.createDatabase(name, 2).use { db ->
+            db.execSQL(
+                "INSERT INTO groups (name, mode, subscriptionUrl) VALUES ('sub', 'URL_TEST', NULL)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(name, 3, true, *StarveilMigrations.ALL).use { db ->
+            assertEquals(1, db.rowCount("groups"))
+
+            // Every existing group is an ordinary group: NULL means "members are
+            // the profiles", which is exactly what it was before the column.
+            assertEquals(1, db.scalarInt("SELECT COUNT(*) FROM groups WHERE region IS NULL"))
+
+            // And a derived group can be written and read back.
+            db.execSQL(
+                "INSERT INTO groups (name, mode, subscriptionUrl, region) " +
+                    "VALUES ('香港', 'URL_TEST', NULL, 'HONG_KONG')",
+            )
+            assertEquals(
+                1,
+                db.scalarInt("SELECT COUNT(*) FROM groups WHERE region = 'HONG_KONG'"),
+            )
+        }
+    }
+
+    @Test
     fun the_composite_key_makes_a_re_probe_a_replace() {
         val name = "migration-pk-${System.nanoTime()}.db"
         helper.createDatabase(name, 1).use { }

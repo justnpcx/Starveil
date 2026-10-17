@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.LatencySample
+import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -755,6 +756,9 @@ private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : Grou
     override suspend fun getById(id: Long): ProxyGroup? = all.firstOrNull { it.id == id }
     override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? =
         all.firstOrNull { it.subscriptionUrl == url }
+
+    override suspend fun findByRegion(region: NodeRegion): ProxyGroup? =
+        all.firstOrNull { it.region == region }
 
     override suspend fun upsert(group: ProxyGroup): Long {
         upserted = group

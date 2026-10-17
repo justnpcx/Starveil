@@ -11,6 +11,15 @@ data class ProxyGroup(
     val profileIds: List<Long> = emptyList(),
     /** Subscription URL, if this group comes from one. Never logged. */
     val subscriptionUrl: String? = null,
+    /**
+     * Set when membership is derived from node names instead of stored.
+     *
+     * A derived group owns no profiles: its members are whichever nodes
+     * classify to this region, recomputed on read. That is what allows a node
+     * to belong to its subscription group and to "香港" at once, and it is why
+     * a subscription refresh cannot break it.
+     */
+    val region: NodeRegion? = null,
 )
 
 enum class GroupMode {

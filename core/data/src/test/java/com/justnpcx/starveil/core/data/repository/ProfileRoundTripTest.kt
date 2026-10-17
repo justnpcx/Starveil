@@ -48,6 +48,8 @@ private class FakeProfileDao : ProfileDao {
 
     override suspend fun getById(id: Long): ProfileEntity? = rows[id]
 
+    override suspend fun getAll(): List<ProfileEntity> = rows.values.toList()
+
     override suspend fun upsert(entity: ProfileEntity): Long {
         val id = if (entity.id == 0L) nextId++ else entity.id
         rows[id] = entity.copy(id = id)

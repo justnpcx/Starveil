@@ -15,6 +15,10 @@ interface ProfileDao {
     @Query("SELECT * FROM profiles ORDER BY id ASC")
     fun observeAll(): Flow<List<ProfileEntity>>
 
+    /** A one-shot read, for deriving region groups outside a flow. */
+    @Query("SELECT * FROM profiles ORDER BY id ASC")
+    suspend fun getAll(): List<ProfileEntity>
+
     @Query("SELECT * FROM profiles WHERE groupId = :groupId ORDER BY id ASC")
     fun observeByGroup(groupId: Long): Flow<List<ProfileEntity>>
 

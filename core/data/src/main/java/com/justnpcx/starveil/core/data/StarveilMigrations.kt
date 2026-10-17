@@ -41,5 +41,19 @@ object StarveilMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
+    /**
+     * v2 → v3: `groups.region`, marking a group whose members are derived from
+     * node names instead of stored on the profiles.
+     *
+     * Purely additive: one nullable column. Existing rows get NULL, which means
+     * "an ordinary group whose members are its profiles" — exactly what they
+     * already were.
+     */
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `groups` ADD COLUMN `region` TEXT")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 }
