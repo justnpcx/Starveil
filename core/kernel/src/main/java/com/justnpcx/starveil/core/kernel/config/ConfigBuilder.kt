@@ -3,6 +3,7 @@ package com.justnpcx.starveil.core.kernel.config
 import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.MainlandRuleSets
+import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.Rule
@@ -30,24 +31,26 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         profile: Profile,
         rules: List<Rule> = emptyList(),
         mainland: MainlandRuleSets? = null,
-        perAppDirect: Set<String> = emptySet(),
+        perApp: List<PerAppOutbound> = emptyList(),
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
         // top-level section — and the route still points at its tag, because
         // the outbound manager resolves an endpoint tag too.
         val isEndpoint = placementOf(profile) == ConfigPlacement.ENDPOINT
+        val perAppEmission = emitPerApp(perApp)
         return render(
             outbounds = buildList {
                 if (!isEndpoint) add(proxy)
+                addAll(perAppEmission.outbounds)
                 add(directOutbound())
                 add(blockOutbound())
             },
-            endpoints = if (isEndpoint) listOf(proxy) else emptyList(),
+            endpoints = (if (isEndpoint) listOf(proxy) else emptyList()) + perAppEmission.endpoints,
             finalTag = PROXY_TAG,
             rules = rules,
             mainland = mainland,
-            perAppDirect = perAppDirect,
+            perAppRules = perAppEmission.rules,
         )
     }
 
@@ -70,7 +73,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rules: List<Rule> = emptyList(),
         mode: GroupMode = GroupMode.URL_TEST,
         mainland: MainlandRuleSets? = null,
-        perAppDirect: Set<String> = emptySet(),
+        perApp: List<PerAppOutbound> = emptyList(),
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -84,11 +87,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         val endpoints = profiles.indices
             .filter { placements[it] == ConfigPlacement.ENDPOINT }
             .map { fragments[it] }
+        val perAppEmission = emitPerApp(perApp)
 
         val outbounds = buildList {
             profiles.indices
                 .filter { placements[it] == ConfigPlacement.OUTBOUND }
                 .forEach { add(fragments[it]) }
+            addAll(perAppEmission.outbounds)
             add(
                 when (mode) {
                     GroupMode.URL_TEST -> linkedMapOf<String, Any?>(
@@ -120,11 +125,11 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         }
         return render(
             outbounds = outbounds,
-            endpoints = endpoints,
+            endpoints = endpoints + perAppEmission.endpoints,
             finalTag = AUTO_TAG,
             rules = rules,
             mainland = mainland,
-            perAppDirect = perAppDirect,
+            perAppRules = perAppEmission.rules,
         )
     }
 
@@ -161,27 +166,17 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rules: List<Rule>,
         proxyTag: String,
         mainland: MainlandRuleSets?,
-        perAppDirect: Set<String>,
+        perAppRules: List<Map<String, Any?>>,
     ): List<Map<String, Any?>> {
         // Per-app first, and that is a deliberate precedence: someone who says
-        // "this app never goes through the tunnel" means it more specifically
-        // than any domain rule, and a bank app that reaches a rule-matched
-        // domain must still stay out of the tunnel. `package_name` is matched
-        // from the platform's connection-owner lookup (see
+        // "this app goes this way" means it more specifically than any domain
+        // rule, and a bank app that reaches a rule-matched domain must still
+        // take the route it was given. `package_name` is matched from the
+        // platform's connection-owner lookup (see
         // StarveilPlatformInterface.findConnectionOwner); with no owner data
         // the rule simply never matches, which is why that lookup has to be
         // real for this to do anything.
-        val perApp = if (perAppDirect.isEmpty()) {
-            emptyList()
-        } else {
-            listOf(
-                linkedMapOf<String, Any?>(
-                    "package_name" to perAppDirect.sorted(),
-                    "action" to "route",
-                    "outbound" to DIRECT_TAG,
-                ),
-            )
-        }
+        val perApp = perAppRules
         val userRules = rules.filter { it.enabled }.map { rule ->
             val matcher = linkedMapOf<String, Any?>(
                 rule.matcher.kind.wireName to listOf(rule.matcher.value),
@@ -213,6 +208,52 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             ),
         )
     }
+
+    /**
+     * Turns the per-app targets into outbounds and the rules that select them.
+     *
+     * One outbound per target, not per app: two apps pointing at the same node
+     * share a connection pool instead of dialing it twice. The tags are
+     * `per-app-<n>`, which cannot collide with `proxy`, `proxy-<n>`, `auto`,
+     * `direct` or `block`.
+     *
+     * A target that is a WireGuard endpoint goes in `endpoints`, same as the
+     * main target — sing-box 1.13 removed the outbound form and fails config
+     * construction on it.
+     */
+    private fun emitPerApp(perApp: List<PerAppOutbound>): PerAppEmission {
+        if (perApp.isEmpty()) return PerAppEmission()
+        val outbounds = mutableListOf<Map<String, Any?>>()
+        val endpoints = mutableListOf<Map<String, Any?>>()
+        val rules = mutableListOf<Map<String, Any?>>()
+        perApp.forEachIndexed { index, entry ->
+            val outboundTag = when (entry) {
+                is PerAppOutbound.Direct -> DIRECT_TAG
+                is PerAppOutbound.Node -> {
+                    val nodeTag = "$PER_APP_TAG_PREFIX$index"
+                    val nodeFragment = fragment(entry.profile, nodeTag)
+                    if (placementOf(entry.profile) == ConfigPlacement.ENDPOINT) {
+                        endpoints += nodeFragment
+                    } else {
+                        outbounds += nodeFragment
+                    }
+                    nodeTag
+                }
+            }
+            rules += linkedMapOf<String, Any?>(
+                "package_name" to entry.packages.sorted(),
+                "action" to "route",
+                "outbound" to outboundTag,
+            )
+        }
+        return PerAppEmission(outbounds, endpoints, rules)
+    }
+
+    private class PerAppEmission(
+        val outbounds: List<Map<String, Any?>> = emptyList(),
+        val endpoints: List<Map<String, Any?>> = emptyList(),
+        val rules: List<Map<String, Any?>> = emptyList(),
+    )
 
     /**
      * The rule sets the preset routes by, as **files**.
@@ -406,7 +447,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         finalTag: String,
         rules: List<Rule>,
         mainland: MainlandRuleSets? = null,
-        perAppDirect: Set<String> = emptySet(),
+        perAppRules: List<Map<String, Any?>> = emptyList(),
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
@@ -421,7 +462,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             config["endpoints"] = endpoints
         }
         config["route"] = linkedMapOf<String, Any?>(
-            "rules" to routeRules(rules, finalTag, mainland, perAppDirect),
+            "rules" to routeRules(rules, finalTag, mainland, perAppRules),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
             // The dialer installs the bind/protect control, which reaches
@@ -473,6 +514,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val DNS_PROXY_TAG = "dns-proxy"
         const val GEOSITE_CN_TAG = "geosite-cn"
         const val GEOIP_CN_TAG = "geoip-cn"
+
+        /** Tag prefix for an outbound that exists only because an app names it. */
+        const val PER_APP_TAG_PREFIX = "per-app-"
 
         /** AliDNS over HTTPS: reachable from the mainland without a proxy. */
         const val DNS_CN_SERVER = "223.5.5.5"

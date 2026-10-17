@@ -5,6 +5,9 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.AppRoute
+import com.justnpcx.starveil.core.model.Profile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -24,10 +27,14 @@ data class InstalledApp(
 
 data class PerAppUiState(
     val apps: List<InstalledApp> = emptyList(),
-    /** Packages that bypass the tunnel. */
-    val selected: Set<String> = emptySet(),
+    /** The nodes an app can be sent through; the dialog's choices. */
+    val nodes: List<Profile> = emptyList(),
+    /** Apps with an exception. Absence means "follow the tunnel's default". */
+    val routes: Map<String, AppRoute> = emptyMap(),
     val loading: Boolean = true,
     val query: String = "",
+    /** The package whose target is being chosen; null when no dialog is open. */
+    val editing: String? = null,
 ) {
     /**
      * The list after the search box.
@@ -50,15 +57,17 @@ data class PerAppUiState(
 /**
  * The per-app exception list.
  *
- * The tunnel is the default, so this screen only ever says "these apps do not
- * use it". The list is applied when the config is built, at connect time —
- * changing it while connected does nothing until the next connect, which is
- * why the screen says so rather than leaving people to wonder.
+ * Absence from the map means "follow the tunnel's default", so the screen only
+ * ever says where an app deviates from it. Applied when the config is built, at
+ * connect time — changing it while connected does nothing until the next
+ * connect, which is why the screen says so rather than leaving people to
+ * wonder.
  */
 @HiltViewModel
 class PerAppViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val preferences: PreferencesRepository,
+    private val profiles: ProfileRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PerAppUiState())
@@ -70,21 +79,31 @@ class PerAppViewModel @Inject constructor(
             _uiState.update { it.copy(apps = apps, loading = false) }
         }
         viewModelScope.launch {
-            preferences.perAppDirectPackages.collect { selected ->
-                _uiState.update { it.copy(selected = selected) }
+            preferences.perAppRoutes.collect { routes ->
+                _uiState.update { it.copy(routes = routes) }
+            }
+        }
+        viewModelScope.launch {
+            profiles.observeAll().collect { all ->
+                _uiState.update { it.copy(nodes = all.sortedBy { profile -> profile.name }) }
             }
         }
     }
 
     fun setQuery(query: String) = _uiState.update { it.copy(query = query) }
 
-    fun toggle(packageName: String) {
-        val next = _uiState.value.selected.toMutableSet()
-        if (!next.add(packageName)) next.remove(packageName)
+    fun edit(packageName: String) = _uiState.update { it.copy(editing = packageName) }
+
+    fun dismiss() = _uiState.update { it.copy(editing = null) }
+
+    /** [route] null means "follow the tunnel's default", i.e. remove the entry. */
+    fun setRoute(packageName: String, route: AppRoute?) {
+        val next = _uiState.value.routes.toMutableMap()
+        if (route == null) next.remove(packageName) else next[packageName] = route
         // Optimistic: the row must react on tap, and the repository is the
         // same value a moment later.
-        _uiState.update { it.copy(selected = next) }
-        viewModelScope.launch { preferences.setPerAppDirectPackages(next) }
+        _uiState.update { it.copy(routes = next, editing = null) }
+        viewModelScope.launch { preferences.setPerAppRoutes(next) }
     }
 
     /**

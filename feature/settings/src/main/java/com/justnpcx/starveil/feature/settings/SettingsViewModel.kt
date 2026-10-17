@@ -69,7 +69,7 @@ class SettingsViewModel @Inject constructor(
             kernelVersion,
             // Counted rather than listed: the row says how many, the screen
             // says which.
-            preferences.perAppDirectPackages.map { it.size },
+            preferences.perAppRoutes.map { it.size },
         ) { state, version, perAppCount ->
             state.copy(kernelVersion = version, perAppDirectCount = perAppCount)
         }.stateIn(

@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.MainlandRuleSets
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.ObfsOptions
+import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
@@ -684,7 +685,9 @@ class ConfigBuilderTest {
     fun `per-app exceptions are the first rule and name the packages`() {
         val json = builder.build(
             vlessProfile(),
-            perAppDirect = setOf("com.example.broker", "com.example.bank"),
+            perApp = listOf(
+                PerAppOutbound.Direct(setOf("com.example.broker", "com.example.bank")),
+            ),
         )
 
         // Sorted, so the emitted config is deterministic regardless of the set's
@@ -698,14 +701,34 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `a per-app node gets its own outbound and the rule points at it`() {
+        // The selected target is `proxy`; an app sent elsewhere needs that node
+        // in the config too, under a tag of its own.
+        val aiNode = vlessProfile(uuid = "22222222-3333-4444-5555-666666666666").copy(name = "ai")
+        val json = builder.build(
+            vlessProfile(),
+            perApp = listOf(PerAppOutbound.Node(setOf("com.example.ai"), aiNode)),
+        )
+
+        assertTrue(json.contains("\"tag\":\"per-app-0\""))
+        assertTrue(
+            json.contains(
+                "\"package_name\":[\"com.example.ai\"],\"action\":\"route\",\"outbound\":\"per-app-0\"",
+            ),
+        )
+        // The default target is untouched.
+        assertTrue(json.contains("\"final\":\"proxy\""))
+    }
+
+    @Test
     fun `a per-app exception outranks the preset`() {
-        // Someone who says "this app never enters the tunnel" means it more
-        // specifically than any domain rule, so a bank app reaching a
-        // preset-matched domain must still stay out.
+        // Someone who says "this app goes this way" means it more specifically
+        // than any domain rule, so a bank app reaching a preset-matched domain
+        // must still take the route it was given.
         val json = builder.build(
             vlessProfile(),
             mainland = mainland,
-            perAppDirect = setOf("com.example.bank"),
+            perApp = listOf(PerAppOutbound.Direct(setOf("com.example.bank"))),
         )
         val route = json.substringAfter("\"route\":{")
         val perApp = route.indexOf("\"package_name\"")
