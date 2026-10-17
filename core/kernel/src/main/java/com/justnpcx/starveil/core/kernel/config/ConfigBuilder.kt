@@ -213,46 +213,56 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      * address-based rule sends domestic traffic abroad. Resolving domestic names
      * through a domestic resolver keeps the two rules agreeing with each other.
      *
-     * `optimistic` is on for every server. It is sing-box's own serve-stale
-     * cache: a cached answer is returned immediately and refreshed behind the
-     * request, which is what makes the second lookup of a name fast rather than
-     * a second round trip.
+     * `optimistic` is sing-box's own serve-stale cache: a cached answer is
+     * returned immediately and refreshed behind the request, which is what makes
+     * the second lookup of a name fast rather than a second round trip. It goes
+     * on the `dns` block, where sing-box actually defines it; see the note on
+     * the preset branch below.
      */
-    private fun dnsBlock(mainland: MainlandRuleSets?): Map<String, Any?> {
-        val servers = mutableListOf<Map<String, Any?>>(
-            linkedMapOf<String, Any?>(
-                "type" to "local",
-                "tag" to LOCAL_DNS_TAG,
-                "optimistic" to true,
-            ),
-        )
+    private fun dnsBlock(mainland: MainlandRuleSets?, proxyTag: String): Map<String, Any?> {
         if (mainland == null) {
             // New DNS server format. The legacy {"address": "local"} shape was
             // deprecated in sing-box 1.12 and REMOVED in 1.14, where it fails
             // config decode with an explicit migration message.
-            return linkedMapOf("servers" to servers)
+            return linkedMapOf(
+                "servers" to listOf(
+                    linkedMapOf<String, Any?>("type" to "local", "tag" to LOCAL_DNS_TAG),
+                ),
+            )
         }
-        servers += linkedMapOf<String, Any?>(
-            "type" to "https",
-            "tag" to DNS_CN_TAG,
-            "server" to DNS_CN_SERVER,
-            // Direct: this is the resolver that knows domestic names, and
-            // sending it through the tunnel would both slow it down and make it
-            // answer with the node's view of the world instead.
-            "detour" to DIRECT_TAG,
-            "domain_resolver" to LOCAL_DNS_TAG,
-            "optimistic" to true,
-        )
-        servers += linkedMapOf<String, Any?>(
-            "type" to "https",
-            "tag" to DNS_PROXY_TAG,
-            "server" to DNS_PROXY_SERVER,
-            "detour" to AUTO_TAG,
-            "domain_resolver" to LOCAL_DNS_TAG,
-            "optimistic" to true,
-        )
         return linkedMapOf(
-            "servers" to servers,
+            "servers" to listOf(
+                linkedMapOf<String, Any?>(
+                    "type" to "local",
+                    "tag" to LOCAL_DNS_TAG,
+                ),
+                linkedMapOf<String, Any?>(
+                    "type" to "https",
+                    "tag" to DNS_CN_TAG,
+                    "server" to DNS_CN_SERVER,
+                    // Deliberately no `detour`. It would have to name an
+                    // outbound, and the only one that means "not through the
+                    // tunnel" is the built-in `direct`, which carries no
+                    // options — sing-box refuses that pairing outright with
+                    // "detour to an empty direct outbound makes no sense" and
+                    // the tunnel never starts. Left unset, the dialer falls
+                    // back to the default outbound, which is that same direct
+                    // one, so the resolver still leaves the device directly.
+                    "domain_resolver" to LOCAL_DNS_TAG,
+                ),
+                linkedMapOf<String, Any?>(
+                    "type" to "https",
+                    "tag" to DNS_PROXY_TAG,
+                    "server" to DNS_PROXY_SERVER,
+                    // The tag this build actually defines: `auto` for a group,
+                    // `proxy` for a single node. Naming one the config does not
+                    // define fails the start with "outbound detour not found",
+                    // which is what a hardcoded `auto` did for every
+                    // single-node connection.
+                    "detour" to proxyTag,
+                    "domain_resolver" to LOCAL_DNS_TAG,
+                ),
+            ),
             "rules" to listOf(
                 // First, and on its own: a private address is not a question
                 // about the wider internet and must never leave the device to
@@ -269,6 +279,17 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 ),
             ),
             "final" to DNS_PROXY_TAG,
+            // `optimistic` is sing-box's serve-stale cache: a cached answer is
+            // returned at once and refreshed behind the request. It is a field
+            // of the `dns` block, NOT of a server — set on a server it is not a
+            // field sing-box knows and the whole config is rejected with
+            // `dns.servers[0].optimistic: json: unknown field "optimistic"`.
+            //
+            // Set only with the preset, because the preset-off path is meant to
+            // stay byte-for-byte what it was before this feature existed, and a
+            // cache is a behaviour change. The boolean form is enough: it
+            // defaults the staleness window to three days.
+            "optimistic" to true,
         )
     }
 
@@ -322,7 +343,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
-            "dns" to dnsBlock(mainland),
+            "dns" to dnsBlock(mainland, finalTag),
             "inbounds" to listOf(tunInbound()),
             "outbounds" to outbounds,
         )
@@ -350,6 +371,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // that reference them.
             val route = config["route"] as LinkedHashMap<String, Any?>
             route["rule_set"] = mainlandRuleSets(mainland)
+            // Needed the moment there is more than one DNS server. With one,
+            // the kernel resolves an outbound's own address with it and says
+            // nothing; with several it will not choose, and refuses the start
+            // with "missing `route.default_domain_resolver`". The preset takes
+            // the count from one to three, so this arrives with it.
+            //
+            // `local` is the only correct pick: it is the platform resolver,
+            // and the address being resolved here is the node's — the tunnel
+            // that `dns-proxy` dials through is not up yet at that point.
+            route["default_domain_resolver"] = LOCAL_DNS_TAG
         }
         // Present, though empty. sing-box only builds its traffic manager —
         // and therefore only reports uplink/downlink to the CommandClient —
