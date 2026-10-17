@@ -8,6 +8,10 @@
         consent dialog on device.
     -->
     <string name="app_name">Starveil</string>
+
+    <!-- Quick-settings tile. The label is the app name; the subtitle is the state. -->
+    <string name="tile_connected">Connected</string>
+    <string name="tile_disconnected">Disconnected</string>
     <string name="latency_measured">Latency: %1$d ms</string>
     <string name="latency_no_node">Pick a node first.</string>
     <string name="latency_timeout">No reply from the node within the probe window.</string>

@@ -143,6 +143,21 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `a connect from outside the dashboard is reflected in the ui`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE), kernel)
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+
+        // The quick-settings tile: the kernel comes up and this view model
+        // never hears about it through its own code path.
+        kernel.start("{}")
+        yield()
+
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals("one", viewModel.uiState.value.selectedNodeName)
+    }
+
+    @Test
     fun `a stop from outside the dashboard is reflected in the ui`() = runBlocking {
         val kernel = RecordingKernel()
         val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.OFF), kernel)
@@ -487,17 +502,28 @@ class DashboardViewModelTest {
         kernel: RecordingKernel,
         groups: FakeGroups = FakeGroups(emptyList()),
         nodeHealth: NodeHealthRepository = FakeNodeHealth(),
-    ) =
-        DashboardViewModel(
+    ): DashboardViewModel {
+        val profiles = FakeProfiles(listOf(profile(ONE, "one"), profile(TWO, "two")))
+        // The view model delegates the connect path to this; giving both the
+        // same fakes is what makes the tests exercise the real decision.
+        val connection = ConnectionController(
             kernel = kernel,
-            profiles = FakeProfiles(listOf(profile(ONE, "one"), profile(TWO, "two"))),
-            preferences = preferences,
+            profiles = profiles,
             groups = groups,
             rules = FakeRules(),
+            preferences = preferences,
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
-            nodeHealth = nodeHealth,
             mainlandRuleSets = mainlandRuleSets,
         )
+        return DashboardViewModel(
+            kernel = kernel,
+            profiles = profiles,
+            preferences = preferences,
+            groups = groups,
+            connection = connection,
+            nodeHealth = nodeHealth,
+        )
+    }
 
     /**
      * No rule set files. The preset is off in these tests, so nothing asks for
