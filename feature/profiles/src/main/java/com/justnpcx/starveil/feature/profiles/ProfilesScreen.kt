@@ -183,6 +183,11 @@ fun ProfilesScreen(
                     selected = false,
                     onClick = { creatingGroup = true },
                 )
+                GroupChip(
+                    label = stringResource(R.string.profiles_group_by_region),
+                    selected = false,
+                    onClick = viewModel::groupByRegion,
+                )
             }
             when {
                 !state.hasProfiles -> EmptyState(
@@ -455,11 +460,14 @@ fun ProfilesScreen(
             text = {
                 Text(
                     // Say the node count: deleting a subscription group takes
-                    // its nodes with it, and that is not obvious.
-                    if (group.profileIds.isEmpty()) {
-                        stringResource(R.string.profiles_group_delete_body_empty, group.name)
-                    } else {
-                        stringResource(
+                    // its nodes with it, and that is not obvious. A region
+                    // group takes nothing with it, which is equally not obvious.
+                    when {
+                        group.region != null ->
+                            stringResource(R.string.profiles_group_delete_body_derived, group.name)
+                        group.profileIds.isEmpty() ->
+                            stringResource(R.string.profiles_group_delete_body_empty, group.name)
+                        else -> stringResource(
                             R.string.profiles_group_delete_body,
                             group.name,
                             group.profileIds.size,
@@ -760,6 +768,8 @@ private fun ProfilesMessage.text(): String = when (this) {
     is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, reason)
     is ProfilesMessage.Refreshed -> stringResource(R.string.profiles_msg_refreshed, count)
     is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason)
+    is ProfilesMessage.GroupedByRegion -> stringResource(R.string.profiles_msg_grouped, regions)
+    ProfilesMessage.NoRegionsFound -> stringResource(R.string.profiles_msg_no_regions)
     is ProfilesMessage.External -> text
 }
 

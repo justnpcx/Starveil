@@ -32,7 +32,7 @@ import com.justnpcx.starveil.core.data.entity.RuleEntity
         RuleEntity::class,
         LatencySampleEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class StarveilDatabase : RoomDatabase() {

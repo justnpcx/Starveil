@@ -27,6 +27,16 @@ interface GroupDao {
     @Query("SELECT * FROM `groups` WHERE subscriptionUrl = :url LIMIT 1")
     suspend fun findBySubscriptionUrl(url: String): GroupEntity?
 
+    /**
+     * The group that already represents [region], if any.
+     *
+     * Keyed on the region rather than the name so re-running the grouping
+     * updates the existing group even after someone renamed it — the name is
+     * a label, the region is the identity.
+     */
+    @Query("SELECT * FROM `groups` WHERE region = :region LIMIT 1")
+    suspend fun findByRegion(region: String): GroupEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: GroupEntity): Long
 

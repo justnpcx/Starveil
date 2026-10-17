@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.nodeHealthOf
@@ -72,6 +73,12 @@ sealed interface ProfilesMessage {
     data class ImportFailed(val reason: String) : ProfilesMessage
     data class Refreshed(val count: Int) : ProfilesMessage
     data class RefreshFailed(val reason: String) : ProfilesMessage
+
+    /** How many region groups the last grouping pass created or refreshed. */
+    data class GroupedByRegion(val regions: Int) : ProfilesMessage
+
+    /** Nothing in the node names could be recognised as a region. */
+    data object NoRegionsFound : ProfilesMessage
 
     /**
      * A message produced outside this feature — the latency tester, which is
@@ -241,11 +248,18 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             // Read before deleting: the ids are gone once the profiles are.
             val removedIds = group.profileIds.toSet()
-            profiles.deleteByGroup(group.id)
+            // A region group owns no profiles: its members are derived from
+            // node names and belong to their subscription. Deleting them would
+            // take the user's nodes with it, which is the opposite of what
+            // "delete this group" means here.
+            if (group.region == null) {
+                profiles.deleteByGroup(group.id)
+                // A subscription group's refresh work outlives the row
+                // otherwise, and would keep re-creating nodes for a group that
+                // is gone.
+                refreshScheduler.cancel(group.id)
+            }
             groups.deleteById(group.id)
-            // A subscription group's refresh work outlives the row otherwise,
-            // and would keep re-creating nodes for a group that is gone.
-            refreshScheduler.cancel(group.id)
             // Same rule as deleting one node: the target must not outlive the
             // thing it points at.
             if (preferences.selectedGroupId.first() == group.id) {
@@ -254,10 +268,46 @@ class ProfilesViewModel @Inject constructor(
             // Stop filtering by something that no longer exists.
             if (groupFilter.value == group.id) groupFilter.value = null
             // Same rule as deleting one node: the selection must not outlive
-            // the node it points at.
-            if (preferences.selectedProfileId.first() in removedIds) {
+            // the node it points at. Only ordinary groups removed nodes.
+            if (group.region == null && preferences.selectedProfileId.first() in removedIds) {
                 preferences.setSelectedProfileId(0L)
             }
+        }
+    }
+
+    /**
+     * One URL_TEST group per region found in the node names.
+     *
+     * Only the group rows are created — the nodes are never moved, because
+     * membership is derived from the name at read time. That is what makes this
+     * safe to run again: a subscription refresh replaces its group's profiles,
+     * and the region groups simply recompute from whatever is there.
+     *
+     * Idempotent by region rather than by name: a group someone renamed is
+     * still the 香港 group, because the region is its identity and the name is
+     * only a label.
+     */
+    fun groupByRegion() {
+        viewModelScope.launch {
+            val regions = profiles.observeAll().first()
+                .mapNotNull { NodeRegions.classify(it.name)?.region }
+                .distinct()
+            if (regions.isEmpty()) {
+                message.value = ProfilesMessage.NoRegionsFound
+                return@launch
+            }
+            regions.forEach { region ->
+                val existing = groups.findByRegion(region)
+                groups.upsert(
+                    existing?.copy(mode = GroupMode.URL_TEST)
+                        ?: ProxyGroup(
+                            name = region.displayName,
+                            mode = GroupMode.URL_TEST,
+                            region = region,
+                        ),
+                )
+            }
+            message.value = ProfilesMessage.GroupedByRegion(regions.size)
         }
     }
 

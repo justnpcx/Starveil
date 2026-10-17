@@ -27,6 +27,8 @@
     <string name="profiles_msg_imported">Imported %1$d nodes</string>
     <string name="profiles_msg_import_failed">Import failed: %1$s</string>
     <string name="profiles_msg_refreshed">Refreshed: %1$d nodes</string>
+    <string name="profiles_msg_grouped">Grouped by region: %1$d groups</string>
+    <string name="profiles_msg_no_regions">No node name matched a region.</string>
     <string name="profiles_msg_refresh_failed">Refresh failed: %1$s</string>
     <string name="profiles_row_move">Move to group</string>
     <string name="profiles_row_menu_title">%1$s</string>
@@ -65,6 +67,8 @@
 
     <!-- Creating a group, and moving a node between groups. -->
     <string name="profiles_group_new">New group</string>
+    <string name="profiles_group_by_region">By region</string>
+    <string name="profiles_group_delete_body_derived">Delete “%1$s”? Its nodes stay where they are — only the group goes.</string>
     <string name="profiles_group_new_title">New group</string>
     <string name="profiles_group_move_title">Move %1$s</string>
     <string name="profiles_group_none">No group</string>

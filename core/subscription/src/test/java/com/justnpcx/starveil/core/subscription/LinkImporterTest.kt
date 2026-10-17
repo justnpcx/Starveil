@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.subscription
 
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -46,6 +47,9 @@ private class ImpGroups : GroupRepository {
     override suspend fun getById(id: Long): ProxyGroup? = rows[id]
     override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? =
         rows.values.firstOrNull { it.subscriptionUrl == url }
+
+    override suspend fun findByRegion(region: NodeRegion): ProxyGroup? =
+        rows.values.firstOrNull { it.region == region }
     override suspend fun upsert(group: ProxyGroup): Long {
         val id = if (group.id == 0L) (rows.keys.maxOrNull() ?: 0L) + 1 else group.id
         rows[id] = group.copy(id = id)

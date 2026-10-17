@@ -20,6 +20,7 @@ import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -586,6 +587,7 @@ private class FakeGroups(private val all: List<ProxyGroup>) : GroupRepository {
     override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(all)
     override suspend fun getById(id: Long): ProxyGroup? = all.firstOrNull { it.id == id }
     override suspend fun findBySubscriptionUrl(url: String): ProxyGroup? = notUsed()
+    override suspend fun findByRegion(region: NodeRegion): ProxyGroup? = notUsed()
     override suspend fun upsert(group: ProxyGroup): Long = notUsed()
     override suspend fun deleteById(id: Long) = notUsed()
 }
