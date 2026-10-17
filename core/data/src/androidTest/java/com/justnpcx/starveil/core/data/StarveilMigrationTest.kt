@@ -122,6 +122,26 @@ class StarveilMigrationTest {
     }
 
     @Test
+    fun migration_4_to_5_gives_existing_samples_full_weight() {
+        val name = "migration-v5-${System.nanoTime()}.db"
+
+        helper.createDatabase(name, 4).use { db ->
+            db.execSQL(
+                "INSERT INTO latency_samples (profileId, atMs, latencyMs) VALUES (1, 1000, 42)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(name, 5, true, *StarveilMigrations.ALL).use { db ->
+            assertEquals(1, db.rowCount("latency_samples"))
+
+            // Every sample written before this column existed came from the
+            // background sampler, which is full weight. The default says that,
+            // rather than quietly re-weighting history nobody re-measured.
+            assertEquals(10, db.scalarInt("SELECT weightTenths FROM latency_samples"))
+        }
+    }
+
+    @Test
     fun the_composite_key_makes_a_re_probe_a_replace() {
         val name = "migration-pk-${System.nanoTime()}.db"
         helper.createDatabase(name, 1).use { }

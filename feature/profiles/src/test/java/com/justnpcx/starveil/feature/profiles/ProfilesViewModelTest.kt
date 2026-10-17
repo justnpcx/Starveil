@@ -736,6 +736,8 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
@@ -818,7 +820,12 @@ private class FakeRefreshScheduler : SubscriptionRefreshScheduler {
 /** No history: the list tests are about the list, not the curve. */
 private class FakeNodeHealth : NodeHealthRepository {
     override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = flowOf(emptyMap())
-    override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) = notUsed()
+    override suspend fun record(
+        profileId: Long,
+        latencyMs: Long,
+        atMs: Long,
+        weightTenths: Int,
+    ) = notUsed()
     override suspend fun forget(profileId: Long) = notUsed()
 }
 

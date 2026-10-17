@@ -15,6 +15,16 @@ import kotlin.math.roundToLong
 data class LatencySample(
     val atMs: Long,
     val latencyMs: Long,
+    /**
+     * How much this sample counts, in tenths: 10 is a full sample.
+     *
+     * The background probe writes 10. A manual "test" writes 5, because it is
+     * one instantaneous reading taken while the user watched — it says the node
+     * answered just now, not that it answers reliably. Weighting is carried in
+     * storage rather than applied at read time so the arithmetic below has one
+     * input, and a sample's meaning cannot change depending on who asks.
+     */
+    val weightTenths: Int = WEIGHT_FULL,
 ) {
     /** Whether the probe came back inside the window. */
     val reachable: Boolean get() = latencyMs >= 0
@@ -28,6 +38,12 @@ data class LatencySample(
  * wording, and it is decided there before this is written.
  */
 const val LATENCY_UNREACHABLE = -1L
+
+/** A full-weight sample, in tenths. See [LatencySample.weightTenths]. */
+const val WEIGHT_FULL = 10
+
+/** A manual reading's weight, in tenths: half a background sample. */
+const val WEIGHT_MANUAL = 5
 
 /**
  * How much of the window the node answered in.
@@ -113,8 +129,10 @@ const val HEALTH_WINDOW_MS = 30 * 60 * 1000L
  */
 fun availabilityPct(samples: List<LatencySample>): Float {
     if (samples.isEmpty()) return 0f
-    val reachable = samples.count { it.reachable }
-    return reachable * 100f / samples.size
+    val total = samples.sumOf { it.weightTenths }
+    if (total <= 0) return 0f
+    val reachable = samples.filter { it.reachable }.sumOf { it.weightTenths }
+    return reachable * 100f / total
 }
 
 /** The band for an availability percentage (§7.2). */
@@ -141,9 +159,13 @@ fun emaSeries(samples: List<LatencySample>, alpha: Double = EMA_ALPHA): List<Lon
     return samples.map { sample ->
         if (sample.reachable) {
             val value = sample.latencyMs.toDouble()
+            // A half-weight sample moves the average half as far: the step is
+            // scaled rather than the value, because scaling the value would
+            // report a latency nobody measured.
+            val step = (alpha * sample.weightTenths / WEIGHT_FULL).coerceIn(0.0, 1.0)
             // Seed on the first success rather than on an assumed baseline:
             // there is no honest prior for a node we have never measured.
-            ema = ema?.let { alpha * value + (1 - alpha) * it } ?: value
+            ema = ema?.let { step * value + (1 - step) * it } ?: value
         }
         ema?.roundToLong()
     }

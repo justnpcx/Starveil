@@ -714,6 +714,8 @@ private class FakePreferences(
     // The rest of the preferences are not what this test is about.
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
+    override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
@@ -832,7 +834,12 @@ private class FakeNodeHealth(
     private val byNode: Map<Long, List<LatencySample>> = emptyMap(),
 ) : NodeHealthRepository {
     override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = flowOf(byNode)
-    override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) = notUsed()
+    override suspend fun record(
+        profileId: Long,
+        latencyMs: Long,
+        atMs: Long,
+        weightTenths: Int,
+    ) = notUsed()
     override suspend fun forget(profileId: Long) = notUsed()
 }
 

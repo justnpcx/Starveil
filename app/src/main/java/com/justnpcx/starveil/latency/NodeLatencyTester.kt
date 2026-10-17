@@ -3,8 +3,11 @@ package com.justnpcx.starveil.latency
 import android.content.Context
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.LATENCY_UNREACHABLE
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.WEIGHT_MANUAL
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,9 +35,11 @@ import kotlinx.coroutines.flow.first
  * button.
  *
  * This writes `Profile.latencyMs` (the last measured value the card shows) and
- * deliberately does not append to the health history: the history is the
- * background record the sampler keeps, and a one-off check is not a sample of
- * that. They share the probe, not the store.
+ * also appends to the health history at [WEIGHT_MANUAL] — half a background
+ * sample. It counts because it is a real measurement and the user asked for it;
+ * it counts half because it is a single instant taken while someone watched,
+ * not a record of how the node behaves over time. Letting a burst of taps
+ * outvote the sweep is exactly the failure the weight prevents.
  */
 @Singleton
 class NodeLatencyTester @Inject constructor(
@@ -42,6 +47,7 @@ class NodeLatencyTester @Inject constructor(
     private val probe: NodeProbe,
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
+    private val health: NodeHealthRepository,
 ) {
 
     suspend fun testSelectedNode(): String {
@@ -67,14 +73,23 @@ class NodeLatencyTester @Inject constructor(
             return context.getString(R.string.latency_not_applicable)
         }
 
+        val nowMs = System.currentTimeMillis()
         return when (val result = probe.probe(profile.server, profile.port)) {
             is ProbeResult.Reached -> {
                 profiles.upsert(profile.copy(latencyMs = result.latencyMs))
+                health.record(id, result.latencyMs, nowMs, WEIGHT_MANUAL)
                 context.getString(R.string.latency_measured, result.latencyMs)
             }
 
-            ProbeResult.TimedOut -> context.getString(R.string.latency_timeout)
-            ProbeResult.Failed -> context.getString(R.string.latency_unreachable)
+            ProbeResult.TimedOut -> {
+                health.record(id, LATENCY_UNREACHABLE, nowMs, WEIGHT_MANUAL)
+                context.getString(R.string.latency_timeout)
+            }
+
+            ProbeResult.Failed -> {
+                health.record(id, LATENCY_UNREACHABLE, nowMs, WEIGHT_MANUAL)
+                context.getString(R.string.latency_unreachable)
+            }
         }
     }
 }

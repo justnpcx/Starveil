@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.entity.LatencySampleEntity
 import com.justnpcx.starveil.core.model.HEALTH_WINDOW_MS
 import com.justnpcx.starveil.core.model.LatencySample
+import com.justnpcx.starveil.core.model.WEIGHT_FULL
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -38,7 +39,12 @@ interface NodeHealthRepository {
      * [latencyMs] below zero is a probe that did not come back; it is stored so
      * the loss is visible rather than skipped.
      */
-    suspend fun record(profileId: Long, latencyMs: Long, atMs: Long)
+    suspend fun record(
+        profileId: Long,
+        latencyMs: Long,
+        atMs: Long,
+        weightTenths: Int = WEIGHT_FULL,
+    )
 
     /** Drop a node's history — for when the node itself is gone. */
     suspend fun forget(profileId: Long)
@@ -51,9 +57,19 @@ class RoomNodeHealthRepository @Inject constructor(
     override fun observeAll(): Flow<Map<Long, List<LatencySample>>> =
         dao.observeAll().map { rows -> windowSamples(rows, nowMs = System.currentTimeMillis()) }
 
-    override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) {
+    override suspend fun record(
+        profileId: Long,
+        latencyMs: Long,
+        atMs: Long,
+        weightTenths: Int,
+    ) {
         dao.insert(
-            LatencySampleEntity(profileId = profileId, atMs = atMs, latencyMs = latencyMs),
+            LatencySampleEntity(
+                profileId = profileId,
+                atMs = atMs,
+                latencyMs = latencyMs,
+                weightTenths = weightTenths,
+            ),
         )
         // Prune on write rather than on a timer: the store then cannot grow
         // while nothing is sampling it, and there is no scheduler to get wrong.
@@ -73,7 +89,7 @@ class RoomNodeHealthRepository @Inject constructor(
 }
 
 internal fun LatencySampleEntity.toDomain(): LatencySample =
-    LatencySample(atMs = atMs, latencyMs = latencyMs)
+    LatencySample(atMs = atMs, latencyMs = latencyMs, weightTenths = weightTenths)
 
 /**
  * The window's samples, grouped by node, oldest first within each node.

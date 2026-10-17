@@ -30,4 +30,13 @@ data class LatencySampleEntity(
     val profileId: Long,
     val atMs: Long,
     val latencyMs: Long,
+    /**
+     * How much this sample counts, in tenths (10 = full). See
+     * [com.justnpcx.starveil.core.model.LatencySample.weightTenths].
+     *
+     * Stored rather than inferred from who wrote it: the writer is not
+     * recoverable at read time, and a column that says what a row means is
+     * cheaper to trust than a rule about where rows come from.
+     */
+    val weightTenths: Int = 10,
 )

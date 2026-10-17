@@ -55,6 +55,29 @@ class NodeHealthTest {
     }
 
     @Test
+    fun `a half-weight sample moves the ema half as far`() {
+        // Seed at 100, then a manual 300: 0.1 * 300 + 0.9 * 100 = 120, where a
+        // full-weight 300 would have given 140.
+        val samples = listOf(
+            LatencySample(atMs = 0, latencyMs = 100),
+            LatencySample(atMs = 1_000, latencyMs = 300, weightTenths = WEIGHT_MANUAL),
+        )
+
+        assertEquals(120L, emaMs(samples))
+    }
+
+    @Test
+    fun `availability counts a half-weight sample as half`() {
+        val samples = listOf(
+            LatencySample(atMs = 0, latencyMs = 10),
+            LatencySample(atMs = 1_000, latencyMs = -1, weightTenths = WEIGHT_MANUAL),
+        )
+
+        // 10 reachable out of 15 weight: a full failure would have given 50%.
+        assertEquals(66.67f, availabilityPct(samples), 0.01f)
+    }
+
+    @Test
     fun `availability is the share of the window that answered`() {
         assertEquals(100f, availabilityPct(samples(1, 2, 3)))
         assertEquals(50f, availabilityPct(samples(1, -1, -1, 2)))

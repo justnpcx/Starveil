@@ -157,6 +157,24 @@ class NodePickerTest {
     }
 
     @Test
+    fun `a manual failure is half a failure for the time-out`() {
+        fun failures(count: Int, weight: Int) = nodeHealthOf(
+            (0 until count).map {
+                LatencySample(
+                    atMs = NOW - (count - it) * 1_000L,
+                    latencyMs = LATENCY_UNREACHABLE,
+                    weightTenths = weight,
+                )
+            },
+        )
+
+        // Three taps are not a pattern; six are worth as much as three sweeps.
+        assertEquals(0L, cooldownRemainingMs(failures(3, WEIGHT_MANUAL), NOW))
+        assertTrue(cooldownRemainingMs(failures(6, WEIGHT_MANUAL), NOW) > 0)
+        assertTrue(cooldownRemainingMs(failures(3, WEIGHT_FULL), NOW) > 0)
+    }
+
+    @Test
     fun `the score puts availability above latency`() {
         val reliable = healthScore(healthOf(reachable = 10, latency = 400))
         val fast = healthScore(healthOf(reachable = 9, failed = 1, latency = 50))

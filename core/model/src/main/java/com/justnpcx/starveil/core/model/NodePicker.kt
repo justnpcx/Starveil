@@ -65,7 +65,10 @@ fun trailingFailures(health: NodeHealth?): Int =
 fun cooldownRemainingMs(health: NodeHealth?, nowMs: Long): Long {
     if (health == null) return 0
     val failures = health.samples.takeLastWhile { !it.reachable }
-    if (failures.size < FAILURE_THRESHOLD) return 0
+    // Weighed, not counted: a manual failure is half a failure, so it takes six
+    // of them to park a node. The background probe is what should be able to
+    // put a node in time-out, and it writes full-weight samples.
+    if (failures.sumOf { it.weightTenths } < FAILURE_THRESHOLD * WEIGHT_FULL) return 0
     val since = nowMs - failures.last().atMs
     return (COOLDOWN_MS - since).coerceAtLeast(0)
 }

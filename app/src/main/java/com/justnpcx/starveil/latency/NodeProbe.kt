@@ -43,7 +43,20 @@ sealed interface ProbeResult {
  * still reads as fast. Proving the protocol works is what connecting is for.
  */
 interface NodeProbe {
-    suspend fun probe(server: String, port: Int): ProbeResult
+    /**
+     * [timeoutMs] is the handshake budget. The manual button uses the short
+     * default — someone is watching it — while the background sweep gives a
+     * slow node the full five seconds, because there it is one of hundreds and
+     * a false "down" costs more than a slow answer.
+     */
+    suspend fun probe(server: String, port: Int, timeoutMs: Int = DEFAULT_TIMEOUT_MS): ProbeResult
+
+    companion object {
+        const val DEFAULT_TIMEOUT_MS = 3_000
+
+        /** The background sweep's budget. */
+        const val BATCH_TIMEOUT_MS = 5_000
+    }
 }
 
 class TcpNodeProbe @Inject constructor() : NodeProbe {
@@ -52,7 +65,7 @@ class TcpNodeProbe @Inject constructor() : NodeProbe {
      * The name is resolved first and outside the clock, so the number reported
      * is the network round-trip rather than however long DNS happened to take.
      */
-    override suspend fun probe(server: String, port: Int): ProbeResult =
+    override suspend fun probe(server: String, port: Int, timeoutMs: Int): ProbeResult =
         withContext(Dispatchers.IO) {
             val address = try {
                 InetAddress.getByName(server)
@@ -62,7 +75,7 @@ class TcpNodeProbe @Inject constructor() : NodeProbe {
             val socket = Socket()
             try {
                 val started = System.nanoTime()
-                socket.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
+                socket.connect(InetSocketAddress(address, port), timeoutMs)
                 ProbeResult.Reached((System.nanoTime() - started) / 1_000_000)
             } catch (e: SocketTimeoutException) {
                 ProbeResult.TimedOut
@@ -73,7 +86,4 @@ class TcpNodeProbe @Inject constructor() : NodeProbe {
             }
         }
 
-    private companion object {
-        const val CONNECT_TIMEOUT_MS = 3_000
-    }
 }

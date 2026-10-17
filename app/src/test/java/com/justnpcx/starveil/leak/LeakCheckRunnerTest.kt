@@ -130,6 +130,8 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()

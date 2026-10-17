@@ -69,5 +69,21 @@ object StarveilMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    /**
+     * v4 → v5: `latency_samples.weightTenths`, how much a sample counts.
+     *
+     * Additive with a default of 10, which is exactly what every row already
+     * means: samples written before this column existed were all background
+     * probes at full weight. No row changes value.
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `latency_samples` ADD COLUMN `weightTenths` INTEGER NOT NULL DEFAULT 10",
+            )
+        }
+    }
+
+    val ALL: Array<Migration> =
+        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }

@@ -160,6 +160,17 @@ interface PreferencesRepository {
     suspend fun setSelectedGroupId(id: Long)
 
     /** Record a successful subscription refresh. */
+    /**
+     * When the background health sweep last ran, 0 when it never has.
+     *
+     * Kept so the app can ask for a catch-up sweep on launch without turning
+     * every launch into one: the sweep is cheap, but not free, and the point of
+     * the interval is that the data does not need to be fresher than that.
+     */
+    val lastHealthProbeAt: Flow<Long>
+
+    suspend fun recordHealthProbe(atEpochMs: Long)
+
     suspend fun recordSubscriptionSuccess(atEpochMs: Long)
 
     /**
@@ -192,6 +203,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
         val SUB_LAST_ERROR = stringPreferencesKey("subscription_last_error")
+        val HEALTH_PROBE_AT = longPreferencesKey("health_probe_at")
     }
 
     override val themeMode: Flow<ThemeMode> = dataStore.data
@@ -337,6 +349,14 @@ class DataStorePreferencesRepository @Inject constructor(
     override val subscriptionLastError: Flow<String?> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.SUB_LAST_ERROR] }
+
+    override val lastHealthProbeAt: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.HEALTH_PROBE_AT] ?: 0L }
+
+    override suspend fun recordHealthProbe(atEpochMs: Long) {
+        dataStore.edit { it[Keys.HEALTH_PROBE_AT] = atEpochMs }
+    }
 
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) {
         dataStore.edit {

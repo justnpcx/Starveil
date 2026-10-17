@@ -202,6 +202,9 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:subscription"))
+    // The background health sweep. Already on the classpath transitively via
+    // :core:subscription, but named here because :app now enqueues work itself.
+    implementation(libs.workmanager)
     implementation(project(":feature:dashboard"))
     implementation(project(":feature:profiles"))
     implementation(project(":feature:editor"))

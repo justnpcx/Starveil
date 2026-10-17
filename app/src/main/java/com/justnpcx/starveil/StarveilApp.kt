@@ -4,6 +4,7 @@ import android.app.Application
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.crash.CrashReporting
+import com.justnpcx.starveil.latency.NodeHealthProbeScheduler
 import com.justnpcx.starveil.widget.StarveilWidget
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.HiltAndroidApp
@@ -29,6 +30,9 @@ class StarveilApp : Application() {
     @Inject
     lateinit var crashReporting: CrashReportingSwitch
 
+    @Inject
+    lateinit var healthProbe: NodeHealthProbeScheduler
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -47,5 +51,10 @@ class StarveilApp : Application() {
         scope.launch {
             kernel.state.collect { StarveilWidget().updateAll(this@StarveilApp) }
         }
+
+        // Scheduled on every start, not once at install: the request lives in
+        // WorkManager's store, and re-enqueueing it is how a changed interval
+        // or constraint reaches an existing install.
+        healthProbe.schedule(scope)
     }
 }

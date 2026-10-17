@@ -155,7 +155,7 @@ private class FakeProbe(private val result: ProbeResult) : NodeProbe {
     var calls = 0
         private set
 
-    override suspend fun probe(server: String, port: Int): ProbeResult {
+    override suspend fun probe(server: String, port: Int, timeoutMs: Int): ProbeResult {
         calls++
         return result
     }
@@ -175,7 +175,12 @@ private class FakeHealth : NodeHealthRepository {
     val recorded = mutableListOf<Triple<Long, Long, Long>>()
 
     override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = notUsed()
-    override suspend fun record(profileId: Long, latencyMs: Long, atMs: Long) {
+    override suspend fun record(
+        profileId: Long,
+        latencyMs: Long,
+        atMs: Long,
+        weightTenths: Int,
+    ) {
         recorded += Triple(profileId, latencyMs, atMs)
     }
 
@@ -197,6 +202,8 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val selectedGroupId: Flow<Long> get() = notUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()

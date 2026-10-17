@@ -162,6 +162,8 @@ private class FakePreferences : PreferencesRepository {
     override val selectedProfileId: Flow<Long> get() = notUsed()
     override val selectedGroupId: Flow<Long> get() = notUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
+    override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
