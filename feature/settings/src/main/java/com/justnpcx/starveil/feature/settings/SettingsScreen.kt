@@ -1,6 +1,8 @@
 package com.justnpcx.starveil.feature.settings
 
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -57,9 +60,28 @@ fun SettingsScreen(
     onRunLeakCheck: () -> Unit = {},
     /** Opens the per-app exception list. :app owns the route. */
     onOpenPerApp: () -> Unit = {},
+    /** Opens the privacy policy. :app owns the route. */
+    onOpenPrivacy: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
+
+    // The version a beta user should quote in a bug report. Read from the
+    // installed package rather than duplicated in a string, which is the same
+    // reason the kernel version is read from the library.
+    val context = LocalContext.current
+    val appVersion = remember(context) {
+        runCatching {
+            val manager = context.packageManager
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                manager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                manager.getPackageInfo(context.packageName, 0)
+            }
+            info.versionName
+        }.getOrNull()
+    }
 
     var askingForExport by remember { mutableStateOf(false) }
     /** Held between the passphrase dialog and the file picker's result. */
@@ -192,6 +214,19 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        SectionTitle(stringResource(R.string.settings_about_title))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.settings_app_version, appVersion ?: "—"),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onOpenPrivacy) {
+                Text(stringResource(R.string.settings_privacy))
+            }
+        }
 
         if (askingForExport) {
             PassphraseDialog(
