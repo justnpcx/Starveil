@@ -47,13 +47,37 @@ val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
  * `local.properties` (the local sideload build). `local.properties` is
  * gitignored, which is why it is the one written down for a developer.
  */
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
 val sentryDsn: String = providers.gradleProperty("sentryDsn").orNull
     ?: providers.environmentVariable("SENTRY_DSN").orNull
-    ?: Properties().apply {
-        val file = rootProject.file("local.properties")
-        if (file.exists()) file.inputStream().use { load(it) }
-    }.getProperty("sentry.dsn")
+    ?: localProperties.getProperty("sentry.dsn")
     ?: ""
+
+/**
+ * The release signing key, from the environment or `local.properties`.
+ *
+ * Never committed, and never a build failure when absent: a debug build or a
+ * CI run without the key produces an unsigned release rather than a broken
+ * one. The key itself lives outside the repository; `local.properties` is
+ * gitignored, and CI reads the same four values from secrets.
+ */
+val releaseKeystorePath: String? = providers.environmentVariable("STARVEIL_KEYSTORE").orNull
+    ?: localProperties.getProperty("starveil.keystore")
+val releaseStorePassword: String? = providers.environmentVariable("STARVEIL_KEYSTORE_PASSWORD").orNull
+    ?: localProperties.getProperty("starveil.keystore.password")
+val releaseKeyAlias: String? = providers.environmentVariable("STARVEIL_KEY_ALIAS").orNull
+    ?: localProperties.getProperty("starveil.key.alias")
+val releaseKeyPassword: String? = providers.environmentVariable("STARVEIL_KEY_PASSWORD").orNull
+    ?: localProperties.getProperty("starveil.key.password")
+
+val hasReleaseSigning = releaseKeystorePath != null &&
+    file(releaseKeystorePath).exists() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank()
 
 android {
     namespace = "com.justnpcx.starveil"
@@ -85,8 +109,21 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Null when no key is configured; the APK is then unsigned.
+            signingConfig = signingConfigs.findByName("release")
             // R8 was off through the betas: a minified build that has not been
             // run on a device is worse than a large one, and there was no
             // device to run it on. On now, because a public release cannot ship

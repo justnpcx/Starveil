@@ -1,0 +1,81 @@
+name: Release
+
+# Tags only. A release is a decision, not something every push produces, and
+# the update checker reads exactly these — a version that exists in the app but
+# not in Releases is a version nobody can update to.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  # Creating the release, and uploading the APKs to it.
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The key is a secret, so it arrives base64-encoded and is written to a
+      # temp file that only this job can see.
+      - name: Decode signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.STARVEIL_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::STARVEIL_KEYSTORE_BASE64 is not set; refusing to build an unsigned release"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "STARVEIL_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Assemble release
+        env:
+          STARVEIL_KEYSTORE_PASSWORD: ${{ secrets.STARVEIL_KEYSTORE_PASSWORD }}
+          STARVEIL_KEY_ALIAS: ${{ secrets.STARVEIL_KEY_ALIAS }}
+          STARVEIL_KEY_PASSWORD: ${{ secrets.STARVEIL_KEY_PASSWORD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      # The update checker picks the asset whose name contains "arm64"; the
+      # others are there for the devices that need them.
+      - name: Name the APKs
+        run: |
+          mkdir -p dist
+          for f in app/build/outputs/apk/release/*.apk; do
+            abi=$(basename "$f" | sed -E 's/^app-(.*)-release\.apk$/\1/')
+            cp "$f" "dist/starveil-${GITHUB_REF_NAME}-${abi}.apk"
+          done
+          ls -la dist
+
+      # Kept out of the release itself: it maps obfuscated names back to real
+      # ones, which is exactly what a crash report needs and what an attacker
+      # would like to have.
+      - name: Keep the mapping file
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapping-${{ github.ref_name }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
+          draft: true
