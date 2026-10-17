@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.libbox
 
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Process
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import io.nekohasekai.libbox.BridgeOptions
@@ -20,6 +21,7 @@ import io.nekohasekai.libbox.StringIterator
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.libbox.TunOptions
 import io.nekohasekai.libbox.WIFIState
+import java.net.InetSocketAddress
 
 /**
  * Minimal `PlatformInterface` for Starveil.
@@ -114,10 +116,25 @@ class StarveilPlatformInterface(
         throw UnsupportedOperationException("bridge is not used")
 
     /**
-     * Must not return null. The Go side reads the result without a nil check
-     * (`service.go:226` does `result.UserId`), so returning null aborts the
-     * process with a nil-pointer panic the moment the router asks which app
-     * owns a connection. UserId 0 is the honest "unknown" answer.
+     * Which app owns a connection, for `package_name` rules.
+     *
+     * This is what makes per-app routing possible at all. The kernel asks for
+     * every new connection (it always builds the process searcher on Android —
+     * `route/router.go` sets `needFindProcess` unconditionally there), and it
+     * caches the answer for 200 ms, so the binder call is once per connection
+     * rather than once per packet.
+     *
+     * Answering with an empty owner — which this used to do — is not a
+     * harmless stub: `PackageNameItem.Match` returns false when the package
+     * list is empty, so every `package_name` rule would silently match nothing
+     * and the traffic would fall through to the default route. A per-app rule
+     * that quietly does nothing is worse than no per-app feature, because the
+     * UI would claim it works.
+     *
+     * `getConnectionOwnerUid` needs API 29 (our minSdk) and
+     * ACCESS_NETWORK_STATE (declared). It still throws on some ROMs, and an
+     * unknown owner is a legitimate answer, so a failure is "unknown", not a
+     * crash: UID 0 with no packages, exactly as before.
      */
     override fun findConnectionOwner(
         ipProtocol: Int,
@@ -125,7 +142,34 @@ class StarveilPlatformInterface(
         sourcePort: Int,
         destinationAddress: String,
         destinationPort: Int,
-    ): ConnectionOwner = ConnectionOwner()
+    ): ConnectionOwner {
+        val owner = ConnectionOwner()
+        val uid = runCatching {
+            connectivity?.getConnectionOwnerUid(
+                ipProtocol,
+                InetSocketAddress(sourceAddress, sourcePort),
+                InetSocketAddress(destinationAddress, destinationPort),
+            ) ?: Process.INVALID_UID
+        }.getOrDefault(Process.INVALID_UID)
+        if (uid == Process.INVALID_UID) return owner
+
+        owner.userId = uid
+        val packages = runCatching { context.packageManager.getPackagesForUid(uid) }
+            .getOrNull()
+        if (packages.isNullOrEmpty()) return owner
+        owner.setAndroidPackageNames(StringArrayIterator(packages))
+        if (ownerLookups++ < 3) {
+            diagnostic("connection owner: uid=$uid packages=${packages.joinToString(",")}")
+        }
+        return owner
+    }
+
+    /** How many ownership lookups have been logged; see [findConnectionOwner]. */
+    private var ownerLookups = 0
+
+    private val connectivity: ConnectivityManager? by lazy {
+        context.getSystemService(ConnectivityManager::class.java)
+    }
 
     /**
      * Not optional on this fork: the dialer always asks for the platform's
@@ -286,4 +330,24 @@ class StarveilCommandServerHandler : CommandServerHandler {
     override fun triggerNativeCrash() {}
 
     override fun writeDebugMessage(message: String) {}
+}
+
+/**
+ * A [StringIterator] over an array.
+ *
+ * The binding ships iterators for reading Go slices but not one for handing a
+ * Kotlin array back, and `ConnectionOwner.setAndroidPackageNames` takes this
+ * interface. `len()` is the remaining count: the Go side drains it with
+ * `HasNext`/`Next` only (`iteratorToArray`), so the value is informational.
+ */
+private class StringArrayIterator(
+    private val values: Array<String>,
+) : StringIterator {
+    private var index = 0
+
+    override fun hasNext(): Boolean = index < values.size
+
+    override fun len(): Int = values.size - index
+
+    override fun next(): String = values[index++]
 }
