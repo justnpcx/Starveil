@@ -150,8 +150,21 @@ class StarveilPlatformInterface(
                 InetSocketAddress(sourceAddress, sourcePort),
                 InetSocketAddress(destinationAddress, destinationPort),
             ) ?: Process.INVALID_UID
+        }.onFailure {
+            if (ownerLookups < 3) diagnostic("connection owner failed: ${it::class.java.simpleName}: ${it.message}")
         }.getOrDefault(Process.INVALID_UID)
-        if (uid == Process.INVALID_UID) return owner
+        if (uid == Process.INVALID_UID) {
+            // Logged because "no owner" is indistinguishable from "never
+            // called" in the kernel's log, and the difference decides whether
+            // the fault is here or in the config.
+            if (ownerLookups++ < 3) {
+                diagnostic(
+                    "connection owner: unresolved $sourceAddress:$sourcePort -> " +
+                        "$destinationAddress:$destinationPort proto=$ipProtocol",
+                )
+            }
+            return owner
+        }
 
         owner.userId = uid
         val packages = runCatching { context.packageManager.getPackagesForUid(uid) }
@@ -307,7 +320,21 @@ class StarveilPlatformInterface(
 
     override fun usePlatformShell(): Boolean = false
 
-    override fun useProcFS(): Boolean = true
+    /**
+     * False, and this is what makes `package_name` rules work at all.
+     *
+     * True sends the kernel's connection-owner lookup to its procfs searcher,
+     * which cannot read another app's `/proc/<pid>/fd` on Android and fails
+     * every time with "procfs: not found". The failure is logged at info and
+     * otherwise ignored, so the rule is emitted, never matched, and the traffic
+     * falls through to the default route — a per-app rule that silently does
+     * nothing, which is the exact failure this whole lookup exists to avoid.
+     *
+     * False routes the same question to [findConnectionOwner] below, which uses
+     * `ConnectivityManager.getConnectionOwnerUid` — the API Android provides
+     * for precisely this.
+     */
+    override fun useProcFS(): Boolean = false
 }
 
 /**
