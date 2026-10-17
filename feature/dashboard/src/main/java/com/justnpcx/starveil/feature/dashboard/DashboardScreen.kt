@@ -96,6 +96,13 @@ fun DashboardScreen(
         TrafficSparkline(
             downlinkSamples = state.history.map { it.downlink },
             uplinkSamples = state.history.map { it.uplink },
+            // The rates above are the current ones; the peak is the only thing
+            // the shape says that they do not.
+            contentDescription = stringResource(
+                R.string.dashboard_traffic_chart_desc,
+                state.history.size,
+                formatRate(state.history.maxOfOrNull { it.downlink } ?: 0L),
+            ),
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         CurrentNodeCard(name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node))
@@ -145,7 +152,20 @@ private fun NodeHealthSection(health: NodeHealth) {
             }
         }
         Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-        NodeHealthChart(health = health)
+        val reachable = health.samples.filter { it.reachable }
+        NodeHealthChart(
+            health = health,
+            contentDescription = if (reachable.isEmpty()) {
+                stringResource(R.string.dashboard_health_chart_empty)
+            } else {
+                stringResource(
+                    R.string.dashboard_health_chart_desc,
+                    reachable.size,
+                    reachable.minOf { it.latencyMs },
+                    reachable.maxOf { it.latencyMs },
+                )
+            },
+        )
     }
 }
 

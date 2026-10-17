@@ -7,8 +7,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
@@ -852,7 +855,14 @@ private fun NodeRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = NODE_CARD_MIN_HEIGHT)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                role = Role.Button,
+                // Long-press is invisible to a screen reader unless it is
+                // named; without this the action simply does not exist there.
+                onLongClickLabel = stringResource(R.string.profiles_node_long_press),
+            ),
         shape = RoundedCornerShape(NODE_CARD_CORNER),
         // Selection is a border plus a halo, never a different fill: the fill
         // says "this is a surface", and giving it a second meaning would make
@@ -1030,8 +1040,31 @@ private fun GroupChip(
     /** The tunnel goes through this group, as opposed to the list being filtered to it. */
     inUse: Boolean = false,
 ) {
+    // Named apart from the semantics property it feeds: inside the `semantics`
+    // block an unqualified `selected` would resolve to the receiver's, not to
+    // this parameter.
+    val isSelected = selected
+    val stateText = when {
+        inUse -> stringResource(R.string.profiles_group_state_in_use)
+        isSelected -> stringResource(R.string.profiles_group_state_selected)
+        else -> null
+    }
     Surface(
-        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = Modifier
+            // Material's 48dp minimum applies to its own components, not to a
+            // raw Surface; the chip's padding alone came out around 40dp.
+            .heightIn(min = MIN_TOUCH_TARGET)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                role = Role.Button,
+            )
+            .semantics {
+                this.selected = isSelected
+                // "In use" and "filtered to" are different states that look
+                // similar; without this TalkBack reads only the label.
+                if (stateText != null) stateDescription = stateText
+            },
         shape = RoundedCornerShape(percent = 50),
         color = if (selected) {
             StarveilColors.GlowPrimary.copy(alpha = GROUP_SELECTED_ALPHA)
@@ -1072,6 +1105,9 @@ private const val GROUP_SELECTED_ALPHA = 0.2f
 
 /** The "tunnel goes through this group" marker on a chip. */
 private val IN_USE_DOT = 6.dp
+
+/** The platform's minimum touch target; chips and other raw surfaces use it. */
+private val MIN_TOUCH_TARGET = 48.dp
 
 @Composable
 private fun Hint(text: String) {

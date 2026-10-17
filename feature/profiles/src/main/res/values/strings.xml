@@ -67,6 +67,9 @@
 
     <!-- Creating a group, and moving a node between groups. -->
     <string name="profiles_group_new">New group</string>
+    <string name="profiles_group_state_in_use">In use</string>
+    <string name="profiles_group_state_selected">Selected</string>
+    <string name="profiles_node_long_press">Move to group</string>
     <string name="profiles_group_by_region">By region</string>
     <string name="profiles_group_delete_body_derived">Delete “%1$s”? Its nodes stay where they are — only the group goes.</string>
     <string name="profiles_group_new_title">New group</string>
