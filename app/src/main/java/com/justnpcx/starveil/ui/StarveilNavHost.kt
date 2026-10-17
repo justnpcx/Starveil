@@ -12,12 +12,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.annotation.StringRes
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.latency.NodeLatencyTesterEntryPoint
 import com.justnpcx.starveil.leak.LeakCheckRunnerEntryPoint
@@ -39,17 +41,17 @@ import com.justnpcx.starveil.feature.settings.SettingsScreen
 /** Destinations. Adding a screen = adding one entry here + one composable below. */
 enum class Destination(
     val route: String,
-    val label: String,
+    @StringRes val labelRes: Int,
     val icon: ImageVector,
 ) {
     // "Home", not "Dashboard": five tabs leave ~72dp per label, and the longer
     // word wrapped to two lines on device (the trailing "d" dropped onto its
     // own row). The screen itself is still the dashboard.
-    DASHBOARD("dashboard", "Home", StarveilIcons.Dashboard),
-    PROFILES("profiles", "Nodes", Icons.AutoMirrored.Filled.List),
-    RULES("rules", "Rules", StarveilIcons.Route),
-    LOGS("logs", "Logs", StarveilIcons.Terminal),
-    SETTINGS("settings", "Settings", Icons.Filled.Settings),
+    DASHBOARD("dashboard", R.string.nav_home, StarveilIcons.Dashboard),
+    PROFILES("profiles", R.string.nav_nodes, Icons.AutoMirrored.Filled.List),
+    RULES("rules", R.string.nav_rules, StarveilIcons.Route),
+    LOGS("logs", R.string.nav_logs, StarveilIcons.Terminal),
+    SETTINGS("settings", R.string.nav_settings, Icons.Filled.Settings),
 }
 
 /** Not a tab: reached from Settings, which is where the exception list lives. */

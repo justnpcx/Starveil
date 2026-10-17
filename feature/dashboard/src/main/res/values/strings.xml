@@ -16,6 +16,16 @@
       view model, where the resource system never saw them (C1).
     -->
     <string name="dashboard_no_node">No node selected</string>
+    <!-- The core's state, and the two traffic columns. -->
+    <string name="dashboard_state_disconnected">DISCONNECTED</string>
+    <string name="dashboard_state_connecting">CONNECTING</string>
+    <string name="dashboard_state_connected">CONNECTED</string>
+    <string name="dashboard_state_blocked">BLOCKED</string>
+    <string name="dashboard_state_warning">WARNING</string>
+    <string name="dashboard_speed_down">↓ DOWN</string>
+    <string name="dashboard_speed_up">↑ UP</string>
+    <string name="dashboard_speed_total">total %1$s</string>
+
     <string name="dashboard_notice_kill_switch">Kill Switch is blocking all traffic</string>
     <string name="dashboard_notice_tunnel_dropped">Tunnel dropped</string>
     <string name="dashboard_notice_tunnel_reconnecting">Tunnel dropped; reconnecting…</string>

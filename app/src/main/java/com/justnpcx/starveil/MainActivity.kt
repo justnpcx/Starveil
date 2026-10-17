@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -126,12 +127,12 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
                         restoreState = true
                     }
                 },
-                icon = { Icon(destination.icon, contentDescription = destination.label) },
+                icon = { Icon(destination.icon, contentDescription = stringResource(destination.labelRes)) },
                 // One line, always: a tab label that wraps (as "Dashboard" did)
                 // drops its last letter onto a second row and grows the whole bar.
                 label = {
                     Text(
-                        text = destination.label,
+                        text = stringResource(destination.labelRes),
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,
