@@ -78,6 +78,7 @@
     <string name="update_downloading">Downloading…</string>
     <string name="update_up_to_date">You are on the latest version.</string>
     <string name="update_failed">Could not check for updates: %1$s</string>
+    <string name="update_download_failed">Download failed: %1$s</string>
     <string name="update_needs_permission">Allow Starveil to install unknown apps, then try again.</string>
     <string name="update_open_settings">Open settings</string>
 
