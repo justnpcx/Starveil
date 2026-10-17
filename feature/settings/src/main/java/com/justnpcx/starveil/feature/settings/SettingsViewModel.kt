@@ -8,10 +8,14 @@ import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.update.UpdateCheck
+import com.justnpcx.starveil.core.data.update.UpdateChecker
+import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +56,18 @@ data class SettingsUiState(
  * failure reason from the crypto layer is never shown raw to someone who just
  * mistyped a passphrase.
  */
+/** What the About section's update row is doing. */
+sealed interface UpdateUiState {
+    data object Idle : UpdateUiState
+    data object Checking : UpdateUiState
+    data class Available(val info: UpdateInfo) : UpdateUiState
+    data object UpToDate : UpdateUiState
+    data class Failed(val reason: String) : UpdateUiState
+    data object Downloading : UpdateUiState
+    /** Downloaded and verified; the screen hands it to the installer. */
+    data class Ready(val file: java.io.File) : UpdateUiState
+}
+
 sealed interface BackupMessage {
     data class Exported(val bytes: Int) : BackupMessage
     data class Restored(val profiles: Int, val groups: Int, val rules: Int) : BackupMessage
@@ -66,7 +82,38 @@ class SettingsViewModel @Inject constructor(
     private val backup: BackupManager,
     private val files: BackupFileStore,
     private val crashReporting: CrashReportingSwitch,
+    private val updateChecker: UpdateChecker,
+    private val updateDownloader: UpdateDownloadPort,
 ) : ViewModel() {
+
+    private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
+    val update: StateFlow<UpdateUiState> = _update.asStateFlow()
+
+    fun checkForUpdates(currentVersion: String) {
+        if (_update.value is UpdateUiState.Checking || _update.value is UpdateUiState.Downloading) return
+        _update.value = UpdateUiState.Checking
+        viewModelScope.launch {
+            _update.value = when (val result = updateChecker.check(currentVersion)) {
+                is UpdateCheck.Available -> UpdateUiState.Available(result.info)
+                UpdateCheck.UpToDate -> UpdateUiState.UpToDate
+                is UpdateCheck.Failed -> UpdateUiState.Failed(result.reason)
+            }
+        }
+    }
+
+    fun downloadUpdate(info: UpdateInfo) {
+        _update.value = UpdateUiState.Downloading
+        viewModelScope.launch {
+            _update.value = when (val result = updateDownloader.download(info)) {
+                is UpdateDownloadPort.Result.Ready -> UpdateUiState.Ready(result.file)
+                is UpdateDownloadPort.Result.Failed -> UpdateUiState.Failed(result.reason)
+            }
+        }
+    }
+
+    fun clearUpdate() {
+        _update.value = UpdateUiState.Idle
+    }
 
     private val _backupMessage = MutableStateFlow<BackupMessage?>(null)
     val backupMessage: StateFlow<BackupMessage?> = _backupMessage.asStateFlow()

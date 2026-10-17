@@ -67,6 +67,21 @@
     <string name="settings_app_version">Starveil %1$s</string>
     <string name="settings_privacy">Privacy policy</string>
 
+    <!-- Update channel. The repository is private until M8, so the check
+         answers "no published release" until then. -->
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_available_title">Version %1$s</string>
+    <string name="update_notes_empty">No release notes.</string>
+    <string name="update_download">Download and install</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading…</string>
+    <string name="update_up_to_date">You are on the latest version.</string>
+    <string name="update_failed">Could not check for updates: %1$s</string>
+    <string name="update_needs_permission">Allow Starveil to install unknown apps, then try again.</string>
+    <string name="update_open_settings">Open settings</string>
+
+
     <!-- Only shown when the build carries a Sentry DSN. -->
     <string name="diagnostics_title">Diagnostics</string>
     <string name="crash_reports_title">Send crash reports</string>

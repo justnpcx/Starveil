@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -25,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +47,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.justnpcx.starveil.core.data.update.UpdateInstaller
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -70,6 +73,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
+    val updateState by viewModel.update.collectAsStateWithLifecycle()
 
     // The version a beta user should quote in a bug report. Read from the
     // installed package rather than duplicated in a string, which is the same
@@ -106,6 +110,14 @@ fun SettingsScreen(
         // The passphrase is asked for after the file, so a mis-tap on the picker
         // does not leave a typed secret sitting in a field.
         if (uri != null) restoreUri = uri
+    }
+
+    LaunchedEffect(updateState) {
+        val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
+        if (UpdateInstaller.canInstall(context)) {
+            context.startActivity(UpdateInstaller.intent(context, ready.file))
+            viewModel.clearUpdate()
+        }
     }
 
     Column(
@@ -231,13 +243,27 @@ fun SettingsScreen(
         }
 
         SectionTitle(stringResource(R.string.settings_about_title))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(R.string.settings_app_version, appVersion ?: "—"),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
+        Text(
+            text = stringResource(R.string.settings_app_version, appVersion ?: "—"),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+            TextButton(
+                onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
+                enabled = updateState !is UpdateUiState.Checking &&
+                    updateState !is UpdateUiState.Downloading,
+            ) {
+                Text(
+                    stringResource(
+                        if (updateState is UpdateUiState.Checking) {
+                            R.string.update_checking
+                        } else {
+                            R.string.update_check
+                        },
+                    ),
+                )
+            }
             TextButton(onClick = onOpenPrivacy) {
                 Text(stringResource(R.string.settings_privacy))
             }
@@ -275,6 +301,105 @@ fun SettingsScreen(
                     TextButton(onClick = viewModel::clearBackupMessage) {
                         Text(stringResource(R.string.per_app_close))
                     }
+                },
+            )
+        }
+
+        UpdateDialog(
+            state = updateState,
+            onDismiss = viewModel::clearUpdate,
+            onDownload = viewModel::downloadUpdate,
+            onOpenInstallSettings = {
+                context.startActivity(UpdateInstaller.permissionSettings(context))
+            },
+        )
+    }
+}
+
+/**
+ * One dialog for every step of the update flow.
+ *
+ * The alternative — a dialog per state — puts the wording for "checking" and
+ * "downloading" in two places and lets them drift. The state decides the
+ * buttons as well as the text: nothing to confirm while it is working, and
+ * "install" only once the file has been verified.
+ */
+@Composable
+private fun UpdateDialog(
+    state: UpdateUiState,
+    onDismiss: () -> Unit,
+    onDownload: (com.justnpcx.starveil.core.data.update.UpdateInfo) -> Unit,
+    onOpenInstallSettings: () -> Unit,
+) {
+    val context = LocalContext.current
+    when (state) {
+        UpdateUiState.Idle -> Unit
+
+        UpdateUiState.Checking -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.update_check)) },
+            text = { Text(stringResource(R.string.update_checking)) },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.per_app_close)) }
+            },
+        )
+
+        is UpdateUiState.Available -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.update_available_title, state.info.version)) },
+            text = {
+                Text(
+                    text = state.info.notes.ifBlank { stringResource(R.string.update_notes_empty) },
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onDownload(state.info) }) {
+                    Text(stringResource(R.string.update_download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.update_later)) }
+            },
+        )
+
+        UpdateUiState.UpToDate -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.update_check)) },
+            text = { Text(stringResource(R.string.update_up_to_date)) },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.per_app_close)) }
+            },
+        )
+
+        is UpdateUiState.Failed -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.update_check)) },
+            text = { Text(stringResource(R.string.update_failed, state.reason)) },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.per_app_close)) }
+            },
+        )
+
+        UpdateUiState.Downloading -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.update_downloading)) },
+            text = { CircularProgressIndicator() },
+            confirmButton = {},
+        )
+
+        is UpdateUiState.Ready -> if (!UpdateInstaller.canInstall(context)) {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text(stringResource(R.string.update_check)) },
+                text = { Text(stringResource(R.string.update_needs_permission)) },
+                confirmButton = {
+                    TextButton(onClick = onOpenInstallSettings) {
+                        Text(stringResource(R.string.update_open_settings))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.update_later)) }
                 },
             )
         }
