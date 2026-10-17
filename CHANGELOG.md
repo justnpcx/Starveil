@@ -8,11 +8,28 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Added
+
+- **Routing presets**: the single "bypass mainland" switch becomes three
+  policies — bypass mainland, global proxy (default), global direct — and
+  advertising domains become a separate switch that stacks on any of them.
+  The rules page lists the preset's own rules in evaluation order instead of
+  only counting them, and its empty state names the policy in force.
+- **Node flags**: a node is placed by the address it connects to, not by what
+  its name happens to say. An offline GeoIP database (`ip2region`, bundled)
+  supplies the country, so imported nodes get a flag and region grouping
+  without being renamed by hand. Hong Kong, Macao and Taiwan are split out of
+  the database's `CN` by province.
+
 ### Changed
 
 - Release builds are minified by R8 (arm64 APK 131 MB → 90 MB). The
   `benchmark` build type inherits it, so performance numbers now describe the
   shipping configuration; the recorded cold-start baseline predates it.
+- The node page has one add entry (a sheet with import, subscription,
+  clipboard and QR) and its actions live in the app bar, so the filter row
+  holds filters and nothing else.
+- The kernel version reads `1.14.3`, without the fork's commit hash.
 
 ## [0.7.0] — 2026-10-17
 

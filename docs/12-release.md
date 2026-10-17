@@ -38,7 +38,9 @@ export STARVEIL_KEY_PASSWORD=…
 GH_TOKEN=<token> scripts/set-signing-secrets.sh
 ```
 
-（`/root/smart-home/.env` 里现有的 token 没有这个权限，所以这一步只能由仓库所有者执行。）
+2026-10-17 已用 `/root/smart-home/.env` 的 token 设好四个 secret（API 返回 201），
+`gh secret list` 可见。以后轮换密钥时重跑这条命令即可；`SENTRY_DSN` 是可选项，
+没有它发布包不上报崩溃。
 
 ## 发一个版本
 
