@@ -141,7 +141,24 @@ fun ProfilesScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             state.message?.let { message ->
-                MessageBanner(message = message.text(), onDismiss = viewModel::dismissMessage)
+                if (message is ProfilesMessage.NoRegionsFound) {
+                    // A dialog, not the banner. "By region" is the one action
+                    // whose failure is "nothing appears", so a strip at the top
+                    // of the list is exactly the wrong shape for it — the user
+                    // tapped a button and watched the list, not the header.
+                    AlertDialog(
+                        onDismissRequest = viewModel::dismissMessage,
+                        title = { Text(stringResource(R.string.profiles_group_by_region)) },
+                        text = { Text(message.text()) },
+                        confirmButton = {
+                            TextButton(onClick = viewModel::dismissMessage) {
+                                Text(stringResource(R.string.profiles_dialog_ok))
+                            }
+                        },
+                    )
+                } else {
+                    MessageBanner(message = message.text(), onDismiss = viewModel::dismissMessage)
+                }
             }
             if (state.hasProfiles) {
                 Row(
