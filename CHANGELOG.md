@@ -43,6 +43,10 @@ the app does rather than what changed.
 - **Crash reporting**: opt-out Sentry reports. Node addresses, UUIDs, share
   links, subscription URLs and keys are replaced before the report leaves the
   device; Settings → Diagnostics turns it off.
+- **Update check**: Settings → About fetches the latest GitHub release,
+  downloads the APK, and verifies it two ways before offering it to the
+  installer — SHA-256 against the digest GitHub publishes, and the signing
+  certificate against the installed app. Nothing is installed silently.
 - **Languages**: English and Simplified Chinese.
 - **Accessibility**: content descriptions on every chart and icon, 48dp touch
   targets, and a contrast test in CI.

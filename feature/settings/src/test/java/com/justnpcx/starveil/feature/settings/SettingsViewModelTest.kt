@@ -3,6 +3,9 @@ package com.justnpcx.starveil.feature.settings
 import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
+import com.justnpcx.starveil.core.data.update.UpdateChecker
+import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
+import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
@@ -73,6 +76,8 @@ class SettingsViewModelTest {
             emptyBackup(),
             NoFiles(),
             crash,
+            UpdateChecker(),
+            NoDownloads(),
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -87,7 +92,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads())
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -107,7 +112,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -213,4 +218,9 @@ private class FakeCrashReporting(private var enabled: Boolean = true) : CrashRep
     override fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
+}
+
+/** The update flow is not exercised here; its own tests live in :core:data. */
+private class NoDownloads : UpdateDownloadPort {
+    override suspend fun download(info: UpdateInfo): UpdateDownloadPort.Result = notUsed()
 }

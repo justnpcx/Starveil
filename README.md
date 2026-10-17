@@ -13,6 +13,8 @@
 > 反馈：提 [Issue](https://github.com/justnpcx/Starveil/issues)；隐私说明见 [docs/10-privacy-policy.md](docs/10-privacy-policy.md)，App 内「设置 → 关于 → 隐私政策」是同一份内容。
 >
 > 崩溃上报默认开启（设置 → 诊断可关闭）；节点地址、链接、UUID 和密钥在发送前会被替换。
+>
+> 更新走 GitHub Releases（设置 → 关于 → 检查更新），下载后校验 SHA-256 与签名证书，再由系统安装器确认。
 
 ## 愿景
 
