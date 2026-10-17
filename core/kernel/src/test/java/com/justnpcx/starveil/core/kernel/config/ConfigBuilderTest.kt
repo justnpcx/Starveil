@@ -196,7 +196,7 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun `route rules are emitted in order with the union action shape`() {
+    fun `route rules are emitted in order, each naming its outbound`() {
         val rules = listOf(
             Rule(
                 matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "example.com"),
@@ -230,14 +230,35 @@ class ConfigBuilderTest {
         assertTrue(
             json.contains(
                 "\"rules\":[" +
-                    "{\"domain_suffix\":[\"example.com\"],\"action\":\"direct\"}," +
-                    "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"direct\"}," +
+                    "{\"domain_suffix\":[\"example.com\"],\"action\":\"route\",\"outbound\":\"direct\"}," +
+                    "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"direct\"}," +
                     "{\"domain_keyword\":[\"ads\"],\"action\":\"reject\"}," +
                     "{\"domain\":[\"only.example\"],\"action\":\"route\",\"outbound\":\"proxy\"}]",
             ),
         )
         // A disabled rule is not emitted at all.
         assertFalse(json.contains("off.example"))
+    }
+
+    @Test
+    fun `a direct rule names the direct outbound instead of the direct action`() {
+        // `{"action":"direct"}` is a *DNS* rule action. sing-box accepts it in
+        // a route rule, matches it, logs `=> direct`, and then does not select
+        // it — so the connection falls through to `final` and a rule that was
+        // meant to keep traffic at home silently proxies it. Verified against
+        // the real kernel, which logged
+        //     router: match[0] domain=www.baidu.com => direct
+        //     outbound/socks[proxy]: outbound connection to www.baidu.com:443
+        val rules = listOf(
+            Rule(matcher = RuleMatcher(MatcherKind.DOMAIN, "keep.example"), action = RuleAction.DIRECT),
+        )
+        val json = builder.build(vlessProfile(), rules)
+
+        assertTrue(json.contains("\"action\":\"route\",\"outbound\":\"direct\""))
+        assertFalse(
+            "the bare `direct` action is silently ignored by the router",
+            json.contains("\"action\":\"direct\""),
+        )
     }
 
     @Test
@@ -565,8 +586,8 @@ class ConfigBuilderTest {
         val json = builder.build(listOf(vlessProfile()), rules, mainland = mainland)
 
         val user = json.indexOf("example.com")
-        val geosite = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"direct\"")
-        val geoip = json.indexOf("\"rule_set\":\"geoip-cn\",\"action\":\"direct\"")
+        val geosite = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\",\"outbound\":\"direct\"")
+        val geoip = json.indexOf("\"rule_set\":\"geoip-cn\",\"action\":\"route\",\"outbound\":\"direct\"")
         val final = json.indexOf("\"final\":\"auto\"")
 
         assertTrue("user rule is present", user >= 0)

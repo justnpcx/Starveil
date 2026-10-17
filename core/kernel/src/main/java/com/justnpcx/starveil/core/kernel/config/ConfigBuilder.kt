@@ -144,10 +144,14 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      * Enabled rules, in the order the user arranged them — the first match
      * wins, so this order is the routing decision.
      *
-     * The action uses the union form sing-box 1.14 documents: `route` carries
-     * the outbound tag, `direct` and `reject` carry nothing. The older
-     * `{"outbound": "direct"}` shape is deprecated, and `reject` has no
-     * outbound at all, so the union is the only shape that covers all three.
+     * Both routing actions are emitted as `route`, with the outbound named.
+     * `direct` is not one of them: it is a *DNS* rule action that sing-box
+     * happens to accept in a route rule and then never acts on. The router
+     * matches such a rule, logs `=> direct`, does not select it, and the
+     * connection falls through to `final` — so a "direct" rule silently
+     * proxied everything it was meant to keep at home. `route` + `outbound`
+     * is the form the route rule action table actually defines. Blocking
+     * stays `reject`, which is real and carries no outbound.
      */
     private fun routeRules(
         rules: List<Rule>,
@@ -160,7 +164,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             )
             val action = when (rule.action) {
                 RuleAction.PROXY -> linkedMapOf<String, Any?>("action" to "route", "outbound" to proxyTag)
-                RuleAction.DIRECT -> linkedMapOf<String, Any?>("action" to "direct")
+                RuleAction.DIRECT ->
+                    linkedMapOf<String, Any?>("action" to "route", "outbound" to DIRECT_TAG)
                 RuleAction.BLOCK -> linkedMapOf<String, Any?>("action" to "reject")
             }
             matcher + action
@@ -172,8 +177,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
         return userRules + listOf(
-            linkedMapOf<String, Any?>("rule_set" to GEOSITE_CN_TAG, "action" to "direct"),
-            linkedMapOf<String, Any?>("rule_set" to GEOIP_CN_TAG, "action" to "direct"),
+            linkedMapOf<String, Any?>(
+                "rule_set" to GEOSITE_CN_TAG,
+                "action" to "route",
+                "outbound" to DIRECT_TAG,
+            ),
+            linkedMapOf<String, Any?>(
+                "rule_set" to GEOIP_CN_TAG,
+                "action" to "route",
+                "outbound" to DIRECT_TAG,
+            ),
         )
     }
 
