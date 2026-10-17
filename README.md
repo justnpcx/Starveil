@@ -4,6 +4,14 @@
 >
 > Starveil（星纱）——星空 + 面纱，穿越 + 隐身。另起的新项目，与 Mirage 无代码继承关系。
 
+> **⚠️ 内测版 0.7.0**
+>
+> 功能已经齐了，但**多项性能指标和真机行为还没验证**——预设分流、按应用分流、XHTTP+REALITY 目前只在离屏环境用真实内核验过配置与路由判定，没有端到端跑过手机。
+> 已知问题逐条列在 [CHANGELOG 的 Known issues](CHANGELOG.md#known-issues)。
+> 这是内测版：**不承诺 SLA**，也不保证数据不丢——重要配置请先导出备份。
+>
+> 反馈：提 [Issue](https://github.com/justnpcx/Starveil/issues)；隐私说明见 [docs/10-privacy-policy.md](docs/10-privacy-policy.md)，App 内「设置 → 关于 → 隐私政策」是同一份内容。
+
 ## 愿景
 
 - **自用第一**：只为一个用户（作者）服务。minSdk 29，中英双语，零新手引导，默认专家模式。
@@ -36,34 +44,38 @@
 
 | 模块 | 职责 | 状态 |
 |---|---|---|
-| `:app` | 单 Activity、导航图、Hilt 装配、DI 绑定 | 骨架完成 |
-| `:feature:dashboard` | 连接核心 + 速率 + 节点选择器占位 | 骨架完成（Fake 内核可跑通点击→连接→速率） |
-| `:feature:profiles` | 节点/分组/订阅 | 占位 |
-| `:feature:rules` | 路由规则/规则集 | 占位 |
-| `:feature:logs` | 日志查看器/诊断 | 占位 |
-| `:feature:settings` | 设置 | 占位 |
-| `:core:ui` | Starveil HUD 主题、动效规范、ConnectionCore | 骨架完成 |
-| `:core:kernel` | `KernelBridge` 接口 + `FakeKernelBridge` + `RealKernelBridge`（TODO） | 骨架完成 |
-| `:core:model` | `Profile` / `ProxyGroup` / `Rule` | 骨架完成 |
-| `:core:subscription` | `SubscriptionParser` 接口 + Fake 实现 | 骨架完成 |
+| `:app` | 单 Activity、导航图、Hilt 装配、DI 绑定、Widget / Tile / 通知动作 | 完成 |
+| `:feature:dashboard` | 连接核心、速率、节点健康、自动选择 | 完成 |
+| `:feature:profiles` | 节点 / 分组 / 订阅 / 导入 / 分享 | 完成 |
+| `:feature:rules` | 路由规则 / 规则集 / 最近流向 | 完成 |
+| `:feature:logs` | 日志查看器 / 搜索 / 导出 | 完成 |
+| `:feature:settings` | 设置 / 按应用分流 / 备份 / 隐私 | 完成 |
+| `:core:ui` | Starveil HUD 主题、动效规范、ConnectionCore | 完成 |
+| `:core:kernel` | `KernelBridge` + `RealKernelBridge` + libbox（sing-box 1.14.3 fork） | 完成 |
+| `:core:model` | `Profile` / `ProxyGroup` / `Rule` / 健康评分 / 选点 / 地区识别 | 完成 |
+| `:core:subscription` | 订阅解析（base64 / clash / sing-box）与分享链接 | 完成 |
 
 ## 技术栈
 
 - Kotlin 2.2.20 + Jetpack Compose（Material 3 Expressive）+ Navigation Compose
 - MVVM + 单向数据流（StateFlow）+ Hilt（KSP）
-- Room + DataStore（后续）、Coroutines + Flow、WorkManager
+- Room + DataStore、Coroutines + Flow、WorkManager、Glance（Widget）
 - minSdk 29 / targetSdk 35 / compileSdk 36
-- 内核：sing-box fork（Phase 2 接入 `RealKernelBridge`）
+- 内核：自维护 sing-box fork（`starveil-1.14.x`，v1.14.3 + patch stack），经 libbox JNI 接入
 
 ## 构建
 
 ```bash
 # 需要 JDK 17 + Android SDK（compileSdk 36）
-gradle :app:assembleDebug
-# 或用 Android Studio 打开本目录，IDE 会处理 Gradle Wrapper。
+./gradlew :app:assembleDebug
+
+# 发布前必跑：单元测试 + 翻译校验 + lint
+./gradlew testDebugUnitTest checkTranslations lintDebug
 ```
 
-> **构建状态**：⚠️ **未验证编译**。骨架编写环境的机器上没有 JDK / Android SDK / Gradle，`assembleDebug` 未实际跑过。请在有 SDK 的机器上首次编译，编译通过后再删掉这条警告。
+`checkTranslations` 会比对每个模块的 `values/` 与 `values-*`：键集合必须双向一致，格式化占位符必须完全相同。缺 `%1$s` 或把 `%1$s`/`%2$s` 写反，编译和 lint 都发现不了，只有在中文界面打开那一屏时才会崩或显示错值。
+
+内核 AAR 的构建方式见 [docs/04-libbox-build.md](docs/04-libbox-build.md)——**一次只编一个 ABI**，全 ABI 的 `gomobile bind` 会把内存打爆。
 
 ## 安全红线（写代码前必读）
 
@@ -72,9 +84,23 @@ gradle :app:assembleDebug
 3. **并发红线**：禁止 `GlobalScope`（用结构化并发，Scope 随生命周期取消）；禁止 `allowMainThreadQueries`；迁移失败禁止 `fallbackToDestructiveMigration`。
 4. **存储**：节点凭证走加密存储（Keystore + SQLCipher / EncryptedSharedPreferences）；备份默认加密。
 
-## 路线（见实施计划）
+## 路线
 
-Phase 0 止血 → Phase 1 骨架（本仓库）→ Phase 2 内核 → Phase 3 界面 → Phase 4 性能 → Phase 5 智能 → Phase 6 打磨。
+| 里程碑 | 状态 |
+|---|---|
+| M0 止血 · M1 骨架 · M2 内核 · M3 界面 | 已交付（0.3.0） |
+| M4 性能 | 代码完成；冷启动与配置生成有实测，其余等真机 |
+| M5 智能 | 代码完成（自动选点 / 断线切换 / 按应用分流 / 地区分组） |
+| M6 打磨 | 代码完成（备份 / 通知 / Tile / Widget / 无障碍） |
+| **M7 内测** | **当前：中英双语、隐私政策、反馈通道已就位；崩溃上报待接入** |
+| M8 公开 | 未开始 |
+
+## 文档
+
+- [产品指南与里程碑定义](docs/03-top-tier-product-guide.md)
+- [隐私政策](docs/10-privacy-policy.md)
+- [更新日志](CHANGELOG.md)
+- [libbox 构建](docs/04-libbox-build.md)
 
 ## 许可证
 
