@@ -74,6 +74,21 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+
+        <!--
+            Home-screen widget. Not exported: the launcher binds through the
+            system, and nothing outside this app should be able to drive it.
+        -->
+        <receiver
+            android:name=".widget.StarveilWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/starveil_widget_info" />
+        </receiver>
     </application>
 
 </manifest>

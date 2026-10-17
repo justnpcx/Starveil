@@ -12,6 +12,13 @@
     <!-- Quick-settings tile. The label is the app name; the subtitle is the state. -->
     <string name="tile_connected">Connected</string>
     <string name="tile_disconnected">Disconnected</string>
+
+    <!-- Home-screen widget. -->
+    <string name="widget_description">Connection status, with a tap to toggle.</string>
+    <string name="widget_connected">Connected</string>
+    <string name="widget_disconnected">Disconnected</string>
+    <string name="widget_tap_connect">Tap to connect</string>
+    <string name="widget_tap_disconnect">Tap to disconnect</string>
     <string name="latency_measured">Latency: %1$d ms</string>
     <string name="latency_no_node">Pick a node first.</string>
     <string name="latency_timeout">No reply from the node within the probe window.</string>
