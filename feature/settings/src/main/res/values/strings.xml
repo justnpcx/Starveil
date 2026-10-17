@@ -61,4 +61,32 @@
     <!-- The core's own version string, e.g. "1.14.3-647c447". -->
     <string name="settings_kernel_version">sing-box core %1$s</string>
     <string name="settings_kernel_unknown">Version unavailable.</string>
+
+    <!-- About: the version to quote in a bug report, and the policy. -->
+    <string name="settings_about_title">About</string>
+    <string name="settings_app_version">Starveil %1$s</string>
+    <string name="settings_privacy">Privacy policy</string>
+
+    <!--
+      The privacy screen. Every claim here is checkable against the code, and
+      the crash-reporting item in M7 will make the first one false — at which
+      point this text changes with it.
+    -->
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_close">Close</string>
+    <string name="privacy_intro">Starveil runs on this device. This page lists everything that leaves it, and there is nothing you did not ask it to send.</string>
+    <string name="privacy_data_title">What is collected</string>
+    <string name="privacy_data_body">Nothing. No account, no analytics, no advertising identifier, and no crash reporting in this version. The project runs no server of its own, so there is nowhere for data to be sent even if it were collected.</string>
+    <string name="privacy_storage_title">What stays on the device</string>
+    <string name="privacy_storage_body">Nodes, groups, routing rules, logs and latency history live in a SQLCipher-encrypted database in the app’s private storage. The database key is held in the Android keystore.</string>
+    <string name="privacy_network_title">What it connects to</string>
+    <string name="privacy_network_body">Two kinds of address only: the nodes and subscription URLs you imported, and — when the mainland preset is on — the rule-set files it downloads from jsDelivr or GitHub. Those requests reach a public CDN, not the author.</string>
+    <string name="privacy_permissions_title">Permissions</string>
+    <string name="privacy_permissions_body">VPN, to route traffic. Notifications, for the ongoing tunnel notice. The installed-app list is read only to draw the per-app routing screen, and it never leaves the device.</string>
+    <string name="privacy_backup_title">Backups</string>
+    <string name="privacy_backup_body">A backup is written wherever you choose, encrypted with scrypt and AES-256-GCM. The passphrase is never stored, and it cannot be recovered — without it the file is useless to everyone, including the author.</string>
+    <string name="privacy_removal_title">Deleting it</string>
+    <string name="privacy_removal_body">Uninstalling removes the database and the keystore entries with it. Backup files are yours to keep or delete.</string>
+    <string name="privacy_contact_title">Questions</string>
+    <string name="privacy_contact_body">Open an issue on the project’s GitHub repository.</string>
 </resources>

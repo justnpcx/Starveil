@@ -61,4 +61,26 @@
     <string name="settings_kernel_title">内核</string>
     <string name="settings_kernel_version">sing-box 内核 %1$s</string>
     <string name="settings_kernel_unknown">版本不可用。</string>
+
+    <string name="settings_about_title">关于</string>
+    <string name="settings_app_version">Starveil %1$s</string>
+    <string name="settings_privacy">隐私政策</string>
+
+    <string name="privacy_title">隐私</string>
+    <string name="privacy_close">关闭</string>
+    <string name="privacy_intro">Starveil 完全在本机运行。这一页列出所有离开设备的内容——没有一项不是你自己要求发送的。</string>
+    <string name="privacy_data_title">收集什么</string>
+    <string name="privacy_data_body">什么都不收集。没有账号、没有统计、没有广告标识符，当前版本也不上报崩溃。本项目没有自己的服务器，即使收集了也没有地方可发。</string>
+    <string name="privacy_storage_title">什么留在设备上</string>
+    <string name="privacy_storage_body">节点、分组、路由规则、日志和延迟历史都存放在应用私有目录下、经 SQLCipher 加密的数据库里。数据库密钥保存在 Android keystore 中。</string>
+    <string name="privacy_network_title">连接到哪里</string>
+    <string name="privacy_network_body">只有两类地址：你导入的节点和订阅地址；以及开启「绕过中国大陆」时从 jsDelivr 或 GitHub 下载的规则文件。这些请求到达的是公共 CDN，不是作者。</string>
+    <string name="privacy_permissions_title">权限</string>
+    <string name="privacy_permissions_body">VPN：用于转发流量。通知：用于常驻的隧道提示。读取已安装应用列表仅用于绘制「按应用分流」页面，不会离开设备。</string>
+    <string name="privacy_backup_title">备份</string>
+    <string name="privacy_backup_body">备份写入你选择的位置，使用 scrypt 与 AES-256-GCM 加密。口令不会被保存，也无法找回——没有口令，这个文件对任何人都无用，包括作者。</string>
+    <string name="privacy_removal_title">如何删除</string>
+    <string name="privacy_removal_body">卸载应用会连同数据库和 keystore 条目一起删除。导出的备份文件由你自己保管或删除。</string>
+    <string name="privacy_contact_title">疑问</string>
+    <string name="privacy_contact_body">在项目的 GitHub 仓库提 issue。</string>
 </resources>
