@@ -450,8 +450,27 @@ class ConfigBuilderTest {
         // sing-box 1.14 removed the legacy {"address": ...} DNS server shape:
         // it fails config decode outright.
         val json = builder.build(vlessProfile())
-        assertTrue(json.contains("\"servers\":[{\"type\":\"local\",\"tag\":\"local\",\"optimistic\":true}]"))
+        assertTrue(json.contains("\"servers\":[{\"type\":\"local\",\"tag\":\"local\"}]"))
         assertFalse(json.contains("\"address\":\"local\""))
+    }
+
+    @Test
+    fun `the dns cache flag is never put on a server`() {
+        // `optimistic` belongs to the dns block. On a server it is not a field
+        // sing-box knows, and the config is rejected before anything starts:
+        //     dns.servers[0].optimistic: json: unknown field "optimistic"
+        // That was true of the preset-off config too, so this guard covers
+        // both shapes.
+        val without = builder.build(vlessProfile())
+        val withPreset = builder.build(listOf(vlessProfile()), mainland = mainland)
+
+        assertFalse("preset-off config must decode", without.contains("\"optimistic\""))
+        assertEquals(
+            "one flag, on the dns block",
+            1,
+            Regex("\"optimistic\":true").findAll(withPreset).count(),
+        )
+        assertTrue(withPreset.contains("\"final\":\"dns-proxy\",\"optimistic\":true"))
     }
 
     @Test
@@ -580,7 +599,7 @@ class ConfigBuilderTest {
         // Private addresses first: a question about the LAN must not leave the
         // device to be answered.
         val privateRule = json.indexOf("\"ip_is_private\":true")
-        val geositeRule = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\"")
+        val geositeRule = json.indexOf("\"rule_set\":\"geosite-cn\",\"action\":\"route\",\"server\":\"dns-cn\"")
         assertTrue(privateRule >= 0)
         assertTrue(geositeRule >= 0)
         assertTrue("private is the first DNS rule", privateRule < geositeRule)
@@ -588,24 +607,40 @@ class ConfigBuilderTest {
         // Domestic names go to a domestic resolver, direct: a poisoned answer
         // would resolve outside geoip-cn and send domestic traffic abroad.
         assertTrue(json.contains("223.5.5.5"))
-        assertTrue(json.contains("\"detour\":\"direct\""))
+        // Not by naming the `direct` outbound — it carries no options, and
+        // sing-box refuses the pairing at start with "detour to an empty direct
+        // outbound makes no sense". Left unset, the dialer falls back to the
+        // default outbound, which is that same direct one.
+        assertFalse(json.contains("\"detour\":\"direct\""))
 
         // Everything else resolves through the tunnel.
         assertTrue(json.contains("\"final\":\"dns-proxy\""))
     }
 
     @Test
-    fun `every dns server carries the optimistic cache`() {
-        val json = builder.build(listOf(vlessProfile()), mainland = mainland)
+    fun `the proxy resolver detours through the tag this build defines`() {
+        // A single-node build defines `proxy`; a group build defines `auto`.
+        // Naming one the config does not define fails the start with
+        // "outbound detour not found: auto" — which is what a hardcoded `auto`
+        // did for every single-node connection.
+        val single = builder.build(vlessProfile(), mainland = mainland)
+        val group = builder.build(listOf(vlessProfile()), mainland = mainland)
 
-        // sing-box's serve-stale cache: a cached answer is returned at once and
-        // refreshed behind the request. This is what makes a repeat lookup a
-        // cache hit rather than a second round trip.
-        assertEquals(
-            "three servers, three optimistic flags",
-            3,
-            Regex("\"optimistic\":true").findAll(json).count(),
-        )
+        assertTrue(single.contains("\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\",\"detour\":\"proxy\""))
+        assertTrue(group.contains("\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\",\"detour\":\"auto\""))
+    }
+
+    @Test
+    fun `the preset asks for a default domain resolver and the plain config does not`() {
+        // With one DNS server the kernel resolves an outbound's own address
+        // with it and says nothing; with two or more it will not choose, and
+        // refuses the start with "missing route.default_domain_resolver". The
+        // preset takes the count from one to three.
+        val single = builder.build(vlessProfile(), mainland = mainland)
+        val without = builder.build(vlessProfile())
+
+        assertTrue(single.contains("\"default_domain_resolver\":\"local\""))
+        assertFalse(without.contains("default_domain_resolver"))
     }
 
     private companion object {
