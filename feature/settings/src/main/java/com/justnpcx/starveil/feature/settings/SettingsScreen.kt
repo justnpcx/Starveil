@@ -222,11 +222,12 @@ fun SettingsScreen(
 
         SectionTitle(stringResource(R.string.settings_kernel_title))
         Text(
-            // The core names itself; this is the version a bug report should
-            // quote, and it is read from the shipped library rather than
-            // written down here where it would drift.
+            // The core names itself as `1.14.3-<commit>`; the commit is a build
+            // detail that changes on every rebuild, and this row is a version,
+            // not a build fingerprint. The full string stays in the state for
+            // anything that needs to correlate a build.
             text = state.kernelVersion.takeIf { it.isNotBlank() }
-                ?.let { stringResource(R.string.settings_kernel_version, it) }
+                ?.let { stringResource(R.string.settings_kernel_version, it.substringBefore('-')) }
                 ?: stringResource(R.string.settings_kernel_unknown),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
