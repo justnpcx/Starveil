@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The notification lives with the service that owns the tunnel, so its
+        strings do here too. Only the action is a resource; the title is a
+        constant because the service is not a user-facing screen.
+    -->
+    <string name="notification_disconnect">Disconnect</string>
+</resources>

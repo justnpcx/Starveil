@@ -43,6 +43,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            The notification's Disconnect action. Not exported: the broadcast is
+            package-scoped by the service that sends it, so only this app can
+            deliver it, and nothing outside can stop the tunnel.
+        -->
+        <receiver
+            android:name=".notification.DisconnectReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.justnpcx.starveil.action.DISCONNECT" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -157,7 +157,15 @@ class DashboardViewModel @Inject constructor(
         // never be "recovered".
         scope.launch {
             kernel.state.collect { state ->
-                if (state is KernelState.Error && state.error.recoverable) onKernelDropped()
+                when (state) {
+                    is KernelState.Error ->
+                        if (state.error.recoverable) onKernelDropped()
+                    // Stopped without this view model asking: the notification's
+                    // Disconnect, or the system revoking the VPN. Reconcile
+                    // rather than assume — see onStoppedElsewhere.
+                    KernelState.Stopped -> onStoppedElsewhere()
+                    else -> Unit
+                }
             }
         }
         // Keep the label in sync with the choice made on the Nodes tab — and
@@ -507,6 +515,37 @@ class DashboardViewModel @Inject constructor(
                 profiles.getById(selected.id)?.let { Target.Node(it) } ?: Target.None
 
             ConnectionTarget.None -> Target.None
+        }
+    }
+
+    /**
+     * The kernel stopped, and it may not have been this view model that did it.
+     *
+     * Asked the same way [disconnect] asks: "once we are down, would traffic be
+     * allowed?" — so a Kill Switch user who disconnects from the notification
+     * ends up blocked rather than exposed, and the answer does not depend on
+     * who pressed the button.
+     *
+     * Idempotent on purpose. When this view model stopped the kernel itself,
+     * the same emission arrives after it has already set the same state, and
+     * recomputing it from the same policy is a no-op rather than a race.
+     */
+    private suspend fun onStoppedElsewhere() {
+        val blocking = KillSwitchController.policyFor(
+            preferences.killSwitchMode.first(),
+            connected = false,
+        ) == TrafficPolicy.BLOCK
+        statsJob?.cancel()
+        _uiState.update {
+            it.copy(
+                connectionState = if (blocking) {
+                    ConnectionState.BLOCKED
+                } else {
+                    ConnectionState.DISCONNECTED
+                },
+                stats = TrafficStats(),
+                history = emptyList(),
+            )
         }
     }
 
