@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">设置</string>
+
+    <string name="theme_title">主题</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_light">浅色</string>
+    <string name="dynamic_color_title">动态取色</string>
+    <string name="dynamic_color_desc">从壁纸提取配色（Android 12+）。会覆盖 Starveil HUD 配色。</string>
+
+    <string name="kill_switch_title">Kill Switch</string>
+    <string name="kill_switch_off">关闭</string>
+    <string name="kill_switch_off_desc">从不阻断流量。</string>
+    <string name="kill_switch_on_disconnect">断开时阻断</string>
+    <string name="kill_switch_on_disconnect_desc">只在连接期间放行流量；隧道一断立即阻断新连接。</string>
+    <string name="kill_switch_always">始终阻断</string>
+    <string name="kill_switch_always_desc">阻断全部流量，并显示明确的阻断状态。</string>
+
+    <string name="auto_reconnect_title">自动重连</string>
+    <string name="auto_reconnect_desc">意外断开时重新建立隧道。每次断开重试一次。</string>
+    <string name="auto_switch_title">断开时切换节点</string>
+    <string name="auto_switch_desc">隧道断开时改用次优节点重连，而不是刚失败的那个。分组本身会自己挑节点，所以这只对单个节点生效。</string>
+
+    <string name="per_app_entry_title">按应用分流</string>
+    <string name="per_app_entry_desc">让单个应用直连，或走指定节点。</string>
+    <string name="per_app_entry_count">%1$d 个应用使用独立路由</string>
+    <string name="per_app_manage">管理</string>
+    <string name="per_app_title">按应用分流</string>
+    <string name="per_app_done">完成</string>
+    <string name="per_app_close">关闭</string>
+    <string name="per_app_explainer">每个应用都可以跟随隧道、直接出设备，或使用指定节点。该设置在建隧道时应用，因此下次连接才生效。</string>
+    <string name="per_app_search">搜索应用</string>
+    <string name="per_app_empty">没有匹配的应用。</string>
+    <string name="per_app_target_default">隧道默认</string>
+    <string name="per_app_target_direct">直连</string>
+    <string name="per_app_target_missing">已删除的节点</string>
+
+    <string name="backup_title">备份</string>
+    <string name="backup_explainer">节点、分组和规则打成一个加密文件。没有口令就无法恢复。</string>
+    <string name="backup_export">导出</string>
+    <string name="backup_restore">恢复</string>
+    <string name="backup_export_title">设置口令</string>
+    <string name="backup_restore_title">输入口令</string>
+    <string name="backup_passphrase">口令</string>
+    <string name="backup_passphrase_hint">scrypt + AES-256-GCM。口令不会被保存。</string>
+    <string name="backup_passphrase_min">至少 %1$d 个字符。</string>
+    <string name="backup_continue">继续</string>
+    <string name="backup_result_title">备份</string>
+    <string name="backup_exported">备份已写入：%1$d 字节。</string>
+    <string name="backup_restored">已恢复 %1$d 个节点、%2$d 个分组、%3$d 条规则。</string>
+    <string name="backup_wrong_passphrase">口令错误，或文件已损坏。</string>
+    <string name="backup_failed">备份失败：%1$s</string>
+
+    <string name="leak_check_title">泄漏自检</string>
+    <string name="leak_check_never">尚未运行自检。</string>
+    <string name="leak_check_clean">上次检查：无泄漏（%1$s）。</string>
+    <string name="leak_check_leaking">上次检查：检测到泄漏（%1$s）。</string>
+    <string name="leak_check_run">运行自检</string>
+
+    <string name="settings_kernel_title">内核</string>
+    <string name="settings_kernel_version">sing-box 内核 %1$s</string>
+    <string name="settings_kernel_unknown">版本不可用。</string>
+</resources>

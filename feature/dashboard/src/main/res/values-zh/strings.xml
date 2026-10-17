@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dashboard_current_node">当前节点</string>
+    <string name="dashboard_no_node_hint">在「节点」页选择一个。</string>
+
+    <!-- The core's accessibility description: state + what tapping does. -->
+    <string name="dashboard_core_disconnected">连接状态：未连接。点按连接。</string>
+    <string name="dashboard_core_connecting">连接状态：连接中。请稍候。</string>
+    <string name="dashboard_core_connected">连接状态：已连接。点按断开。</string>
+    <string name="dashboard_core_blocked">连接状态：已阻断。点按重试。</string>
+    <string name="dashboard_core_warning">连接状态：已连接，但有警告。点按断开。</string>
+
+    <string name="dashboard_no_node">未选择节点</string>
+    <string name="dashboard_notice_kill_switch">Kill Switch 正在阻断全部流量</string>
+    <string name="dashboard_notice_tunnel_dropped">隧道已断开</string>
+    <string name="dashboard_notice_tunnel_reconnecting">隧道已断开，正在重连…</string>
+    <string name="dashboard_notice_tunnel_keeps_dropping">隧道反复断开，不再重连</string>
+    <string name="dashboard_notice_no_target">请先在「节点」页选择节点或分组</string>
+    <string name="dashboard_notice_config">无法为该目标生成配置</string>
+    <string name="dashboard_notice_kernel_refused">内核启动失败</string>
+
+    <!-- §7.2 node health history. -->
+    <string name="dashboard_health_title">节点健康 · 最近 30 分钟</string>
+    <string name="dashboard_health_availability">在线 %1$d%%</string>
+    <string name="dashboard_health_chart_desc">%1$d 次探测的延迟曲线：最低 %2$d ms，最高 %3$d ms。</string>
+    <string name="dashboard_health_chart_empty">延迟曲线：该时间窗内没有成功探测。</string>
+    <string name="dashboard_traffic_chart_desc">最近 %1$d 秒的流量，下行峰值 %2$s。</string>
+
+    <string name="dashboard_auto_select">自动选择</string>
+    <string name="dashboard_notice_auto_selected">已自动选择 %1$s——%2$s。</string>
+    <string name="dashboard_notice_switching_node">连接已断开，正在尝试另一个节点。</string>
+    <string name="dashboard_reason_healthiest">最健康，评分 %1$d</string>
+    <string name="dashboard_reason_tied">评分并列 %1$d</string>
+    <string name="dashboard_reason_tied_region">评分并列 %1$d，优先 %2$s</string>
+    <string name="dashboard_reason_cooling_down">所有节点都在冷却，还剩 %1$d 分钟</string>
+    <string name="dashboard_reason_unmeasured">尚无测量数据</string>
+    <string name="dashboard_notice_kernel_refused_reason">内核启动失败：%1$s</string>
+</resources>

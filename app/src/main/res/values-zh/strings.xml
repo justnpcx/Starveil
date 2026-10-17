@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The brand name, so it does not fall back to the merged library value. -->
+    <string name="app_name">Starveil</string>
+
+    <!-- Quick-settings tile. The label is the app name; the subtitle is the state. -->
+    <string name="tile_connected">已连接</string>
+    <string name="tile_disconnected">未连接</string>
+
+    <!-- Home-screen widget. -->
+    <string name="widget_description">连接状态，点一下即可开关。</string>
+    <string name="widget_connected">已连接</string>
+    <string name="widget_disconnected">未连接</string>
+    <string name="widget_tap_connect">点一下连接</string>
+    <string name="widget_tap_disconnect">点一下断开</string>
+    <string name="latency_measured">延迟：%1$d ms</string>
+    <string name="latency_no_node">请先选择节点。</string>
+    <string name="latency_timeout">探测窗口内节点没有响应。</string>
+    <string name="latency_unreachable">无法连到节点——其端口没有 TCP 响应。</string>
+    <string name="latency_not_applicable">无法测量——WireGuard 只走 UDP，而这次探测是 TCP 握手。</string>
+</resources>
