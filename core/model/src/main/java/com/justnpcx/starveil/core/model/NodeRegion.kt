@@ -17,36 +17,38 @@ package com.justnpcx.starveil.core.model
  */
 enum class NodeRegion(
     val displayName: String,
+    /** ISO-3166 alpha-2, the form the GeoIP database reports. */
+    val iso: String,
     internal val words: List<String>,
     internal val codes: List<String>,
 ) {
     HONG_KONG(
-        "香港",
+        "香港", "HK",
         listOf("香港", "hong kong", "hongkong", "深港", "沪港", "🇭🇰"),
         listOf("hk"),
     ),
     TAIWAN(
-        "台湾",
+        "台湾", "TW",
         listOf("台湾", "台灣", "台北", "新北", "彰化", "taiwan", "taipei", "🇹🇼"),
         listOf("tw"),
     ),
     JAPAN(
-        "日本",
+        "日本", "JP",
         listOf("日本", "东京", "東京", "大阪", "埼玉", "名古屋", "福冈", "福岡", "japan", "tokyo", "osaka", "🇯🇵"),
         listOf("jp"),
     ),
     KOREA(
-        "韩国",
+        "韩国", "KR",
         listOf("韩国", "韓國", "首尔", "首爾", "春川", "korea", "seoul", "🇰🇷"),
         listOf("kr"),
     ),
     SINGAPORE(
-        "新加坡",
+        "新加坡", "SG",
         listOf("新加坡", "狮城", "獅城", "singapore", "🇸🇬"),
         listOf("sg"),
     ),
     UNITED_STATES(
-        "美国",
+        "美国", "US",
         listOf(
             "美国", "美國", "洛杉矶", "洛杉磯", "圣何塞", "聖何塞", "硅谷", "西雅图", "西雅圖",
             "纽约", "紐約", "达拉斯", "芝加哥", "凤凰城", "迈阿密", "波特兰", "阿什本",
@@ -56,30 +58,39 @@ enum class NodeRegion(
         listOf("us"),
     ),
     UNITED_KINGDOM(
-        "英国",
+        "英国", "GB",
         listOf("英国", "英國", "伦敦", "倫敦", "united kingdom", "britain", "london", "🇬🇧"),
         listOf("uk", "gb"),
     ),
     GERMANY(
-        "德国",
+        "德国", "DE",
         listOf("德国", "德國", "法兰克福", "法蘭克福", "germany", "frankfurt", "🇩🇪"),
         listOf("de"),
     ),
-    FRANCE("法国", listOf("法国", "法國", "巴黎", "france", "paris", "🇫🇷"), listOf("fr")),
-    NETHERLANDS("荷兰", listOf("荷兰", "荷蘭", "阿姆斯特丹", "netherlands", "amsterdam", "🇳🇱"), listOf("nl")),
-    RUSSIA("俄罗斯", listOf("俄罗斯", "俄羅斯", "莫斯科", "russia", "moscow", "🇷🇺"), listOf("ru")),
-    CANADA("加拿大", listOf("加拿大", "多伦多", "多倫多", "温哥华", "溫哥華", "canada", "toronto", "vancouver", "🇨🇦"), listOf("ca")),
-    AUSTRALIA("澳大利亚", listOf("澳大利亚", "澳洲", "悉尼", "雪梨", "australia", "sydney", "🇦🇺"), listOf("au")),
-    TURKEY("土耳其", listOf("土耳其", "伊斯坦布尔", "伊斯坦堡", "turkey", "istanbul", "🇹🇷"), listOf("tr")),
-    ARGENTINA("阿根廷", listOf("阿根廷", "argentina", "🇦🇷"), listOf("ar")),
-    BRAZIL("巴西", listOf("巴西", "brazil", "🇧🇷"), listOf("br")),
-    MALAYSIA("马来西亚", listOf("马来西亚", "馬來西亞", "吉隆坡", "malaysia", "kuala lumpur", "🇲🇾"), listOf("my")),
-    THAILAND("泰国", listOf("泰国", "泰國", "曼谷", "thailand", "bangkok", "🇹🇭"), listOf("th")),
-    VIETNAM("越南", listOf("越南", "胡志明", "vietnam", "🇻🇳"), listOf("vn")),
-    PHILIPPINES("菲律宾", listOf("菲律宾", "菲律賓", "马尼拉", "馬尼拉", "philippines", "manila", "🇵🇭"), listOf("ph")),
-    INDONESIA("印尼", listOf("印尼", "雅加达", "雅加達", "indonesia", "jakarta", "🇮🇩"), listOf("id")),
-    EMIRATES("阿联酋", listOf("阿联酋", "阿聯酋", "迪拜", "杜拜", "emirates", "dubai", "🇦🇪"), listOf("ae")),
-    INDIA("印度", listOf("印度", "孟买", "孟買", "india", "mumbai", "🇮🇳"), listOf("in")),
+    FRANCE("法国", "FR", listOf("法国", "法國", "巴黎", "france", "paris", "🇫🇷"), listOf("fr")),
+    NETHERLANDS("荷兰", "NL", listOf("荷兰", "荷蘭", "阿姆斯特丹", "netherlands", "amsterdam", "🇳🇱"), listOf("nl")),
+    RUSSIA("俄罗斯", "RU", listOf("俄罗斯", "俄羅斯", "莫斯科", "russia", "moscow", "🇷🇺"), listOf("ru")),
+    CANADA("加拿大", "CA", listOf("加拿大", "多伦多", "多倫多", "温哥华", "溫哥華", "canada", "toronto", "vancouver", "🇨🇦"), listOf("ca")),
+    AUSTRALIA("澳大利亚", "AU", listOf("澳大利亚", "澳洲", "悉尼", "雪梨", "australia", "sydney", "🇦🇺"), listOf("au")),
+    TURKEY("土耳其", "TR", listOf("土耳其", "伊斯坦布尔", "伊斯坦堡", "turkey", "istanbul", "🇹🇷"), listOf("tr")),
+    ARGENTINA("阿根廷", "AR", listOf("阿根廷", "argentina", "🇦🇷"), listOf("ar")),
+    BRAZIL("巴西", "BR", listOf("巴西", "brazil", "🇧🇷"), listOf("br")),
+    MALAYSIA("马来西亚", "MY", listOf("马来西亚", "馬來西亞", "吉隆坡", "malaysia", "kuala lumpur", "🇲🇾"), listOf("my")),
+    THAILAND("泰国", "TH", listOf("泰国", "泰國", "曼谷", "thailand", "bangkok", "🇹🇭"), listOf("th")),
+    VIETNAM("越南", "VN", listOf("越南", "胡志明", "vietnam", "🇻🇳"), listOf("vn")),
+    PHILIPPINES("菲律宾", "PH", listOf("菲律宾", "菲律賓", "马尼拉", "馬尼拉", "philippines", "manila", "🇵🇭"), listOf("ph")),
+    INDONESIA("印尼", "ID", listOf("印尼", "雅加达", "雅加達", "indonesia", "jakarta", "🇮🇩"), listOf("id")),
+    EMIRATES("阿联酋", "AE", listOf("阿联酋", "阿聯酋", "迪拜", "杜拜", "emirates", "dubai", "🇦🇪"), listOf("ae")),
+    INDIA("印度", "IN", listOf("印度", "孟买", "孟買", "india", "mumbai", "🇮🇳"), listOf("in"));
+
+    /**
+     * The flag is derived from the ISO code rather than stored: a regional
+     * indicator pair is just the letters shifted into the emoji block, and a
+     * hand-written table of flags is a table that can disagree with its own
+     * code.
+     */
+    val flag: String
+        get() = CountryFlags.flag(iso).orEmpty()
 }
 
 /** Which region a node's name points at, and the word that did it. */
@@ -125,6 +136,23 @@ object NodeRegions {
             }
         }
         return best
+    }
+
+    /**
+     * The region a node belongs to: what its name says, or failing that what
+     * its address says.
+     *
+     * The name wins on purpose. A provider that writes 香港 on a node behind a
+     * US CDN is describing the exit, and the address only describes the host —
+     * which is exactly the case where GeoIP is wrong.
+     */
+    fun resolve(name: String, country: String?): NodeRegion? =
+        classify(name)?.region ?: country?.let { fromCountry(it) }
+
+    /** The region with this ISO code, if it is one this app names. */
+    fun fromCountry(iso: String): NodeRegion? {
+        val normalised = iso.uppercase()
+        return NodeRegion.entries.firstOrNull { it.iso == normalised }
     }
 
     /**

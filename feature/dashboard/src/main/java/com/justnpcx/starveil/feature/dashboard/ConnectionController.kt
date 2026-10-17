@@ -15,6 +15,7 @@ import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.ProxyGroup
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -161,7 +162,7 @@ class ConnectionController @Inject constructor(
 
         /** Null for [None]: there is no name to show, and no copy belongs here. */
         fun label(): String? = when (this) {
-            is Node -> profile.name
+            is Node -> profile.displayName()
             is Group -> name
             None -> null
         }

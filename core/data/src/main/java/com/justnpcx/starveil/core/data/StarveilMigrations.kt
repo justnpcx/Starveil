@@ -55,5 +55,19 @@ object StarveilMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+    /**
+     * v3 → v4: `profiles.country`, the ISO code resolved from the node's
+     * address.
+     *
+     * Additive and nullable: an existing node simply has no flag until the
+     * resolver gets to it, and a node whose address cannot be looked up never
+     * gets one — neither case is an error.
+     */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `profiles` ADD COLUMN `country` TEXT")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 }

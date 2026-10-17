@@ -23,4 +23,6 @@ data class ProfileEntity(
     val latencyMs: Long = -1L,
     val groupId: Long = 0L,
     val settingsJson: String = "{}",
+    /** ISO-3166 alpha-2 of the address; null until resolved, or unknown. */
+    val country: String? = null,
 )

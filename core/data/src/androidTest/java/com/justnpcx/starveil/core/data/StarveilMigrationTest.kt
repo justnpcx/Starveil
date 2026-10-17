@@ -99,6 +99,29 @@ class StarveilMigrationTest {
     }
 
     @Test
+    fun migration_3_to_4_keeps_every_row_and_adds_the_country_column() {
+        val name = "migration-v4-${System.nanoTime()}.db"
+
+        helper.createDatabase(name, 3).use { db ->
+            db.execSQL(
+                "INSERT INTO profiles (name, type, server, port, latencyMs, groupId, settingsJson) " +
+                    "VALUES ('node', 'VLESS', 'a.example.com', 443, -1, 0, '{}')",
+            )
+        }
+
+        helper.runMigrationsAndValidate(name, 4, true, *StarveilMigrations.ALL).use { db ->
+            assertEquals(1, db.rowCount("profiles"))
+
+            // Every existing node is unresolved, which is a working node without
+            // a flag — not an error, and not a reason to drop the row.
+            assertEquals(1, db.scalarInt("SELECT COUNT(*) FROM profiles WHERE country IS NULL"))
+
+            db.execSQL("UPDATE profiles SET country = 'US' WHERE id = 1")
+            assertEquals("US", db.scalarString("SELECT country FROM profiles WHERE id = 1"))
+        }
+    }
+
+    @Test
     fun the_composite_key_makes_a_re_probe_a_replace() {
         val name = "migration-pk-${System.nanoTime()}.db"
         helper.createDatabase(name, 1).use { }
@@ -128,4 +151,9 @@ private fun SupportSQLiteDatabase.scalarInt(sql: String): Int =
     query(sql).use { cursor ->
         cursor.moveToFirst()
         cursor.getInt(0)
+    }
+
+private fun SupportSQLiteDatabase.scalarString(sql: String): String? =
+    query(sql).use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
     }

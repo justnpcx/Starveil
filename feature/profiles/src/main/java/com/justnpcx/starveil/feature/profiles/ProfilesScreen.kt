@@ -74,6 +74,7 @@ import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
@@ -909,7 +910,7 @@ private fun NodeRow(
                     StatusDot(status = health?.status ?: NodeStatus.UNTESTED)
                     Spacer(modifier = Modifier.width(StarveilSpacing.sm))
                     Text(
-                        text = profile.name,
+                        text = profile.displayName(),
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

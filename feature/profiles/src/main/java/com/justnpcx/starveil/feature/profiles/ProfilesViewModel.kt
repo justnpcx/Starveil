@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
+import com.justnpcx.starveil.core.data.geo.CountryResolver
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.NodeHealth
@@ -114,12 +115,27 @@ class ProfilesViewModel @Inject constructor(
     private val undo: UndoBus,
     private val refreshScheduler: SubscriptionRefreshScheduler,
     private val nodeHealth: NodeHealthRepository,
+    private val countryResolver: CountryResolver,
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
     private val message = MutableStateFlow<ProfilesMessage?>(null)
     private val groupFilter = MutableStateFlow<Long?>(null)
     private val share = MutableStateFlow<ShareTarget?>(null)
+
+    init {
+        // Nodes learn their country once. A GeoIP answer does not change, so the
+        // result is written back to the row and that host is never looked up
+        // again; a node whose address cannot be resolved simply keeps no flag.
+        viewModelScope.launch {
+            profiles.observeAll().collect { list ->
+                list.filter { it.country == null }.forEach { profile ->
+                    val country = countryResolver.countryOf(profile.server) ?: return@forEach
+                    profiles.upsert(profile.copy(country = country))
+                }
+            }
+        }
+    }
 
     /** Paired so the two transient signals count as one flow to [combine]. */
     private val transient = combine(importing, message) { isImporting, msg -> isImporting to msg }
@@ -294,7 +310,7 @@ class ProfilesViewModel @Inject constructor(
             // node list that matches nothing looked like the button was dead.
             message.value = null
             val regions = profiles.observeAll().first()
-                .mapNotNull { NodeRegions.classify(it.name)?.region }
+                .mapNotNull { NodeRegions.resolve(it.name, it.country) }
                 .distinct()
             if (regions.isEmpty()) {
                 message.value = ProfilesMessage.NoRegionsFound

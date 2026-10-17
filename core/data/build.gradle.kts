@@ -47,6 +47,8 @@ dependencies {
     implementation(libs.sqlcipher.android)
     implementation(libs.bouncycastle.prov)
     implementation(libs.datastore.preferences)
+    // Offline IP → country. The database is an asset, so no lookup leaves the device.
+    implementation(libs.ip2region)
     implementation(libs.coroutines.core)
     implementation(libs.hilt.android)
     ksp(libs.room.compiler)

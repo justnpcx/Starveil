@@ -49,6 +49,10 @@ the app does rather than what changed.
 - **Crash reporting**: opt-out Sentry reports. Node addresses, UUIDs, share
   links, subscription URLs and keys are replaced before the report leaves the
   device; Settings → Diagnostics turns it off.
+- **Node country**: every node is placed by its address — resolved once,
+  looked up in an offline GeoIP database that ships with the app, and shown
+  as a flag before its name. Grouping by region uses the same answer, so a
+  subscription with names like `HY2+Reality` still gets a 美国 group.
 - **Update check**: Settings → About fetches the latest GitHub release,
   downloads the APK, and verifies it two ways before offering it to the
   installer — SHA-256 against the digest GitHub publishes, and the signing
