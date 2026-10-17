@@ -321,9 +321,21 @@ class DashboardViewModel @Inject constructor(
             null
         }
         val config = try {
+            val perAppDirect = preferences.perAppDirectPackages.first()
             when (target) {
-                is Target.Node -> configBuilder.build(target.profile, rules, mainland = mainland)
-                is Target.Group -> configBuilder.build(target.members, rules, target.mode, mainland)
+                is Target.Node -> configBuilder.build(
+                    target.profile,
+                    rules,
+                    mainland = mainland,
+                    perAppDirect = perAppDirect,
+                )
+                is Target.Group -> configBuilder.build(
+                    target.members,
+                    rules,
+                    target.mode,
+                    mainland,
+                    perAppDirect = perAppDirect,
+                )
                 Target.None -> {
                     _uiState.update {
                         it.copy(

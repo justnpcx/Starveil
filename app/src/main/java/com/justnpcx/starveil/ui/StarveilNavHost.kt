@@ -32,6 +32,7 @@ import androidx.navigation.navArgument
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.di.ProtocolRegistryEntryPoint
 import com.justnpcx.starveil.feature.editor.ProfileEditorScreen
+import com.justnpcx.starveil.feature.settings.PerAppScreen
 import com.justnpcx.starveil.feature.settings.SettingsScreen
 
 /** Destinations. Adding a screen = adding one entry here + one composable below. */
@@ -49,6 +50,9 @@ enum class Destination(
     LOGS("logs", "Logs", StarveilIcons.Terminal),
     SETTINGS("settings", "Settings", Icons.Filled.Settings),
 }
+
+/** Not a tab: reached from Settings, which is where the exception list lives. */
+private const val PER_APP_ROUTE = "perapp"
 
 @Composable
 fun StarveilNavHost(
@@ -134,7 +138,15 @@ fun StarveilNavHost(
         }
         composable(Destination.RULES.route) { RulesScreen() }
         composable(Destination.LOGS.route) { LogsScreen() }
-        composable(Destination.SETTINGS.route) { SettingsScreen(onRunLeakCheck = onRunLeakCheck) }
+        composable(Destination.SETTINGS.route) {
+            SettingsScreen(
+                onRunLeakCheck = onRunLeakCheck,
+                onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
+            )
+        }
+        composable(PER_APP_ROUTE) {
+            PerAppScreen(onBack = { navController.popBackStack() })
+        }
 
         descriptors.forEach { descriptor ->
             composable(

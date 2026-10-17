@@ -116,10 +116,13 @@ private class FakePreferences : PreferencesRepository {
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
+    // Real rather than notUsed(): the ui state counts it on every emission.
+    override val perAppDirectPackages: Flow<Set<String>> = flowOf(emptySet())
     override suspend fun setSelectedProfileId(id: Long) = notUsed()
     override suspend fun setSelectedGroupId(id: Long) = notUsed()
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) = notUsed()
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) = notUsed()
+    override suspend fun setPerAppDirectPackages(packages: Set<String>) = notUsed()
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

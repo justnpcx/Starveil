@@ -731,6 +731,7 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
+    override val perAppDirectPackages: Flow<Set<String>> get() = notUsed()
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
@@ -739,6 +740,7 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
+    override suspend fun setPerAppDirectPackages(packages: Set<String>) { notUsed() }
 }
 
 private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : GroupRepository {

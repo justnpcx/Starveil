@@ -30,6 +30,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         profile: Profile,
         rules: List<Rule> = emptyList(),
         mainland: MainlandRuleSets? = null,
+        perAppDirect: Set<String> = emptySet(),
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
@@ -46,6 +47,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             finalTag = PROXY_TAG,
             rules = rules,
             mainland = mainland,
+            perAppDirect = perAppDirect,
         )
     }
 
@@ -68,6 +70,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rules: List<Rule> = emptyList(),
         mode: GroupMode = GroupMode.URL_TEST,
         mainland: MainlandRuleSets? = null,
+        perAppDirect: Set<String> = emptySet(),
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -121,6 +124,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             finalTag = AUTO_TAG,
             rules = rules,
             mainland = mainland,
+            perAppDirect = perAppDirect,
         )
     }
 
@@ -157,7 +161,27 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rules: List<Rule>,
         proxyTag: String,
         mainland: MainlandRuleSets?,
+        perAppDirect: Set<String>,
     ): List<Map<String, Any?>> {
+        // Per-app first, and that is a deliberate precedence: someone who says
+        // "this app never goes through the tunnel" means it more specifically
+        // than any domain rule, and a bank app that reaches a rule-matched
+        // domain must still stay out of the tunnel. `package_name` is matched
+        // from the platform's connection-owner lookup (see
+        // StarveilPlatformInterface.findConnectionOwner); with no owner data
+        // the rule simply never matches, which is why that lookup has to be
+        // real for this to do anything.
+        val perApp = if (perAppDirect.isEmpty()) {
+            emptyList()
+        } else {
+            listOf(
+                linkedMapOf<String, Any?>(
+                    "package_name" to perAppDirect.sorted(),
+                    "action" to "route",
+                    "outbound" to DIRECT_TAG,
+                ),
+            )
+        }
         val userRules = rules.filter { it.enabled }.map { rule ->
             val matcher = linkedMapOf<String, Any?>(
                 rule.matcher.kind.wireName to listOf(rule.matcher.value),
@@ -170,13 +194,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             }
             matcher + action
         }
-        if (mainland == null) return userRules
+        if (mainland == null) return perApp + userRules
         // After the user's own rules and before `final`: the user's intent wins
         // over the preset, which is the only order that lets someone carve an
         // exception out of it. geosite-cn is a domain match, so a domestic
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
-        return userRules + listOf(
+        return perApp + userRules + listOf(
             linkedMapOf<String, Any?>(
                 "rule_set" to GEOSITE_CN_TAG,
                 "action" to "route",
@@ -382,6 +406,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         finalTag: String,
         rules: List<Rule>,
         mainland: MainlandRuleSets? = null,
+        perAppDirect: Set<String> = emptySet(),
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
@@ -396,7 +421,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             config["endpoints"] = endpoints
         }
         config["route"] = linkedMapOf<String, Any?>(
-            "rules" to routeRules(rules, finalTag, mainland),
+            "rules" to routeRules(rules, finalTag, mainland, perAppDirect),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
             // The dialer installs the bind/protect control, which reaches

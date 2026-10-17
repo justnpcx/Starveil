@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -28,6 +29,8 @@ data class SettingsUiState(
      * first read lands.
      */
     val kernelVersion: String = "",
+    /** How many apps are set to bypass the tunnel; shown on the entry row. */
+    val perAppDirectCount: Int = 0,
 )
 
 @HiltViewModel
@@ -61,8 +64,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<SettingsUiState> =
-        combine(preferencesState, kernelVersion) { state, version ->
-            state.copy(kernelVersion = version)
+        combine(
+            preferencesState,
+            kernelVersion,
+            // Counted rather than listed: the row says how many, the screen
+            // says which.
+            preferences.perAppDirectPackages.map { it.size },
+        ) { state, version, perAppCount ->
+            state.copy(kernelVersion = version, perAppDirectCount = perAppCount)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

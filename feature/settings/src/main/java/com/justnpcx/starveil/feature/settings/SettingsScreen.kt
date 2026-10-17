@@ -44,6 +44,8 @@ fun SettingsScreen(
      * check inspects; the default keeps previews and tests platform-free.
      */
     onRunLeakCheck: () -> Unit = {},
+    /** Opens the per-app exception list. :app owns the route. */
+    onOpenPerApp: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -94,6 +96,23 @@ fun SettingsScreen(
             checked = state.autoReconnect,
             onCheckedChange = viewModel::setAutoReconnect,
         )
+
+        SectionTitle(stringResource(R.string.per_app_entry_title))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (state.perAppDirectCount == 0) {
+                    stringResource(R.string.per_app_entry_desc)
+                } else {
+                    stringResource(R.string.per_app_entry_count, state.perAppDirectCount)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onOpenPerApp) {
+                Text(stringResource(R.string.per_app_manage))
+            }
+        }
 
         SectionTitle(stringResource(R.string.leak_check_title))
         Text(

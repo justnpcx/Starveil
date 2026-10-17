@@ -525,6 +525,9 @@ private class FakePreferences(
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
     // Off, like the app's default: a test that wants the preset on says so.
     override val bypassMainland: Flow<Boolean> = flowOf(false)
+    // Real rather than notUsed(): the connect path reads it on every build.
+    private val perAppDirect = MutableStateFlow<Set<String>>(emptySet())
+    override val perAppDirectPackages: Flow<Set<String>> = perAppDirect
     override val lastLeakCheck: Flow<LeakCheckRecord> = leak
 
     override suspend fun setSelectedProfileId(id: Long) {
@@ -556,6 +559,9 @@ private class FakePreferences(
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
+    override suspend fun setPerAppDirectPackages(packages: Set<String>) {
+        perAppDirect.value = packages
+    }
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
