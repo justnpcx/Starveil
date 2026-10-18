@@ -229,6 +229,10 @@ dependencies {
     implementation(project(":feature:logs"))
     implementation(project(":feature:settings"))
 
+    // Onboarding scans a QR code. The same library the node list uses; it is
+    // named here because the screen is in :app, not because it is new.
+    implementation(libs.zxing.android.embedded)
+
     // Installs the Baseline Profile bundled in the APK, on first run.
     implementation(libs.androidx.profileinstaller)
 

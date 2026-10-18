@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
 import com.justnpcx.starveil.latency.NodeHealthSampler
+import com.justnpcx.starveil.onboarding.OnboardingScreen
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.Destination
 import com.justnpcx.starveil.core.ui.snackbar.UndoSnackbarHost
@@ -87,6 +89,10 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             val dynamicColor by preferences.dynamicColor
                 .collectAsStateWithLifecycle(initialValue = false)
+            // null until the flag is read: showing the tabs first and then
+            // replacing them with onboarding would flash the wrong screen.
+            val onboardingDone by preferences.onboardingDone
+                .collectAsStateWithLifecycle(initialValue = null)
 
             val dark = themeMode.isDark(systemDark = isSystemInDarkTheme())
 
@@ -107,19 +113,25 @@ class MainActivity : ComponentActivity() {
                 darkTheme = dark,
                 dynamicColor = dynamicColor,
             ) {
-                val navController = rememberNavController()
-                val snackbarHostState = remember { SnackbarHostState() }
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    bottomBar = { StarveilBottomBar(navController) },
-                    snackbarHost = {
-                        UndoSnackbarHost(requests = undoBus, hostState = snackbarHostState)
-                    },
-                ) { innerPadding ->
-                    StarveilNavHost(
-                        navController = navController,
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                when (onboardingDone) {
+                    null -> Box(modifier = Modifier.fillMaxSize())
+                    false -> OnboardingScreen()
+                    true -> {
+                        val navController = rememberNavController()
+                        val snackbarHostState = remember { SnackbarHostState() }
+                        Scaffold(
+                            modifier = Modifier.fillMaxSize(),
+                            bottomBar = { StarveilBottomBar(navController) },
+                            snackbarHost = {
+                                UndoSnackbarHost(requests = undoBus, hostState = snackbarHostState)
+                            },
+                        ) { innerPadding ->
+                            StarveilNavHost(
+                                navController = navController,
+                                modifier = Modifier.padding(innerPadding),
+                            )
+                        }
+                    }
                 }
             }
         }

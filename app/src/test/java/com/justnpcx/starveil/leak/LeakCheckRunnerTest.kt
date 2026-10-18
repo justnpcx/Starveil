@@ -160,6 +160,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
+    override val onboardingDone: Flow<Boolean> = flowOf(true)
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
     override val scenes: Flow<List<Scene>> = flowOf(emptyList())
     override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
@@ -178,6 +179,7 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
+    override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
