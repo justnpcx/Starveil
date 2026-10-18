@@ -1,6 +1,12 @@
 package com.justnpcx.starveil.feature.dashboard
 
 import android.content.res.Configuration
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
@@ -15,8 +21,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -34,9 +38,11 @@ import androidx.compose.ui.Modifier
 import java.util.Locale
 import kotlin.math.round
 import kotlin.math.roundToInt
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -489,21 +495,7 @@ private fun CurrentNodeCard(
                 // is a whisper of the card's own ink, not a saturated pill.
                 // It is metadata about the node, not the screen's second
                 // action; the name is the anchor (I1).
-                AssistChip(
-                    onClick = onAutoSelect,
-                    label = {
-                        Text(
-                            text = stringResource(R.string.dashboard_auto_select),
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                        )
-                    },
-                    shape = RoundedCornerShape(50),
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                    border = null,
-                )
+                AutoSelectChip(onClick = onAutoSelect)
             }
             // Latency only: availability is 100% for the node you are
             // connected to, so repeating it here says nothing (C4). The health
@@ -516,6 +508,55 @@ private fun CurrentNodeCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+/**
+ * The one-tap pick, as a quiet pill.
+ *
+ * Hand-rolled rather than an [androidx.compose.material3.AssistChip] because
+ * the stock chip only offers its ripple, and over a 6% container that ripple
+ * measured 3–4/255 on device — at the edge of what the eye registers. A fill
+ * of 16% while held is unmistakable without making the pill the screen's
+ * second action (I1). The outer box keeps the 48 dp touch target; the inner
+ * box is the 32 dp pill the chip used to draw.
+ */
+@Composable
+private fun AutoSelectChip(onClick: () -> Unit) {
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val container by animateColorAsState(
+        targetValue = MaterialTheme.colorScheme.onSurface.copy(
+            alpha = if (pressed) 0.16f else 0.06f,
+        ),
+        animationSpec = tween(durationMillis = if (pressed) 70 else 180),
+        label = "autoSelectChip",
+    )
+    Box(
+        modifier = Modifier
+            .height(48.dp)
+            .clickable(
+                interactionSource = interactions,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .height(32.dp)
+                .clip(RoundedCornerShape(50))
+                .background(container)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.dashboard_auto_select),
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
