@@ -13,6 +13,7 @@ import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
 import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.geo.DohResolver
 import com.justnpcx.starveil.core.data.ruleset.FileMainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import java.io.File
@@ -53,6 +54,17 @@ object DataModule {
         // Straight to logcat. A failed download is not worth a screen, but it
         // has to be findable when someone asks why the preset did nothing.
         warn = { android.util.Log.w("StarveilRuleSets", it) },
+    )
+
+    /**
+     * One resolver for the whole process: its concurrency limit and the cache
+     * above it are only meaningful if every node lookup goes through the same
+     * instance.
+     */
+    @Provides
+    @Singleton
+    fun provideDohResolver(): DohResolver = DohResolver(
+        warn = { android.util.Log.w("StarveilDoh", it) },
     )
 
     @Provides

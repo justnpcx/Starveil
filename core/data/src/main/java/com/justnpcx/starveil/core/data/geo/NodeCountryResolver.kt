@@ -1,6 +1,5 @@
 package com.justnpcx.starveil.core.data.geo
 
-import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +20,7 @@ import kotlinx.coroutines.withContext
 @Singleton
 class NodeCountryResolver @Inject constructor(
     private val geo: GeoIpLookup,
+    private val dns: DohResolver,
 ) : CountryResolver {
 
     private val resolved = ConcurrentHashMap<String, String>()
@@ -29,8 +29,9 @@ class NodeCountryResolver @Inject constructor(
     override suspend fun countryOf(host: String): String? = withContext(Dispatchers.IO) {
         resolved[host]?.let { return@withContext it }
         if (!attempted.add(host)) return@withContext null
-        val address = runCatching { InetAddress.getByName(host).hostAddress }.getOrNull()
-            ?: return@withContext null
+        // Over DoH, not the system resolver: the hostname is the interesting
+        // part of a node, and plain DNS announces it to the local network.
+        val address = dns.resolve(host) ?: return@withContext null
         geo.countryCode(address)?.also { resolved[host] = it }
     }
 }
