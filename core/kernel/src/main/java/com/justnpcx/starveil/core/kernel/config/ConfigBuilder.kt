@@ -643,8 +643,10 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // by 1.5 before calling debug.SetMemoryLimit, leaving room for the
             // JVM and native allocations in the same process — so the value
             // here is the process budget, not the Go heap. 96 MiB becomes a
-            // 64 MiB Go limit, the starting point for the <80 MB PSS target;
-            // the number is a measurement knob, not a guarantee.
+            // 64 MiB Go limit. Measured on the vivo (docs/11): the Go heap is
+            // only ~9 MB, so this limit never binds and the PSS target of
+            // 80 MB is not reached — the floor is shared code and Compose,
+            // not GOGC. Kept as a ceiling for larger node lists.
             //
             // FreeOSMemory at a PSS watermark is deliberately not wired: the
             // only exposed path is the unauthenticated debug HTTP server
@@ -699,8 +701,10 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
          *
          * The kernel turns this into a Go heap soft limit of two thirds of the
          * value, so 96 MiB leaves 64 MiB for Go and the rest for the JVM and
-         * native code. Lower it only with a PSS measurement in hand: below the
-         * live heap the GC runs continuously instead of collecting garbage.
+         * native code. The vivo measurement (docs/11) found the live Go heap
+         * around 9 MB, so this is a ceiling, not a working limit; lower it
+         * only with a PSS measurement in hand, because below the live heap the
+         * GC runs continuously instead of collecting garbage.
          */
         const val MEMORY_BUDGET_BYTES = 96 * 1024 * 1024
 

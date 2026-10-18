@@ -182,7 +182,25 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 
 **目标**：PSS < 80 MB。
 
-**数字**：待测（2026-10-18 无真机）。测量后把两行数字补在这里，并同步 commit message。
+**实测（2026-10-18，vivo V2520A / Android 17 / arm64-v8a / 1080×2376）**
+
+同一台设备、同一个节点（HY2+Reality-hy2-443）、同一预设（绕过中国大陆 + 去广告，4 条规则在生效）、规则集已加载。应用在后台（按 Home），`dumpsys meminfo com.justnpcx.starveil` 的 `TOTAL PSS`：
+
+| 构建 | 5 分钟 | 10 分钟 |
+| --- | --- | --- |
+| before（`fd923ae`，默认 GOGC，无 memory_limit） | 85,985 KB（84.0 MiB） | 84,732 KB（82.7 MiB） |
+| after（`b0c36a8`，GOGC=50 + 96 MiB budget） | 83,986 KB（82.0 MiB） | 85,256 KB（83.3 MiB） |
+
+两个包都是 release 模式（R8），为了安装用 debug 证书签名；除 `debug` 配置块外代码相同。前台刚连上时 before 118,020 KB、after 132,287 KB，但 after 那次前台多停留了约一分钟并伴随 DNS 报错，不可比，不列入结论。
+
+**结论：没有可测出的改善，目标未达标。**
+
+- 5 分钟差 2.0 MiB，10 分钟差 −0.5 MiB；而 before 自己在 5→10 分钟之间就漂移了 1.2 MiB，after 漂移 1.3 MiB。差异在噪声内。
+- 5 分钟 after 的构成：Java 5.6 MB、Native 9.2 MB、Code 17.6 MB、Private Other 23.1 MB、System 25.8 MB、Graphics 0.4 MB。Go 堆只有约 9 MB，`memory_limit`（Go 上限 64 MiB）根本没有触到。
+- 80 MB 的地板由共享代码页（libbox.so，61.7 MB stored / 19.5 MB deflated）、Compose 的 Private Other 和系统共享页决定，不是 GOGC 能压下去的。要真正达标，下一根杠杆是 libbox 的 so 体积或更轻的 UI，不在本轮范围。
+- GOGC=50 没有观察到卡顿；按任务书保留 50，不再往 75/100 回调。但“M4 内存达标”这个结论**不能**写。
+
+**复现**：`/tmp/pss/starveil-{before,after}-arm64.apk`（临时文件）；构建分别来自 `fd923ae` 与 `b0c36a8`，用 `apksigner` 以 debug 证书签名后 `adb install -r`。
 
 ### 调查后确认「不是问题」
 
