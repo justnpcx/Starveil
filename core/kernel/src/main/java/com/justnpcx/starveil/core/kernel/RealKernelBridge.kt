@@ -126,6 +126,61 @@ class RealKernelBridge(
         apply(configBuilder.buildBlocking(), blocking = true)
 
     /**
+     * Blackhole: stop the kernel, keep the tunnel.
+     *
+     * The VpnService and its tun stay up, so every packet still enters the
+     * tunnel; nothing reads it, so everything is dropped. Nothing opens the
+     * cache database, which is the whole point — the config-based block had to
+     * start a second kernel and lost that race every time on this device.
+     */
+    override suspend fun blockKeepingTunnel(): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val current = server
+            if (current == null) {
+                // Nothing to stop. If the service still holds a tun, the
+                // blackhole is already in force; if it does not, there is no
+                // tunnel to keep and saying "blocked" would be a lie.
+                val kept = com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService.current
+                    ?.hasTun == true
+                _blocking.value = kept
+                _state.value = KernelState.Stopped
+                return@withContext if (kept) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(IllegalStateException("no tunnel to keep"))
+                }
+            }
+
+            stopping = true
+            _state.value = KernelState.Stopping
+            log(LogLevel.INFO, "kernel stopping; tunnel stays up and forwards nothing")
+            val result = try {
+                runCatching { client?.disconnect() }
+                client = null
+                current.closeService()
+                current.close()
+                server = null
+                // Deliberately no stopVpn(): the tun is the block.
+                _blocking.value = true
+                _state.value = KernelState.Stopped
+                log(LogLevel.INFO, "kernel stopped; tun kept, forwarding nothing")
+                Result.success(Unit)
+            } catch (e: Exception) {
+                client = null
+                server = null
+                _blocking.value = false
+                _state.value = KernelState.Error(
+                    KernelError.Unknown("could not stop the kernel for the block", e),
+                )
+                log(LogLevel.ERROR, "block: kernel failed to stop: ${e.javaClass.simpleName}")
+                Result.failure(e)
+            } finally {
+                stopping = false
+            }
+            result
+        }
+
+    /**
      * Start, or replace the running kernel's config.
      *
      * Replacing means a full teardown and a fresh start, because that is the

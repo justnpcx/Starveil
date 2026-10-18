@@ -245,7 +245,10 @@ class ConnectionController @Inject constructor(
             kernel.stop()
             return ConnectionOutcome.Disconnected
         }
-        val result = kernel.block()
+        // Blackhole, not a blocking config: the tun stays up and the kernel
+        // stops reading it. Starting a second kernel is what timed out on the
+        // cache database (9930507's logs), and it also cost a teardown.
+        val result = kernel.blockKeepingTunnel()
         return ConnectionOutcome.Blocked(
             started = result.isSuccess,
             reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() },

@@ -62,6 +62,23 @@ interface KernelBridge {
      */
     suspend fun block(): Result<Unit>
 
+    /**
+     * Forward nothing, without touching the tunnel: stop the kernel and keep
+     * the VpnService and its tun up.
+     *
+     * This is the "block on disconnect" path. Packets still enter the tun —
+     * the routes are unchanged — and nothing reads them, so they are dropped.
+     * No second kernel is started, which is what made the config-based block
+     * race the cache database (`initialize cache-file: timeout`).
+     *
+     * [start] afterwards reuses the same tun: the service keeps its file
+     * descriptor and hands the new kernel a duplicate.
+     *
+     * The default falls back to [block]: an implementation that cannot keep a
+     * tun still blocks, just the expensive way. The real bridge overrides it.
+     */
+    suspend fun blockKeepingTunnel(): Result<Unit> = block()
+
     /** Stop the kernel and take the tunnel down. Idempotent. */
     suspend fun stop(): Result<Unit>
 

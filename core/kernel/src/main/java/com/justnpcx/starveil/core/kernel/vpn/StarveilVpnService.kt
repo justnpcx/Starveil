@@ -31,18 +31,15 @@ import io.nekohasekai.libbox.TunOptions
  */
 class StarveilVpnService : VpnService() {
 
-    private var tun: ParcelFileDescriptor? = null
-
     /**
-     * The tun's raw descriptor, which is what actually has to be closed.
+     * The service's own handle on the tun.
      *
-     * establish() hands back a ParcelFileDescriptor, but ownership of the fd
-     * passes to the kernel, so we detach it and return the number. After
-     * detachFd() the PFD is empty — closing *it* closes nothing, which is why
-     * the interface (and the VPN icon) survived a disconnect. Keep the number
-     * and close that.
+     * The kernel gets a *duplicate* descriptor; this one stays open for as
+     * long as the service lives. That is what lets a block stop the kernel
+     * without destroying the interface, and lets the next kernel reattach to
+     * the same tun.
      */
-    private var tunFd: Int = -1
+    private var tun: ParcelFileDescriptor? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
@@ -143,6 +140,14 @@ class StarveilVpnService : VpnService() {
     }
 
     private fun establishTun(options: TunOptions): Int {
+        // A block keeps this service and its tun alive. The next kernel gets a
+        // duplicate of the same interface instead of a new one, so a block →
+        // reconnect keeps the VPN session (and its consent) intact. Nothing
+        // reads the tun while no kernel is attached, which is the block.
+        tun?.let { existing ->
+            KernelDiagnostics.log("openTun: reusing tun fd ${existing.fd}")
+            return ParcelFileDescriptor.dup(existing.fileDescriptor).detachFd()
+        }
         closeTun()
 
         val builder = Builder()
@@ -231,22 +236,22 @@ class StarveilVpnService : VpnService() {
 
         tun = descriptor
         underlying?.let { setUnderlyingNetworks(arrayOf(it)) }
-        tunFd = descriptor.detachFd()
-        return tunFd
+        // The service keeps this descriptor and the kernel gets a duplicate:
+        // when the kernel closes its copy, the interface stays up (that is
+        // what makes the blackhole block possible), and a later start can
+        // hand out another duplicate of the same tun.
+        return ParcelFileDescriptor.dup(descriptor.fileDescriptor).detachFd()
     }
+
+    /** Whether a tun is established and kept by this service. */
+    val hasTun: Boolean get() = tun != null
 
     /** Releases the tun. Called on teardown, and from [stop] before stopping. */
     internal fun closeTun() {
-        if (tunFd >= 0) {
-            KernelDiagnostics.log("VpnService closing tun fd $tunFd")
-            // adoptFd takes ownership of the raw descriptor, so closing the
-            // PFD closes the fd. Os.close takes a FileDescriptor, not an int.
-            runCatching { ParcelFileDescriptor.adoptFd(tunFd).close() }
-            tunFd = -1
+        tun?.let {
+            KernelDiagnostics.log("VpnService closing tun fd ${it.fd}")
+            runCatching { it.close() }
         }
-        // The PFD is empty after detachFd(); kept only so a future change that
-        // stops detaching does not silently leak.
-        runCatching { tun?.close() }
         tun = null
     }
 
