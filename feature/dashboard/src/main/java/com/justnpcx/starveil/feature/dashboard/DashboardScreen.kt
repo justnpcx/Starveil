@@ -134,7 +134,12 @@ fun DashboardScreen(
 private fun NodeHealthSection(health: NodeHealth) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            // Inset like the card's text, not the screen: the section's own
+            // chart is full-bleed, but a header is type and follows the type
+            // grid (C5).
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = StarveilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
