@@ -544,8 +544,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // rates and totals sit at 0 B/s forever even while traffic flows.
         // An empty controller opens no HTTP listener: the server is created
         // but never bound.
+        // cache_file off, deliberately. It is a file lock, and the reload path
+        // (`startOrReloadService`) builds the new instance before the old one
+        // is closed — so the second open waits on the first holder and fails
+        // with `initialize cache-file: timeout`. That made every config swap
+        // fail on device, which is the one thing the Kill Switch cannot do.
+        // What is lost: the persisted choice of a selector group across
+        // restarts, and a fakeip cache this app never uses.
         config["experimental"] = linkedMapOf<String, Any?>(
             "clash_api" to emptyMap<String, Any?>(),
+            "cache_file" to linkedMapOf<String, Any?>("enabled" to false),
         )
         return Json.write(config)
     }

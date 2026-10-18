@@ -41,18 +41,28 @@ class NodeHealthProbeScheduler @Inject constructor(
      * WorkManager's own store, and the catch-up decision is one preference read.
      */
     fun schedule(scope: CoroutineScope) {
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            PERIODIC_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            PeriodicWorkRequestBuilder<NodeHealthProbeWorker>(INTERVAL_HOURS, TimeUnit.HOURS)
-                .setConstraints(constraints())
-                .build(),
-        )
-
         scope.launch {
+            val workManager = WorkManager.getInstance(context)
+            // Whether this is the first schedule, asked *before* enqueueing.
+            // WorkManager runs a new periodic request immediately, so a
+            // catch-up on that same launch would probe every node twice — which
+            // is exactly what the first device run did.
+            val alreadyScheduled = runCatching {
+                workManager.getWorkInfosForUniqueWorkFlow(PERIODIC_NAME).first()
+            }.getOrNull().orEmpty().isNotEmpty()
+
+            workManager.enqueueUniquePeriodicWork(
+                PERIODIC_NAME,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                PeriodicWorkRequestBuilder<NodeHealthProbeWorker>(INTERVAL_HOURS, TimeUnit.HOURS)
+                    .setConstraints(constraints())
+                    .build(),
+            )
+
+            if (!alreadyScheduled) return@launch
             val last = preferences.lastHealthProbeAt.first()
             if (System.currentTimeMillis() - last < INTERVAL_MS) return@launch
-            WorkManager.getInstance(context).enqueueUniqueWork(
+            workManager.enqueueUniqueWork(
                 CATCH_UP_NAME,
                 // KEEP: a second launch while the first catch-up is still
                 // waiting for a network must not enqueue another.

@@ -118,6 +118,18 @@ class MainlandRuleSetStoreTest {
     }
 
     @Test
+    fun `one bad file is not cleared by the other one succeeding`() = runBlocking {
+        val store = store { url ->
+            if (url.endsWith("geosite-cn.srs")) "tampered".toByteArray() else honest(url)
+        }
+
+        assertNull(store.ensure())
+        // The second file succeeding used to wipe the first one's failure,
+        // which is the only case where the user needs to be told anything.
+        assertEquals(RuleSetFailure.Reason.HASH_MISMATCH, store.failure.value?.reason)
+    }
+
+    @Test
     fun `an empty body is a failed download, not a trusted empty file`() = runBlocking {
         val store = store { ByteArray(0) }
 

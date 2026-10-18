@@ -106,6 +106,11 @@ class FileMainlandRuleSetStore(
     override val failure: StateFlow<RuleSetFailure?> = _failure.asStateFlow()
 
     override suspend fun ensure(): MainlandRuleSets? {
+        // Cleared here, not in obtain(): the two files are fetched in turn, and
+        // a success on the second used to wipe the failure the first had just
+        // recorded — which is exactly the case that matters (one file bad, one
+        // fine), and it left the page with nothing to report.
+        _failure.value = null
         val geosite = obtain(geositeCn)
         val geoip = obtain(geoipCn)
         if (geosite == null || geoip == null) {
@@ -123,15 +128,15 @@ class FileMainlandRuleSetStore(
         )
     }
 
-    override suspend fun ensureAds(): String? = obtain(ads)?.absolutePath
+    override suspend fun ensureAds(): String? {
+        _failure.value = null
+        return obtain(ads)?.absolutePath
+    }
 
     private suspend fun obtain(set: PinnedRuleSet): File? {
         val target = File(directory, set.name)
         if (target.isFile && target.length() > 0) {
-            if (matches(target, set.sha256)) {
-                _failure.value = null
-                return target
-            }
+            if (matches(target, set.sha256)) return target
             // Present but wrong: written by an older build with a different
             // pin, or replaced. Either way it is not the file we vetted.
             warn("rule set ${set.name}: on disk but does not match its hash; discarding")
@@ -160,7 +165,6 @@ class FileMainlandRuleSetStore(
                     partial.delete()
                     throw IOException("could not move into place")
                 }
-                _failure.value = null
                 return target
             } catch (e: Exception) {
                 // The URL is not logged in full: it is a CDN path today, but

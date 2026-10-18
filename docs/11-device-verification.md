@@ -29,6 +29,9 @@
 | 默认接口 | 连接后日志 `default interface -> wlan0 (24)`，出站 `dial wlan0`，WiFi 下不再走蜂窝 |
 | 更新通道（完整流程） | 本地 HTTP 源提供一份与已安装应用同签名的 APK：弹窗 → 下载 130 MB → SHA-256 通过 → 签名通过 → **系统安装器完成安装**（`lastUpdateTime` 更新到 22:04:55）→ 应用重新启动 |
 | 三档分流策略 | 见下方「分流矩阵」：同一目标在不同策略下由内核判给不同出口 |
+| 后台全量探测（H1） | 日志出现 `health sweep: probed 3 node(s)`；随后「自动选择」选出 **HY2+Reality-hy2-443（评分 10099）**——不是此前唯一有健康数据的 cf-xhttp |
+| Kill Switch 阻断（M5） | 「始终阻断」连接 → `已阻断`，配置 `final=block`、出站只有 `block`、无 uuid；Chrome 打开 example.com 得 `ERR_CONNECTION_REFUSED`。「断开时阻断」连接→断开 同样结果；从阻断态再连接，配置回到 `final=proxy` |
+| 规则集校验（M3） | 篡改 `geosite-cn.srs` 并把目录设为只读后重连：日志 `does not match its hash; discarding` → 下载失败 → `rule set geosite-cn.srs: download_failed; mainland preset disabled`；规则页出现红色警告与 Snackbar，配置 `final=proxy` 且 0 条预设规则（fail-closed）；日志页有同一条 error |
 | 切预设自动重建 | 连接状态下切「全局直连」，无需手动重连，`files/libbox/configuration.json` 的 `final` 由 `proxy` 变为 `direct`；切回后恢复 `proxy` + 2 条规则 |
 
 **分流矩阵（2026-10-18）**
@@ -91,6 +94,31 @@ dial rmnet_data4 (28): dial tcp 142.250.73.67:443: i/o timeout
 （`configuration.json` 的 `final` 还是 `proxy`），流量照旧走代理。配置只在连接时构建，
 而切节点是会自动重连的——两条路径不一致。已让 `DashboardViewModel` 同时观察
 `routePreset` 与 `blockAds`，变化时重建隧道，和切节点同一条路径。
+
+**6. 配置热切换全部失败：`initialize cache-file: timeout`**（2026-10-18）
+
+M5 把「阻断」改成换一份 `buildBlocking()` 配置，靠 `startOrReloadService` 在运行中的
+内核上换配置。真机上每次切换都失败：
+
+```
+内核启动失败：start or reload service: initialize cache-file: timeout
+```
+
+reload 会先建新实例再关旧实例，而 `cache_file` 是文件锁——第二个实例等锁等到超时。
+在 `experimental` 里关掉 `cache_file` 后两种方向的热切换都成功（阻断→代理、代理→阻断），
+tun 全程不消失。代价是 selector 组的持久选择与 fakeip 缓存，这个应用都不用。
+
+**7. 一个文件成功会把另一个文件的失败清掉**（2026-10-18）
+
+`ensure()` 依次取两个文件；第二个成功后把 `failure` 置空，正好抹掉第一个刚记下的失败——
+而「一个坏、一个好」恰恰是唯一需要告诉用户的组合。改为在 `ensure()` 入口清空，成功不再
+清。另补一条常驻警告行：Snackbar 会消失，而「预设没生效」这件事不会。
+
+**8. 首次调度会探测两遍**（2026-10-18）
+
+周期任务首次入队时 WorkManager 会立刻跑一次，而同一启动里还入队了一个「补跑」一次性任务，
+日志里出现两行 `probed 3 node(s)`。改为入队前先查该唯一任务是否已存在：首次只靠周期任务，
+之后的启动才按时间戳补跑。
 
 ### 调查后确认「不是问题」
 

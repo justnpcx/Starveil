@@ -121,6 +121,7 @@ fun RulesScreen(
                     RoutePresetCard(
                         preset = state.preset,
                         blockAds = state.blockAds,
+                        failed = state.ruleSetFailure != null,
                         presetRules = state.presetRules,
                         userRuleCount = state.enabledUserRules,
                         onSelect = viewModel::setPreset,
@@ -490,6 +491,8 @@ private fun actionLabel(action: RuleAction): String = stringResource(
 private fun RoutePresetCard(
     preset: RoutePreset,
     blockAds: Boolean,
+    /** A rule set was rejected, so the preset below is not what the kernel gets. */
+    failed: Boolean,
     presetRules: List<PresetRule>,
     userRuleCount: Int,
     onSelect: (RoutePreset) -> Unit,
@@ -523,6 +526,18 @@ private fun RoutePresetCard(
                 selected = preset == RoutePreset.GLOBAL_DIRECT,
                 onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
             )
+
+            // Persistent, not only the Snackbar: the condition lasts until a
+            // verified download succeeds, and the counts below would otherwise
+            // go on claiming rules that are not in the config.
+            if (failed) {
+                Text(
+                    text = stringResource(R.string.rules_ruleset_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = StarveilSpacing.sm),
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
 
