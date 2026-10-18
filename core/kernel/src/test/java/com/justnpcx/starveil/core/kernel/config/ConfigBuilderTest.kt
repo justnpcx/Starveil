@@ -817,6 +817,23 @@ class ConfigBuilderTest {
     )
 
     @Test
+    fun `every config carries the Go memory tuning`() {
+        val json = builder.build(vlessProfile())
+
+        // GOGC=50 and a 96 MiB process budget (the kernel divides by 1.5 for
+        // the Go heap soft limit). Both are `experimental.debug` fields, which
+        // the kernel applies at box start.
+        assertTrue(
+            json.contains("\"debug\":{\"gc_percent\":50,\"memory_limit\":100663296}"),
+        )
+        // The blocking config is a kernel config too; a Kill Switch must not
+        // run with different memory behaviour.
+        assertTrue(
+            builder.buildBlocking().contains("\"gc_percent\":50"),
+        )
+    }
+
+    @Test
     fun `the local API is absent by default and loopback-only when asked for`() {
         val off = builder.build(vlessProfile())
         assertTrue("the traffic manager needs the key even when off", off.contains("\"clash_api\":{}"))

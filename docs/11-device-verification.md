@@ -164,6 +164,26 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 缓存；TCP 握手无法跨重启复用；内核预热等于在用户点之前就建隧道，属于语义变更，不为了
 300 ms 做。数据记在这里，等真的变慢再回来。
 
+### M4 内存调优（2026-10-18，机制已就位，数字待测）
+
+**机制**（verify first 的结论）：
+
+- `GOGC=50` **不走环境变量**。Go 运行时在 so 加载时读 `GOGC`，而 libbox 的加载时机由 AAR 的静态块决定；在 Kotlin 里抢在 `System.loadLibrary` 之前 `Os.setenv` 依赖加载顺序。sing-box 的配置里已有 `experimental.debug.gc_percent`，`box.go:applyDebugOptions` 会调用 `debug.SetGCPercent`，所以在配置里写 50 等价，且没有时序问题。
+- `FreeOSMemory` **没有 JNI 出口**。唯一暴露它的是 `experimental.debug.listen` 的 `GET /debug/gc`，但同一个服务器还暴露 pprof heap/profile——堆快照里可能有节点地址和 UUID。发布版不开这个口。内核在每次 `StartOrReloadService` 之后自己会调 `FreeOSMemory`（`daemon/started_service.go`），这部分已经生效。
+- 水位改用 `debug.memory_limit`（Go 1.19+ 软限制）：内核把它除以 1.5 再传给 `debug.SetMemoryLimit`，所以配置 96 MiB → Go 堆上限 64 MiB，其余留给 JVM/native。低于活堆会让 GC 空转，这个数只能靠 PSS 实测往下调。
+
+**测量方法**（同一设备、同一规则集）：
+
+1. `./gradlew :app:assembleRelease`，安装 arm64 包。
+2. 选「绕过中国大陆」，等规则集下载完成并连接。
+3. 静置 5 分钟，执行 `adb shell dumpsys meminfo com.justnpcx.starveil | grep -E "TOTAL PSS|TOTAL RSS"`。
+4. 对照组：把 `ConfigBuilder` 的 `debug` 块去掉（或 `gc_percent=100`、去掉 `memory_limit`）重建同一版本，重复 1–3。
+5. 记录 PSS/RSS、`dumpsys gfxinfo` 的掉帧和连接抖动；若 GOGC=50 有明显卡顿，按任务书回调 75/100 并记录数字。
+
+**目标**：PSS < 80 MB。
+
+**数字**：待测（2026-10-18 无真机）。测量后把两行数字补在这里，并同步 commit message。
+
 ### 调查后确认「不是问题」
 
 **直连 IPv6 报 `network is unreachable`**：当时默认网络是 WiFi `Jim_5G`，它只有
@@ -199,7 +219,7 @@ IPv6。所以这是正确结果，不是分流 bug。
 3. **去广告**：开「去广告」，访问一个已知广告域名，日志里应出现 `rule_set=ads → reject`
 4. **更新通道**：检查更新 → 弹窗 → 下载 → 双校验 → 系统安装器
 5. **重连计时**：关闭蜂窝再打开，记录内核 `Starting → Running` 的时间
-6. **内存**：release 包后台驻留 PSS
+6. **内存**：release 包后台驻留 PSS，方法见上面「M4 内存调优」一节
 7. **120fps**：导入一个 500–1000 节点的订阅，滚动并用 `dumpsys gfxinfo` 抓帧
 8. **DNS p50**：先加埋点，再读
 9. **每次升级 libbox 必跑（M5）**：开「始终阻断」，确认任意出站连接**失败**（`curl` 超时），

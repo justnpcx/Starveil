@@ -634,6 +634,28 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // file on (it passes itself as the platform log writer), so the
             // path is always opened and has to be a distinct one per policy.
             "cache_file" to linkedMapOf<String, Any?>("path" to cacheFileName),
+            // M4 memory tuning. `gc_percent` is GOGC by another name: the
+            // kernel calls debug.SetGCPercent with it at box start
+            // (option/debug.go -> box.go:applyDebugOptions), so it applies
+            // after the Go runtime is already up and needs no env-var timing.
+            //
+            // `memory_limit` is Go's soft memory limit. The kernel divides it
+            // by 1.5 before calling debug.SetMemoryLimit, leaving room for the
+            // JVM and native allocations in the same process — so the value
+            // here is the process budget, not the Go heap. 96 MiB becomes a
+            // 64 MiB Go limit, the starting point for the <80 MB PSS target;
+            // the number is a measurement knob, not a guarantee.
+            //
+            // FreeOSMemory at a PSS watermark is deliberately not wired: the
+            // only exposed path is the unauthenticated debug HTTP server
+            // (`experimental.debug.listen`), which also serves pprof heap
+            // profiles — those can contain node addresses and UUIDs. The
+            // kernel already calls FreeOSMemory after every start/reload
+            // (daemon/started_service.go), which is the safe part of that idea.
+            "debug" to linkedMapOf<String, Any?>(
+                "gc_percent" to GC_PERCENT,
+                "memory_limit" to MEMORY_BUDGET_BYTES,
+            ),
         )
         return Json.write(config)
     }
@@ -668,6 +690,19 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             "224.0.0.0/4",
         )
         const val GEOIP_CN_TAG = "geoip-cn"
+
+        /** GOGC: collect when the heap has grown 50%, not 100%. */
+        const val GC_PERCENT = 50
+
+        /**
+         * The process budget passed to `debug.memory_limit`.
+         *
+         * The kernel turns this into a Go heap soft limit of two thirds of the
+         * value, so 96 MiB leaves 64 MiB for Go and the rest for the JVM and
+         * native code. Lower it only with a PSS measurement in hand: below the
+         * live heap the GC runs continuously instead of collecting garbage.
+         */
+        const val MEMORY_BUDGET_BYTES = 96 * 1024 * 1024
 
         /** Tag prefix for an outbound that exists only because an app names it. */
         const val PER_APP_TAG_PREFIX = "per-app-"
