@@ -84,14 +84,9 @@ fun TrafficSparkline(
             },
     ) {
         Canvas(modifier = Modifier.fillMaxWidth().height(height)) {
-            // Baseline grid so an all-zero stretch still reads as "flat", not
-            // broken.
-            drawLine(
-                color = StarveilColors.ChartGrid,
-                start = Offset(0f, size.height - 1f),
-                end = Offset(size.width, size.height - 1f),
-                strokeWidth = 1f,
-            )
+            // No baseline: two charts side by side each drew their own, which
+            // read as one divider with a hole in the middle (C2). A flat line
+            // at zero is still drawn by the ribbon itself.
             if (maxValue <= 0L || total < 2) return@Canvas
 
             val window = visibleWindow(total, state.zoom, state.start)
