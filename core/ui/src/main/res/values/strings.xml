@@ -9,5 +9,5 @@
       missing rather than just "loading" — a node watched for two minutes and
       one that has never answered are different things to know.
     -->
-    <string name="core_health_collecting">Collecting %1$d/%2$d</string>
+    <string name="core_health_collecting">Building the health curve…</string>
 </resources>

@@ -1,17 +1,24 @@
 package com.justnpcx.starveil.core.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -85,7 +92,7 @@ fun NodeHealthChart(
     height: Dp? = 72.dp,
 ) {
     if (health.collecting) {
-        CollectingState(health, modifier, height)
+        CollectingState(modifier, height)
         return
     }
 
@@ -129,20 +136,38 @@ fun NodeHealthChart(
  * answered is exactly what the user wants to know, and a spinner would hide it.
  */
 @Composable
-private fun CollectingState(health: NodeHealth, modifier: Modifier, height: Dp?) {
+private fun CollectingState(modifier: Modifier, height: Dp?) {
+    // Theme-aware skeleton: the old placeholder was a fixed dark navy, which
+    // read as a hole punched in a light screen. Base and highlight both come
+    // from the scheme, so it belongs to whichever theme is running.
+    val base = MaterialTheme.colorScheme.surfaceVariant
+    val highlight = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+    val transition = rememberInfiniteTransition(label = "health-shimmer")
+    val shift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1_400, easing = LinearEasing)),
+        label = "health-shimmer-shift",
+    )
     Box(
         modifier = (if (height != null) modifier.height(height) else modifier)
-            .background(StarveilColors.Raised),
+            .drawBehind {
+                val band = size.width
+                val start = shift * (size.width + band) - band
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(base, highlight, base),
+                        start = Offset(start, 0f),
+                        end = Offset(start + band, 0f),
+                    ),
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(
-                R.string.core_health_collecting,
-                health.samples.size,
-                NodeHealth.MIN_SAMPLES,
-            ),
+            text = stringResource(R.string.core_health_collecting),
             style = MaterialTheme.typography.labelSmall,
-            color = StarveilColors.TextDisabled,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

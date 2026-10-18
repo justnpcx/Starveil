@@ -13,6 +13,7 @@ import com.justnpcx.starveil.core.model.LATENCY_UNREACHABLE
 import com.justnpcx.starveil.core.model.LatencySample
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.ProfileType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -125,16 +126,19 @@ class NodeHealthSamplerTest {
     }
 
     @Test
-    fun `the loop samples immediately and then every interval`() = runTest {
+    fun `the first curve is filled inside a minute, then the cadence settles`() = runTest {
         val health = FakeHealth()
         val sampler = sampler(health = health)
 
         val job = launch { sampler.run() }
-        // One sample on entry, then one per interval.
-        advanceTimeBy(NodeHealthSampler.INTERVAL_MS * 2 + 1)
-        job.cancel()
+        // Five points at the burst interval: the minimum the chart needs.
+        advanceTimeBy(NodeHealthSampler.BURST_INTERVAL_MS * (NodeHealth.MIN_SAMPLES - 1) + 1)
+        assertEquals(NodeHealth.MIN_SAMPLES, health.recorded.size)
 
-        assertEquals(3, health.recorded.size)
+        // The sixth waits the steady interval.
+        advanceTimeBy(NodeHealthSampler.INTERVAL_MS)
+        assertEquals(NodeHealth.MIN_SAMPLES + 1, health.recorded.size)
+        job.cancel()
     }
 
     @Test
