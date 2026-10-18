@@ -1,7 +1,6 @@
 package com.justnpcx.starveil.core.kernel
 
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
-import com.justnpcx.starveil.core.kernel.libbox.LogRedactor
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandClientHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandServerHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
