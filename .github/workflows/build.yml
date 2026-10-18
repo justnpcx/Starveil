@@ -30,6 +30,11 @@ jobs:
       # `%1$s` compiles fine and throws when the screen is opened in Chinese.
       - name: Translations
         run: ./gradlew checkTranslations --no-daemon
+      # The same rule as the keystore: what must not be in the repository is
+      # cheapest to catch on every push, before it is in a release or a fork.
+      # The script names each pattern and why it exists.
+      - name: Leak scan
+        run: ./scripts/leak-scan.sh
       # No signing, no secrets, no keystore: CI only proves the skeleton compiles.
       # Use the wrapper so CI and local builds share the pinned Gradle 8.13.
       - name: Assemble debug

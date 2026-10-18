@@ -11,7 +11,7 @@ built from the Starveil fork and consumed as an Android AAR.
 | Fork | `justnpcx/sing-box`, branch **`starveil-1.14.x`** |
 | Pinned commit | **`647c447`** |
 | Reported version | **`1.14.3-647c447`** |
-| Local tree | `/root/sing-box` |
+| Local tree | `$SINGBOX_DIR` |
 
 The branch is upstream v1.14.3 plus four commits, and nothing else:
 
@@ -265,7 +265,7 @@ An AAR is a zip, so:
 ```sh
 python3 - <<'PY'
 import zipfile
-zin = zipfile.ZipFile("/root/sing-box/libbox.aar")
+zin = zipfile.ZipFile("$SINGBOX_DIR/libbox.aar")
 zout = zipfile.ZipFile("core/kernel/libs/libbox.aar", "w", zipfile.ZIP_DEFLATED)
 for item in zin.infolist():
     if not item.filename.startswith("jni/x86/"):
@@ -279,7 +279,7 @@ PY
 Written from the v1.14.0 → v1.14.3 upgrade, which is the one to copy.
 
 ```sh
-cd /root/sing-box
+cd $SINGBOX_DIR
 git fetch upstream tag vX.Y.Z              # upstream = SagerNet/sing-box
 git checkout -b starveil-X.Y.x vX.Y.Z
 git cherry-pick <our xhttp commits>        # usually clean

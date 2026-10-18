@@ -5,7 +5,7 @@
 ### 签名密钥
 
 发布用的 keystore 在仓库**之外**：`/root/release.jks`（alias `starveil`，RSA 4096，有效期 10000 天）。
-密码在 `/root/smart-home/.env` 的 `STARVEIL_KEYSTORE_PASSWORD` / `STARVEIL_KEY_PASSWORD`。
+密码在 `the environment file outside the repository` 的 `STARVEIL_KEYSTORE_PASSWORD` / `STARVEIL_KEY_PASSWORD`。
 
 **这个文件丢了就再也发不了升级包**——已安装的用户只能卸载重装（数据丢失）。请离线备份到至少两个地方。
 
@@ -38,7 +38,7 @@ export STARVEIL_KEY_PASSWORD=…
 GH_TOKEN=<token> scripts/set-signing-secrets.sh
 ```
 
-2026-10-17 已用 `/root/smart-home/.env` 的 token 设好四个 secret（API 返回 201），
+2026-10-17 已用 `the environment file outside the repository` 的 token 设好四个 secret（API 返回 201），
 `gh secret list` 可见。以后轮换密钥时重跑这条命令即可；`SENTRY_DSN` 是可选项，
 没有它发布包不上报崩溃。
 
