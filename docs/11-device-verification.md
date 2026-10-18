@@ -164,13 +164,13 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 缓存；TCP 握手无法跨重启复用；内核预热等于在用户点之前就建隧道，属于语义变更，不为了
 300 ms 做。数据记在这里，等真的变慢再回来。
 
-### M4 内存调优（2026-10-18，机制已就位，数字待测）
+### M4 内存调优（2026-10-18，已实测：未达标，验收线降为 stretch）
 
 **机制**（verify first 的结论）：
 
 - `GOGC=50` **不走环境变量**。Go 运行时在 so 加载时读 `GOGC`，而 libbox 的加载时机由 AAR 的静态块决定；在 Kotlin 里抢在 `System.loadLibrary` 之前 `Os.setenv` 依赖加载顺序。sing-box 的配置里已有 `experimental.debug.gc_percent`，`box.go:applyDebugOptions` 会调用 `debug.SetGCPercent`，所以在配置里写 50 等价，且没有时序问题。
 - `FreeOSMemory` **没有 JNI 出口**。唯一暴露它的是 `experimental.debug.listen` 的 `GET /debug/gc`，但同一个服务器还暴露 pprof heap/profile——堆快照里可能有节点地址和 UUID。发布版不开这个口。内核在每次 `StartOrReloadService` 之后自己会调 `FreeOSMemory`（`daemon/started_service.go`），这部分已经生效。
-- 水位改用 `debug.memory_limit`（Go 1.19+ 软限制）：内核把它除以 1.5 再传给 `debug.SetMemoryLimit`，所以配置 96 MiB → Go 堆上限 64 MiB，其余留给 JVM/native。低于活堆会让 GC 空转，这个数只能靠 PSS 实测往下调。
+- 水位用 `debug.memory_limit`（Go 1.19+ 软限制）。**配置里写的是 96 MiB（进程预算），内核 `debug.go:34` 把它除以 1.5 再传给 `debug.SetMemoryLimit`，所以 Go 侧的软上限是 64 MiB**——96 和 64 是同一件事的两层，不是两个设置。低于活堆会让 GC 空转，这个数只能靠 PSS 实测往下调。
 
 **测量方法**（同一设备、同一规则集）：
 
@@ -189,7 +189,7 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 | 构建 | 5 分钟 | 10 分钟 |
 | --- | --- | --- |
 | before（`fd923ae`，默认 GOGC，无 memory_limit） | 85,985 KB（84.0 MiB） | 84,732 KB（82.7 MiB） |
-| after（`b0c36a8`，GOGC=50 + 96 MiB budget） | 83,986 KB（82.0 MiB） | 85,256 KB（83.3 MiB） |
+| after（`b0c36a8`，GOGC=50 + memory_limit 96 MiB → Go 64 MiB） | 83,986 KB（82.0 MiB） | 85,256 KB（83.3 MiB） |
 
 两个包都是 release 模式（R8），为了安装用 debug 证书签名；除 `debug` 配置块外代码相同。前台刚连上时 before 118,020 KB、after 132,287 KB，但 after 那次前台多停留了约一分钟并伴随 DNS 报错，不可比，不列入结论。
 
@@ -198,7 +198,11 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 - 5 分钟差 2.0 MiB，10 分钟差 −0.5 MiB；而 before 自己在 5→10 分钟之间就漂移了 1.2 MiB，after 漂移 1.3 MiB。差异在噪声内。
 - 5 分钟 after 的构成：Java 5.6 MB、Native 9.2 MB、Code 17.6 MB、Private Other 23.1 MB、System 25.8 MB、Graphics 0.4 MB。Go 堆只有约 9 MB，`memory_limit`（Go 上限 64 MiB）根本没有触到。
 - 80 MB 的地板由共享代码页（libbox.so，61.7 MB stored / 19.5 MB deflated）、Compose 的 Private Other 和系统共享页决定，不是 GOGC 能压下去的。要真正达标，下一根杠杆是 libbox 的 so 体积或更轻的 UI，不在本轮范围。
-- GOGC=50 没有观察到卡顿；按任务书保留 50，不再往 75/100 回调。但“M4 内存达标”这个结论**不能**写。
+- GOGC=50 没有观察到卡顿；保留 50 作护栏（对更大的节点列表是无害上限），但它不是达标证据。“M4 内存达标”这个结论**不能**写。
+
+**增补二 v2 作废**。任务书里的「`SetMemoryLimit` 组合拳 + 内存水位触发 `FreeOSMemory`」不再实现：上面的数据说明 Go 堆不是瓶颈（约 9 MB，离 64 MiB 上限很远），加软上限不会改变 PSS；`FreeOSMemory` 也没有安全的 JNI 出口（见上）。
+
+**验收线调整**：`< 80 MB` 从 M4 门禁降为 stretch 目标。真要压到 80 MB 以下，下一根杠杆是 libbox.so 瘦身（61.7 MB stored / 19.5 MB deflated）或更轻的 UI，另立项，不在 M4 范围。
 
 **复现**：`/tmp/pss/starveil-{before,after}-arm64.apk`（临时文件）；构建分别来自 `fd923ae` 与 `b0c36a8`，用 `apksigner` 以 debug 证书签名后 `adb install -r`。
 
