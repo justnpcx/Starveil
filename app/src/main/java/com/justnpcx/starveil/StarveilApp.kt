@@ -7,6 +7,7 @@ import com.justnpcx.starveil.crash.CrashReporting
 import com.justnpcx.starveil.latency.NodeHealthProbeScheduler
 import com.justnpcx.starveil.rules.RuleSetFailureReporter
 import com.justnpcx.starveil.scene.SceneController
+import com.justnpcx.starveil.timing.ConnectionTiming
 import com.justnpcx.starveil.widget.StarveilWidget
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.HiltAndroidApp
@@ -41,6 +42,9 @@ class StarveilApp : Application() {
     @Inject
     lateinit var scenes: SceneController
 
+    @Inject
+    lateinit var connectionTiming: ConnectionTiming
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -74,5 +78,9 @@ class StarveilApp : Application() {
         // the tunnel is up: the VpnService keeps it alive. With no process
         // there is no tunnel to switch, so nothing is lost.
         scenes.start()
+
+        // Two lines per connect in the Logs screen: how long the tunnel took to
+        // come up, and how long until traffic actually went through it.
+        connectionTiming.start(scope)
     }
 }

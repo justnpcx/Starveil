@@ -7,6 +7,8 @@ import com.justnpcx.starveil.core.kernel.KernelPaths
 import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.kernel.timing.ConnectClock
+import com.justnpcx.starveil.timing.ConnectionTiming
 import com.justnpcx.starveil.flows.KernelFlowLog
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
@@ -62,6 +64,14 @@ object KernelModule {
         // status bar and all app traffic keeps being routed into a dead tunnel.
         stopVpn = { StarveilVpnService.stop(context) },
     )
+
+    /**
+     * The connect stopwatch. Bound here because the implementation watches the
+     * kernel's flows, and :core:kernel carries no DI annotations.
+     */
+    @Provides
+    @Singleton
+    fun provideConnectClock(timing: ConnectionTiming): ConnectClock = timing
 
     /**
      * The Logs screen's view of the kernel's log lines. :app owns the adapter so

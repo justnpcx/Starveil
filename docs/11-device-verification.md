@@ -32,6 +32,7 @@
 | 后台全量探测（H1） | 日志出现 `health sweep: probed 3 node(s)`；随后「自动选择」选出 **HY2+Reality-hy2-443（评分 10099）**——不是此前唯一有健康数据的 cf-xhttp |
 | Kill Switch 阻断（M5） | 「始终阻断」连接 → `已阻断`，配置 `final=block`、出站只有 `block`、无 uuid；Chrome 打开 example.com 得 `ERR_CONNECTION_REFUSED`。「断开时阻断」连接→断开 同样结果；从阻断态再连接，配置回到 `final=proxy` |
 | 热切换回归（2026-10-18） | 连接 → 阻断 → 连接 两轮：`已连接`（tun=1，外网流向判为代理）→ `已阻断`（tun 保留，页面停在加载中，不是直连打开）→ `已连接`；`cache-file: timeout` 0 次 |
+| 连接建立速度（P2-3） | 见下方「TTFP」：10 次 VLESS+XHTTP+REALITY、12 次 Hysteria2，均为冷启动（force-stop 后连接） |
 | 后台保活（P1-2） | 设置 → 后台保活：电池优化显示「未加入」，点「去设置」弹出系统对话框（`RequestIgnoreBatteryOptimizations`），允许后 `dumpsys deviceidle whitelist` 出现 `user,com.justnpcx.starveil`，返回后该行变「已加入」；自启动打开 `com.vivo.permissionmanager/.activity.BgStartUpManagerActivity`（自启动页）；应用详情打开 `InstalledAppDetails` |
 | 规则集校验（M3） | 篡改 `geosite-cn.srs` 并把目录设为只读后重连：日志 `does not match its hash; discarding` → 下载失败 → `rule set geosite-cn.srs: download_failed; mainland preset disabled`；规则页出现红色警告与 Snackbar，配置 `final=proxy` 且 0 条预设规则（fail-closed）；日志页有同一条 error |
 | 切预设自动重建 | 连接状态下切「全局直连」，无需手动重连，`files/libbox/configuration.json` 的 `final` 由 `proxy` 变为 `direct`；切回后恢复 `proxy` + 2 条规则 |
@@ -127,6 +128,26 @@ libbox（`StartedService.Close()` 并不关闭运行中的实例；reload 路径
 周期任务首次入队时 WorkManager 会立刻跑一次，而同一启动里还入队了一个「补跑」一次性任务，
 日志里出现两行 `probed 3 node(s)`。改为入队前先查该唯一任务是否已存在：首次只靠周期任务，
 之后的启动才按时间戳补跑。
+
+### TTFP：点击连接到首个代理连接（2026-10-18）
+
+埋点：`ConnectionController.connect()` 记一个 `elapsedRealtime` 起点，`KernelBridge`
+的 `state` 第一次到 `Running` 记 `kernel up in N ms`，`connections` 里第一条
+`outboundType` 非 `direct`/`block` 的连接记 `TTFP N ms via <type>`。两条都进日志页。
+
+测法：每次 `force-stop` 后重开（冷启动），点连接后立刻用 Chrome 打开一个带唯一参数的
+URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包含 Chrome 启动的约 150–250 ms**，
+所以看两个数：`kernel up`（纯隧道建立）和 `TTFP`（用户实际感知）。
+
+| 组合 | kernel up p50 / p90 | TTFP p50 / p90 |
+|---|---|---|
+| VLESS + XHTTP + REALITY（cf-xhttp，10 次） | 174 / 212 ms | **389 / 423 ms** |
+| Hysteria2（hy2-443，12 次） | 179 / 186 ms | **374 / 395 ms** |
+
+结论：**p50 约 0.38 s，不需要优化**。两种协议几乎一样快，说明瓶颈不在代理握手，而在
+固定的内核启动（~175 ms）加浏览器启动（~200 ms）。候选优化里：DNS 预解析已经在 DoH 层
+缓存；TCP 握手无法跨重启复用；内核预热等于在用户点之前就建隧道，属于语义变更，不为了
+300 ms 做。数据记在这里，等真的变慢再回来。
 
 ### 调查后确认「不是问题」
 

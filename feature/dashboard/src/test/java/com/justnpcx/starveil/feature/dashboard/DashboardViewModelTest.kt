@@ -17,6 +17,7 @@ import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.kernel.timing.ConnectClock
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.CountryFlags
@@ -598,6 +599,7 @@ class DashboardViewModelTest {
             preferences = preferences,
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
             mainlandRuleSets = mainlandRuleSets,
+            timing = ConnectClock { },
         )
         return DashboardViewModel(
             kernel = kernel,

@@ -18,6 +18,7 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.ProxyGroup
+import com.justnpcx.starveil.core.kernel.timing.ConnectClock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
@@ -72,9 +73,12 @@ class ConnectionController @Inject constructor(
     private val preferences: PreferencesRepository,
     private val configBuilder: ConfigBuilder,
     private val mainlandRuleSets: MainlandRuleSetStore,
+    private val timing: ConnectClock,
 ) {
 
     suspend fun connect(): ConnectionOutcome {
+        // Starts the stopwatch the first proxied connection will stop.
+        timing.markConnectStart()
         // Kill Switch, panic mode. Asked as "would traffic be allowed if we
         // were up?", so the decision comes from the one policy function rather
         // than a second reading of the mode here.
