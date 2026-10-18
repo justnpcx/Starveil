@@ -8,6 +8,34 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Added
+
+- **Subscription formats**: SIP008 and full sing-box configs join base64 and
+  Clash YAML. A malformed document now names the line it could not read
+  ("Malformed YAML at line 4"), and a partially usable one imports the good
+  nodes and reports how many were skipped.
+- **Rule market**: five curated packs — ads and telemetry, telemetry only,
+  streaming, developer, AI — pinned to a commit and verified by SHA-256.
+  See [docs/15-rule-market.md](docs/15-rule-market.md).
+- **Local Clash-compatible API** (off by default): loopback only, Bearer token
+  held in the Android Keystore, endpoints for traffic, proxies, connections
+  and proxy selection. See [docs/14-local-api.md](docs/14-local-api.md).
+- **First-run flow**: three steps — welcome, import, auto-select and connect —
+  skippable at every step and shown once.
+
+### Changed
+
+- The drop-and-reconnect policy moved out of the dashboard view model into
+  `DropRecovery`; the probe, sampler, leak-check and flow-log classes moved
+  into `:core:probe`. No behaviour change, and both are testable on their own.
+- Latency result copy moved into `:core:probe`, with the probe that produces
+  it.
+
+### Fixed
+
+- The mainland preset's name and description were Chinese in the default
+  (English) resource file.
+
 ## [0.7.1] — 2026-10-18
 
 ### Added
