@@ -113,6 +113,7 @@
 - [QUIC 连接迁移预研](docs/13-quic-migration-spike.md)
 - [本地 Clash 兼容 API](docs/14-local-api.md)
 - [规则市场](docs/15-rule-market.md)
+- [双轨制 UX 设计（P3，定稿）](docs/16-dual-mode-ux.md)
 - [更新日志](CHANGELOG.md)
 - [libbox 构建](docs/04-libbox-build.md)
 - [发布流程](docs/12-release.md)
