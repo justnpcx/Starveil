@@ -3,6 +3,7 @@ package com.justnpcx.starveil.core.subscription.registry
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.subscription.Base64SubscriptionParser
 import com.justnpcx.starveil.core.subscription.ClashYamlSubscriptionParser
+import com.justnpcx.starveil.core.subscription.SingBoxJsonSubscriptionParser
 import com.justnpcx.starveil.core.subscription.Sip008SubscriptionParser
 import com.justnpcx.starveil.core.subscription.SubscriptionParser
 import com.justnpcx.starveil.core.subscription.UnknownSubscriptionParser
@@ -59,6 +60,11 @@ class SubscriptionFormatRegistry(
                         format = "clash-yaml",
                         sniff = ClashYamlSubscriptionParser::sniff,
                         parser = ClashYamlSubscriptionParser(),
+                    ),
+                    SubscriptionFormatDescriptor(
+                        format = "sing-box-json",
+                        sniff = SingBoxJsonSubscriptionParser::sniff,
+                        parser = SingBoxJsonSubscriptionParser(),
                     ),
                     SubscriptionFormatDescriptor(
                         format = "sip008",
