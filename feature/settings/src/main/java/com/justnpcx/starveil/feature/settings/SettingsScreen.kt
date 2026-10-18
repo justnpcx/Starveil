@@ -11,8 +11,11 @@ import android.provider.Settings
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -33,6 +37,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -177,17 +182,14 @@ fun SettingsScreen(
         // system's always-on VPN survives a crash and a swipe-away. Linking
         // rather than duplicating the switch is deliberate — only the system
         // can turn its own lock on, and pretending otherwise would be a lie.
-        TextButton(
+        LinkButton(
+            text = stringResource(R.string.kill_switch_system_link),
             onClick = { openSystemVpnSettings(context) },
-            contentPadding = PaddingValues(horizontal = StarveilSpacing.md),
-        ) {
-            Text(stringResource(R.string.kill_switch_system_link))
-        }
+        )
         Text(
             text = stringResource(R.string.kill_switch_system_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = StarveilSpacing.md),
         )
         SwitchRow(
             title = stringResource(R.string.auto_reconnect_title),
@@ -220,17 +222,18 @@ fun SettingsScreen(
         }
 
         SectionTitle(stringResource(R.string.keepalive_entry_title))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(R.string.keepalive_entry_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onOpenKeepAlive) {
-                Text(stringResource(R.string.keepalive_action_open))
-            }
-        }
+        Text(
+            text = stringResource(R.string.keepalive_entry_desc),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        // Under the description, not at its right: every action on this page
+        // starts at the same left edge, and a button floating at the end of a
+        // line was the one that did not.
+        LinkButton(
+            text = stringResource(R.string.keepalive_action_open),
+            onClick = onOpenKeepAlive,
+        )
 
         SectionTitle(stringResource(R.string.backup_title))
         Text(
@@ -239,16 +242,14 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-            TextButton(onClick = { askingForExport = true }) {
-                Text(stringResource(R.string.backup_export))
-            }
-            TextButton(
-                onClick = {
-                    openBackup.launch(arrayOf("application/octet-stream", "*/*"))
-                },
-            ) {
-                Text(stringResource(R.string.backup_restore))
-            }
+            LinkButton(
+                text = stringResource(R.string.backup_export),
+                onClick = { askingForExport = true },
+            )
+            LinkButton(
+                text = stringResource(R.string.backup_restore),
+                onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
+            )
         }
 
         SectionTitle(stringResource(R.string.leak_check_title))
@@ -257,9 +258,10 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(onClick = onRunLeakCheck) {
-            Text(stringResource(R.string.leak_check_run))
-        }
+        LinkButton(
+            text = stringResource(R.string.leak_check_run),
+            onClick = onRunLeakCheck,
+        )
 
         SectionTitle(stringResource(R.string.settings_kernel_title))
         Text(
@@ -334,24 +336,22 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-            TextButton(
+            LinkButton(
+                text = stringResource(
+                    if (updateState is UpdateUiState.Checking) {
+                        R.string.update_checking
+                    } else {
+                        R.string.update_check
+                    },
+                ),
                 onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
                 enabled = updateState !is UpdateUiState.Checking &&
                     updateState !is UpdateUiState.Downloading,
-            ) {
-                Text(
-                    stringResource(
-                        if (updateState is UpdateUiState.Checking) {
-                            R.string.update_checking
-                        } else {
-                            R.string.update_check
-                        },
-                    ),
-                )
-            }
-            TextButton(onClick = onOpenPrivacy) {
-                Text(stringResource(R.string.settings_privacy))
-            }
+            )
+            LinkButton(
+                text = stringResource(R.string.settings_privacy),
+                onClick = onOpenPrivacy,
+            )
         }
 
         if (askingForExport) {
@@ -593,6 +593,38 @@ private fun defaultBackupFileName(): String {
     return "starveil-$stamp.svb"
 }
 
+/**
+ * A text action that starts on the page's left edge.
+ *
+ * Not a TextButton: that carries 12 dp of content padding and a 58 dp minimum
+ * width, both of which centre a short label and leave it indented from the copy
+ * above it. A Box with the same 48 dp touch height does exactly what is wanted
+ * and nothing else.
+ */
+@Composable
+private fun LinkButton(
+    text: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    Box(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            },
+        )
+    }
+}
+
 @Composable
 private fun SectionTitle(text: String) {
     Text(
@@ -614,9 +646,16 @@ private fun RadioOption(
             .fillMaxWidth()
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
             .padding(vertical = StarveilSpacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
+        // Top, not centre: the circle belongs to the title's first line, and
+        // centring it over a two-line description is what made the three
+        // Kill Switch options look like they had three different baselines.
+        verticalAlignment = Alignment.Top,
     ) {
-        RadioButton(selected = selected, onClick = null)
+        // The row is the touch target, so the control does not need its own
+        // 48 dp box — which would push the circle down by 14 dp.
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            RadioButton(selected = selected, onClick = null)
+        }
         Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         Column {
             Text(text = label, style = MaterialTheme.typography.bodyLarge)
@@ -643,7 +682,8 @@ private fun SwitchRow(
             .fillMaxWidth()
             .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(vertical = StarveilSpacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
+        // The switch sits on the title's line, not halfway down the description.
+        verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge)
@@ -656,7 +696,9 @@ private fun SwitchRow(
         Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         // onCheckedChange = null: the whole row is the target, so the switch
         // must not also be one (it would toggle twice).
-        Switch(checked = checked, onCheckedChange = null)
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Switch(checked = checked, onCheckedChange = null)
+        }
     }
 }
 
