@@ -13,6 +13,9 @@
          Android 10+ gates the SSID behind it; the app works without it, with
          scenes limited to mobile data or "any Wi-Fi". -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Required next to FINE by the platform's own lint rule: a build that
+         asks for precise location must also offer the coarse one. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

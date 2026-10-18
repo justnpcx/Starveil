@@ -84,9 +84,14 @@ fun ScenesScreen(
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+    // Both, because Android 12+ shows one dialog with two choices and a build
+    // that asks for only the precise one is flagged by lint; the SSID still
+    // needs the precise grant, so that is what the flag follows.
     val requestLocation = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted -> ssidReadable = granted }
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        ssidReadable = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true
+    }
 
     Scaffold(
         topBar = {
@@ -133,7 +138,14 @@ fun ScenesScreen(
                             modifier = Modifier.padding(top = StarveilSpacing.xs),
                         )
                         TextButton(
-                            onClick = { requestLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
+                            onClick = {
+                                requestLocation.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                                    ),
+                                )
+                            },
                         ) {
                             Text(stringResource(R.string.scenes_permission_grant))
                         }
