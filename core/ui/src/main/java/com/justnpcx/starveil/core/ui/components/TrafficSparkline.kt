@@ -15,7 +15,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -40,8 +43,9 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
  */
 @Composable
 fun TrafficSparkline(
-    downlinkSamples: List<Long>,
-    uplinkSamples: List<Long>,
+    samples: List<Long>,
+    /** The series' own colour; one chart carries one line. */
+    color: Color,
     /**
      * Required: a canvas is invisible to a screen reader, and the shape is the
      * only thing here that the numbers above it do not say.
@@ -51,10 +55,10 @@ fun TrafficSparkline(
     height: Dp = 56.dp,
     state: SparklineState = rememberSparklineState(),
 ) {
-    val total = maxOf(downlinkSamples.size, uplinkSamples.size)
+    val total = samples.size
 
     // Global max, so the trace keeps its shape while panning.
-    val maxValue = (downlinkSamples + uplinkSamples).maxOrNull() ?: 0L
+    val maxValue = samples.maxOrNull() ?: 0L
 
     // The gesture must survive a growing history. Keying pointerInput on
     // `total` restarted the block — and so cancelled any in-flight drag — every
@@ -92,8 +96,7 @@ fun TrafficSparkline(
 
             val window = visibleWindow(total, state.zoom, state.start)
             val scale = (size.height - 2f) / maxValue.toFloat()
-            drawSeries(downlinkSamples, window, StarveilColors.Chart1, scale)
-            drawSeries(uplinkSamples, window, StarveilColors.Chart2, scale)
+            drawRibbon(samples, window, color, scale)
         }
     }
 }
@@ -211,8 +214,16 @@ internal data class SparkWindow(val start: Int, val count: Int) {
     val endExclusive: Int get() = start + count
 }
 
-/** Maps the windowed samples onto the canvas; index-spaced, so it fills the width. */
-private fun DrawScope.drawSeries(
+/**
+ * One series, drawn as a smooth ribbon: a Catmull-Rom spline through the
+ * samples, with a vertical fade under it.
+ *
+ * Catmull-Rom is used rather than quadratic smoothing because it passes
+ * through every sample — a smoothed line that misses its own data is a
+ * decoration, not a chart. Each segment's control points are the neighbours'
+ * tangents, so the joins are continuous and the line has no corners.
+ */
+private fun DrawScope.drawRibbon(
     samples: List<Long>,
     window: SparkWindow,
     color: Color,
@@ -224,13 +235,57 @@ private fun DrawScope.drawSeries(
     if (last - first < 1) return
 
     val stepX = size.width / (last - first).toFloat()
-    val path = Path()
+    val points = ArrayList<Offset>(last - first + 1)
     for (index in first..last) {
         val x = (index - first) * stepX
-        val y = size.height - (samples[index] * scale).coerceIn(0f, size.height - 2f)
-        if (index == first) path.moveTo(x, y) else path.lineTo(x, y)
+        val y = (size.height - (samples[index] * scale)).coerceIn(0f, size.height - 1f)
+        points.add(Offset(x, y))
     }
-    drawPath(path = path, color = color, style = Stroke(width = 2f))
+
+    val line = Path().apply {
+        moveTo(points.first().x, points.first().y)
+        for (i in 0 until points.lastIndex) {
+            val p0 = points.getOrElse(i - 1) { points[i] }
+            val p1 = points[i]
+            val p2 = points[i + 1]
+            val p3 = points.getOrElse(i + 2) { p2 }
+            // Catmull-Rom -> cubic Bézier: the control points are one sixth of
+            // the neighbouring chord away from each endpoint.
+            cubicTo(
+                p1.x + (p2.x - p0.x) / 6f,
+                p1.y + (p2.y - p0.y) / 6f,
+                p2.x - (p3.x - p1.x) / 6f,
+                p2.y - (p3.y - p1.y) / 6f,
+                p2.x,
+                p2.y,
+            )
+        }
+    }
+
+    // The ribbon: the same curve closed to the baseline, fading out downwards.
+    val fill = Path().apply {
+        addPath(line)
+        lineTo(points.last().x, size.height)
+        lineTo(points.first().x, size.height)
+        close()
+    }
+    drawPath(
+        path = fill,
+        brush = Brush.verticalGradient(
+            colors = listOf(color.copy(alpha = 0.30f), Color.Transparent),
+            startY = 0f,
+            endY = size.height,
+        ),
+    )
+    drawPath(
+        path = line,
+        color = color,
+        style = Stroke(
+            width = 2.5.dp.toPx(),
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round,
+        ),
+    )
 }
 
 private const val MIN_ZOOM = 1f

@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -50,8 +51,8 @@ class SparklineGestureWiringTest {
         val state = SparklineState()
         rule.setContent {
             TrafficSparkline(
-                downlinkSamples = samples,
-                uplinkSamples = samples,
+                samples = samples,
+                color = Color.Cyan,
                 contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
@@ -68,8 +69,8 @@ class SparklineGestureWiringTest {
         val state = SparklineState()
         rule.setContent {
             TrafficSparkline(
-                downlinkSamples = samples,
-                uplinkSamples = samples,
+                samples = samples,
+                color = Color.Cyan,
                 contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
@@ -108,8 +109,8 @@ class SparklineGestureWiringTest {
         var count by mutableIntStateOf(48)
         rule.setContent {
             TrafficSparkline(
-                downlinkSamples = List(count) { it.toLong() },
-                uplinkSamples = List(count) { it.toLong() },
+                samples = List(count) { it.toLong() },
+                color = Color.Cyan,
                 contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,
@@ -198,8 +199,8 @@ class SparklineGestureWiringTest {
         val state = SparklineState()
         rule.setContent {
             TrafficSparkline(
-                downlinkSamples = samples,
-                uplinkSamples = samples,
+                samples = samples,
+                color = Color.Cyan,
                 contentDescription = "traffic",
                 modifier = Modifier.testTag(TAG),
                 state = state,

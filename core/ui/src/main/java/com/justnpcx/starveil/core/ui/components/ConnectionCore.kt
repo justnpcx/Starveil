@@ -80,6 +80,12 @@ fun ConnectionCore(
     /** Required: this is the screen's primary control (design system §6.1). */
     contentDescription: String,
     modifier: Modifier = Modifier,
+    /**
+     * A connect or disconnect is in flight. Drawn as the same charge arc as
+     * CONNECTING and the tap is ignored: a swap can take seconds, and a
+     * control that looks idle while it works reads as broken.
+     */
+    busy: Boolean = false,
 ) {
     // Ambient loops are decoration, and decoration must not burn frames behind
     // a paused or covered screen (§5.5). Gating the *spec* rather than the
@@ -102,7 +108,7 @@ fun ConnectionCore(
 
     val animationsEnabled = rememberAnimationsEnabled()
     val breathSpec = breathFor(state, active = resumed && animationsEnabled)
-    val spinning = resumed && animationsEnabled && state == ConnectionState.CONNECTING
+    val spinning = resumed && animationsEnabled && (state == ConnectionState.CONNECTING || busy)
 
     // Driven by Animatable + a keyed LaunchedEffect rather than an
     // InfiniteTransition: a transition only accepts repeatable specs, so it
@@ -202,6 +208,7 @@ fun ConnectionCore(
             .scale(breathScale)
             .semantics { this.contentDescription = contentDescription }
             .clickable(
+                enabled = !busy,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
             ) { onClick() },

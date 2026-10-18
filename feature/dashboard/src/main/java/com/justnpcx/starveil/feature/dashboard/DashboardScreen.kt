@@ -23,7 +23,10 @@ import java.util.Locale
 import kotlin.math.round
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -64,6 +67,7 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         ConnectionCore(
             state = state.coreState,
+            busy = state.isBusy,
             onClick = { requestVpnConsent { viewModel.onCoreClick() } },
             // The core is the screen's primary control, so its description
             // carries both the state and what tapping does (design system §6.1).
@@ -77,7 +81,9 @@ fun DashboardScreen(
                 },
             ),
         )
-        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+        // 8 pt grid: the state is the headline, the node is its subtitle, and
+        // everything below them is one block of telemetry.
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = stringResource(
                 when (state.coreState) {
@@ -88,32 +94,31 @@ fun DashboardScreen(
                     ConnectionState.WARNING -> R.string.dashboard_state_warning
                 },
             ),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            ),
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
             text = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp),
         )
+        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         // The same banner the Nodes screen uses (K3), but not dismissible: it
         // says why the core is blocked, and dismissing it would leave a blocked
         // core with no reason on screen (C5).
-        state.notice?.let { MessageBanner(message = it.text()) }
-        Spacer(modifier = Modifier.height(StarveilSpacing.xl))
-        SpeedRow(stats = state.stats)
-        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
-        TrafficSparkline(
-            downlinkSamples = state.history.map { it.downlink },
-            uplinkSamples = state.history.map { it.uplink },
-            // The rates above are the current ones; the peak is the only thing
-            // the shape says that they do not.
-            contentDescription = stringResource(
-                R.string.dashboard_traffic_chart_desc,
-                state.history.size,
-                formatRate(state.history.maxOfOrNull { it.downlink } ?: 0L),
-            ),
-        )
+        state.notice?.let {
+            MessageBanner(
+                message = it.text(),
+                // 12 dp above and below in total, counting the banner's own 8.
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        SpeedSection(state = state)
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         CurrentNodeCard(
             name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
@@ -240,36 +245,138 @@ private fun healthClause(availabilityPct: Int, latencyMs: Long?): String =
     latencyMs?.let { stringResource(R.string.dashboard_reason_health, availabilityPct, it) }
         ?: stringResource(R.string.dashboard_reason_health_no_latency, availabilityPct)
 
+/**
+ * The telemetry block: two columns, each a label, a number, a unit and a
+ * ribbon.
+ *
+ * Dimmed as a whole when there is no tunnel. Three zeros say "no traffic";
+ * 35% opacity says "nothing is connected", which is the actual state and the
+ * one a glance should read.
+ */
 @Composable
-private fun SpeedRow(stats: TrafficStats) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+private fun SpeedSection(state: DashboardUiState) {
+    val dim = state.coreState == ConnectionState.DISCONNECTED
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (dim) 0.35f else 1f),
     ) {
-        SpeedCell(
-            label = stringResource(R.string.dashboard_speed_down),
-            rate = stats.downlinkRate,
-            total = stats.downlinkBytes,
-        )
-        SpeedCell(
-            label = stringResource(R.string.dashboard_speed_up),
-            rate = stats.uplinkRate,
-            total = stats.uplinkBytes,
-        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            SpeedCell(
+                label = stringResource(R.string.dashboard_speed_down),
+                rate = state.stats.downlinkRate,
+                total = state.stats.downlinkBytes,
+                modifier = Modifier.weight(1f),
+            )
+            SpeedCell(
+                label = stringResource(R.string.dashboard_speed_up),
+                rate = state.stats.uplinkRate,
+                total = state.stats.uplinkBytes,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
+        ) {
+            TrafficSparkline(
+                samples = state.history.map { it.downlink },
+                color = StarveilColors.Chart1,
+                contentDescription = stringResource(
+                    R.string.dashboard_traffic_chart_desc,
+                    state.history.size,
+                    formatRate(state.history.maxOfOrNull { it.downlink } ?: 0L),
+                ),
+                modifier = Modifier.weight(1f),
+            )
+            TrafficSparkline(
+                samples = state.history.map { it.uplink },
+                color = StarveilColors.Chart2,
+                contentDescription = stringResource(
+                    R.string.dashboard_traffic_chart_desc,
+                    state.history.size,
+                    formatRate(state.history.maxOfOrNull { it.uplink } ?: 0L),
+                ),
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
 @Composable
-private fun SpeedCell(label: String, rate: Long, total: Long) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = formatRate(rate), style = MaterialTheme.typography.displayMedium)
+private fun SpeedCell(
+    label: String,
+    rate: Long,
+    total: Long,
+    modifier: Modifier = Modifier,
+) {
+    val parts = formatRateParts(rate)
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = stringResource(R.string.dashboard_speed_total, formatBytes(total)),
-            style = MaterialTheme.typography.bodyMedium,
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Row(modifier = Modifier.padding(top = 2.dp)) {
+            Text(
+                text = parts.value,
+                // Tabular figures: a rate that ticks every second must not
+                // change width, or the whole row twitches with it.
+                style = MaterialTheme.typography.displayMedium.copy(
+                    fontFeatureSettings = "tnum",
+                    fontWeight = FontWeight.SemiBold,
+                ),
+            )
+            Text(
+                text = parts.unit,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFeatureSettings = "tnum",
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .alignByBaseline()
+                    .padding(start = 3.dp),
+            )
+        }
+        Text(
+            text = stringResource(R.string.dashboard_speed_total, formatBytes(total)),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
+}
+
+/** A rate split so the number and its unit can be sized independently. */
+internal data class RateParts(val value: String, val unit: String)
+
+internal fun formatRateParts(bytesPerSecond: Long): RateParts =
+    formatScaledParts(bytesPerSecond.toDouble(), RATE_UNITS)
+
+/**
+ * [value] in the largest unit that keeps it readable, with the unit separate.
+ *
+ * The mantissa never exceeds four characters: the unit is chosen from the
+ * **rounded** value, so 999.6 KB becomes 1.0 MB rather than "1000 KB". That is
+ * what stops a long number from overlapping its neighbour in a 50% column.
+ */
+private fun formatScaledParts(value: Double, units: List<String>): RateParts {
+    var scaled = value
+    for (index in units.indices) {
+        val decimals = if (index <= 1) 0 else 1
+        val rounded = roundTo(scaled, decimals)
+        if (index == units.lastIndex || rounded < SCALE) {
+            val text = if (decimals == 0) {
+                rounded.toLong().toString()
+            } else {
+                String.format(Locale.US, "%.1f", rounded)
+            }
+            return RateParts(text, units[index])
+        }
+        scaled /= SCALE
+    }
+    return RateParts(value.toLong().toString(), units.first())
 }
 
 /** The node the next connect will use, with the one-tap pick beside it. */
@@ -308,7 +415,7 @@ private val BYTE_UNITS = listOf("B", "KB", "MB", "GB")
 private const val SCALE = 1024.0
 
 internal fun formatRate(bytesPerSecond: Long): String =
-    formatScaled(bytesPerSecond.toDouble(), RATE_UNITS)
+    formatRateParts(bytesPerSecond).let { "${it.value} ${it.unit}" }
 
 internal fun formatBytes(bytes: Long): String =
     formatScaled(bytes.toDouble(), BYTE_UNITS)

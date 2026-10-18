@@ -80,7 +80,7 @@ data class DashboardUiState(
         }
 
     companion object {
-        const val HISTORY_SIZE = 48
+        const val HISTORY_SIZE = 30
     }
 }
 
