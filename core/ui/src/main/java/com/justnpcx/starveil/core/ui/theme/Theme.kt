@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.ui.theme
 
 import android.os.Build
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -102,6 +103,25 @@ object StarveilColors {
     val ChartGrid = Color(0xFF1E293B)
 }
 
+/**
+ * Snackbars draw on the inverse pair.
+ *
+ * M3's default is a near-white bar in a dark scheme, which in a dark-first
+ * theme becomes the brightest thing on screen — a flash, not a footnote.
+ * [StarveilColors.Raised] keeps the bar floating above the panel while staying
+ * in the HUD palette; the action colour is the glow the rest of the app uses
+ * for anything tappable.
+ *
+ * Applied to the hand-built dark scheme *and* to the wallpaper-derived one:
+ * turning on dynamic colour may change the palette, but it must not turn the
+ * snackbar back into a white block.
+ */
+private fun ColorScheme.withHudSnackbar(): ColorScheme = copy(
+    inverseSurface = StarveilColors.Raised,
+    inverseOnSurface = Color(0xFFE2E8F0),
+    inversePrimary = StarveilColors.GlowPrimary,
+)
+
 internal val DarkScheme = darkColorScheme(
     primary = StarveilColors.GlowPrimary,
     secondary = StarveilColors.GlowSecondary,
@@ -113,15 +133,7 @@ internal val DarkScheme = darkColorScheme(
     onSurface = Color(0xFFE2E8F0),
     onSurfaceVariant = StarveilColors.TextDim,
     error = StarveilColors.Blocked,
-    // Snackbars draw on the inverse pair. M3's default is a near-white bar,
-    // which in a dark-first theme becomes the brightest thing on screen — a
-    // flash, not a footnote. Raised keeps the bar floating above the panel
-    // while staying in the HUD palette; the action colour is the glow the
-    // rest of the app uses for anything tappable.
-    inverseSurface = StarveilColors.Raised,
-    inverseOnSurface = Color(0xFFE2E8F0),
-    inversePrimary = StarveilColors.GlowPrimary,
-)
+).withHudSnackbar()
 
 internal val LightScheme = lightColorScheme(
     primary = Color(0xFF0369A1),
@@ -155,7 +167,11 @@ fun StarveilTheme(
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme) {
+                dynamicDarkColorScheme(context).withHudSnackbar()
+            } else {
+                dynamicLightColorScheme(context)
+            }
         }
 
         darkTheme -> DarkScheme
