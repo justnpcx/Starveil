@@ -29,6 +29,16 @@
     <!-- Import and refresh results. These were built as sentences in the view
          model, where the resource system never saw them (C1). -->
     <string name="profiles_deleted">%1$s deleted</string>
+    <!-- Why an import or refresh failed. Data from :core:subscription, copy here. -->
+    <string name="profiles_failure_nothing">Nothing to import</string>
+    <string name="profiles_failure_link">This share link could not be parsed</string>
+    <string name="profiles_failure_network">Network error</string>
+    <string name="profiles_failure_http">HTTP %1$d</string>
+    <string name="profiles_failure_yaml_line">Malformed YAML at line %1$d</string>
+    <string name="profiles_failure_json_line">Malformed JSON at line %1$d</string>
+    <string name="profiles_failure_document">The subscription could not be read</string>
+    <string name="profiles_failure_no_nodes">No usable nodes in the subscription</string>
+    <string name="profiles_failure_save">The nodes could not be saved</string>
     <string name="profiles_msg_added">Added %1$s</string>
     <string name="profiles_msg_imported">Imported %1$d nodes</string>
     <string name="profiles_msg_imported_skipped">Imported %1$d nodes, %2$d skipped</string>

@@ -12,6 +12,7 @@ import java.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -143,6 +144,21 @@ class ClashYamlSubscriptionParserTest {
     fun `malformed yaml yields no profiles instead of throwing`() {
         assertTrue(ClashYamlSubscriptionParser().parse("proxies: [oops").isEmpty())
         assertTrue(ClashYamlSubscriptionParser().parse("not: clash").isEmpty())
+    }
+
+    @Test
+    fun `malformed yaml reports the line it could not read`() {
+        val broken = "proxies: [oops"
+
+        val e = assertThrows(MalformedSubscriptionException::class.java) {
+            ClashYamlSubscriptionParser().parseDetailed(broken)
+        }
+        assertEquals(DocumentFormat.YAML, e.format)
+        assertNotNull("SnakeYAML gives a mark for this failure", e.line)
+
+        // The simple form stays total: callers that only want profiles have
+        // nothing useful to do with the exception.
+        assertTrue(ClashYamlSubscriptionParser().parse(broken).isEmpty())
     }
 
     @Test

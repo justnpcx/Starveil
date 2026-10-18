@@ -201,11 +201,14 @@ class LinkImporterTest {
 
     @Test
     fun `a failed refresh reports the reason and stores nothing`() = runBlocking {
-        val (import_, profiles, _) = importer(fetcher = ImpFetcher(error = IOException("HTTP 403")))
+        val (import_, profiles, _) = importer(fetcher = ImpFetcher(error = HttpStatusException(403)))
 
         val outcome = import_.import("https://sub.example.com/x")
 
-        assertEquals(ImportOutcome.Failed("HTTP 403"), outcome)
+        assertEquals(
+            ImportOutcome.Failed(ImportFailure.Subscription(SubscriptionFailure.Http(403))),
+            outcome,
+        )
         assertTrue(profiles.rows.isEmpty())
     }
 

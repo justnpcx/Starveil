@@ -32,7 +32,16 @@ sealed interface ImportOutcome {
 
     /** [dropped] is how many entries the subscription carried but could not be used. */
     data class AddedSubscription(val nodeCount: Int, val dropped: Int = 0) : ImportOutcome
-    data class Failed(val reason: String) : ImportOutcome
+    data class Failed(val failure: ImportFailure) : ImportOutcome
+}
+
+/** Why an import did nothing, as data so the screen owns the wording. */
+sealed interface ImportFailure {
+    data object NothingToImport : ImportFailure
+
+    data object LinkUnparseable : ImportFailure
+
+    data class Subscription(val reason: SubscriptionFailure) : ImportFailure
 }
 
 /**
@@ -55,7 +64,7 @@ class LinkImporter @Inject constructor(
 
     suspend fun import(text: String): ImportOutcome {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return ImportOutcome.Failed("Nothing to import")
+        if (trimmed.isEmpty()) return ImportOutcome.Failed(ImportFailure.NothingToImport)
 
         val isSubscriptionUrl = trimmed.startsWith("http://", ignoreCase = true) ||
             trimmed.startsWith("https://", ignoreCase = true)
@@ -69,7 +78,7 @@ class LinkImporter @Inject constructor(
 
     private suspend fun importShareLink(link: String): ImportOutcome {
         val profile = resolver.resolve(link)
-            ?: return ImportOutcome.Failed("This share link could not be parsed")
+            ?: return ImportOutcome.Failed(ImportFailure.LinkUnparseable)
         profiles.upsert(profile)
         return ImportOutcome.AddedNode(profile.name)
     }
@@ -89,7 +98,8 @@ class LinkImporter @Inject constructor(
         return when (val outcome = updater.update(groupId, url)) {
             is SubscriptionUpdateOutcome.Success ->
                 ImportOutcome.AddedSubscription(outcome.profileCount, outcome.dropped)
-            is SubscriptionUpdateOutcome.Failure -> ImportOutcome.Failed(outcome.reason)
+            is SubscriptionUpdateOutcome.Failure ->
+                ImportOutcome.Failed(ImportFailure.Subscription(outcome.reason))
         }
     }
 

@@ -46,6 +46,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.R
+import com.justnpcx.starveil.core.subscription.DocumentFormat
+import com.justnpcx.starveil.core.subscription.ImportFailure
+import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
@@ -299,7 +302,7 @@ private fun ImportStep(
             )
 
             is ImportResult.Failed -> Text(
-                text = stringResource(R.string.onboarding_import_failed, result.reason),
+                text = stringResource(R.string.onboarding_import_failed, result.failure.text()),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -427,6 +430,32 @@ private fun BigAction(
             )
         }
     }
+}
+
+/** The same mapping the node list uses, with this flow's own copy. */
+@Composable
+private fun ImportFailure.text(): String = when (this) {
+    ImportFailure.NothingToImport -> stringResource(R.string.onboarding_failure_nothing)
+    ImportFailure.LinkUnparseable -> stringResource(R.string.onboarding_failure_link)
+    is ImportFailure.Subscription -> reason.text()
+}
+
+@Composable
+private fun SubscriptionFailure.text(): String = when (this) {
+    SubscriptionFailure.Network -> stringResource(R.string.onboarding_failure_network)
+    is SubscriptionFailure.Http -> stringResource(R.string.onboarding_failure_http, code)
+    is SubscriptionFailure.MalformedDocument -> {
+        val at = line
+        when {
+            format == DocumentFormat.YAML && at != null ->
+                stringResource(R.string.onboarding_failure_yaml_line, at)
+            format == DocumentFormat.JSON && at != null ->
+                stringResource(R.string.onboarding_failure_json_line, at)
+            else -> stringResource(R.string.onboarding_failure_document)
+        }
+    }
+    SubscriptionFailure.NoUsableNodes -> stringResource(R.string.onboarding_failure_no_nodes)
+    SubscriptionFailure.SaveFailed -> stringResource(R.string.onboarding_failure_save)
 }
 
 private fun clipboardText(context: Context): String? {

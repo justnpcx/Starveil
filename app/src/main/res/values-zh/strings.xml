@@ -49,6 +49,15 @@
     <string name="onboarding_cancel">取消</string>
     <string name="onboarding_imported">已导入 %1$d 个节点</string>
     <string name="onboarding_imported_skipped">已导入 %1$d 个节点，跳过 %2$d 个</string>
+    <string name="onboarding_failure_nothing">没有可导入的内容</string>
+    <string name="onboarding_failure_link">这条分享链接无法解析</string>
+    <string name="onboarding_failure_network">网络错误</string>
+    <string name="onboarding_failure_http">HTTP %1$d</string>
+    <string name="onboarding_failure_yaml_line">YAML 第 %1$d 行格式错误</string>
+    <string name="onboarding_failure_json_line">JSON 第 %1$d 行格式错误</string>
+    <string name="onboarding_failure_document">订阅内容无法解析</string>
+    <string name="onboarding_failure_no_nodes">订阅里没有可用节点</string>
+    <string name="onboarding_failure_save">节点保存失败</string>
     <string name="onboarding_import_failed">导入失败：%1$s</string>
     <string name="onboarding_connect_title">连接</string>
     <string name="onboarding_connect_body">从刚导入的节点里挑一个最健康的。</string>

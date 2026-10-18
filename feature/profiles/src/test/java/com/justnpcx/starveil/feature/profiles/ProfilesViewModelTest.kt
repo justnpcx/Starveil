@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.subscription.Clock
+import com.justnpcx.starveil.core.subscription.HttpStatusException
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkResolver
@@ -27,6 +28,7 @@ import com.justnpcx.starveil.core.ui.snackbar.UndoRequest
 import com.justnpcx.starveil.core.subscription.SubscriptionFetcher
 import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
+import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import java.io.IOException
@@ -468,7 +470,7 @@ class ProfilesViewModelTest {
             FakePreferences(0L),
             FakeGroups(listOf(subGroupWithUrl())),
             FakeRefreshScheduler(),
-            FakeFetcher(error = IOException("HTTP 500")),
+            FakeFetcher(error = HttpStatusException(500)),
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -480,7 +482,7 @@ class ProfilesViewModelTest {
         // rather than silently leaving a stale list.
         assertEquals(0, profiles.replaceCalls)
         assertEquals(listOf(ONE), profiles.remainingIds())
-        assertEquals(ProfilesMessage.RefreshFailed("HTTP 500"), awaitMessage(viewModel))
+        assertEquals(ProfilesMessage.RefreshFailed(SubscriptionFailure.Http(500)), awaitMessage(viewModel))
         job.cancel()
     }
 

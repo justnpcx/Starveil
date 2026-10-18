@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.json.Json
+import com.justnpcx.starveil.core.model.json.JsonException
 
 /**
  * SIP008 — the Shadowsocks project's own subscription format.
@@ -23,11 +24,24 @@ import com.justnpcx.starveil.core.model.json.Json
  */
 class Sip008SubscriptionParser : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+    override fun parse(text: String): List<Profile> = try {
+        parseDetailed(text).profiles
+    } catch (e: MalformedSubscriptionException) {
+        emptyList()
+    }
 
     override fun parseDetailed(text: String): ParseOutcome {
-        val root = runCatching { Json.parseObject(text) }.getOrNull()
-            ?: return ParseOutcome(emptyList())
+        val root = try {
+            Json.parseObject(text)
+        } catch (e: JsonException) {
+            throw MalformedSubscriptionException(
+                format = DocumentFormat.JSON,
+                line = lineAt(text, e.offset),
+                cause = e,
+            )
+        } catch (e: Exception) {
+            throw MalformedSubscriptionException(DocumentFormat.JSON, cause = e)
+        }
         val servers = root["servers"] as? List<*> ?: return ParseOutcome(emptyList())
         val profiles = servers.mapNotNull { entry -> entry.toProfile() }
         return ParseOutcome(profiles, dropped = servers.size - profiles.size)

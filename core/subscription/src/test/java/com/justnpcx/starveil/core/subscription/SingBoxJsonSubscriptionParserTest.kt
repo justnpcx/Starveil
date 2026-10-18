@@ -7,6 +7,7 @@ import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.VlessSettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -92,6 +93,27 @@ class SingBoxJsonSubscriptionParserTest {
         assertEquals(listOf("ok"), profiles.map { it.name })
         // The wireguard, the keyless REALITY and the uuid-less VLESS.
         assertEquals(3, parser.parseDetailed(json).dropped)
+    }
+
+    @Test
+    fun `malformed json reports the line it could not read`() {
+        val broken = """
+            {
+              "outbounds": [
+                {"type":"vless",}
+              ]
+            }
+        """.trimIndent()
+
+        val e = assertThrows(MalformedSubscriptionException::class.java) {
+            parser.parseDetailed(broken)
+        }
+
+        assertEquals(DocumentFormat.JSON, e.format)
+        // The trailing comma is on line 3; the parser stops at the `}` that
+        // follows it, which is the same line.
+        assertEquals(3, e.line)
+        assertTrue(parser.parse(broken).isEmpty())
     }
 
     @Test

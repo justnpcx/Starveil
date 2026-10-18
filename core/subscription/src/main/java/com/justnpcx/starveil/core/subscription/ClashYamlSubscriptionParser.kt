@@ -13,6 +13,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import org.yaml.snakeyaml.LoaderOptions
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
+import org.yaml.snakeyaml.error.MarkedYAMLException
 
 /**
  * Parses a Clash-style subscription (`proxies:` list) into [Profile]s.
@@ -26,7 +27,12 @@ import org.yaml.snakeyaml.constructor.SafeConstructor
  */
 class ClashYamlSubscriptionParser : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+    override fun parse(text: String): List<Profile> = try {
+        parseDetailed(text).profiles
+    } catch (e: MalformedSubscriptionException) {
+        // The simple form stays total; only the detailed form reports why.
+        emptyList()
+    }
 
     /**
      * Every proxy entry that produced no profile counts as dropped — including
@@ -37,8 +43,17 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
     override fun parseDetailed(text: String): ParseOutcome {
         val root = try {
             yaml().load<Any?>(text)
+        } catch (e: MarkedYAMLException) {
+            // SnakeYAML's mark is 0-based; a reader counts from 1. The problem
+            // text itself is not carried: it can quote the offending line, and
+            // a subscription body is credentials.
+            throw MalformedSubscriptionException(
+                format = DocumentFormat.YAML,
+                line = e.problemMark?.line?.plus(1),
+                cause = e,
+            )
         } catch (e: Exception) {
-            return ParseOutcome(emptyList())
+            throw MalformedSubscriptionException(DocumentFormat.YAML, cause = e)
         }
         val map = root as? Map<*, *> ?: return ParseOutcome(emptyList())
         val proxies = map["proxies"] as? List<*> ?: return ParseOutcome(emptyList())

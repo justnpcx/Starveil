@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.json.Json
+import com.justnpcx.starveil.core.model.json.JsonException
 
 /**
  * sing-box's own config, used as a subscription.
@@ -28,11 +29,24 @@ import com.justnpcx.starveil.core.model.json.Json
  */
 class SingBoxJsonSubscriptionParser : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+    override fun parse(text: String): List<Profile> = try {
+        parseDetailed(text).profiles
+    } catch (e: MalformedSubscriptionException) {
+        emptyList()
+    }
 
     override fun parseDetailed(text: String): ParseOutcome {
-        val root = runCatching { Json.parseObject(text) }.getOrNull()
-            ?: return ParseOutcome(emptyList())
+        val root = try {
+            Json.parseObject(text)
+        } catch (e: JsonException) {
+            throw MalformedSubscriptionException(
+                format = DocumentFormat.JSON,
+                line = lineAt(text, e.offset),
+                cause = e,
+            )
+        } catch (e: Exception) {
+            throw MalformedSubscriptionException(DocumentFormat.JSON, cause = e)
+        }
         val outbounds = root["outbounds"] as? List<*> ?: return ParseOutcome(emptyList())
         val profiles = outbounds.mapNotNull { entry -> (entry as? Map<*, *>)?.toProfile() }
         return ParseOutcome(profiles, dropped = outbounds.size - profiles.size)

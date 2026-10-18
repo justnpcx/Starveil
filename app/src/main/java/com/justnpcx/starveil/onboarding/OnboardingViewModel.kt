@@ -9,6 +9,8 @@ import com.justnpcx.starveil.core.model.NodeCandidate
 import com.justnpcx.starveil.core.model.NodePicker
 import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.nodeHealthOf
+import com.justnpcx.starveil.core.subscription.ImportFailure
+import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.feature.dashboard.ConnectionOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,7 +36,7 @@ data class OnboardingUiState(
 /** What step two did, as data — the screen owns the wording. */
 sealed interface ImportResult {
     data class Imported(val nodes: Int, val dropped: Int) : ImportResult
-    data class Failed(val reason: String) : ImportResult
+    data class Failed(val failure: ImportFailure) : ImportResult
 }
 
 /** What step three did. */
@@ -103,10 +105,10 @@ class OnboardingViewModel @Inject constructor(
                     is ImportOutcome.AddedNode -> ImportResult.Imported(nodes = 1, dropped = 0)
                     is ImportOutcome.AddedSubscription ->
                         ImportResult.Imported(outcome.nodeCount, outcome.dropped)
-                    is ImportOutcome.Failed -> ImportResult.Failed(outcome.reason)
+                    is ImportOutcome.Failed -> ImportResult.Failed(outcome.failure)
                 }
             } catch (e: Exception) {
-                ImportResult.Failed(e::class.java.simpleName)
+                ImportResult.Failed(ImportFailure.Subscription(SubscriptionFailure.Network))
             }
             _state.update {
                 it.copy(

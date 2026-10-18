@@ -14,10 +14,12 @@ import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.nodeHealthOf
+import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
+import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdateOutcome
 import com.justnpcx.starveil.core.subscription.SubscriptionUpdater
 import com.justnpcx.starveil.core.ui.snackbar.UndoBus
@@ -73,9 +75,9 @@ sealed interface ProfilesMessage {
 
     /** [dropped] counts subscription entries that produced no node. */
     data class ImportedNodes(val count: Int, val dropped: Int = 0) : ProfilesMessage
-    data class ImportFailed(val reason: String) : ProfilesMessage
+    data class ImportFailed(val failure: ImportFailure) : ProfilesMessage
     data class Refreshed(val count: Int, val dropped: Int = 0) : ProfilesMessage
-    data class RefreshFailed(val reason: String) : ProfilesMessage
+    data class RefreshFailed(val reason: SubscriptionFailure) : ProfilesMessage
 
     /** How many region groups the last grouping pass created or refreshed. */
     data class GroupedByRegion(val regions: Int) : ProfilesMessage
@@ -384,7 +386,7 @@ class ProfilesViewModel @Inject constructor(
                 is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
                 is ImportOutcome.AddedSubscription ->
                     ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
-                is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.reason)
+                is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.failure)
             }
             importing.value = false
         }

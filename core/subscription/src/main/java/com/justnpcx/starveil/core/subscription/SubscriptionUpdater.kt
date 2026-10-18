@@ -31,7 +31,7 @@ sealed interface SubscriptionUpdateOutcome {
     data class Success(val profileCount: Int, val dropped: Int = 0) : SubscriptionUpdateOutcome
 
     /** [reason] is already redacted — safe to persist and show in the UI. */
-    data class Failure(val reason: String) : SubscriptionUpdateOutcome
+    data class Failure(val reason: SubscriptionFailure) : SubscriptionUpdateOutcome
 }
 
 /**
@@ -55,16 +55,22 @@ class SubscriptionUpdater @Inject constructor(
     suspend fun update(groupId: Long, url: String): SubscriptionUpdateOutcome {
         val body = try {
             fetcher.fetch(url)
+        } catch (e: HttpStatusException) {
+            return fail(SubscriptionFailure.Http(e.code))
         } catch (e: IOException) {
-            return fail(reason = e.message?.takeIf { it.startsWith("HTTP ") } ?: "network error")
+            return fail(SubscriptionFailure.Network)
         } catch (e: Exception) {
-            return fail(reason = "network error")
+            return fail(SubscriptionFailure.Network)
         }
 
         val parsed = try {
             registry.resolve(body).parseDetailed(body)
+        } catch (e: MalformedSubscriptionException) {
+            // The line, not the text: a body is credentials, and the parser's
+            // message can quote the offending line.
+            return fail(SubscriptionFailure.MalformedDocument(e.format, e.line))
         } catch (e: Exception) {
-            return fail(reason = "could not parse subscription")
+            return fail(SubscriptionFailure.MalformedDocument(format = null, line = null))
         }
 
         // The same server listed twice is one node: providers repeat a host
@@ -73,7 +79,7 @@ class SubscriptionUpdater @Inject constructor(
         // so it does not add to [ParseOutcome.dropped].
         val unique = dedupeProfiles(parsed.profiles)
         if (unique.isEmpty()) {
-            return fail(reason = "subscription contained no usable nodes")
+            return fail(SubscriptionFailure.NoUsableNodes)
         }
 
         return try {
@@ -81,12 +87,14 @@ class SubscriptionUpdater @Inject constructor(
             health.recordSuccess(clock.nowMs())
             SubscriptionUpdateOutcome.Success(unique.size, dropped = parsed.dropped)
         } catch (e: Exception) {
-            fail(reason = "could not save nodes")
+            fail(SubscriptionFailure.SaveFailed)
         }
     }
 
-    private suspend fun fail(reason: String): SubscriptionUpdateOutcome {
-        health.recordFailure(clock.nowMs(), reason)
+    private suspend fun fail(reason: SubscriptionFailure): SubscriptionUpdateOutcome {
+        // The stored reason is the stable English diagnostic, never the copy a
+        // screen shows and never anything from the body.
+        health.recordFailure(clock.nowMs(), reason.diagnostic())
         return SubscriptionUpdateOutcome.Failure(reason)
     }
 }

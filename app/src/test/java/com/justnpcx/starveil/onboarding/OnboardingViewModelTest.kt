@@ -13,7 +13,9 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Scene
+import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
+import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.feature.dashboard.ConnectionOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -97,14 +99,15 @@ class OnboardingViewModelTest {
 
     @Test
     fun `a failed import stays on the import step and says why`() = runBlocking {
-        val (vm, _, _) = viewModel(importOutcome = ImportOutcome.Failed("could not parse"))
+        val failure = ImportFailure.Subscription(SubscriptionFailure.NoUsableNodes)
+        val (vm, _, _) = viewModel(importOutcome = ImportOutcome.Failed(failure))
         vm.next()
 
         vm.import("not a link")
         yield()
 
         assertEquals(1, vm.state.value.step)
-        assertEquals(ImportResult.Failed("could not parse"), vm.state.value.importResult)
+        assertEquals(ImportResult.Failed(failure), vm.state.value.importResult)
     }
 
     @Test

@@ -12,6 +12,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.justnpcx.starveil.core.subscription.DocumentFormat
+import com.justnpcx.starveil.core.subscription.ImportFailure
+import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
@@ -865,17 +868,50 @@ private fun ProfilesMessage.text(): String = when (this) {
         } else {
             stringResource(R.string.profiles_msg_imported_skipped, count, dropped)
         }
-    is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, reason)
+    is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, failure.text())
     is ProfilesMessage.Refreshed ->
         if (dropped == 0) {
             stringResource(R.string.profiles_msg_refreshed, count)
         } else {
             stringResource(R.string.profiles_msg_refreshed_skipped, count, dropped)
         }
-    is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason)
+    is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason.text())
     is ProfilesMessage.GroupedByRegion -> stringResource(R.string.profiles_msg_grouped, regions)
     ProfilesMessage.NoRegionsFound -> stringResource(R.string.profiles_msg_no_regions)
     is ProfilesMessage.External -> text
+}
+
+/**
+ * A failure as the user reads it.
+ *
+ * The core returns data, not sentences (C1): a line number is useful only if
+ * it can be phrased in the reader's language, and a parser message can quote
+ * the body — which carries credentials.
+ */
+@Composable
+private fun ImportFailure.text(): String = when (this) {
+    ImportFailure.NothingToImport -> stringResource(R.string.profiles_failure_nothing)
+    ImportFailure.LinkUnparseable -> stringResource(R.string.profiles_failure_link)
+    is ImportFailure.Subscription -> reason.text()
+}
+
+@Composable
+private fun SubscriptionFailure.text(): String = when (this) {
+    SubscriptionFailure.Network -> stringResource(R.string.profiles_failure_network)
+    is SubscriptionFailure.Http -> stringResource(R.string.profiles_failure_http, code)
+    is SubscriptionFailure.MalformedDocument -> {
+        // A local copy: `line` comes from another module and cannot be smart-cast.
+        val at = line
+        when {
+            format == DocumentFormat.YAML && at != null ->
+                stringResource(R.string.profiles_failure_yaml_line, at)
+            format == DocumentFormat.JSON && at != null ->
+                stringResource(R.string.profiles_failure_json_line, at)
+            else -> stringResource(R.string.profiles_failure_document)
+        }
+    }
+    SubscriptionFailure.NoUsableNodes -> stringResource(R.string.profiles_failure_no_nodes)
+    SubscriptionFailure.SaveFailed -> stringResource(R.string.profiles_failure_save)
 }
 
 @OptIn(ExperimentalFoundationApi::class)

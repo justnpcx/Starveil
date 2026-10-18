@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -125,11 +126,11 @@ class SubscriptionUpdaterTest {
 
     @Test
     fun `fetch failure keeps last-good profiles and records a redacted reason`() = runBlocking {
-        val (updater, profiles, health) = updater(error = IOException("HTTP 403"))
+        val (updater, profiles, health) = updater(error = HttpStatusException(403))
 
         val outcome = updater.update(groupId = 7L, url = secretUrl)
 
-        assertEquals(SubscriptionUpdateOutcome.Failure("HTTP 403"), outcome)
+        assertEquals(SubscriptionUpdateOutcome.Failure(SubscriptionFailure.Http(403)), outcome)
         assertEquals(0, profiles.replaceCalls)
         assertTrue(profiles.stored.isEmpty())
         assertEquals("HTTP 403", health.lastReason)
@@ -157,13 +158,32 @@ class SubscriptionUpdaterTest {
     }
 
     @Test
+    fun `a malformed document reports its format and line, never the body`() = runBlocking {
+        // A real YAML error with a real mark, and a token in the body that must
+        // not end up in the stored reason.
+        val body = "proxies: [oops\n# SECRET-TOKEN\n"
+        val (updater, profiles, health) = updater(body = body)
+
+        val outcome = updater.update(groupId = 7L, url = secretUrl)
+
+        val failure = (outcome as SubscriptionUpdateOutcome.Failure).reason
+        assertTrue(failure is SubscriptionFailure.MalformedDocument)
+        failure as SubscriptionFailure.MalformedDocument
+        assertEquals(DocumentFormat.YAML, failure.format)
+        assertNotNull("SnakeYAML reports a line for this failure", failure.line)
+        assertEquals(0, profiles.replaceCalls)
+        assertFalse(health.lastReason!!.contains("SECRET-TOKEN"))
+        assertFalse(health.lastReason!!.contains("oops"))
+    }
+
+    @Test
     fun `a save failure is reported and does not record success`() = runBlocking {
         val body = base64Links("vless://u1@h:443#node1")
         val (updater, _, health) = updater(body = body, profiles = FakeProfiles(failOnReplace = true))
 
         val outcome = updater.update(groupId = 7L, url = secretUrl)
 
-        assertEquals(SubscriptionUpdateOutcome.Failure("could not save nodes"), outcome)
+        assertEquals(SubscriptionUpdateOutcome.Failure(SubscriptionFailure.SaveFailed), outcome)
         assertEquals(null, health.lastSuccessAt)
         assertEquals("could not save nodes", health.lastReason)
     }

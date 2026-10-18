@@ -12,6 +12,15 @@ interface SubscriptionFetcher {
 }
 
 /**
+ * A non-2xx response.
+ *
+ * Typed rather than an `IOException("HTTP 403")` because the status is what
+ * the UI should show, and recovering it by parsing a message string is how a
+ * reason becomes a guess.
+ */
+class HttpStatusException(val code: Int) : IOException("HTTP $code")
+
+/**
  * `HttpURLConnection` fetcher — no extra HTTP dependency for M2.
  *
  * The URL is never logged: a subscription URL frequently carries a token in
@@ -35,7 +44,7 @@ class HttpUrlConnectionFetcher(
         try {
             val code = connection.responseCode
             if (code !in 200..299) {
-                throw IOException("HTTP $code")
+                throw HttpStatusException(code)
             }
             // Not InputStream.readNBytes: that is API 33, and minSdk is 29.
             val body = connection.inputStream.use { stream ->

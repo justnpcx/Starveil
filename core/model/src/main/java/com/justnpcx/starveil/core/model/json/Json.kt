@@ -86,7 +86,7 @@ object Json {
         parser.skipWhitespace()
         val value = parser.readValue()
         parser.skipWhitespace()
-        if (!parser.atEnd()) throw JsonException("Trailing content at offset ${parser.offset}")
+        if (!parser.atEnd()) throw JsonException("Trailing content at offset ${parser.offset}", parser.offset)
         return value
     }
 
@@ -109,7 +109,7 @@ object Json {
         }
 
         fun readValue(): Any? {
-            if (atEnd()) throw JsonException("Unexpected end of input")
+            if (atEnd()) throw JsonException("Unexpected end of input", offset)
             return when (val c = text[offset]) {
                 '{' -> readObject()
                 '[' -> readArray()
@@ -118,7 +118,7 @@ object Json {
                 'n' -> readNull()
                 else ->
                     if (c == '-' || c in '0'..'9') readNumber()
-                    else throw JsonException("Unexpected character '$c' at offset $offset")
+                    else throw JsonException("Unexpected character '$c' at offset $offset", offset)
             }
         }
 
@@ -145,7 +145,7 @@ object Json {
                         return map
                     }
 
-                    else -> throw JsonException("Expected ',' or '}' at offset $offset")
+                    else -> throw JsonException("Expected ',' or '}' at offset $offset", offset)
                 }
             }
         }
@@ -169,7 +169,7 @@ object Json {
                         return list
                     }
 
-                    else -> throw JsonException("Expected ',' or ']' at offset $offset")
+                    else -> throw JsonException("Expected ',' or ']' at offset $offset", offset)
                 }
             }
         }
@@ -178,11 +178,11 @@ object Json {
             expect('"')
             val sb = StringBuilder()
             while (true) {
-                if (atEnd()) throw JsonException("Unterminated string")
+                if (atEnd()) throw JsonException("Unterminated string", offset)
                 when (val c = text[offset++]) {
                     '"' -> return sb.toString()
                     '\\' -> {
-                        if (atEnd()) throw JsonException("Unterminated escape")
+                        if (atEnd()) throw JsonException("Unterminated escape", offset)
                         when (val esc = text[offset++]) {
                             '"' -> sb.append('"')
                             '\\' -> sb.append('\\')
@@ -193,13 +193,13 @@ object Json {
                             'r' -> sb.append('\r')
                             't' -> sb.append('\t')
                             'u' -> {
-                                if (offset + 4 > text.length) throw JsonException("Bad \\u escape")
+                                if (offset + 4 > text.length) throw JsonException("Bad \\u escape", offset)
                                 val hex = text.substring(offset, offset + 4)
                                 sb.append(hex.toInt(16).toChar())
                                 offset += 4
                             }
 
-                            else -> throw JsonException("Bad escape '\\$esc'")
+                            else -> throw JsonException("Bad escape '\\$esc'", offset)
                         }
                     }
 
@@ -220,11 +220,11 @@ object Json {
                     false
                 }
 
-                else -> throw JsonException("Bad literal at offset $offset")
+                else -> throw JsonException("Bad literal at offset $offset", offset)
             }
 
         private fun readNull(): Any? {
-            if (!text.startsWith("null", offset)) throw JsonException("Bad literal at offset $offset")
+            if (!text.startsWith("null", offset)) throw JsonException("Bad literal at offset $offset", offset)
             offset += 4
             return null
         }
@@ -235,15 +235,15 @@ object Json {
             while (!atEnd() && (text[offset].isDigit() || text[offset] in ".eE+-")) offset++
             val raw = text.substring(start, offset)
             return raw.toLongOrNull() ?: raw.toDoubleOrNull()
-                ?: throw JsonException("Bad number '$raw'")
+                ?: throw JsonException("Bad number '$raw'", offset)
         }
 
         private fun peek(): Char =
-            if (atEnd()) throw JsonException("Unexpected end of input") else text[offset]
+            if (atEnd()) throw JsonException("Unexpected end of input", offset) else text[offset]
 
         private fun expect(c: Char) {
             if (atEnd() || text[offset] != c) {
-                throw JsonException("Expected '$c' at offset $offset")
+                throw JsonException("Expected '$c' at offset $offset", offset)
             }
             offset++
         }
@@ -251,4 +251,8 @@ object Json {
 }
 
 /** Thrown when a JSON document is malformed. */
-class JsonException(message: String) : IllegalArgumentException(message)
+class JsonException(
+    message: String,
+    /** Byte offset the parser was at, when the failure has one. */
+    val offset: Int? = null,
+) : IllegalArgumentException(message)

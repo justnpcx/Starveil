@@ -23,6 +23,16 @@
     <string name="profiles_row_share">分享</string>
 
     <string name="profiles_deleted">已删除 %1$s</string>
+    <!-- 导入/刷新失败原因：数据来自 :core:subscription，文案在这里 -->
+    <string name="profiles_failure_nothing">没有可导入的内容</string>
+    <string name="profiles_failure_link">这条分享链接无法解析</string>
+    <string name="profiles_failure_network">网络错误</string>
+    <string name="profiles_failure_http">HTTP %1$d</string>
+    <string name="profiles_failure_yaml_line">YAML 第 %1$d 行格式错误</string>
+    <string name="profiles_failure_json_line">JSON 第 %1$d 行格式错误</string>
+    <string name="profiles_failure_document">订阅内容无法解析</string>
+    <string name="profiles_failure_no_nodes">订阅里没有可用节点</string>
+    <string name="profiles_failure_save">节点保存失败</string>
     <string name="profiles_msg_added">已添加 %1$s</string>
     <string name="profiles_msg_imported">已导入 %1$d 个节点</string>
     <string name="profiles_msg_imported_skipped">已导入 %1$d 个节点，跳过 %2$d 个</string>

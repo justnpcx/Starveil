@@ -57,6 +57,15 @@
     <string name="onboarding_cancel">Cancel</string>
     <string name="onboarding_imported">Imported %1$d nodes</string>
     <string name="onboarding_imported_skipped">Imported %1$d nodes, %2$d skipped</string>
+    <string name="onboarding_failure_nothing">Nothing to import</string>
+    <string name="onboarding_failure_link">This share link could not be parsed</string>
+    <string name="onboarding_failure_network">Network error</string>
+    <string name="onboarding_failure_http">HTTP %1$d</string>
+    <string name="onboarding_failure_yaml_line">Malformed YAML at line %1$d</string>
+    <string name="onboarding_failure_json_line">Malformed JSON at line %1$d</string>
+    <string name="onboarding_failure_document">The subscription could not be read</string>
+    <string name="onboarding_failure_no_nodes">No usable nodes in the subscription</string>
+    <string name="onboarding_failure_save">The nodes could not be saved</string>
     <string name="onboarding_import_failed">Import failed: %1$s</string>
     <string name="onboarding_connect_title">Connect</string>
     <string name="onboarding_connect_body">The app picks the healthiest node from what you imported.</string>
