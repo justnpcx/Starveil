@@ -69,14 +69,19 @@ PLATFORM=android/arm64 tools/build-libbox.sh  # one ABI (fast)
 
 Produces, in the fork tree:
 
-| Artifact | API | Tags | sha256 | Size |
-|---|---|---|---|---|
-| `libbox.aar` | 24 | full (`with_naive_outbound`, gvisor, quic, wireguard, utls, clash_api, usbip, openvpn, openconnect, tailscale, …) | `9907beee8cf2b6d65f58fcb62be5168a220d56707af9288a4d7b9a72563d5039` | 28.5 MB |
-| `libbox-legacy.aar` | 21 | full **minus** `with_naive_outbound` | `1851bb4b4752beda2bd094d61c303993a4626a1336dc4552d8bdbd022c3c74be` | 23.5 MB |
+| Artifact | API | ABIs | Tags | sha256 | Size |
+|---|---|---|---|---|---|
+| `libbox.aar` (checked in) | 24 | arm64-v8a, armeabi-v7a, x86_64 | the `LIBBOX_TAGS` list below | `52a6f2ebc7e76fbf8a915795d9df66a051dfbaf17099741a1428bd43c727705b` | 58 MB |
 
-Checksums are for commit `027f5d1`, `android/arm64` only. A full multi-ABI build
-changes the AAR contents (and therefore the hashes) — record the hash of
-whatever artifact is actually consumed.
+The hash is of the file actually consumed, not of a build that was thrown away:
+`core/kernel/libs/libbox.aar`, built from `starveil-1.14.x@7333b9be` with all
+three ABIs. A rebuild changes the AAR contents and therefore the hash — update
+this line in the same change that replaces the file, or the document starts
+lying about the binary the app ships.
+
+`libbox-legacy.aar` (API 21, no naive outbound) is still produced by the fork
+build but is not consumed and not checked in; Starveil's `minSdk` is 29, so
+the variant has no user here.
 
 ### Which AAR does Starveil use, and why
 
@@ -88,8 +93,8 @@ the naive outbound (cronet) to stay small — Starveil does not need it.
 ## AAR consumption strategy — decided: checked-in binary
 
 Decision (task 1): the built AAR is **checked into the repo at
-`app/libs/libbox.aar`** and consumed with
-`implementation(files("libs/libbox.aar"))` in `app/build.gradle.kts`.
+`core/kernel/libs/libbox.aar`** and consumed with
+`implementation(files("libs/libbox.aar"))` in `core/kernel/build.gradle.kts`.
 
 Rationale, against the "which keeps CI green with the least churn" standard:
 
@@ -103,11 +108,10 @@ Checking in the binary keeps CI unchanged and fully reproducible. Cost: a
 ~28 MB blob in git. The AAR is not code-reviewed; `tools/build-libbox.sh` plus
 the sha256s above are how it is reproduced.
 
-> Current artifact note: the checked-in AAR was built with
-> `PLATFORM=android/arm64`, so it carries **arm64-v8a only** (enough for the
-> test device, an arm64 vivo). A shippable build needs all ABIs — re-run
-> `tools/build-libbox.sh` with no PLATFORM and replace the file before any
-> release. Tracked as a task-1 follow-up.
+> Current artifact note: the checked-in AAR carries **arm64-v8a, armeabi-v7a
+> and x86_64**, which is what the ABI splits in `app/build.gradle.kts` expect.
+> x86 32-bit is deliberately absent: libbox is not built for it and the app has
+> no 32-bit x86 users.
 
 ## libbox Java API as this fork actually exposes it
 
@@ -321,11 +325,13 @@ git describe --tags                       # v1.14.3-4-g647c447 -> "1.14.3-647c44
 unzip -o -q libbox.aar -d /tmp/aar && strings /tmp/aar/jni/arm64-v8a/libbox.so \
   | grep -oE "1\.14\.[0-9]+-[0-9a-f]{7,8}"
 
-# 3. no stale naming in the artifact
-strings /tmp/aar/jni/arm64-v8a/libbox.so | grep -c mirage      # must be 0
+# 3. no stale naming in the artifact: the previous project's name must not
+#    appear. Take the name from the repo history rather than repeating it.
+strings /tmp/aar/jni/arm64-v8a/libbox.so | grep -c "<old-project-name>"   # 0
 ```
 
-Then: build one ABI, put it in `core/kernel/libs/`, and connect a
+Then: build all three ABIs (one is enough while iterating), put the AAR in
+`core/kernel/libs/`, and connect a
 VLESS + REALITY + XHTTP node on a device. A core that builds is not a core that
 carries traffic, and the patches above are exactly the parts no unit test
 reaches.
