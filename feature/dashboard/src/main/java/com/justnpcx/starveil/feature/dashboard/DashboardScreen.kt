@@ -485,19 +485,24 @@ private fun CurrentNodeCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                // Still a control, so it keeps a touch target — but the fill
+                // is a whisper of the card's own ink, not a saturated pill.
+                // It is metadata about the node, not the screen's second
+                // action; the name is the anchor (I1).
                 AssistChip(
                     onClick = onAutoSelect,
                     label = {
                         Text(
                             text = stringResource(R.string.dashboard_auto_select),
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
                         )
                     },
                     shape = RoundedCornerShape(50),
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
+                    border = null,
                 )
             }
             // Latency only: availability is 100% for the node you are
