@@ -113,6 +113,14 @@ internal val DarkScheme = darkColorScheme(
     onSurface = Color(0xFFE2E8F0),
     onSurfaceVariant = StarveilColors.TextDim,
     error = StarveilColors.Blocked,
+    // Snackbars draw on the inverse pair. M3's default is a near-white bar,
+    // which in a dark-first theme becomes the brightest thing on screen — a
+    // flash, not a footnote. Raised keeps the bar floating above the panel
+    // while staying in the HUD palette; the action colour is the glow the
+    // rest of the app uses for anything tappable.
+    inverseSurface = StarveilColors.Raised,
+    inverseOnSurface = Color(0xFFE2E8F0),
+    inversePrimary = StarveilColors.GlowPrimary,
 )
 
 internal val LightScheme = lightColorScheme(
