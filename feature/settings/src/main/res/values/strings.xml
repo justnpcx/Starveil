@@ -112,4 +112,20 @@
     <string name="privacy_removal_body">Uninstalling removes the database and the keystore entries with it. Backup files are yours to keep or delete.</string>
     <string name="privacy_contact_title">Questions</string>
     <string name="privacy_contact_body">Open an issue on the project’s GitHub repository.</string>
+
+    <string name="keepalive_entry_title">Keep alive</string>
+    <string name="keepalive_entry_desc">Stop the system from killing the tunnel in the background.</string>
+    <string name="keepalive_title">Keep alive</string>
+    <string name="keepalive_back">Back</string>
+    <string name="keepalive_intro">Chinese ROMs kill background apps on their own schedule. These are the three switches where they decide not to.</string>
+    <string name="keepalive_battery_title">Battery optimisation</string>
+    <string name="keepalive_battery_body">Keeps the system from freezing the tunnel after the screen goes off.</string>
+    <string name="keepalive_battery_on">Exempt</string>
+    <string name="keepalive_battery_off">Not exempt</string>
+    <string name="keepalive_autostart_title">Autostart</string>
+    <string name="keepalive_autostart_body">Lets the tunnel come back by itself after a reboot.</string>
+    <string name="keepalive_autostart_fallback">This ROM has no autostart page; the app settings page opens instead.</string>
+    <string name="keepalive_details_title">App settings</string>
+    <string name="keepalive_details_body">Where most ROMs keep the background and power switches for one app.</string>
+    <string name="keepalive_action_open">Open</string>
 </resources>

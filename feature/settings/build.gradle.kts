@@ -34,6 +34,9 @@ kotlin {
 dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
+    // The back arrow on the keep-alive screen; the same core icon set the
+    // other feature modules use.
+    implementation(libs.compose.material.icons.core)
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.hilt.navigation.compose)

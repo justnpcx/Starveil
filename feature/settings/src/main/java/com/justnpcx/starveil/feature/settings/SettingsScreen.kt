@@ -63,6 +63,7 @@ fun SettingsScreen(
     onRunLeakCheck: () -> Unit = {},
     /** Opens the per-app exception list. :app owns the route. */
     onOpenPerApp: () -> Unit = {},
+    onOpenKeepAlive: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
     /**
@@ -188,6 +189,19 @@ fun SettingsScreen(
             )
             TextButton(onClick = onOpenPerApp) {
                 Text(stringResource(R.string.per_app_manage))
+            }
+        }
+
+        SectionTitle(stringResource(R.string.keepalive_entry_title))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.keepalive_entry_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onOpenKeepAlive) {
+                Text(stringResource(R.string.keepalive_action_open))
             }
         }
 

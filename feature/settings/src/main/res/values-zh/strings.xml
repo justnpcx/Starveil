@@ -103,4 +103,20 @@
     <string name="privacy_removal_body">卸载应用会连同数据库和 keystore 条目一起删除。导出的备份文件由你自己保管或删除。</string>
     <string name="privacy_contact_title">疑问</string>
     <string name="privacy_contact_body">在项目的 GitHub 仓库提 issue。</string>
+
+    <string name="keepalive_entry_title">后台保活</string>
+    <string name="keepalive_entry_desc">防止系统在锁屏后杀掉隧道。</string>
+    <string name="keepalive_title">后台保活</string>
+    <string name="keepalive_back">返回</string>
+    <string name="keepalive_intro">国产 ROM 会按自己的规则清后台。这三个开关是它决定「不清」的地方。</string>
+    <string name="keepalive_battery_title">电池优化</string>
+    <string name="keepalive_battery_body">防止锁屏后系统冻结隧道。</string>
+    <string name="keepalive_battery_on">已加入</string>
+    <string name="keepalive_battery_off">未加入</string>
+    <string name="keepalive_autostart_title">自启动</string>
+    <string name="keepalive_autostart_body">重启后让隧道自己恢复。</string>
+    <string name="keepalive_autostart_fallback">这台 ROM 没有自启动页，将打开应用详情页。</string>
+    <string name="keepalive_details_title">应用详情</string>
+    <string name="keepalive_details_body">多数 ROM 把单个应用的后台与耗电开关放在这里。</string>
+    <string name="keepalive_action_open">去设置</string>
 </resources>

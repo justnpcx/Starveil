@@ -20,6 +20,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Lets the app ask the system for the doze exemption. Without it the
+         request intent is refused and the only way to the switch is the
+         battery-optimisation list. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Updates are downloaded and handed to the system installer. The user
          still has to allow this app to install unknown apps once. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
