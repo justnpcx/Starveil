@@ -1,8 +1,10 @@
 package com.justnpcx.starveil.onboarding
 
+import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.R
+import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
@@ -64,6 +67,31 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
     val context = LocalContext.current
     var showSubscription by remember { mutableStateOf(false) }
     var subscriptionDraft by remember { mutableStateOf("") }
+    var pendingConnect by remember { mutableStateOf(false) }
+    var consentDenied by remember { mutableStateOf(false) }
+
+    // The same consent port the dashboard uses. Without this the kernel starts
+    // and fails with "VPN consent not granted" — the one path into the tunnel
+    // that forgot to ask.
+    val vpnConsent = remember(context) { starveilVpnConsent(context) }
+    val consentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val granted = result.resultCode == Activity.RESULT_OK
+        if (granted && pendingConnect) viewModel.connectBest()
+        consentDenied = !granted
+        pendingConnect = false
+    }
+    val requestConnect: () -> Unit = {
+        consentDenied = false
+        val intent = vpnConsent.consentIntent()
+        if (intent == null) {
+            viewModel.connectBest() // consent already held
+        } else {
+            pendingConnect = true
+            consentLauncher.launch(intent)
+        }
+    }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         result.contents?.let(viewModel::import)
@@ -114,7 +142,8 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
 
             else -> ConnectStep(
                 state = state,
-                onConnect = viewModel::connectBest,
+                consentDenied = consentDenied,
+                onConnect = requestConnect,
                 onFinish = viewModel::finish,
                 onBack = viewModel::back,
             )
@@ -315,6 +344,7 @@ private fun ImportStep(
 @Composable
 private fun ConnectStep(
     state: OnboardingUiState,
+    consentDenied: Boolean,
     onConnect: () -> Unit,
     onFinish: () -> Unit,
     onBack: () -> Unit,
@@ -335,6 +365,14 @@ private fun ConnectStep(
         )
 
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+
+        if (consentDenied) {
+            Text(
+                text = stringResource(R.string.onboarding_consent_denied),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
 
         when (val result = state.connectResult) {
             is ConnectResult.Connected -> {

@@ -60,6 +60,7 @@
     <string name="onboarding_connected">已连接到 %1$s</string>
     <string name="onboarding_connected_unknown">已连接</string>
     <string name="onboarding_no_nodes">还没有节点。返回上一步导入一个。</string>
+    <string name="onboarding_consent_denied">需要授予 VPN 权限才能连接。</string>
     <string name="onboarding_connect_failed">连接失败：%1$s</string>
     <string name="onboarding_connect_failed_unknown">连接失败。</string>
     <string name="onboarding_retry">重试</string>

@@ -68,6 +68,7 @@
     <string name="onboarding_connected">Connected to %1$s</string>
     <string name="onboarding_connected_unknown">Connected</string>
     <string name="onboarding_no_nodes">No nodes yet. Go back and import one.</string>
+    <string name="onboarding_consent_denied">VPN permission is required to connect.</string>
     <string name="onboarding_connect_failed">Could not connect: %1$s</string>
     <string name="onboarding_connect_failed_unknown">Could not connect.</string>
     <string name="onboarding_retry">Try again</string>
