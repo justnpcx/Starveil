@@ -32,6 +32,7 @@
 | 后台全量探测（H1） | 日志出现 `health sweep: probed 3 node(s)`；随后「自动选择」选出 **HY2+Reality-hy2-443（评分 10099）**——不是此前唯一有健康数据的 cf-xhttp |
 | Kill Switch 阻断（M5） | 「始终阻断」连接 → `已阻断`，配置 `final=block`、出站只有 `block`、无 uuid；Chrome 打开 example.com 得 `ERR_CONNECTION_REFUSED`。「断开时阻断」连接→断开 同样结果；从阻断态再连接，配置回到 `final=proxy` |
 | 热切换回归（2026-10-18） | 连接 → 阻断 → 连接 两轮：`已连接`（tun=1，外网流向判为代理）→ `已阻断`（tun 保留，页面停在加载中，不是直连打开）→ `已连接`；`cache-file: timeout` 0 次 |
+| 首页四态与深色（P2-1） | 见下方「深色走查」；录屏 `/tmp/starveil_states.mp4`（未连接呼吸 → 连接中 → 已连接） |
 | 连接建立速度（P2-3） | 见下方「TTFP」：10 次 VLESS+XHTTP+REALITY、12 次 Hysteria2，均为冷启动（force-stop 后连接） |
 | 后台保活（P1-2） | 设置 → 后台保活：电池优化显示「未加入」，点「去设置」弹出系统对话框（`RequestIgnoreBatteryOptimizations`），允许后 `dumpsys deviceidle whitelist` 出现 `user,com.justnpcx.starveil`，返回后该行变「已加入」；自启动打开 `com.vivo.permissionmanager/.activity.BgStartUpManagerActivity`（自启动页）；应用详情打开 `InstalledAppDetails` |
 | 规则集校验（M3） | 篡改 `geosite-cn.srs` 并把目录设为只读后重连：日志 `does not match its hash; discarding` → 下载失败 → `rule set geosite-cn.srs: download_failed; mainland preset disabled`；规则页出现红色警告与 Snackbar，配置 `final=proxy` 且 0 条预设规则（fail-closed）；日志页有同一条 error |
@@ -128,6 +129,20 @@ libbox（`StartedService.Close()` 并不关闭运行中的实例；reload 路径
 周期任务首次入队时 WorkManager 会立刻跑一次，而同一启动里还入队了一个「补跑」一次性任务，
 日志里出现两行 `probed 3 node(s)`。改为入队前先查该唯一任务是否已存在：首次只靠周期任务，
 之后的启动才按时间戳补跑。
+
+### 深色走查（P2-1，2026-10-18）
+
+五屏（首页 / 节点 / 规则 / 日志 / 设置）逐张看过，改了两处：
+
+1. **系统导航栏是白的**。`enableEdgeToEdge()` 不带参数时按*资源*配置决定 scrim，而资源
+   配置跟的是系统主题；系统是浅色、应用被强制深色时，黑色页面下面压着一条白条。改成在
+   组合里按应用自己的 `dark` 重新调用，导航栏变透明、图标转亮。
+2. **规则页的 FAB 压住空态文字**（「全部走代理）」被盖住一半）。空态加了 88dp 的右侧留白，
+   文字在按钮前换行。
+
+没改的：FAB、开关、胶囊在深色下是淡紫色——那是「动态取色」打开后的 Material 调色板，
+设置页自己写着「会覆盖 Starveil HUD 配色」，属于用户选择而不是走查缺陷。连接圆环始终是
+HUD 的青色，这是有意的：核心是品牌，其余跟随主题。
 
 ### TTFP：点击连接到首个代理连接（2026-10-18）
 

@@ -62,7 +62,9 @@ enum class ConnectionState {
  *   warning that breathes at the healthy rate reads as "all good" in the
  *   wrong colour.
  * - [ConnectionState.CONNECTING]: rotating charge arc.
- * - [ConnectionState.DISCONNECTED]: dim, static ring.
+ * - [ConnectionState.DISCONNECTED]: dim ring with the slowest, shallowest
+ *   breath — alive, but idle. A completely static grey circle read as "this
+ *   thing is off", which is not the same as "ready when you are".
  * - [ConnectionState.BLOCKED]: red alert ring.
  *
  * A state change moves four things at once — colour, breathing, core size and
@@ -283,6 +285,15 @@ private const val BREATH_MAX_SCALE = 1.06f
 /** Shallower than [BREATH_MAX_SCALE] on purpose — see [StarveilMotion.WARNING_BREATH_PERIOD_MS]. */
 private const val WARNING_BREATH_MAX_SCALE = 1.03f
 
+/**
+ * Standby breathing: the smallest of the three amplitudes.
+ *
+ * A waiting device should be visible without looking alive — at the healthy
+ * amplitude the idle core competes with the one that means "traffic is
+ * flowing".
+ */
+private const val STANDBY_BREATH_MAX_SCALE = 1.018f
+
 private const val GLOW_PEAK_ALPHA = 0.5f
 private const val DOT_GLOW_SCALE = 2.2f
 private const val DOT_GLOW_ALPHA = 0.35f
@@ -303,6 +314,9 @@ internal fun breathFor(state: ConnectionState, active: Boolean): Breath? = when 
     state == ConnectionState.CONNECTED -> Breath(BREATH_MAX_SCALE, StarveilMotion.BREATH_PERIOD_MS)
     state == ConnectionState.WARNING ->
         Breath(WARNING_BREATH_MAX_SCALE, StarveilMotion.WARNING_BREATH_PERIOD_MS)
+    // Idle still breathes: "off" and "ready" must not look the same.
+    state == ConnectionState.DISCONNECTED ->
+        Breath(STANDBY_BREATH_MAX_SCALE, StarveilMotion.STANDBY_BREATH_PERIOD_MS)
     else -> null
 }
 

@@ -42,6 +42,15 @@ object StarveilMotion {
      */
     const val WARNING_BREATH_PERIOD_MS = 3600
 
+    /**
+     * Standby breathing period (ms) — the slowest of the three.
+     *
+     * An idle core is a device waiting, not a tunnel working: the same motion
+     * at the healthy rate would say "something is happening" about a state
+     * where nothing is.
+     */
+    const val STANDBY_BREATH_PERIOD_MS = 4800
+
     /** Connecting rotation period (ms). */
     const val SPIN_PERIOD_MS = 1100
 

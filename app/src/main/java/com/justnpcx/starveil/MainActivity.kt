@@ -3,6 +3,7 @@ package com.justnpcx.starveil
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -86,8 +88,23 @@ class MainActivity : ComponentActivity() {
             val dynamicColor by preferences.dynamicColor
                 .collectAsStateWithLifecycle(initialValue = false)
 
+            val dark = themeMode.isDark(systemDark = isSystemInDarkTheme())
+
+            // The system bars follow the *app's* theme, not the system's.
+            // `enableEdgeToEdge()` with no arguments decides the scrim from the
+            // resource configuration, so forcing dark inside a light system left
+            // a white navigation bar under a black app — the one thing in the
+            // dark walkthrough that was plainly wrong rather than a taste call.
+            LaunchedEffect(dark) {
+                val style = SystemBarStyle.auto(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                ) { dark }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
+
             StarveilTheme(
-                darkTheme = themeMode.isDark(systemDark = isSystemInDarkTheme()),
+                darkTheme = dark,
                 dynamicColor = dynamicColor,
             ) {
                 val navController = rememberNavController()

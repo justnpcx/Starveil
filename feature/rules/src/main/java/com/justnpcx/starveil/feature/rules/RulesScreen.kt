@@ -112,7 +112,14 @@ fun RulesScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(StarveilSpacing.lg),
+                // Room for the FAB: without it the last line of the empty state
+                // sat under the button, which is how "全部走代理）" got covered.
+                contentPadding = PaddingValues(
+                    start = StarveilSpacing.lg,
+                    top = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    bottom = 96.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
                 // The preset is a switch, not a rule: it is a whole routing
@@ -151,6 +158,9 @@ fun RulesScreen(
                                     RoutePreset.GLOBAL_DIRECT -> R.string.rules_empty_body_direct
                                 },
                             ),
+                            // The FAB floats over this corner; the text wraps
+                            // before it rather than under it.
+                            modifier = Modifier.padding(end = 88.dp),
                         )
                     }
                 } else {

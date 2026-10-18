@@ -38,12 +38,28 @@ class ConnectionCoreMotionTest {
     }
 
     @Test
-    fun `only the two live states breathe`() {
-        assertNotNull(breathFor(ConnectionState.CONNECTED, active = true))
-        assertNotNull(breathFor(ConnectionState.WARNING, active = true))
-        // Connecting rotates instead, and the other two are meant to hold still.
+    fun `the idle core breathes, more slowly and less than a live one`() {
+        val healthy = breathFor(ConnectionState.CONNECTED, active = true)!!
+        val idle = breathFor(ConnectionState.DISCONNECTED, active = true)!!
+
+        // A static grey circle says "this is off". Idle is "ready when you
+        // are", and it has to be visible as something other than a dead ring —
+        // but it must not compete with the state that means traffic flows.
+        assertTrue(
+            "idle must breathe slower (${idle.periodMs} vs ${healthy.periodMs})",
+            idle.periodMs > healthy.periodMs,
+        )
+        assertTrue(
+            "idle must breathe shallower (${idle.peak} vs ${healthy.peak})",
+            idle.peak < healthy.peak,
+        )
+    }
+
+    @Test
+    fun `connecting and blocked hold still`() {
+        // Connecting rotates instead, and a block is a hard stop: neither
+        // should look like something is ticking along.
         assertNull(breathFor(ConnectionState.CONNECTING, active = true))
-        assertNull(breathFor(ConnectionState.DISCONNECTED, active = true))
         assertNull(breathFor(ConnectionState.BLOCKED, active = true))
     }
 
