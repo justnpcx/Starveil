@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.crash.CrashReporting
 import com.justnpcx.starveil.latency.NodeHealthProbeScheduler
 import com.justnpcx.starveil.rules.RuleSetFailureReporter
+import com.justnpcx.starveil.scene.SceneController
 import com.justnpcx.starveil.widget.StarveilWidget
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.HiltAndroidApp
@@ -37,6 +38,9 @@ class StarveilApp : Application() {
     @Inject
     lateinit var ruleSetFailures: RuleSetFailureReporter
 
+    @Inject
+    lateinit var scenes: SceneController
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -65,5 +69,10 @@ class StarveilApp : Application() {
         // app quietly ignoring a setting; it belongs in the log the user can
         // actually read.
         ruleSetFailures.start(scope)
+
+        // Scenes are evaluated while the process lives, which is exactly while
+        // the tunnel is up: the VpnService keeps it alive. With no process
+        // there is no tunnel to switch, so nothing is lost.
+        scenes.start()
     }
 }

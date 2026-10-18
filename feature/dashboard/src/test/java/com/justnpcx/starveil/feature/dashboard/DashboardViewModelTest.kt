@@ -8,6 +8,7 @@ import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.scene.SceneApplyState
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelError
@@ -22,6 +23,7 @@ import com.justnpcx.starveil.core.model.CountryFlags
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.NodeRegion
 import com.justnpcx.starveil.core.model.Profile
@@ -604,6 +606,7 @@ class DashboardViewModelTest {
             groups = groups,
             connection = connection,
             nodeHealth = nodeHealth,
+            sceneApply = SceneApplyState(),
         )
     }
 
@@ -718,6 +721,10 @@ private class FakePreferences(
     // The rest of the preferences are not what this test is about.
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
+    override val scenes: Flow<List<Scene>> = flowOf(emptyList())
+    override suspend fun setScenes(scenes: List<Scene>) = notUsed()
+    override val manualPresetAt: Flow<Long> = flowOf(0L)
+    override suspend fun recordManualPresetChange(atEpochMs: Long) = notUsed()
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
     override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()

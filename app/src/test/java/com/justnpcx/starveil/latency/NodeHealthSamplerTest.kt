@@ -8,6 +8,7 @@ import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.LATENCY_UNREACHABLE
 import com.justnpcx.starveil.core.model.LatencySample
 import com.justnpcx.starveil.core.model.LeakCheckRecord
@@ -202,6 +203,10 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val selectedGroupId: Flow<Long> get() = notUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val scenes: Flow<List<Scene>> = flowOf(emptyList())
+    override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
+    override val manualPresetAt: Flow<Long> = flowOf(0L)
+    override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
     override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()

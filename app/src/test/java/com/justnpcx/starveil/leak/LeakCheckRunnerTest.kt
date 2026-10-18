@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -158,6 +159,10 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val scenes: Flow<List<Scene>> = flowOf(emptyList())
+    override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
+    override val manualPresetAt: Flow<Long> = flowOf(0L)
+    override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
     override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()

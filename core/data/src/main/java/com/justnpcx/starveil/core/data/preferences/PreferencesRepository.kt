@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -101,6 +102,22 @@ interface PreferencesRepository {
     val blockAds: Flow<Boolean>
 
     /**
+     * Scenes, in the order the user arranged them.
+     *
+     * The order is the priority: the first scene whose trigger matches is the
+     * one that applies.
+     */
+    val scenes: Flow<List<Scene>>
+
+    /**
+     * When the user last chose a preset by hand, 0 when never.
+     *
+     * Scenes stay out of the way for [com.justnpcx.starveil.core.model.SceneTiming.MANUAL_GRACE_MS]
+     * after this, so an override is not argued with.
+     */
+    val manualPresetAt: Flow<Long>
+
+    /**
      * Currently selected node; 0 = none chosen yet.
      *
      * A node and a group are alternative connection targets, so at most one is
@@ -150,6 +167,10 @@ interface PreferencesRepository {
     suspend fun setRoutePreset(preset: RoutePreset)
 
     suspend fun setBlockAds(enabled: Boolean)
+
+    suspend fun setScenes(scenes: List<Scene>)
+
+    suspend fun recordManualPresetChange(atEpochMs: Long)
 
     suspend fun setPerAppRoutes(routes: Map<String, AppRoute>)
     suspend fun setKillSwitchMode(mode: KillSwitchMode)
@@ -204,6 +225,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
         val SUB_LAST_ERROR = stringPreferencesKey("subscription_last_error")
         val HEALTH_PROBE_AT = longPreferencesKey("health_probe_at")
+        val SCENES = stringPreferencesKey("scenes")
+        val MANUAL_PRESET_AT = longPreferencesKey("manual_preset_at")
     }
 
     override val themeMode: Flow<ThemeMode> = dataStore.data
@@ -266,6 +289,22 @@ class DataStorePreferencesRepository @Inject constructor(
             prefs[Keys.ROUTE_PRESET]?.let(RoutePreset::fromStorage)
                 ?: if (prefs[Keys.BYPASS_MAINLAND] == true) RoutePreset.BYPASS_MAINLAND else RoutePreset.GLOBAL_PROXY
         }
+
+    override val scenes: Flow<List<Scene>> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> SceneCodec.decode(prefs[Keys.SCENES]) }
+
+    override val manualPresetAt: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.MANUAL_PRESET_AT] ?: 0L }
+
+    override suspend fun setScenes(scenes: List<Scene>) {
+        dataStore.edit { it[Keys.SCENES] = SceneCodec.encode(scenes) }
+    }
+
+    override suspend fun recordManualPresetChange(atEpochMs: Long) {
+        dataStore.edit { it[Keys.MANUAL_PRESET_AT] = atEpochMs }
+    }
 
     override val blockAds: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }

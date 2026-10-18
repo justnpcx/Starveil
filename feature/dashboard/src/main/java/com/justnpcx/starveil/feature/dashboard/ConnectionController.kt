@@ -144,6 +144,20 @@ class ConnectionController @Inject constructor(
     }
 
     /**
+     * Rebuild the running tunnel from the current preferences.
+     *
+     * For callers that change a policy without a UI — a scene, mostly. Does
+     * nothing when no tunnel is up: there is nothing to rebuild, and the next
+     * connect reads the new preference anyway.
+     */
+    suspend fun reapply(): ConnectionOutcome {
+        if (kernel.state.value != com.justnpcx.starveil.core.kernel.KernelState.Running) {
+            return ConnectionOutcome.Disconnected
+        }
+        return connect()
+    }
+
+    /**
      * "Block on disconnect" swaps the running config for one that forwards
      * nothing. Tearing the tunnel down here is exactly the leak that mode
      * exists to prevent: whatever was in flight would go out directly.

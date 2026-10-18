@@ -7,6 +7,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.scene.SceneApplyState
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
@@ -131,6 +132,7 @@ class DashboardViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val connection: ConnectionController,
     private val nodeHealth: NodeHealthRepository,
+    private val sceneApply: SceneApplyState,
 ) : ViewModel() {
 
     // Structured concurrency: one SupervisorJob per ViewModel, cancelled in
@@ -226,6 +228,12 @@ class DashboardViewModel @Inject constructor(
                     // The first emission is the stored value, not a change.
                     if (previous == null || previous == policy) return@collect
                     if (_uiState.value.isBusy) return@collect
+                    // A scene that just rebuilt the tunnel already wrote this
+                    // preset; rebuilding again would tear it down twice for one
+                    // network switch.
+                    if (System.currentTimeMillis() - sceneApply.lastAppliedAtMs < SCENE_DEDUPE_MS) {
+                        return@collect
+                    }
                     if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
                         applyConfigChange()
                     }
@@ -609,6 +617,9 @@ class DashboardViewModel @Inject constructor(
     }
 
     private companion object {
+        /** How long a scene's own rebuild suppresses this one. */
+        const val SCENE_DEDUPE_MS = 3_000L
+
         /** No target key: nothing is selected. Not copy — a map key. */
         const val NO_TARGET = "none"
     }

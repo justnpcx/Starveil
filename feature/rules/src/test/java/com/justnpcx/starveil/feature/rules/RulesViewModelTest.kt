@@ -34,6 +34,7 @@ import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import kotlinx.coroutines.flow.StateFlow
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.Scene
 
 /**
  * The rule list. Order is the routing decision — the first match wins — so
@@ -196,6 +197,10 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override val selectedGroupId: Flow<Long> get() = notUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val scenes: Flow<List<Scene>> = flowOf(emptyList())
+    override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
+    override val manualPresetAt: Flow<Long> = flowOf(0L)
+    override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
     override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()

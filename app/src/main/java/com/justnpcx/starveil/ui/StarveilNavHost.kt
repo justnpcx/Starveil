@@ -35,6 +35,7 @@ import androidx.navigation.navArgument
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.di.ProtocolRegistryEntryPoint
 import com.justnpcx.starveil.feature.editor.ProfileEditorScreen
+import com.justnpcx.starveil.feature.rules.ScenesScreen
 import com.justnpcx.starveil.feature.settings.PerAppScreen
 import com.justnpcx.starveil.feature.settings.PrivacyScreen
 import com.justnpcx.starveil.feature.settings.SettingsScreen
@@ -57,6 +58,7 @@ enum class Destination(
 
 /** Not a tab: reached from Settings, which is where the exception list lives. */
 private const val PER_APP_ROUTE = "perapp"
+private const val SCENES_ROUTE = "scenes"
 
 /** Also not a tab: the policy is read once, from the About section. */
 private const val PRIVACY_ROUTE = "privacy"
@@ -150,7 +152,10 @@ fun StarveilNavHost(
             )
         }
         composable(Destination.RULES.route) {
-            RulesScreen(onOpenPerApp = { navController.navigate(PER_APP_ROUTE) })
+            RulesScreen(
+                onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
+                onOpenScenes = { navController.navigate(SCENES_ROUTE) },
+            )
         }
         composable(Destination.LOGS.route) { LogsScreen() }
         composable(Destination.SETTINGS.route) {
@@ -165,6 +170,9 @@ fun StarveilNavHost(
         }
         composable(PER_APP_ROUTE) {
             PerAppScreen(onBack = { navController.popBackStack() })
+        }
+        composable(SCENES_ROUTE) {
+            ScenesScreen(onBack = { navController.popBackStack() })
         }
         composable(PRIVACY_ROUTE) {
             PrivacyScreen(onBack = { navController.popBackStack() })

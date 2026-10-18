@@ -114,37 +114,17 @@ class RealKernelBridge(
     override suspend fun start(config: String): Result<Unit> = apply(config, blocking = false)
 
     /**
-     * Forward nothing.
+     * Forward nothing: run the block-only config.
      *
-     * Two cases, because they are not the same operation:
-     *
-     * - Nothing is running (the "always block" connect): start the block-only
-     *   config. A first start is reliable, and the block is then a config the
-     *   kernel enforces.
-     * - A kernel is running (disconnect under "block on disconnect"): close it
-     *   and leave the tun standing. Every packet is pulled into an interface
-     *   with no reader, so nothing leaves. A config swap here would need a
-     *   second start, and a second start is exactly what this kernel cannot do
-     *   reliably — see [apply].
+     * The block is a config the kernel enforces, not a tun with no reader.
+     * Going there is the same full teardown as any other config change — see
+     * [apply] for why a second start has to be preceded by one — which costs a
+     * short window with no VPN. That window is the price of the block actually
+     * being in force; the alternative, keeping the old tun and closing the
+     * kernel, leaves the cache database locked and breaks the next connect.
      */
-    override suspend fun block(): Result<Unit> = withContext(Dispatchers.IO) {
-        val current = server
-        if (current == null) {
-            return@withContext doStart(configBuilder.buildBlocking(), blocking = true)
-        }
-        lastConfig = null
-        _state.value = KernelState.Stopping
-        log(LogLevel.INFO, "kernel stopping; tunnel left standing (block)")
-        runCatching { client?.disconnect() }
-        client = null
-        runCatching { current.closeService() }
-        runCatching { current.close() }
-        server = null
-        _blocking.value = true
-        _state.value = KernelState.Stopped
-        log(LogLevel.INFO, "kernel stopped; nothing is forwarding")
-        Result.success(Unit)
-    }
+    override suspend fun block(): Result<Unit> =
+        apply(configBuilder.buildBlocking(), blocking = true)
 
     /**
      * Start, or replace the running kernel's config.
@@ -159,14 +139,11 @@ class RealKernelBridge(
      *   the platform log writer, and that alone forces the cache file on.
      * - Closing the kernel and starting a new one with the VpnService left up:
      *   same failure, same message, even with a per-policy cache path.
-     * - Full teardown, then start: works. Two connect/block cycles, one tun
-     *   throughout, no timeout in the log.
+     * - Full teardown (kernel and VpnService), wait for the service to be gone,
+     *   then start: works, repeatedly.
      *
-     * The cost is a short window with no VPN between the two halves. That is
-     * acceptable when *connecting* (there was nothing to leak before), and it
-     * is why [block] does not go through here: going to "blocked" closes the
-     * kernel and keeps the tunnel, so the block starts immediately and leaves
-     * no window at all.
+     * The cost is a short window with no VPN between the two halves, which is
+     * why this is only reached when there was going to be a change anyway.
      */
     private suspend fun apply(config: String, blocking: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {
@@ -174,9 +151,6 @@ class RealKernelBridge(
             restarted = false
             val current = server ?: return@withContext doStart(config, blocking)
 
-            // A running kernel and a new config: the old one has to go, and
-            // its tunnel with it. Starting a second instance over a live
-            // tunnel is what fails; see the note above.
             _state.value = KernelState.Starting
             log(LogLevel.INFO, "kernel restarting; tunnel goes down for the swap")
             runCatching { client?.disconnect() }
@@ -188,10 +162,7 @@ class RealKernelBridge(
             // The VpnService teardown is asynchronous (stopService -> onDestroy
             // -> closeTun). Starting the new kernel into a service that is
             // still dying is what produced the `initialize cache-file: timeout`
-            // failures: the new instance opened the previous instance's cache
-            // database while the old one was still being torn down. Waiting for
-            // the service to be gone makes the two halves sequential, which is
-            // the only arrangement that has been reliable on device.
+            // failures; waiting for it to be gone makes the halves sequential.
             awaitVpnDown()
             doStart(config, blocking)
         }
@@ -252,6 +223,7 @@ class RealKernelBridge(
             Result.failure(KernelStartException(detail, e))
         }
     }
+
 
     /**
      * Closes the kernel and the tunnel.

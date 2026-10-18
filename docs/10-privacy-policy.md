@@ -45,6 +45,7 @@ Starveil 在本机运行。它没有服务器，不上报数据，也没有账�
 | VPN（`BIND_VPN_SERVICE`） | 建立隧道、转发流量。这是应用的核心功能 |
 | 通知 | 显示隧道运行中的常驻通知，其中包含「断开连接」操作 |
 | 查询带启动入口的应用（清单里声明 `<queries>`，不是 `QUERY_ALL_PACKAGES`） | 仅用于绘制「按应用分流」列表；结果不离开设备，也不写入日志 |
+| 位置（`ACCESS_FINE_LOCATION`） | **只**用于读取当前 Wi-Fi 的名称（Android 10 起系统要求），供「场景自动化」匹配。不采集位置、不记录移动轨迹、不上传。拒绝后场景仍可按移动数据或「任意 Wi-Fi」触发 |
 
 ### 备份
 
@@ -104,6 +105,7 @@ Those requests reach a public CDN, not the author. The app makes no other networ
 | VPN (`BIND_VPN_SERVICE`) | Establish the tunnel and forward traffic — the core function |
 | Notifications | The ongoing tunnel notice, which carries the Disconnect action |
 | Apps with a launcher entry (a `<queries>` declaration, not `QUERY_ALL_PACKAGES`) | Only to draw the per-app routing screen; never leaves the device and is never logged |
+| Location (`ACCESS_FINE_LOCATION`) | **Only** to read the name of the current Wi-Fi (Android 10 requires it), so scenes can match it. No location is collected, no movement is recorded, nothing is uploaded. Without it, scenes still work for mobile data or "any Wi-Fi" |
 
 ### Backups
 

@@ -32,4 +32,9 @@
     <string name="latency_timeout">No reply from the node within the probe window.</string>
     <string name="latency_unreachable">Could not reach the node — no TCP reply on its port.</string>
     <string name="latency_not_applicable">Not measurable — WireGuard speaks UDP only, and this probe is a TCP handshake.</string>
+
+    <string name="scene_channel_name">Scenes</string>
+    <string name="scene_channel_desc">A record of automatic policy switches.</string>
+    <string name="scene_applied_title">Scene applied</string>
+    <string name="scene_applied_body">%1$s: switched to %2$s.</string>
 </resources>
