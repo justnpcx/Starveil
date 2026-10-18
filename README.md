@@ -115,6 +115,7 @@
 - [规则市场](docs/15-rule-market.md)
 - [双轨制 UX 设计（P3，定稿）](docs/16-dual-mode-ux.md)
 - [基准对比方法（P3，定稿）](docs/17-benchmark-report.md)
+- [未完成任务总览](docs/18-open-tasks.md)
 - [更新日志](CHANGELOG.md)
 - [libbox 构建](docs/04-libbox-build.md)
 - [发布流程](docs/12-release.md)
