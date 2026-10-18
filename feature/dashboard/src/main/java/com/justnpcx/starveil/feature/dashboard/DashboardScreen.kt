@@ -68,6 +68,15 @@ fun DashboardScreen(
         ConnectionCore(
             state = state.coreState,
             busy = state.isBusy,
+            label = stringResource(
+                when (state.coreState) {
+                    ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
+                    ConnectionState.CONNECTING -> R.string.dashboard_state_connecting
+                    ConnectionState.CONNECTED -> R.string.dashboard_state_connected
+                    ConnectionState.BLOCKED -> R.string.dashboard_state_blocked
+                    ConnectionState.WARNING -> R.string.dashboard_state_warning
+                },
+            ),
             onClick = { requestVpnConsent { viewModel.onCoreClick() } },
             // The core is the screen's primary control, so its description
             // carries both the state and what tapping does (design system §6.1).
@@ -81,31 +90,9 @@ fun DashboardScreen(
                 },
             ),
         )
-        // 8 pt grid: the state is the headline, the node is its subtitle, and
-        // everything below them is one block of telemetry.
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = stringResource(
-                when (state.coreState) {
-                    ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
-                    ConnectionState.CONNECTING -> R.string.dashboard_state_connecting
-                    ConnectionState.CONNECTED -> R.string.dashboard_state_connected
-                    ConnectionState.BLOCKED -> R.string.dashboard_state_blocked
-                    ConnectionState.WARNING -> R.string.dashboard_state_warning
-                },
-            ),
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            ),
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp),
-        )
+        // The state is in the ring and the node name is in the card below, so
+        // there is nothing between the hero and the context: the extra air is
+        // the point (A5).
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         // The same banner the Nodes screen uses (K3), but not dismissible: it
         // says why the core is blocked, and dismissing it would leave a blocked
@@ -116,7 +103,7 @@ fun DashboardScreen(
                 // 12 dp above and below in total, counting the banner's own 8.
                 modifier = Modifier.padding(vertical = 4.dp),
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
         SpeedSection(state = state)
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
@@ -323,14 +310,15 @@ private fun SpeedCell(
                 text = parts.value,
                 // Tabular figures: a rate that ticks every second must not
                 // change width, or the whole row twitches with it.
-                style = MaterialTheme.typography.displayMedium.copy(
+                style = MaterialTheme.typography.displayLarge.copy(
                     fontFeatureSettings = "tnum",
                     fontWeight = FontWeight.SemiBold,
                 ),
             )
             Text(
                 text = parts.unit,
-                style = MaterialTheme.typography.titleMedium.copy(
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 22.sp,
                     fontFeatureSettings = "tnum",
                 ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

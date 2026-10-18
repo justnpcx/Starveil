@@ -95,6 +95,7 @@ class ConnectionCoreRenderTest {
                 state = state.value,
                 onClick = {},
                 contentDescription = state.value.name,
+                label = state.value.name,
             )
         }
 

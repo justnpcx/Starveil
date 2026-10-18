@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +34,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -79,6 +84,11 @@ fun ConnectionCore(
     onClick: () -> Unit,
     /** Required: this is the screen's primary control (design system §6.1). */
     contentDescription: String,
+    /**
+     * The state, drawn inside the ring. The ring is the only control on the
+     * screen, so its centre is the one place the state cannot be missed.
+     */
+    label: String,
     modifier: Modifier = Modifier,
     /**
      * A connect or disconnect is in flight. Drawn as the same charge arc as
@@ -165,14 +175,6 @@ fun ConnectionCore(
         label = "ring-color",
     )
 
-    // Drawn, not laid out — so this stays inside the "never animate layout
-    // size" rule while still easing the change (§5.3).
-    val coreRadius by animateDpAsState(
-        targetValue = if (state == ConnectionState.DISCONNECTED) CORE_DOT_DIM else CORE_DOT_LIT,
-        animationSpec = StarveilMotion.stateTransition(),
-        label = "core-radius",
-    )
-
     // Haptics ride the *transition*, not the press: the state change is what
     // the user is waiting on, and a press buzz on top of it would double up
     // (§5.4). Types map to the spec's table.
@@ -205,7 +207,6 @@ fun ConnectionCore(
     Box(
         modifier = modifier
             .size(CORE_SIZE)
-            .scale(breathScale)
             .semantics { this.contentDescription = contentDescription }
             .clickable(
                 enabled = !busy,
@@ -214,7 +215,10 @@ fun ConnectionCore(
             ) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.size(CORE_SIZE)) {
+        // The breath lives on the drawing, not on the Box: scaling the whole
+        // core scaled the state word with it, and text that breathes reads as
+        // a rendering fault.
+        Canvas(modifier = Modifier.size(CORE_SIZE).scale(breathScale)) {
             val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
             val outer = size.minDimension / 2
             val ringRadius = outer - RING_INSET.toPx()
@@ -255,31 +259,28 @@ fun ConnectionCore(
                 )
             }
 
-            // A small bloom under the dot, so it reads as lit rather than
-            // pasted on.
-            val dotRadius = coreRadius.toPx()
-            val dotGlow = dotRadius * DOT_GLOW_SCALE
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0f to ringColor.copy(alpha = DOT_GLOW_ALPHA),
-                        1f to Color.Transparent,
-                    ),
-                    center = center,
-                    radius = dotGlow,
-                ),
-                radius = dotGlow,
-            )
-            drawCircle(color = ringColor, radius = dotRadius)
+            // No centre dot: the state word sits there now. The glow around
+            // the ring is what makes the core read as lit.
         }
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+            // onBackground, not the ring colour: it is near-white in the dark
+            // theme (the blue glow behind it is the accent) and near-black in
+            // the light one, so the word is legible in both without a plate.
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
 private val CORE_SIZE = 220.dp
 private val RING_STROKE = 6.dp
 private val RING_INSET = 22.dp
-private val CORE_DOT_LIT = 22.dp
-private val CORE_DOT_DIM = 14.dp
 
 /** How far the ring's glow reaches either side of it. */
 private val GLOW_SPREAD = 20.dp
@@ -302,8 +303,6 @@ private const val WARNING_BREATH_MAX_SCALE = 1.03f
 private const val STANDBY_BREATH_MAX_SCALE = 1.018f
 
 private const val GLOW_PEAK_ALPHA = 0.5f
-private const val DOT_GLOW_SCALE = 2.2f
-private const val DOT_GLOW_ALPHA = 0.35f
 private const val ARC_BRIGHTEN = 0.55f
 
 /**
