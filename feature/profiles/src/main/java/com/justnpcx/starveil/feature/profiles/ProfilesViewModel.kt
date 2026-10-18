@@ -70,9 +70,11 @@ data class ProfilesUiState(
  */
 sealed interface ProfilesMessage {
     data class AddedNode(val name: String) : ProfilesMessage
-    data class ImportedNodes(val count: Int) : ProfilesMessage
+
+    /** [dropped] counts subscription entries that produced no node. */
+    data class ImportedNodes(val count: Int, val dropped: Int = 0) : ProfilesMessage
     data class ImportFailed(val reason: String) : ProfilesMessage
-    data class Refreshed(val count: Int) : ProfilesMessage
+    data class Refreshed(val count: Int, val dropped: Int = 0) : ProfilesMessage
     data class RefreshFailed(val reason: String) : ProfilesMessage
 
     /** How many region groups the last grouping pass created or refreshed. */
@@ -380,7 +382,8 @@ class ProfilesViewModel @Inject constructor(
             importing.value = true
             message.value = when (val outcome = importer.import(text)) {
                 is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
-                is ImportOutcome.AddedSubscription -> ProfilesMessage.ImportedNodes(outcome.nodeCount)
+                is ImportOutcome.AddedSubscription ->
+                    ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
                 is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.reason)
             }
             importing.value = false
@@ -404,7 +407,8 @@ class ProfilesViewModel @Inject constructor(
             importing.value = true
             refreshScheduler.schedule(group.id)
             message.value = when (val outcome = updater.update(group.id, url)) {
-                is SubscriptionUpdateOutcome.Success -> ProfilesMessage.Refreshed(outcome.profileCount)
+                is SubscriptionUpdateOutcome.Success ->
+                    ProfilesMessage.Refreshed(outcome.profileCount, outcome.dropped)
                 is SubscriptionUpdateOutcome.Failure -> ProfilesMessage.RefreshFailed(outcome.reason)
             }
             importing.value = false

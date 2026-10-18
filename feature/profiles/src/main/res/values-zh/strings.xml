@@ -25,8 +25,10 @@
     <string name="profiles_deleted">已删除 %1$s</string>
     <string name="profiles_msg_added">已添加 %1$s</string>
     <string name="profiles_msg_imported">已导入 %1$d 个节点</string>
+    <string name="profiles_msg_imported_skipped">已导入 %1$d 个节点，跳过 %2$d 个</string>
     <string name="profiles_msg_import_failed">导入失败：%1$s</string>
     <string name="profiles_msg_refreshed">已刷新：%1$d 个节点</string>
+    <string name="profiles_msg_refreshed_skipped">已刷新：%1$d 个节点，跳过 %2$d 个</string>
     <string name="profiles_msg_grouped">按地区分组：%1$d 个分组</string>
     <string name="profiles_msg_no_regions">没有节点名包含地区。把节点名改成含「香港」「日本」「US」这类词即可分组。</string>
     <string name="profiles_msg_refresh_failed">刷新失败：%1$s</string>

@@ -23,10 +23,14 @@ import com.justnpcx.starveil.core.model.json.Json
  */
 class Sip008SubscriptionParser : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> {
-        val root = runCatching { Json.parseObject(text) }.getOrNull() ?: return emptyList()
-        val servers = root["servers"] as? List<*> ?: return emptyList()
-        return servers.mapNotNull { entry -> entry.toProfile() }
+    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+
+    override fun parseDetailed(text: String): ParseOutcome {
+        val root = runCatching { Json.parseObject(text) }.getOrNull()
+            ?: return ParseOutcome(emptyList())
+        val servers = root["servers"] as? List<*> ?: return ParseOutcome(emptyList())
+        val profiles = servers.mapNotNull { entry -> entry.toProfile() }
+        return ParseOutcome(profiles, dropped = servers.size - profiles.size)
     }
 
     private fun Any?.toProfile(): Profile? {

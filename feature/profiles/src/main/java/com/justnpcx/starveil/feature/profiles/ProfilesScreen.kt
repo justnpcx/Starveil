@@ -859,9 +859,19 @@ private fun looksImportable(text: String): Boolean =
 @Composable
 private fun ProfilesMessage.text(): String = when (this) {
     is ProfilesMessage.AddedNode -> stringResource(R.string.profiles_msg_added, name)
-    is ProfilesMessage.ImportedNodes -> stringResource(R.string.profiles_msg_imported, count)
+    is ProfilesMessage.ImportedNodes ->
+        if (dropped == 0) {
+            stringResource(R.string.profiles_msg_imported, count)
+        } else {
+            stringResource(R.string.profiles_msg_imported_skipped, count, dropped)
+        }
     is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, reason)
-    is ProfilesMessage.Refreshed -> stringResource(R.string.profiles_msg_refreshed, count)
+    is ProfilesMessage.Refreshed ->
+        if (dropped == 0) {
+            stringResource(R.string.profiles_msg_refreshed, count)
+        } else {
+            stringResource(R.string.profiles_msg_refreshed_skipped, count, dropped)
+        }
     is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason)
     is ProfilesMessage.GroupedByRegion -> stringResource(R.string.profiles_msg_grouped, regions)
     ProfilesMessage.NoRegionsFound -> stringResource(R.string.profiles_msg_no_regions)

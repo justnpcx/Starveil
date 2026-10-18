@@ -167,6 +167,33 @@ class SubscriptionUpdaterTest {
         assertEquals(null, health.lastSuccessAt)
         assertEquals("could not save nodes", health.lastReason)
     }
+
+    @Test
+    fun `refused entries are reported alongside the imported count`() = runBlocking {
+        val body = base64Links("vless://u1@h1:443#node1", "ss://x@h2:8388#node2", "vless://u3@h3:443#node3")
+        val (updater, profiles, health) = updater(body = body)
+
+        val outcome = updater.update(groupId = 7L, url = secretUrl)
+
+        // The fake resolver only understands vless, so the ss line is the one
+        // the parser refused. It must not be reported as a failed refresh:
+        // two nodes arrived, and the user still gets them.
+        assertEquals(SubscriptionUpdateOutcome.Success(2, dropped = 1), outcome)
+        assertEquals(2, profiles.stored.size)
+        assertEquals(1_700_000_000_000L, health.lastSuccessAt)
+    }
+
+    @Test
+    fun `a duplicate is deduplicated, not counted as a failure`() = runBlocking {
+        val body = base64Links("vless://u1@h1:443#node1", "vless://u2@h1:443#node1-longer")
+        val (updater, profiles, _) = updater(body = body)
+
+        val outcome = updater.update(groupId = 7L, url = secretUrl)
+
+        // Two links, one server: one node stored, nothing dropped.
+        assertEquals(SubscriptionUpdateOutcome.Success(1, dropped = 0), outcome)
+        assertEquals(1, profiles.stored.size)
+    }
 }
 
 class SubscriptionSchedulerConfigTest {

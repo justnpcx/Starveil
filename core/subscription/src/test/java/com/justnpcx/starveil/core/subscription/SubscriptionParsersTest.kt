@@ -48,6 +48,21 @@ class Base64SubscriptionParserTest {
     fun `invalid base64 yields no profiles`() {
         assertTrue(Base64SubscriptionParser(resolver).parse("!!!! not base64 !!!!").isEmpty())
     }
+
+    @Test
+    fun `a line that is not a usable link is counted as dropped`() {
+        val body = b64("vless://u@a.example:443#n1\nnot-a-link\nss://x@b.example:8388#n2\n")
+        val outcome = Base64SubscriptionParser(resolver).parseDetailed(body)
+        assertEquals(2, outcome.profiles.size)
+        assertEquals(1, outcome.dropped)
+    }
+
+    @Test
+    fun `text that does not decode is not a per-node failure`() {
+        // The whole body is the wrong format; the registry reports that as a
+        // format failure. Counting it as one dropped node would be a lie.
+        assertEquals(0, Base64SubscriptionParser(resolver).parseDetailed("!!!! not base64 !!!!").dropped)
+    }
 }
 
 class ClashYamlSubscriptionParserTest {
@@ -128,6 +143,15 @@ class ClashYamlSubscriptionParserTest {
     fun `malformed yaml yields no profiles instead of throwing`() {
         assertTrue(ClashYamlSubscriptionParser().parse("proxies: [oops").isEmpty())
         assertTrue(ClashYamlSubscriptionParser().parse("not: clash").isEmpty())
+    }
+
+    @Test
+    fun `an unsupported protocol counts as a dropped node`() {
+        // The vmess entry is a real node the subscription offers and this app
+        // cannot build. Reporting 3 of 4 is the only honest summary.
+        val outcome = ClashYamlSubscriptionParser().parseDetailed(clash)
+        assertEquals(3, outcome.profiles.size)
+        assertEquals(1, outcome.dropped)
     }
 }
 

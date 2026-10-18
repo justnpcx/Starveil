@@ -90,6 +90,8 @@ class SingBoxJsonSubscriptionParserTest {
 
         // Only the one that could actually connect.
         assertEquals(listOf("ok"), profiles.map { it.name })
+        // The wireguard, the keyless REALITY and the uuid-less VLESS.
+        assertEquals(3, parser.parseDetailed(json).dropped)
     }
 
     @Test

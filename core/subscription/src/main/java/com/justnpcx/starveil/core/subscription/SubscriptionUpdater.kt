@@ -22,7 +22,13 @@ interface SubscriptionHealthSink {
 
 /** Result of one subscription refresh. */
 sealed interface SubscriptionUpdateOutcome {
-    data class Success(val profileCount: Int) : SubscriptionUpdateOutcome
+    /**
+     * [profileCount] is what was stored; [dropped] is what the parser refused.
+     * The two are reported separately because they mean different things: a
+     * node dropped is a node the user does not have, and silently importing
+     * 98 of 100 is how a broken subscription looks healthy.
+     */
+    data class Success(val profileCount: Int, val dropped: Int = 0) : SubscriptionUpdateOutcome
 
     /** [reason] is already redacted — safe to persist and show in the UI. */
     data class Failure(val reason: String) : SubscriptionUpdateOutcome
@@ -56,15 +62,16 @@ class SubscriptionUpdater @Inject constructor(
         }
 
         val parsed = try {
-            registry.resolve(body).parse(body)
+            registry.resolve(body).parseDetailed(body)
         } catch (e: Exception) {
             return fail(reason = "could not parse subscription")
         }
 
         // The same server listed twice is one node: providers repeat a host
         // across tiers, and a refresh that appended instead of replacing would
-        // grow the list on every update.
-        val unique = dedupeProfiles(parsed)
+        // grow the list on every update. Deduplication is not a parse failure,
+        // so it does not add to [ParseOutcome.dropped].
+        val unique = dedupeProfiles(parsed.profiles)
         if (unique.isEmpty()) {
             return fail(reason = "subscription contained no usable nodes")
         }
@@ -72,7 +79,7 @@ class SubscriptionUpdater @Inject constructor(
         return try {
             profiles.replaceGroupProfiles(groupId, unique)
             health.recordSuccess(clock.nowMs())
-            SubscriptionUpdateOutcome.Success(unique.size)
+            SubscriptionUpdateOutcome.Success(unique.size, dropped = parsed.dropped)
         } catch (e: Exception) {
             fail(reason = "could not save nodes")
         }

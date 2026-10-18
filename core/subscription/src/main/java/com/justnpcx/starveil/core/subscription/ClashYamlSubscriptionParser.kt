@@ -26,15 +26,24 @@ import org.yaml.snakeyaml.constructor.SafeConstructor
  */
 class ClashYamlSubscriptionParser : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> {
+    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+
+    /**
+     * Every proxy entry that produced no profile counts as dropped — including
+     * the protocols this app does not implement (vmess, hysteria2, tuic). That
+     * is the honest number: those nodes exist in the subscription and are not
+     * in the list, and the user is the one who needs to know.
+     */
+    override fun parseDetailed(text: String): ParseOutcome {
         val root = try {
             yaml().load<Any?>(text)
         } catch (e: Exception) {
-            return emptyList()
+            return ParseOutcome(emptyList())
         }
-        val map = root as? Map<*, *> ?: return emptyList()
-        val proxies = map["proxies"] as? List<*> ?: return emptyList()
-        return proxies.mapNotNull { entry -> parseProxy(entry as? Map<*, *> ?: return@mapNotNull null) }
+        val map = root as? Map<*, *> ?: return ParseOutcome(emptyList())
+        val proxies = map["proxies"] as? List<*> ?: return ParseOutcome(emptyList())
+        val profiles = proxies.mapNotNull { entry -> parseProxy(entry as? Map<*, *> ?: return@mapNotNull null) }
+        return ParseOutcome(profiles, dropped = proxies.size - profiles.size)
     }
 
     private fun yaml(): Yaml {

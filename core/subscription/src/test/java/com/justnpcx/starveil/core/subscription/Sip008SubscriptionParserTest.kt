@@ -56,6 +56,9 @@ class Sip008SubscriptionParserTest {
         """.trimIndent()
 
         assertEquals(1, parser.parse(json).size)
+        // Three of four entries were recognised and refused — the count the
+        // UI now reports instead of silently importing one of four.
+        assertEquals(3, parser.parseDetailed(json).dropped)
     }
 
     @Test

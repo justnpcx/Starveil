@@ -29,7 +29,9 @@ fun interface LinkExporter {
 
 sealed interface ImportOutcome {
     data class AddedNode(val name: String) : ImportOutcome
-    data class AddedSubscription(val nodeCount: Int) : ImportOutcome
+
+    /** [dropped] is how many entries the subscription carried but could not be used. */
+    data class AddedSubscription(val nodeCount: Int, val dropped: Int = 0) : ImportOutcome
     data class Failed(val reason: String) : ImportOutcome
 }
 
@@ -85,7 +87,8 @@ class LinkImporter @Inject constructor(
         // stay empty forever.
         refreshScheduler.schedule(groupId)
         return when (val outcome = updater.update(groupId, url)) {
-            is SubscriptionUpdateOutcome.Success -> ImportOutcome.AddedSubscription(outcome.profileCount)
+            is SubscriptionUpdateOutcome.Success ->
+                ImportOutcome.AddedSubscription(outcome.profileCount, outcome.dropped)
             is SubscriptionUpdateOutcome.Failure -> ImportOutcome.Failed(outcome.reason)
         }
     }

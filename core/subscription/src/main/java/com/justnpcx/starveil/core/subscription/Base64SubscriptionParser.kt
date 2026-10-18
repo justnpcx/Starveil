@@ -17,13 +17,22 @@ class Base64SubscriptionParser(
     private val resolveLink: (String) -> Profile?,
 ) : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> {
-        val decoded = decode(text) ?: return emptyList()
-        return decoded.lineSequence()
+    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+
+    /**
+     * A line that is not a link this app can build is a dropped node, not a
+     * broken subscription: one bad entry must not cost the user the other
+     * hundred. Text that does not decode at all is the registry's failure, not
+     * a per-node one, so it reports zero dropped rather than a line count.
+     */
+    override fun parseDetailed(text: String): ParseOutcome {
+        val decoded = decode(text) ?: return ParseOutcome(emptyList())
+        val lines = decoded.lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .mapNotNull { line -> resolveLink(line) }
             .toList()
+        val profiles = lines.mapNotNull { line -> resolveLink(line) }
+        return ParseOutcome(profiles, dropped = lines.size - profiles.size)
     }
 
     companion object {

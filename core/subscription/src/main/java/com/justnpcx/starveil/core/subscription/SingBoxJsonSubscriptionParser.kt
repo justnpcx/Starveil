@@ -28,10 +28,14 @@ import com.justnpcx.starveil.core.model.json.Json
  */
 class SingBoxJsonSubscriptionParser : SubscriptionParser {
 
-    override fun parse(text: String): List<Profile> {
-        val root = runCatching { Json.parseObject(text) }.getOrNull() ?: return emptyList()
-        val outbounds = root["outbounds"] as? List<*> ?: return emptyList()
-        return outbounds.mapNotNull { entry -> (entry as? Map<*, *>)?.toProfile() }
+    override fun parse(text: String): List<Profile> = parseDetailed(text).profiles
+
+    override fun parseDetailed(text: String): ParseOutcome {
+        val root = runCatching { Json.parseObject(text) }.getOrNull()
+            ?: return ParseOutcome(emptyList())
+        val outbounds = root["outbounds"] as? List<*> ?: return ParseOutcome(emptyList())
+        val profiles = outbounds.mapNotNull { entry -> (entry as? Map<*, *>)?.toProfile() }
+        return ParseOutcome(profiles, dropped = outbounds.size - profiles.size)
     }
 
     private fun Map<*, *>.toProfile(): Profile? {
