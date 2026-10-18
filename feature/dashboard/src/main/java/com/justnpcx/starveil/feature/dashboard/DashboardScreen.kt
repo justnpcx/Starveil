@@ -19,7 +19,6 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -155,10 +154,9 @@ fun DashboardScreen(
                     )
                 }
             }
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 2.dp),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
+            // G1: no rule between the sections. 16 dp of air is the
+            // separator; a line would be a third tone on a two-tone page.
+            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
                 health = state.health,
