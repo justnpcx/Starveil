@@ -128,7 +128,9 @@ fun DashboardScreen(
                 ),
             )
 
-            Spacer(modifier = Modifier.height(0.dp))
+            // F2: the ring and the live numbers are one group — "now" — so
+            // they sit 12 dp apart while the cards below keep their distance.
+            Spacer(modifier = Modifier.height(12.dp))
             SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
 
             // F3: the context line sits under the group it explains, not
