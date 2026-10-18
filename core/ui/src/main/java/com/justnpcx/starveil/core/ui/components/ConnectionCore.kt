@@ -11,7 +11,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -93,6 +96,15 @@ fun ConnectionCore(
     modifier: Modifier = Modifier,
     /** The ring's diameter. The dashboard shrinks it on short screens. */
     diameter: Dp = CORE_SIZE,
+    /**
+     * How much of the box's bottom the drawing may overflow.
+     *
+     * The ring sits [RING_INSET] inside its box, so without this the layout
+     * carries ~22 dp of empty space under the circle and the next block starts
+     * too far away. Trimming the box lets the following content sit close to
+     * the visible ring while the drawing stays the same size.
+     */
+    bottomTrim: Dp = 0.dp,
     /**
      * A connect or disconnect is in flight. Drawn as the same charge arc as
      * CONNECTING and the tap is ignored: a swap can take seconds, and a
@@ -209,7 +221,8 @@ fun ConnectionCore(
 
     Box(
         modifier = modifier
-            .size(diameter)
+            .width(diameter)
+            .height(diameter - bottomTrim)
             .semantics { this.contentDescription = contentDescription }
             .clickable(
                 enabled = !busy,
@@ -221,7 +234,12 @@ fun ConnectionCore(
         // The breath lives on the drawing, not on the Box: scaling the whole
         // core scaled the state word with it, and text that breathes reads as
         // a rendering fault.
-        Canvas(modifier = Modifier.size(diameter).scale(breathScale)) {
+        Canvas(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .size(diameter)
+                .scale(breathScale),
+        ) {
             val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
             val outer = size.minDimension / 2
             val ringRadius = outer - RING_INSET.toPx()
@@ -282,6 +300,9 @@ fun ConnectionCore(
                 MaterialTheme.colorScheme.onBackground
             },
             textAlign = TextAlign.Center,
+            // The box is trimmed at the bottom, so its centre is above the
+            // ring's; move the word back onto the ring's centre line.
+            modifier = Modifier.offset(y = bottomTrim / 2),
         )
     }
 }

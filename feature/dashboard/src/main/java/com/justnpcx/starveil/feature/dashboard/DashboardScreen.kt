@@ -100,10 +100,15 @@ fun DashboardScreen(
                 .padding(horizontal = StarveilSpacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // H2: 40 dp of air, so the ring starts ~48 dp below the status bar
+            // instead of floating in the middle of an empty top third.
+            Spacer(modifier = Modifier.height(40.dp))
             ConnectionCore(
                 state = state.coreState,
                 busy = state.isBusy,
                 diameter = heroSize,
+                // 18 dp of the ring's inset is empty; the numbers move into it.
+                bottomTrim = 18.dp,
                 label = stringResource(
                     when (state.coreState) {
                         ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
@@ -127,9 +132,9 @@ fun DashboardScreen(
                 ),
             )
 
-            // F2: the ring and the live numbers are one group — "now" — so
-            // they sit 12 dp apart while the cards below keep their distance.
-            Spacer(modifier = Modifier.height(12.dp))
+            // F2 (revised): the hero's box is trimmed so the numbers sit 8 dp
+            // under the visible ring, and the block's own height is honest —
+            // no offset, no leftover air to inflate the gap below.
             SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
 
             // F3: the context line sits under the group it explains, not
@@ -154,9 +159,7 @@ fun DashboardScreen(
                     )
                 }
             }
-            // G1: no rule between the sections. 16 dp of air is the
-            // separator; a line would be a third tone on a two-tone page.
-            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+            // G1/H2: no rule, and the slot itself is the section gap.
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
                 health = state.health,
@@ -166,14 +169,15 @@ fun DashboardScreen(
             // node — a group has no single curve — and the chart says
             // "collecting" in words until there is a shape worth drawing.
             state.health?.let { health ->
-                Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                Spacer(modifier = Modifier.height(12.dp))
                 NodeHealthSection(
                     health = health,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     chartHeight = if (landscape) 160.dp else null,
                 )
             }
-            if (landscape) Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+            // H1: the card must not touch the navigation bar.
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         SnackbarHost(
@@ -203,8 +207,11 @@ private fun NodeHealthSection(
     ) {
         Column(
             modifier = Modifier.padding(
-                horizontal = StarveilSpacing.lg,
-                vertical = StarveilSpacing.sm,
+                start = StarveilSpacing.lg,
+                top = StarveilSpacing.sm,
+                end = StarveilSpacing.lg,
+                // H1: 12 dp between the curve and the card's bottom edge.
+                bottom = 12.dp,
             ),
         ) {
         Row(
@@ -509,7 +516,7 @@ private fun CurrentNodeCard(
 }
 
 /** F3: one line of state explanation, occupied or not. */
-private val CONTEXT_SLOT_HEIGHT = 28.dp
+private val CONTEXT_SLOT_HEIGHT = 24.dp
 
 /** D1: the telemetry block's height, with or without numbers. */
 private val TELEMETRY_HEIGHT = 96.dp
