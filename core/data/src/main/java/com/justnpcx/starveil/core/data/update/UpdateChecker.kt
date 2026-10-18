@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.data.update
 
+import android.os.Build
 import com.justnpcx.starveil.core.model.json.Json
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -49,10 +50,15 @@ class UpdateChecker internal constructor(
         } catch (e: Exception) {
             return UpdateCheck.Failed(e.message ?: e::class.java.simpleName)
         }
-        return parse(body, currentVersion)
+        return parse(body, currentVersion, deviceAbi())
     }
 
-    internal fun parse(body: String, currentVersion: String): UpdateCheck {
+    /**
+     * [abi] is the device's primary ABI, or null when it is not one of the
+     * three this project ships. A release carries one APK per ABI; installing
+     * the arm64 package on a 32-bit phone is not an update, it is a brick.
+     */
+    internal fun parse(body: String, currentVersion: String, abi: String?): UpdateCheck {
         val release = runCatching { Json.parseObject(body) }.getOrNull()
             ?: return UpdateCheck.Failed("unreadable release")
         if (release["draft"] == true) return UpdateCheck.UpToDate
@@ -62,13 +68,25 @@ class UpdateChecker internal constructor(
         val version = tag.removePrefix("v")
         if (!isNewer(version, currentVersion)) return UpdateCheck.UpToDate
 
-        val asset = (release["assets"] as? List<*>)
+        val apks = (release["assets"] as? List<*>)
             ?.filterIsInstance<Map<String, Any?>>()
-            ?.firstOrNull { (it["name"] as? String)?.endsWith(".apk") == true && (it["name"] as? String)?.contains("arm64") == true }
-            ?: (release["assets"] as? List<*>)
-                ?.filterIsInstance<Map<String, Any?>>()
-                ?.firstOrNull { (it["name"] as? String)?.endsWith(".apk") == true }
-            ?: return UpdateCheck.Failed("release has no APK")
+            ?.filter { (it["name"] as? String)?.endsWith(".apk") == true }
+            .orEmpty()
+
+        // The matching asset first. A single APK is the older, universal
+        // layout and is safe to take when nothing matches; several with no
+        // match means this device has no package in this release, and taking
+        // one anyway is exactly the wrong-ABI install this check exists for.
+        val asset = apks.firstOrNull { candidate ->
+            abi != null && (candidate["name"] as? String)?.contains(abi) == true
+        } ?: apks.singleOrNull()
+            ?: return UpdateCheck.Failed(
+                if (abi == null) {
+                    "release has no APK for this device"
+                } else {
+                    "release has no APK for $abi"
+                },
+            )
 
         val url = asset["browser_download_url"] as? String
             ?: return UpdateCheck.Failed("APK has no download URL")
@@ -89,9 +107,15 @@ class UpdateChecker internal constructor(
         )
     }
 
+    private fun deviceAbi(): String? =
+        Build.SUPPORTED_ABIS.firstOrNull { it in SUPPORTED_ABIS }
+
     private companion object {
         /** Public in M8; until then this answers "could not check". */
         const val REPO = "justnpcx/Starveil"
+
+        /** The three libbox ships; x86 32-bit is deliberately absent. */
+        val SUPPORTED_ABIS = setOf("arm64-v8a", "armeabi-v7a", "x86_64")
     }
 }
 

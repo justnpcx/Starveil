@@ -52,8 +52,19 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: ./gradlew :app:assembleRelease --no-daemon
 
-      # The update checker picks the asset whose name contains "arm64"; the
-      # others are there for the devices that need them.
+      # Three ABIs, three files. A regression in the splits block would
+      # otherwise publish one APK and the release would look fine.
+      - name: Expect three ABI APKs
+        run: |
+          count=$(ls app/build/outputs/apk/release/*.apk | wc -l)
+          if [ "$count" -ne 3 ]; then
+            echo "::error::expected 3 ABI APKs, found $count"
+            ls -la app/build/outputs/apk/release
+            exit 1
+          fi
+
+      # The updater picks the asset whose name contains the device's own ABI,
+      # so the suffix is the contract between this step and the app.
       - name: Name the APKs
         run: |
           mkdir -p dist

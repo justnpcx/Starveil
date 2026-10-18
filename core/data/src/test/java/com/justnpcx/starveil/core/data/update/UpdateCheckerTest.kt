@@ -16,6 +16,10 @@ class UpdateCheckerTest {
 
     private val checker = UpdateChecker { error("no network in tests") }
 
+    /** Most cases are an arm64 phone; the ABI-specific ones pass their own. */
+    private fun parse(body: String, currentVersion: String, abi: String? = "arm64-v8a") =
+        checker.parse(body, currentVersion, abi)
+
     private fun release(
         tag: String,
         apk: String? = "starveil-arm64-v8a.apk",
@@ -34,7 +38,7 @@ class UpdateCheckerTest {
 
     @Test
     fun `a later release is offered with its checksum`() {
-        val result = checker.parse(release("v0.8.0"), currentVersion = "0.7.0")
+        val result = parse(release("v0.8.0"), currentVersion = "0.7.0")
 
         val available = result as UpdateCheck.Available
         assertEquals("0.8.0", available.info.version)
@@ -46,47 +50,79 @@ class UpdateCheckerTest {
 
     @Test
     fun `the same version is not an update`() {
-        assertEquals(UpdateCheck.UpToDate, checker.parse(release("v0.7.0"), "0.7.0"))
+        assertEquals(UpdateCheck.UpToDate, parse(release("v0.7.0"), "0.7.0"))
     }
 
     @Test
     fun `an older release is not an update`() {
-        assertEquals(UpdateCheck.UpToDate, checker.parse(release("v0.6.0"), "0.7.0"))
+        assertEquals(UpdateCheck.UpToDate, parse(release("v0.6.0"), "0.7.0"))
     }
 
     @Test
     fun `a release without a digest still parses`() {
-        val result = checker.parse(release("v0.8.0", digest = null), "0.7.0")
+        val result = parse(release("v0.8.0", digest = null), "0.7.0")
         assertEquals(null, (result as UpdateCheck.Available).info.sha256)
     }
 
     @Test
-    fun `the arm64 asset is preferred when there are several`() {
+    fun `the asset for the device's ABI is chosen, not the first one`() {
         val body = """
             {"tag_name":"v0.8.0","assets":[
-              {"name":"starveil-armeabi-v7a.apk","browser_download_url":"https://example.com/arm"},
-              {"name":"starveil-arm64-v8a.apk","browser_download_url":"https://example.com/arm64"}
+              {"name":"starveil-0.8.0-armeabi-v7a.apk","browser_download_url":"https://example.com/v7a"},
+              {"name":"starveil-0.8.0-arm64-v8a.apk","browser_download_url":"https://example.com/arm64"},
+              {"name":"starveil-0.8.0-x86_64.apk","browser_download_url":"https://example.com/x86"}
             ]}
         """.trimIndent()
 
-        val result = checker.parse(body, "0.7.0") as UpdateCheck.Available
-        assertEquals("https://example.com/arm64", result.info.apkUrl)
+        assertEquals(
+            "https://example.com/arm64",
+            (parse(body, "0.7.0", "arm64-v8a") as UpdateCheck.Available).info.apkUrl,
+        )
+        assertEquals(
+            "https://example.com/v7a",
+            (parse(body, "0.7.0", "armeabi-v7a") as UpdateCheck.Available).info.apkUrl,
+        )
+        assertEquals(
+            "https://example.com/x86",
+            (parse(body, "0.7.0", "x86_64") as UpdateCheck.Available).info.apkUrl,
+        )
+    }
+
+    @Test
+    fun `a device with no matching asset is a failure, not a wrong package`() {
+        val body = """
+            {"tag_name":"v0.8.0","assets":[
+              {"name":"starveil-0.8.0-armeabi-v7a.apk","browser_download_url":"https://example.com/v7a"},
+              {"name":"starveil-0.8.0-arm64-v8a.apk","browser_download_url":"https://example.com/arm64"}
+            ]}
+        """.trimIndent()
+
+        val result = parse(body, "0.7.0", "x86_64")
+        assertTrue(result is UpdateCheck.Failed)
+        assertTrue((result as UpdateCheck.Failed).reason.contains("x86_64"))
+    }
+
+    @Test
+    fun `a single universal APK still updates an unknown ABI`() {
+        // Releases before the split carried one APK and no ABI in the name.
+        val result = parse(release("v0.8.0"), "0.7.0", abi = null)
+        assertTrue(result is UpdateCheck.Available)
     }
 
     @Test
     fun `a release with no apk is a failure, not an update`() {
-        val result = checker.parse(release("v0.8.0", apk = null), "0.7.0")
+        val result = parse(release("v0.8.0", apk = null), "0.7.0")
         assertTrue(result is UpdateCheck.Failed)
     }
 
     @Test
     fun `a draft is not offered`() {
-        assertEquals(UpdateCheck.UpToDate, checker.parse(release("v0.8.0", draft = true), "0.7.0"))
+        assertEquals(UpdateCheck.UpToDate, parse(release("v0.8.0", draft = true), "0.7.0"))
     }
 
     @Test
     fun `malformed json is a failure`() {
-        assertTrue(checker.parse("not json", "0.7.0") is UpdateCheck.Failed)
+        assertTrue(parse("not json", "0.7.0") is UpdateCheck.Failed)
     }
 
     @Test
