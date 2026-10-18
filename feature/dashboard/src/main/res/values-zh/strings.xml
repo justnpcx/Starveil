@@ -14,7 +14,7 @@
     <string name="dashboard_state_disconnected">未连接</string>
     <string name="dashboard_state_connecting">连接中</string>
     <string name="dashboard_state_connected">已连接</string>
-    <string name="dashboard_state_blocked">已阻断</string>
+    <string name="dashboard_state_blocked">阻断中</string>
     <string name="dashboard_state_warning">有警告</string>
     <string name="dashboard_speed_down">↓ 下行</string>
     <string name="dashboard_speed_up">↑ 上行</string>

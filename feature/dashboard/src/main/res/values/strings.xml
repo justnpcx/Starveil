@@ -20,7 +20,7 @@
     <string name="dashboard_state_disconnected">DISCONNECTED</string>
     <string name="dashboard_state_connecting">CONNECTING</string>
     <string name="dashboard_state_connected">CONNECTED</string>
-    <string name="dashboard_state_blocked">BLOCKED</string>
+    <string name="dashboard_state_blocked">BLOCKING</string>
     <string name="dashboard_state_warning">WARNING</string>
     <string name="dashboard_speed_down">↓ DOWN</string>
     <string name="dashboard_speed_up">↑ UP</string>

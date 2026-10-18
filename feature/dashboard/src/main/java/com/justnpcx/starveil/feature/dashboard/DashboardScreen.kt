@@ -51,7 +51,6 @@ import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
-import com.justnpcx.starveil.core.ui.components.MessageBanner
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -129,21 +128,31 @@ fun DashboardScreen(
                 ),
             )
 
-            // D2: a slot that is always 48 dp. Empty means transparent, not
-            // absent — "a sentence appears and pushes everything down" is the
-            // bug this exists to make impossible.
+            Spacer(modifier = Modifier.height(0.dp))
+            SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
+
+            // F3: the context line sits under the group it explains, not
+            // between the ring and its numbers. 28 dp, always there, so a
+            // state change cannot move anything below it.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(BANNER_SLOT_HEIGHT),
+                    .height(CONTEXT_SLOT_HEIGHT),
                 contentAlignment = Alignment.Center,
             ) {
                 if (persistent && noticeText != null) {
-                    MessageBanner(message = noticeText)
+                    Text(
+                        text = noticeText,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = when (notice) {
+                            DashboardNotice.KillSwitchBlocking -> StarveilColors.Blocked
+                            else -> StarveilColors.Warning
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
-
-            SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 2.dp),
                 color = MaterialTheme.colorScheme.outlineVariant,
@@ -499,8 +508,8 @@ private fun CurrentNodeCard(
     }
 }
 
-/** D2: the context slot's height, occupied or not. */
-private val BANNER_SLOT_HEIGHT = 48.dp
+/** F3: one line of state explanation, occupied or not. */
+private val CONTEXT_SLOT_HEIGHT = 28.dp
 
 /** D1: the telemetry block's height, with or without numbers. */
 private val TELEMETRY_HEIGHT = 96.dp

@@ -272,10 +272,15 @@ fun ConnectionCore(
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             ),
-            // onBackground, not the ring colour: it is near-white in the dark
-            // theme (the blue glow behind it is the accent) and near-black in
-            // the light one, so the word is legible in both without a plate.
-            color = MaterialTheme.colorScheme.onBackground,
+            // Blocked borrows the ring's colour: the state is a warning, and
+            // colour is the part that reads before the word does. Every other
+            // state uses onBackground — near-white in the dark theme, near-
+            // black in the light one — so the word is legible without a plate.
+            color = if (state == ConnectionState.BLOCKED) {
+                ringColor
+            } else {
+                MaterialTheme.colorScheme.onBackground
+            },
             textAlign = TextAlign.Center,
         )
     }
