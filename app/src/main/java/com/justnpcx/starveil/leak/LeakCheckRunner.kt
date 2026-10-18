@@ -65,7 +65,22 @@ class LeakCheckRunner @Inject constructor(
     }
 }
 
-/** The real probe: is our VpnService holding a tun? */
+/**
+ * The real probe: is our VpnService holding a tun?
+ *
+ * A point-in-time read of a field another thread owns, so it can be stale by
+ * the time the caller acts on it: `current` is set in `onStartCommand` and
+ * cleared in `onDestroy`, while this runs on whatever coroutine asked. The
+ * field is volatile, so the read is not torn — but the *state* can change
+ * between the read and the decision.
+ *
+ * That is acceptable here and only here, because of what the verdict is
+ * allowed to say: "a leak was found" when the policy says block and nothing
+ * is holding the tunnel. A stale `null` can produce a false alarm (the
+ * service was starting), never a false "safe" — and [LeakCheckRunner] never
+ * reports safe. If this ever grows into a gate that *permits* something, it
+ * needs to be re-read under the service's own lock, not sampled.
+ */
 class VpnServiceTunnelProbe @Inject constructor() : TunnelProbe {
     override fun isUp(): Boolean = StarveilVpnService.current != null
 }
