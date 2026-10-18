@@ -600,7 +600,12 @@ class DashboardViewModelTest {
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
             mainlandRuleSets = mainlandRuleSets,
             timing = ConnectClock { },
-        )
+        ).apply {
+            // Config building hops threads in production; in a test that
+            // asserts immediately after connect(), that hop is a suspension it
+            // cannot see past.
+            configDispatcher = Dispatchers.Unconfined
+        }
         return DashboardViewModel(
             kernel = kernel,
             profiles = profiles,

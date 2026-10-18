@@ -20,6 +20,9 @@ import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.kernel.timing.ConnectClock
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 
@@ -76,6 +79,16 @@ class ConnectionController @Inject constructor(
     private val timing: ConnectClock,
 ) {
 
+    /**
+     * Where a config is built.
+     *
+     * A property rather than a constructor parameter: Hilt would need a
+     * qualified binding for a dispatcher, and the only caller that ever wants
+     * a different one is a test that asserts immediately after `connect()` and
+     * cannot see past the thread hop. Production never touches this.
+     */
+    internal var configDispatcher: CoroutineDispatcher = Dispatchers.Default
+
     suspend fun connect(): ConnectionOutcome {
         // Starts the stopwatch the first proxied connection will stop.
         timing.markConnectStart()
@@ -113,26 +126,35 @@ class ConnectionController @Inject constructor(
 
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
-            when (target) {
-                is Target.Node -> configBuilder.build(
-                    target.profile,
-                    rules,
-                    mainland = mainland,
-                    perApp = perApp,
-                    preset = preset,
-                    adsPath = ads,
-                )
-                is Target.Group -> configBuilder.build(
-                    target.members,
-                    rules,
-                    target.mode,
-                    mainland,
-                    perApp = perApp,
-                    preset = preset,
-                    adsPath = ads,
-                )
-                Target.None -> return ConnectionOutcome.NoTarget
-            }
+            // Off the caller's dispatcher: a subscription of a thousand nodes
+            // is 5 ms here and an order of magnitude more on a low-end phone,
+            // and this is called from the main thread's scope. The builder
+            // itself stays synchronous and pure — the dispatcher belongs to
+            // whoever is about to block.
+            withContext(configDispatcher) {
+                when (target) {
+                    is Target.Node -> configBuilder.build(
+                        target.profile,
+                        rules,
+                        mainland = mainland,
+                        perApp = perApp,
+                        preset = preset,
+                        adsPath = ads,
+                    )
+
+                    is Target.Group -> configBuilder.build(
+                        target.members,
+                        rules,
+                        target.mode,
+                        mainland,
+                        perApp = perApp,
+                        preset = preset,
+                        adsPath = ads,
+                    )
+
+                    Target.None -> null
+                }
+            } ?: return ConnectionOutcome.NoTarget
         } catch (e: ConfigBuildException) {
             return ConnectionOutcome.ConfigUnbuildable
         }
