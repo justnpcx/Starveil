@@ -191,6 +191,7 @@ private fun NodeHealthSection(health: NodeHealth) {
 @Composable
 private fun DashboardNotice.text(): String = when (this) {
     DashboardNotice.KillSwitchBlocking -> stringResource(R.string.dashboard_notice_kill_switch)
+    DashboardNotice.KillSwitchFailed -> stringResource(R.string.dashboard_notice_kill_switch_failed)
     DashboardNotice.TunnelDropped -> stringResource(R.string.dashboard_notice_tunnel_dropped)
     DashboardNotice.TunnelReconnecting -> stringResource(R.string.dashboard_notice_tunnel_reconnecting)
     DashboardNotice.TunnelKeepsDropping ->

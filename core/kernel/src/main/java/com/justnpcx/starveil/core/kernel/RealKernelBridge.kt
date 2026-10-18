@@ -163,6 +163,17 @@ class RealKernelBridge(
             // still dying is what produced the `initialize cache-file: timeout`
             // failures; waiting for it to be gone makes the halves sequential.
             awaitVpnDown()
+            val first = doStart(config, blocking)
+            if (first.isSuccess) return@withContext first
+            // The Go daemon can outlive its VpnService: the cache database
+            // stays locked for a few seconds after the service is gone, and
+            // the new kernel dies with `initialize cache-file: timeout`
+            // (measured on the vivo: the old daemon took ~9 s to exit after a
+            // block-on-disconnect). One retry, after the daemon has had time
+            // to leave, is the difference between a real block and a UI that
+            // says "blocked" while traffic flows.
+            log(LogLevel.WARN, "start failed; retrying once after the old daemon exits")
+            kotlinx.coroutines.delay(START_RETRY_DELAY_MS)
             doStart(config, blocking)
         }
 
@@ -177,6 +188,12 @@ class RealKernelBridge(
     private suspend fun doStart(config: String, blocking: Boolean): Result<Unit> {
         _state.value = KernelState.Starting
         log(LogLevel.INFO, "kernel starting")
+        // Held outside the try so a failed start can close what it created.
+        // `startOrReloadService` can fail after the daemon has opened the
+        // cache database; leaving that instance alive keeps the file locked
+        // and makes every retry fail the same way.
+        var started: CommandServer? = null
+        var startedClient: CommandClient? = null
         return try {
             prepareVpn()
             paths.ensureDirectories()
@@ -190,23 +207,29 @@ class RealKernelBridge(
                     logMaxLines = 0
                 },
             )
-            val newServer = Libbox.newCommandServer(StarveilCommandServerHandler(), platform)
-            newServer.start()
+            started = Libbox.newCommandServer(StarveilCommandServerHandler(), platform)
+            started.start()
             // OverrideOptions must not be null: the Go side dereferences it
             // (command_server.go:214 reads options.AutoRedirect) and a null
             // pointer panics the whole process with SIGABRT.
-            newServer.startOrReloadService(config, OverrideOptions())
-            server = newServer
+            started.startOrReloadService(config, OverrideOptions())
+            server = started
 
-            val newClient = Libbox.newCommandClient(clientHandler, clientOptions())
-            newClient.connect()
-            client = newClient
+            startedClient = Libbox.newCommandClient(clientHandler, clientOptions())
+            startedClient.connect()
+            client = startedClient
 
             _blocking.value = blocking
             _state.value = KernelState.Running
             log(LogLevel.INFO, if (blocking) "kernel running, forwarding nothing" else "kernel running")
             Result.success(Unit)
         } catch (e: Exception) {
+            // Close what this attempt created before the caller retries: an
+            // unclosed failed server keeps the cache database locked, which
+            // is exactly the timeout that got us here.
+            runCatching { startedClient?.disconnect() }
+            runCatching { started?.closeService() }
+            runCatching { started?.close() }
             client = null
             server = null
             // A failed start can still have established a tun; leaving it up
@@ -325,6 +348,9 @@ class RealKernelBridge(
 
         /** Upper bound on waiting for the VpnService to finish tearing down. */
         const val VP_NETWORK_WAIT_MS = 2_000L
+
+        /** How long to let a failed start's predecessor finish dying. */
+        const val START_RETRY_DELAY_MS = 1_500L
 
         /**
          * `CommandClient` only subscribes to the streams named in its options

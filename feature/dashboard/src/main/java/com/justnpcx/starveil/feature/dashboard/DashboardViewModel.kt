@@ -96,6 +96,13 @@ sealed interface DashboardNotice {
     /** The Kill Switch is blocking every connection, on purpose. */
     data object KillSwitchBlocking : DashboardNotice
 
+    /**
+     * The block was asked for but the kernel would not start. Said out loud:
+     * the alternative is a screen that claims to be blocking while traffic
+     * goes out directly.
+     */
+    data object KillSwitchFailed : DashboardNotice
+
     /** The tunnel died and auto-reconnect is off. */
     data object TunnelDropped : DashboardNotice
 
@@ -462,7 +469,13 @@ class DashboardViewModel @Inject constructor(
 
         // Same controller the tile uses. The Kill Switch decides whether the
         // tunnel stays up, so the two entry points cannot disagree about it.
-        val blocked = connection.disconnect() is ConnectionOutcome.Blocked
+        val outcome = connection.disconnect()
+        // `Blocked` means the policy asked for a block; `started` says whether
+        // the blocking config actually came up. A failed start leaves no
+        // tunnel at all, so reporting BLOCKED would be a lie — and a leak the
+        // user would not look for.
+        val blocked = outcome is ConnectionOutcome.Blocked && outcome.started
+        val blockFailed = outcome is ConnectionOutcome.Blocked && !outcome.started
         _uiState.update {
             it.copy(
                 isBusy = false,
@@ -473,7 +486,11 @@ class DashboardViewModel @Inject constructor(
                 },
                 stats = TrafficStats(),
                 history = emptyList(),
-                notice = if (blocked) DashboardNotice.KillSwitchBlocking else null,
+                notice = when {
+                    blocked -> DashboardNotice.KillSwitchBlocking
+                    blockFailed -> DashboardNotice.KillSwitchFailed
+                    else -> null
+                },
             )
         }
     }

@@ -27,6 +27,7 @@
     <string name="dashboard_speed_total">total %1$s</string>
 
     <string name="dashboard_notice_kill_switch">Kill Switch is blocking all traffic</string>
+    <string name="dashboard_notice_kill_switch_failed">Kill Switch could not start — traffic is not blocked.</string>
     <string name="dashboard_notice_tunnel_dropped">Tunnel dropped</string>
     <string name="dashboard_notice_tunnel_reconnecting">Tunnel dropped; reconnecting…</string>
     <string name="dashboard_notice_tunnel_keeps_dropping">Tunnel keeps dropping; not reconnecting again</string>

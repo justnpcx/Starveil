@@ -21,6 +21,7 @@
     <string name="dashboard_speed_total">累计 %1$s</string>
 
     <string name="dashboard_notice_kill_switch">Kill Switch 正在阻断全部流量</string>
+    <string name="dashboard_notice_kill_switch_failed">Kill Switch 启动失败，流量未被阻断。</string>
     <string name="dashboard_notice_tunnel_dropped">隧道已断开</string>
     <string name="dashboard_notice_tunnel_reconnecting">隧道已断开，正在重连…</string>
     <string name="dashboard_notice_tunnel_keeps_dropping">隧道反复断开，不再重连</string>
