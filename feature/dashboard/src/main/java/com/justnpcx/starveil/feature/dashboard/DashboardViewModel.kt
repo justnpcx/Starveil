@@ -272,11 +272,19 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /** Rebuild the running tunnel against the stored config. */
+    /**
+     * Rebuild the running tunnel against the stored config.
+     *
+     * The rebuild itself lives in [ConnectionController.restart]; what stays
+     * here is the one thing the controller cannot know — that this is the
+     * user's policy change rather than a retry, so the one automatic
+     * reconnect is re-armed. `a rebuild re-arms the one-shot auto-reconnect`
+     * is the test that keeps that true.
+     */
     private fun applyConfigChange() {
         scope.launch {
-            disconnect()
-            connect(userInitiated = true)
+            canAutoReconnect = true
+            connection.restart()
         }
     }
 

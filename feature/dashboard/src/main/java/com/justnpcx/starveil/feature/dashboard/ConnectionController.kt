@@ -170,6 +170,22 @@ class ConnectionController @Inject constructor(
     }
 
     /**
+     * Rebuild the running tunnel the way a change to the target or the policy
+     * has always rebuilt it: down, then up.
+     *
+     * Down-then-up, not [reapply]'s in-place restart: a disconnect settles the
+     * state machine into Stopped, and that is what every caller has observed
+     * since the first version. The one thing this does *not* carry is the
+     * view model's one-shot retry flag — that belongs to the screen's state
+     * machine and is re-armed by the caller (see `applyConfigChange`), which
+     * is pinned by a test.
+     */
+    suspend fun restart(): ConnectionOutcome {
+        disconnect()
+        return connect()
+    }
+
+    /**
      * Rebuild the running tunnel from the current preferences.
      *
      * For callers that change a policy without a UI — a scene, mostly. Does
