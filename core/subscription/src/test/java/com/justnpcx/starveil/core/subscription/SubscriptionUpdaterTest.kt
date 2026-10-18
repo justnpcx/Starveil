@@ -84,7 +84,15 @@ class SubscriptionUpdaterTest {
     ): Triple<SubscriptionUpdater, FakeProfiles, FakeHealth> {
         val registry = SubscriptionFormatRegistry.default { link ->
             if (link.startsWith("vless://")) {
-                Profile(name = link.substringAfter('#', "n"), type = ProfileType.VLESS, server = "h", port = 443)
+                Profile(
+                    name = link.substringAfter('#', "n"),
+                    type = ProfileType.VLESS,
+                    // The real resolver reads the host out of the link; a fake
+                    // that returned a constant would make every fixture node a
+                    // duplicate of every other.
+                    server = link.substringAfter('@').substringBefore(':'),
+                    port = 443,
+                )
             } else {
                 null
             }
@@ -104,7 +112,7 @@ class SubscriptionUpdaterTest {
 
     @Test
     fun `success replaces the group profiles and records the time`() = runBlocking {
-        val body = base64Links("vless://u1@h:443#node1", "vless://u2@h:443#node2")
+        val body = base64Links("vless://u1@h1:443#node1", "vless://u2@h2:443#node2")
         val (updater, profiles, health) = updater(body = body)
 
         val outcome = updater.update(groupId = 7L, url = secretUrl)

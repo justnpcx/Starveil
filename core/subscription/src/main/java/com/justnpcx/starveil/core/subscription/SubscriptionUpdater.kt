@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.subscription
 
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.dedupeProfiles
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import java.io.IOException
 import javax.inject.Inject
@@ -60,14 +61,18 @@ class SubscriptionUpdater @Inject constructor(
             return fail(reason = "could not parse subscription")
         }
 
-        if (parsed.isEmpty()) {
+        // The same server listed twice is one node: providers repeat a host
+        // across tiers, and a refresh that appended instead of replacing would
+        // grow the list on every update.
+        val unique = dedupeProfiles(parsed)
+        if (unique.isEmpty()) {
             return fail(reason = "subscription contained no usable nodes")
         }
 
         return try {
-            profiles.replaceGroupProfiles(groupId, parsed)
+            profiles.replaceGroupProfiles(groupId, unique)
             health.recordSuccess(clock.nowMs())
-            SubscriptionUpdateOutcome.Success(parsed.size)
+            SubscriptionUpdateOutcome.Success(unique.size)
         } catch (e: Exception) {
             fail(reason = "could not save nodes")
         }

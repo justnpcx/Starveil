@@ -3,6 +3,7 @@ package com.justnpcx.starveil.core.subscription.registry
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.subscription.Base64SubscriptionParser
 import com.justnpcx.starveil.core.subscription.ClashYamlSubscriptionParser
+import com.justnpcx.starveil.core.subscription.Sip008SubscriptionParser
 import com.justnpcx.starveil.core.subscription.SubscriptionParser
 import com.justnpcx.starveil.core.subscription.UnknownSubscriptionParser
 
@@ -58,6 +59,11 @@ class SubscriptionFormatRegistry(
                         format = "clash-yaml",
                         sniff = ClashYamlSubscriptionParser::sniff,
                         parser = ClashYamlSubscriptionParser(),
+                    ),
+                    SubscriptionFormatDescriptor(
+                        format = "sip008",
+                        sniff = Sip008SubscriptionParser::sniff,
+                        parser = Sip008SubscriptionParser(),
                     ),
                     SubscriptionFormatDescriptor(
                         format = "base64-lines",

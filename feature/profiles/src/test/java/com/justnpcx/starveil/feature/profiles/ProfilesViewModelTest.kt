@@ -407,7 +407,7 @@ class ProfilesViewModelTest {
         val profiles = FakeProfiles(mutableListOf(profile(ONE, "old").copy(groupId = SUB)))
         val scheduler = FakeRefreshScheduler()
         val fetcher = FakeFetcher(
-            body = base64Links("vless://u1@h:443#node1", "vless://u2@h:443#node2"),
+            body = base64Links("vless://u1@h1:443#node1", "vless://u2@h2:443#node2"),
         )
         val viewModel = viewModel(
             profiles,
@@ -600,7 +600,9 @@ class ProfilesViewModelTest {
                     Profile(
                         name = link.substringAfter('#', "node"),
                         type = ProfileType.VLESS,
-                        server = "h.example",
+                        // Read from the link, like the real resolver: a
+                        // constant makes every fixture node a duplicate.
+                        server = link.substringAfter('@').substringBefore(':'),
                         port = 443,
                     )
                 } else {

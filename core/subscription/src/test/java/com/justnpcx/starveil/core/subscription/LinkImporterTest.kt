@@ -87,7 +87,14 @@ class LinkImporterTest {
 
     private val resolver = LinkResolver { link ->
         if (link.startsWith("vless://")) {
-            Profile(name = "node-from-link", type = ProfileType.VLESS, server = "h.example", port = 443)
+            Profile(
+                name = "node-from-link",
+                type = ProfileType.VLESS,
+                // The host comes from the link, as the real resolver's does:
+                // a constant here makes every fixture node a duplicate.
+                server = link.substringAfter('@').substringBefore(':'),
+                port = 443,
+            )
         } else {
             null
         }
@@ -124,7 +131,7 @@ class LinkImporterTest {
     @Test
     fun `a subscription url creates a group and imports its nodes`() = runBlocking {
         val body = Base64.getEncoder().encodeToString(
-            "vless://a@h.example:443#n1\nvless://b@h.example:443#n2".toByteArray(),
+            "vless://a@h1.example:443#n1\nvless://b@h2.example:443#n2".toByteArray(),
         )
         val (import_, profiles, groups) = importer(fetcher = ImpFetcher(body = body))
 
@@ -139,7 +146,7 @@ class LinkImporterTest {
     @Test
     fun `importing the same subscription twice reuses its group`() = runBlocking {
         val body = Base64.getEncoder().encodeToString(
-            "vless://a@h.example:443#n1\nvless://b@h.example:443#n2".toByteArray(),
+            "vless://a@h1.example:443#n1\nvless://b@h2.example:443#n2".toByteArray(),
         )
         val (import_, profiles, groups) = importer(fetcher = ImpFetcher(body = body))
 
