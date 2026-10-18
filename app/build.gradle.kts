@@ -170,6 +170,23 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            // Native libraries stored *compressed* in the APK.
+            //
+            // The default since targetSdk 23 is uncompressed, so the loader can
+            // mmap them straight out of the APK. That is the right default for
+            // a store that serves over a CDN which compresses on the wire, but
+            // this app is distributed as a raw file on GitHub: what ships is
+            // what is inside the zip. libbox.so is 61.7 MB stored and 19.5 MB
+            // deflated — 42 MB of download for nothing, since the library is
+            // mapped into memory either way once it is installed.
+            //
+            // Cost: the installer extracts the libraries to /data/app, so the
+            // installed footprint grows by their size and the first launch after
+            // an update pays for the copy. For a proxy client that is a one-off
+            // cost against a 42 MB download every update.
+            useLegacyPackaging = true
+        }
     }
 }
 
