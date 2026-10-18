@@ -298,6 +298,35 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `a rebuild re-arms the one-shot auto-reconnect`() = runBlocking {
+        val kernel = RecordingKernel()
+        val preferences = FakePreferences(ONE, autoReconnect = true, switchOnDrop = false)
+        val viewModel = viewModel(preferences, kernel)
+
+        viewModel.onCoreClick()
+        assertEquals(1, kernel.starts)
+
+        // The drop spends the one retry.
+        kernel.crash()
+        assertEquals(2, kernel.starts)
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+
+        // A rebuild is the user's policy change, not a retry: it has to leave
+        // the retry armed, or one early drop would disable recovery for the
+        // rest of the session.
+        preferences.setRoutePreset(RoutePreset.GLOBAL_DIRECT)
+        assertEquals(3, kernel.starts)
+
+        kernel.crash()
+        assertEquals(
+            "the rebuild must have re-armed the retry",
+            4,
+            kernel.starts,
+        )
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+    }
+
+    @Test
     fun `a dropped tunnel stays down when auto-reconnect is off`() = runBlocking {
         val kernel = RecordingKernel()
         val viewModel = viewModel(FakePreferences(ONE, autoReconnect = false), kernel)
