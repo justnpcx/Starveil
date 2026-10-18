@@ -13,7 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
@@ -204,11 +205,19 @@ private fun DrawScope.drawLatencyTrace(
     val points = latencyTrace(values, size.width, size.height, bottomInset)
     if (points.size < 2) return
 
-    val path = Path()
-    points.forEachIndexed { index, point ->
-        if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
-    }
-    drawPath(path = path, color = color, style = Stroke(width = strokeWidth))
+    // The same spline the traffic ribbons use: the health curve had round
+    // numbers but square corners, which is what made it look like a polyline
+    // (C3). Round caps and joins keep the ends and the low points from
+    // reading as cut-off.
+    drawPath(
+        path = catmullRomPath(points),
+        color = color,
+        style = Stroke(
+            width = strokeWidth,
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round,
+        ),
+    )
 }
 
 private fun DrawScope.drawLossDots(samples: List<LatencySample>, color: Color) {

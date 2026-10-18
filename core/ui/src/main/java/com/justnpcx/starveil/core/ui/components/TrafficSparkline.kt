@@ -242,25 +242,7 @@ private fun DrawScope.drawRibbon(
         points.add(Offset(x, y))
     }
 
-    val line = Path().apply {
-        moveTo(points.first().x, points.first().y)
-        for (i in 0 until points.lastIndex) {
-            val p0 = points.getOrElse(i - 1) { points[i] }
-            val p1 = points[i]
-            val p2 = points[i + 1]
-            val p3 = points.getOrElse(i + 2) { p2 }
-            // Catmull-Rom -> cubic Bézier: the control points are one sixth of
-            // the neighbouring chord away from each endpoint.
-            cubicTo(
-                p1.x + (p2.x - p0.x) / 6f,
-                p1.y + (p2.y - p0.y) / 6f,
-                p2.x - (p3.x - p1.x) / 6f,
-                p2.y - (p3.y - p1.y) / 6f,
-                p2.x,
-                p2.y,
-            )
-        }
-    }
+    val line = catmullRomPath(points)
 
     // The ribbon: the same curve closed to the baseline, fading out downwards.
     val fill = Path().apply {
