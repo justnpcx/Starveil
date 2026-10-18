@@ -202,6 +202,28 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 
 **复现**：`/tmp/pss/starveil-{before,after}-arm64.apk`（临时文件）；构建分别来自 `fd923ae` 与 `b0c36a8`，用 `apksigner` 以 debug 证书签名后 `adb install -r`。
 
+### 引导的 VPN 授权，含拒绝路径（2026-10-18）
+
+P3-4 的第三步曾经绕过 `VpnService.prepare()`，新装第一次连接直接失败（`VPN consent
+not granted`）。修复后两条路径都在真机上走了一遍。
+
+方法：debug 构建临时加 `applicationIdSuffix = ".consenttest"`，作为独立包安装，
+数据为空、没有历史授权（`cmd appops get … ACTIVATE_VPN` 为 `Default mode: ignore`）。
+系统把授权记成 app-op `ACTIVATE_VPN`，所以这一项是判断「有没有授权」的可靠依据，
+比看界面可靠。走完引导导入订阅后：
+
+| 操作 | 系统对话框 | app-op | 界面 |
+|---|---|---|---|
+| 点「自动选择并连接」 | 「网络连接请求」弹出 | `ignore` | 停在第 3 步 |
+| 点「取消」 | 关闭 | `ignore; rejectTime=+14s` | 停在第 3 步，显示「需要授予 VPN 权限才能连接。」；没有 VpnService 启动 |
+| 再点一次 | 对话框再次弹出 | `ignore` | — |
+| 点「确定」 | 关闭 | `allow; time=+10s` | 「已连接到 B64-Tokyo」，错误行消失；`StarveilVpnService` 在跑，`tun0` 172.19.0.1/30 |
+
+拒绝后重试会重新询问，不是永久锁死；成功连接后错误行不会残留。测试包已卸载，
+临时后缀已还原，主应用的数据与授权未动。
+
+仍未做：引导全程录屏（验收项里要求的那一段）。
+
 ### 调查后确认「不是问题」
 
 **直连 IPv6 报 `network is unreachable`**：当时默认网络是 WiFi `Jim_5G`，它只有
