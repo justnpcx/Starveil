@@ -41,7 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +80,9 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 
 /**
  * Rules — the routing table, in the order it is evaluated.
@@ -652,13 +655,26 @@ private fun AllFlowDialog(
         Surface(modifier = Modifier.fillMaxSize()) {
             var query by remember { mutableStateOf("") }
             val listState = rememberLazyListState()
-            val scrolling by remember { derivedStateOf { listState.isScrollInProgress } }
             val latest by rememberUpdatedState(records)
             var frozen by remember { mutableStateOf<List<FlowRecord>>(emptyList()) }
-            LaunchedEffect(scrolling) {
-                if (scrolling) frozen = latest
+            var paused by remember { mutableStateOf(false) }
+            // Pause on movement, not on "isScrollInProgress": the latter is
+            // only true while the gesture is live, which is exactly when a
+            // screenshot cannot be taken — and a list that resumes the instant
+            // the finger lifts still jumps under the reader. Any change of the
+            // first visible item freezes the feed, and it stays frozen for a
+            // beat after the last change.
+            LaunchedEffect(listState) {
+                snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                    .drop(1)
+                    .collectLatest {
+                        frozen = latest
+                        paused = true
+                        delay(PAUSE_AFTER_SCROLL_MS)
+                        paused = false
+                    }
             }
-            val source = if (scrolling) frozen else records
+            val source = if (paused) frozen else records
             val needle = query.trim()
             val filtered = remember(source, needle) {
                 if (needle.isEmpty()) {
@@ -688,7 +704,7 @@ private fun AllFlowDialog(
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.weight(1f),
                     )
-                    if (scrolling) {
+                    if (paused) {
                         Text(
                             text = stringResource(R.string.rules_flow_paused),
                             style = MaterialTheme.typography.labelSmall,
@@ -716,7 +732,12 @@ private fun AllFlowDialog(
                 } else {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        // weight, not fillMaxSize: inside a Column the latter
+                        // measures against the parent's full height, so the
+                        // viewport extended past the window and the list
+                        // believed all 40 rows already fit — it could not
+                        // scroll, and the last rows were unreachable.
+                        modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(
                             start = StarveilSpacing.lg,
                             end = StarveilSpacing.lg,
@@ -805,6 +826,9 @@ private val CARD_CORNER = 16.dp
  * tap away in the full list, which is where 100 rows belong.
  */
 private const val GROUP_ROWS = 5
+
+/** How long the feed stays frozen after the list stops moving. */
+private const val PAUSE_AFTER_SCROLL_MS = 900L
 
 /** The same shape the log viewer uses, so two lists of times read alike. */
 private val FLOW_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
