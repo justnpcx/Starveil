@@ -41,7 +41,6 @@ import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.MessageBanner
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
-import com.justnpcx.starveil.core.ui.components.TrafficSparkline
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -257,53 +256,26 @@ private fun healthClause(availabilityPct: Int, latencyMs: Long?): String =
  * one a glance should read.
  */
 @Composable
-private fun SpeedSection(state: DashboardUiState) {
+private fun SpeedSection(state: DashboardUiState, modifier: Modifier = Modifier) {
     val dim = state.coreState == ConnectionState.DISCONNECTED
-    Column(
-        modifier = Modifier
+    Row(
+        modifier = modifier
             .fillMaxWidth()
             .alpha(if (dim) 0.35f else 1f),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            SpeedCell(
-                label = stringResource(R.string.dashboard_speed_down),
-                rate = state.stats.downlinkRate,
-                total = state.stats.downlinkBytes,
-                modifier = Modifier.weight(1f),
-            )
-            SpeedCell(
-                label = stringResource(R.string.dashboard_speed_up),
-                rate = state.stats.uplinkRate,
-                total = state.stats.uplinkBytes,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
-        ) {
-            TrafficSparkline(
-                samples = state.history.map { it.downlink },
-                color = StarveilColors.Chart1,
-                contentDescription = stringResource(
-                    R.string.dashboard_traffic_chart_desc,
-                    state.history.size,
-                    formatRate(state.history.maxOfOrNull { it.downlink } ?: 0L),
-                ),
-                modifier = Modifier.weight(1f),
-            )
-            TrafficSparkline(
-                samples = state.history.map { it.uplink },
-                color = StarveilColors.Chart2,
-                contentDescription = stringResource(
-                    R.string.dashboard_traffic_chart_desc,
-                    state.history.size,
-                    formatRate(state.history.maxOfOrNull { it.uplink } ?: 0L),
-                ),
-                modifier = Modifier.weight(1f),
-            )
-        }
+        SpeedCell(
+            label = stringResource(R.string.dashboard_speed_down),
+            rate = state.stats.downlinkRate,
+            total = state.stats.downlinkBytes,
+            modifier = Modifier.weight(1f),
+        )
+        SpeedCell(
+            label = stringResource(R.string.dashboard_speed_up),
+            rate = state.stats.uplinkRate,
+            total = state.stats.uplinkBytes,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -315,7 +287,11 @@ private fun SpeedCell(
     modifier: Modifier = Modifier,
 ) {
     val parts = formatRateParts(rate)
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
