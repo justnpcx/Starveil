@@ -113,43 +113,96 @@ class RealKernelBridge(
 
     override suspend fun start(config: String): Result<Unit> = apply(config, blocking = false)
 
-    override suspend fun block(): Result<Unit> =
-        apply(configBuilder.buildBlocking(), blocking = true)
+    /**
+     * Forward nothing.
+     *
+     * Two cases, because they are not the same operation:
+     *
+     * - Nothing is running (the "always block" connect): start the block-only
+     *   config. A first start is reliable, and the block is then a config the
+     *   kernel enforces.
+     * - A kernel is running (disconnect under "block on disconnect"): close it
+     *   and leave the tun standing. Every packet is pulled into an interface
+     *   with no reader, so nothing leaves. A config swap here would need a
+     *   second start, and a second start is exactly what this kernel cannot do
+     *   reliably — see [apply].
+     */
+    override suspend fun block(): Result<Unit> = withContext(Dispatchers.IO) {
+        val current = server
+        if (current == null) {
+            return@withContext doStart(configBuilder.buildBlocking(), blocking = true)
+        }
+        lastConfig = null
+        _state.value = KernelState.Stopping
+        log(LogLevel.INFO, "kernel stopping; tunnel left standing (block)")
+        runCatching { client?.disconnect() }
+        client = null
+        runCatching { current.closeService() }
+        runCatching { current.close() }
+        server = null
+        _blocking.value = true
+        _state.value = KernelState.Stopped
+        log(LogLevel.INFO, "kernel stopped; nothing is forwarding")
+        Result.success(Unit)
+    }
 
     /**
-     * Start, or swap the running kernel's config.
+     * Start, or replace the running kernel's config.
      *
-     * The swap is `startOrReloadService` on the live server: the tun, the
-     * VpnService and the command channel all stay exactly as they were, so
-     * there is no moment between "proxying" and "blocking" in which a packet
-     * could leave directly. That gap is the whole reason this is a reload
-     * rather than a stop followed by a start.
+     * Replacing means a full teardown and a fresh start, because that is the
+     * only sequence this kernel survives. Measured on device, in this order:
+     *
+     * - `startOrReloadService` on a live server: the new instance opens the
+     *   cache database the old one still holds and dies with
+     *   `initialize cache-file: timeout`, after the retry budget, every time.
+     *   `cache_file.enabled=false` does not help: the daemon passes itself as
+     *   the platform log writer, and that alone forces the cache file on.
+     * - Closing the kernel and starting a new one with the VpnService left up:
+     *   same failure, same message, even with a per-policy cache path.
+     * - Full teardown, then start: works. Two connect/block cycles, one tun
+     *   throughout, no timeout in the log.
+     *
+     * The cost is a short window with no VPN between the two halves. That is
+     * acceptable when *connecting* (there was nothing to leak before), and it
+     * is why [block] does not go through here: going to "blocked" closes the
+     * kernel and keeps the tunnel, so the block starts immediately and leaves
+     * no window at all.
      */
     private suspend fun apply(config: String, blocking: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {
             lastConfig = config
             restarted = false
             val current = server ?: return@withContext doStart(config, blocking)
-            try {
-                current.startOrReloadService(config, OverrideOptions())
-                _blocking.value = blocking
-                _state.value = KernelState.Running
-                log(
-                    LogLevel.INFO,
-                    if (blocking) "kernel reloaded: forwarding nothing" else "kernel reloaded",
-                )
-                Result.success(Unit)
-            } catch (e: Exception) {
-                // The old config is still in force — that is the safer failure:
-                // whatever the kernel was doing, it keeps doing. Nothing is
-                // torn down, and the caller is told the swap did not happen.
-                val detail = LogRedactor.redact(e.message.orEmpty())
-                    .ifBlank { e::class.java.simpleName }
-                android.util.Log.e(LOG_TAG, "kernel reload failed: $detail")
-                log(LogLevel.ERROR, "kernel reload failed: $detail")
-                Result.failure(KernelStartException(detail, e))
-            }
+
+            // A running kernel and a new config: the old one has to go, and
+            // its tunnel with it. Starting a second instance over a live
+            // tunnel is what fails; see the note above.
+            _state.value = KernelState.Starting
+            log(LogLevel.INFO, "kernel restarting; tunnel goes down for the swap")
+            runCatching { client?.disconnect() }
+            client = null
+            runCatching { current.closeService() }
+            runCatching { current.close() }
+            server = null
+            stopVpn()
+            // The VpnService teardown is asynchronous (stopService -> onDestroy
+            // -> closeTun). Starting the new kernel into a service that is
+            // still dying is what produced the `initialize cache-file: timeout`
+            // failures: the new instance opened the previous instance's cache
+            // database while the old one was still being torn down. Waiting for
+            // the service to be gone makes the two halves sequential, which is
+            // the only arrangement that has been reliable on device.
+            awaitVpnDown()
+            doStart(config, blocking)
         }
+
+    /** Waits until no VpnService instance is left, up to a bounded time. */
+    private suspend fun awaitVpnDown() {
+        repeat((VP_NETWORK_WAIT_MS / 50).toInt()) {
+            if (com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService.current == null) return
+            kotlinx.coroutines.delay(50)
+        }
+    }
 
     private suspend fun doStart(config: String, blocking: Boolean): Result<Unit> {
         _state.value = KernelState.Starting
@@ -298,6 +351,9 @@ class RealKernelBridge(
 
     private companion object {
         const val LOG_TAG = "StarveilKernel"
+
+        /** Upper bound on waiting for the VpnService to finish tearing down. */
+        const val VP_NETWORK_WAIT_MS = 2_000L
 
         /**
          * `CommandClient` only subscribes to the streams named in its options

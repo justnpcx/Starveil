@@ -159,6 +159,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             endpoints = emptyList(),
             finalTag = BLOCK_TAG,
             rules = emptyList(),
+            // A cache file of its own. libbox keeps the previous instance's
+            // cache database open for as long as that instance lives, and the
+            // swap starts the new instance before the old one's file is
+            // released — with one shared path the new open waits on the lock
+            // and fails with `initialize cache-file: timeout`. Two files, one
+            // per policy, is bounded and removes the contention entirely.
+            cacheFileName = "cache-block.db",
         )
 
     /**
@@ -491,6 +498,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         perAppRules: List<Map<String, Any?>> = emptyList(),
         preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
         adsPath: String? = null,
+        cacheFileName: String = "cache.db",
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
@@ -544,16 +552,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // rates and totals sit at 0 B/s forever even while traffic flows.
         // An empty controller opens no HTTP listener: the server is created
         // but never bound.
-        // cache_file off, deliberately. It is a file lock, and the reload path
-        // (`startOrReloadService`) builds the new instance before the old one
-        // is closed — so the second open waits on the first holder and fails
-        // with `initialize cache-file: timeout`. That made every config swap
-        // fail on device, which is the one thing the Kill Switch cannot do.
-        // What is lost: the persisted choice of a selector group across
-        // restarts, and a fakeip cache this app never uses.
         config["experimental"] = linkedMapOf<String, Any?>(
             "clash_api" to emptyMap<String, Any?>(),
-            "cache_file" to linkedMapOf<String, Any?>("enabled" to false),
+            // Named even when nothing is cached: the daemon forces the cache
+            // file on (it passes itself as the platform log writer), so the
+            // path is always opened and has to be a distinct one per policy.
+            "cache_file" to linkedMapOf<String, Any?>("path" to cacheFileName),
         )
         return Json.write(config)
     }

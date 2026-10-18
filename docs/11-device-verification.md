@@ -31,6 +31,7 @@
 | 三档分流策略 | 见下方「分流矩阵」：同一目标在不同策略下由内核判给不同出口 |
 | 后台全量探测（H1） | 日志出现 `health sweep: probed 3 node(s)`；随后「自动选择」选出 **HY2+Reality-hy2-443（评分 10099）**——不是此前唯一有健康数据的 cf-xhttp |
 | Kill Switch 阻断（M5） | 「始终阻断」连接 → `已阻断`，配置 `final=block`、出站只有 `block`、无 uuid；Chrome 打开 example.com 得 `ERR_CONNECTION_REFUSED`。「断开时阻断」连接→断开 同样结果；从阻断态再连接，配置回到 `final=proxy` |
+| 热切换回归（2026-10-18） | 连接 → 阻断 → 连接 两轮：`已连接`（tun=1，外网流向判为代理）→ `已阻断`（tun 保留，页面停在加载中，不是直连打开）→ `已连接`；`cache-file: timeout` 0 次 |
 | 规则集校验（M3） | 篡改 `geosite-cn.srs` 并把目录设为只读后重连：日志 `does not match its hash; discarding` → 下载失败 → `rule set geosite-cn.srs: download_failed; mainland preset disabled`；规则页出现红色警告与 Snackbar，配置 `final=proxy` 且 0 条预设规则（fail-closed）；日志页有同一条 error |
 | 切预设自动重建 | 连接状态下切「全局直连」，无需手动重连，`files/libbox/configuration.json` 的 `final` 由 `proxy` 变为 `direct`；切回后恢复 `proxy` + 2 条规则 |
 
@@ -95,18 +96,24 @@ dial rmnet_data4 (28): dial tcp 142.250.73.67:443: i/o timeout
 而切节点是会自动重连的——两条路径不一致。已让 `DashboardViewModel` 同时观察
 `routePreset` 与 `blockAds`，变化时重建隧道，和切节点同一条路径。
 
-**6. 配置热切换全部失败：`initialize cache-file: timeout`**（2026-10-18）
+**6. 配置热切换在这个内核上不可用**（2026-10-18）
 
-M5 把「阻断」改成换一份 `buildBlocking()` 配置，靠 `startOrReloadService` 在运行中的
-内核上换配置。真机上每次切换都失败：
+M5 原本想让「阻断」= 换一份 `buildBlocking()` 配置，靠 `startOrReloadService` 在运行中的
+内核上原地切换。真机上四种做法逐一试过：
 
-```
-内核启动失败：start or reload service: initialize cache-file: timeout
-```
+| 做法 | 结果 |
+|---|---|
+| `startOrReloadService`（原地 reload） | `initialize cache-file: timeout`，每次都失败 |
+| 上面 + `cache_file.enabled=false` | 无效：daemon 把自己当 platform log writer，`needCacheFile` 恒真 |
+| 关内核、保留 VpnService 再 start（每策略独立 cache 路径） | 同样超时 |
+| **完整 teardown（关内核 + 停 VpnService）再 start** | **可靠**：两轮连接/阻断，tun 始终 1 个，日志 0 次超时 |
 
-reload 会先建新实例再关旧实例，而 `cache_file` 是文件锁——第二个实例等锁等到超时。
-在 `experimental` 里关掉 `cache_file` 后两种方向的热切换都成功（阻断→代理、代理→阻断），
-tun 全程不消失。代价是 selector 组的持久选择与 fakeip 缓存，这个应用都不用。
+所以「换配置」= 完整重启，只用于**连接**方向——那时本来就没有可泄漏的流量。**阻断**方向
+不走 swap：关掉内核、保留 tun，包进了一个没人读的接口，立即生效且没有窗口。
+
+代价是「从阻断态连接」有一次 tun 重建（几百毫秒无 VPN）。要做到真正的原地热切换，得改
+libbox（`StartedService.Close()` 并不关闭运行中的实例；reload 路径的 cache 锁也拿不到），
+不是应用层再换一种写法能解决的。
 
 **7. 一个文件成功会把另一个文件的失败清掉**（2026-10-18）
 
