@@ -227,11 +227,14 @@ class ConnectionController @Inject constructor(
 
     /**
      * "Block on disconnect" swaps the running config for one that forwards
-     * nothing. Tearing the tunnel down here is exactly the leak that mode
-     * exists to prevent: whatever was in flight would go out directly.
+     * nothing, instead of stopping the tunnel — a stop would send whatever is
+     * in flight out directly, which is the leak this mode exists to prevent.
      *
-     * A reload rather than a stop-and-start: the tun never goes away, so the
-     * block begins at the config swap and not a moment later.
+     * The swap is still a full teardown and restart, because that is the only
+     * sequence this kernel survives (see RealKernelBridge.apply), so the tun
+     * does disappear for about a second and the block begins after it comes
+     * back. That gap is why the settings screen also links to the system's
+     * always-on VPN, which does not depend on this process staying alive.
      */
     suspend fun disconnect(): ConnectionOutcome {
         val blocking = KillSwitchController.policyFor(

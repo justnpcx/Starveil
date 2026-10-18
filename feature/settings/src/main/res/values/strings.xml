@@ -16,6 +16,9 @@
     <string name="kill_switch_on_disconnect_desc">Allow traffic only while connected; block new connections the moment the tunnel drops.</string>
     <string name="kill_switch_always">Always block</string>
     <string name="kill_switch_always_desc">Block all traffic and show an explicit blocked state.</string>
+    <!-- The second lock: the system's always-on VPN, which survives a crash. -->
+    <string name="kill_switch_system_link">Open system VPN settings</string>
+    <string name="kill_switch_system_desc">The modes above are enforced by this app, so they end when the process does. For a lock that survives a crash, turn on “Always-on VPN” and “Block connections without VPN” for Starveil in the system settings. The system then blocks traffic until Starveil is running again.</string>
 
     <string name="auto_reconnect_title">Auto-reconnect</string>
     <string name="auto_reconnect_desc">Bring the tunnel back up if it drops unexpectedly. Retries once per drop.</string>

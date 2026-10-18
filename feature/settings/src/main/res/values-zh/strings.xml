@@ -16,6 +16,9 @@
     <string name="kill_switch_on_disconnect_desc">只在连接期间放行流量；隧道一断立即阻断新连接。</string>
     <string name="kill_switch_always">始终阻断</string>
     <string name="kill_switch_always_desc">阻断全部流量，并显示明确的阻断状态。</string>
+    <!-- 第二道锁：系统级“始终开启的 VPN”，进程被杀也有效 -->
+    <string name="kill_switch_system_link">打开系统 VPN 设置</string>
+    <string name="kill_switch_system_desc">上面的模式由应用自己执行，进程结束就失效。要让锁在崩溃后仍然生效，请在系统设置里为 Starveil 打开「始终开启的 VPN」和「阻止未经过 VPN 的连接」。此后系统会在 Starveil 未运行时阻断流量，直到重新打开它。</string>
 
     <string name="auto_reconnect_title">自动重连</string>
     <string name="auto_reconnect_desc">意外断开时重新建立隧道。每次断开重试一次。</string>

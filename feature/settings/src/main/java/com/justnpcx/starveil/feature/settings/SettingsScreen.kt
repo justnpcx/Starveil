@@ -1,14 +1,18 @@
 package com.justnpcx.starveil.feature.settings
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.Settings
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
@@ -168,6 +172,23 @@ fun SettingsScreen(
                 onSelect = { viewModel.setKillSwitchMode(mode) },
             )
         }
+        // Two locks, and they are not the same lock. The modes above are a
+        // config this app enforces, so they end when the process does; the
+        // system's always-on VPN survives a crash and a swipe-away. Linking
+        // rather than duplicating the switch is deliberate — only the system
+        // can turn its own lock on, and pretending otherwise would be a lie.
+        TextButton(
+            onClick = { openSystemVpnSettings(context) },
+            contentPadding = PaddingValues(horizontal = StarveilSpacing.md),
+        ) {
+            Text(stringResource(R.string.kill_switch_system_link))
+        }
+        Text(
+            text = stringResource(R.string.kill_switch_system_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = StarveilSpacing.md),
+        )
         SwitchRow(
             title = stringResource(R.string.auto_reconnect_title),
             description = stringResource(R.string.auto_reconnect_desc),
@@ -668,4 +689,28 @@ private fun KillSwitchMode.descriptionRes(): Int = when (this) {
     KillSwitchMode.OFF -> R.string.kill_switch_off_desc
     KillSwitchMode.BLOCK_ON_DISCONNECT -> R.string.kill_switch_on_disconnect_desc
     KillSwitchMode.ALWAYS_BLOCK -> R.string.kill_switch_always_desc
+}
+
+/**
+ * The system screen where "Always-on VPN" and "Block connections without VPN"
+ * live.
+ *
+ * ACTION_VPN_SETTINGS is API 24+ and present on AOSP and vivo. The fallbacks
+ * are for a ROM that hides it: a tap that opens the top-level settings is
+ * better than a crash, and the string above tells the reader what to look for.
+ */
+private fun openSystemVpnSettings(context: Context) {
+    val actions = listOf(
+        Settings.ACTION_VPN_SETTINGS,
+        Settings.ACTION_WIRELESS_SETTINGS,
+        Settings.ACTION_SETTINGS,
+    )
+    for (action in actions) {
+        try {
+            context.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        } catch (e: ActivityNotFoundException) {
+            // Try the next one.
+        }
+    }
 }

@@ -234,6 +234,61 @@ not granted`）。修复后两条路径都在真机上走了一遍。
 关掉横幅通知（`settings put global heads_up_notifications_enabled 0`），剪掉了开头
 等待和连接后静置的两段静止画面；其余为连续画面。
 
+### Kill Switch 双保险（2026-10-18）
+
+**两层锁**
+
+- 应用内：`KillSwitchMode` 三档，`buildBlocking()` 的配置级阻断（`f781661`）。
+- 系统级：系统的「始终开启的 VPN + 阻止未经过 VPN 的连接」。设置页 Kill Switch 段
+  新增「打开系统 VPN 设置」，跳 `Settings.ACTION_VPN_SETTINGS`（vivo 上实测打开的是
+  「VPN → 个人 VPN」，列表里有 Starveil），失败时回退无线设置/设置首页。
+
+**实测一：应用内锁的边界**
+
+vivo V2520A / Android 17，选「始终阻断」后点连接：
+
+| 步骤 | 结果 |
+|---|---|
+| 连接 | 界面「已阻断 / Kill Switch 正在阻断全部流量」，`tun0` 172.19.0.1/30 |
+| Chrome 打开 example.com | `ERR_CONNECTION_REFUSED` |
+| `am force-stop com.justnpcx.starveil` | VpnService 0 个、`tun0` 消失 |
+| 再打开 example.com | 正常加载 |
+
+应用内锁随进程结束——这就是需要第二层锁的原因。顺带确认：`StarveilVpnService.onStartCommand`
+只起前台通知并跟踪底层网络，不会自动连接；所以系统 always-on 在 Starveil 未运行时是
+**fail-closed**（断网直到手动打开 App 重连），不会自己恢复隧道。设置页文案已写明这一点。
+
+**实测二：计划内切换会重建 tun**
+
+连接态下把预设从「绕过中国大陆」切到「全局代理」再切到「全局直连」，`tun0` 的 ifindex
+从 **237 变 238**——tun 是新接口，不是同一条。
+
+代码路径也一致：`RealKernelBridge.apply` 做 `closeService → stopVpn → awaitVpnDown → 重启`，
+日志是 `kernel restarting; tunnel goes down for the swap`。
+
+任务书里「计划内热重载 tun 不重建」在当前内核上不成立。要保住 tun 需要
+`startOrReloadService`，而 P0 已实测它在活服务上必然 `initialize cache-file: timeout`
+（见本文「热切换」一节），所以这不是 T4 能修的 bug；本轮记录事实，并用系统级锁覆盖这段
+约 1 秒的空窗。原来 `ConnectionController.disconnect()` 里「tun never goes away」的注释
+是错的，已一并改正。
+
+**未做：系统级锁的真机验证**
+
+方法（需要人在设备旁，lockdown 开启后服务起不来会整机断网）：
+
+```
+adb shell settings put secure always_on_vpn_app com.justnpcx.starveil
+adb shell settings put secure always_on_vpn_lockdown 1
+adb shell am force-stop com.justnpcx.starveil
+# Chrome 应无法联网；恢复：
+adb shell settings delete secure always_on_vpn_app
+adb shell settings put secure always_on_vpn_lockdown 0
+```
+
+这次没跑：手机不在手边，lockdown 若把 adb 一并阻断就无法远程恢复。抓包同理——本机是
+局域网对等节点、不是网关，看不到手机流量；要在网关（路由器）上按手机 IP 抓，才能证明
+物理网卡零泄漏。
+
 ### 调查后确认「不是问题」
 
 **直连 IPv6 报 `network is unreachable`**：当时默认网络是 WiFi `Jim_5G`，它只有
