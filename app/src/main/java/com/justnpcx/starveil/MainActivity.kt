@@ -34,7 +34,9 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
+import com.justnpcx.starveil.core.probe.LeakCheckRunner
 import com.justnpcx.starveil.core.probe.NodeHealthSampler
+import com.justnpcx.starveil.core.probe.NodeLatencyTester
 import com.justnpcx.starveil.onboarding.OnboardingScreen
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.Destination
@@ -70,6 +72,14 @@ class MainActivity : ComponentActivity() {
      */
     @Inject
     lateinit var healthSampler: NodeHealthSampler
+
+    /** The Nodes screen's latency button; injected here so the screen stays free of the kernel. */
+    @Inject
+    lateinit var latencyTester: NodeLatencyTester
+
+    /** The leak self-check reads the VpnService, which only :app may touch. */
+    @Inject
+    lateinit var leakCheckRunner: LeakCheckRunner
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,6 +138,8 @@ class MainActivity : ComponentActivity() {
                         ) { innerPadding ->
                             StarveilNavHost(
                                 navController = navController,
+                                latencyTester = latencyTester,
+                                leakCheckRunner = leakCheckRunner,
                                 modifier = Modifier.padding(innerPadding),
                             )
                         }

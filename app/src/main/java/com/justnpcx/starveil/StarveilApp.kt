@@ -4,7 +4,7 @@ import android.app.Application
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.crash.CrashReporting
-import com.justnpcx.starveil.latency.NodeHealthProbeScheduler
+import com.justnpcx.starveil.core.probe.NodeHealthProbeScheduler
 import com.justnpcx.starveil.rules.RuleSetFailureReporter
 import com.justnpcx.starveil.scene.SceneController
 import com.justnpcx.starveil.timing.ConnectionTiming

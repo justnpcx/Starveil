@@ -1,7 +1,5 @@
-package com.justnpcx.starveil.latency
+package com.justnpcx.starveil.core.probe
 
-import com.justnpcx.starveil.core.probe.NodeProbe
-import com.justnpcx.starveil.core.probe.ProbeResult
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.LATENCY_UNREACHABLE

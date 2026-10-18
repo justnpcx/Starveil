@@ -31,6 +31,8 @@ dependencies {
     // LeakCheckRunner asks the VPN service whether its tun is standing.
     implementation(project(":core:kernel"))
     implementation(libs.coroutines.core)
+    // The background health sweep is a WorkManager worker.
+    implementation(libs.workmanager)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 

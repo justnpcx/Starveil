@@ -6,9 +6,6 @@ import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.LeakCheck
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import com.justnpcx.starveil.core.model.LeakCheckRecord
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
@@ -83,11 +80,4 @@ class LeakCheckRunner @Inject constructor(
  */
 class VpnServiceTunnelProbe @Inject constructor() : TunnelProbe {
     override fun isUp(): Boolean = StarveilVpnService.current != null
-}
-
-/** Hilt bridge for the Composable that needs it. */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface LeakCheckRunnerEntryPoint {
-    fun leakCheckRunner(): LeakCheckRunner
 }

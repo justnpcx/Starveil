@@ -22,8 +22,6 @@ import androidx.navigation.compose.composable
 import com.justnpcx.starveil.BuildConfig
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
-import com.justnpcx.starveil.core.probe.NodeLatencyTesterEntryPoint
-import com.justnpcx.starveil.core.probe.LeakCheckRunnerEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen
@@ -33,6 +31,8 @@ import com.justnpcx.starveil.feature.rules.RulesScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.probe.LeakCheckRunner
+import com.justnpcx.starveil.core.probe.NodeLatencyTester
 import com.justnpcx.starveil.di.ProtocolRegistryEntryPoint
 import com.justnpcx.starveil.feature.editor.ProfileEditorScreen
 import com.justnpcx.starveil.feature.rules.ScenesScreen
@@ -68,6 +68,8 @@ private const val PRIVACY_ROUTE = "privacy"
 @Composable
 fun StarveilNavHost(
     navController: NavHostController,
+    latencyTester: NodeLatencyTester,
+    leakCheckRunner: LeakCheckRunner,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -75,14 +77,8 @@ fun StarveilNavHost(
     val vpnConsent = remember(context) { starveilVpnConsent(context) }
     var pendingConnect by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    // Latency testing needs the kernel, so it lives in :app and the Nodes
-    // screen only gets a callback.
-    val latencyTester = remember(context) {
-        EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            NodeLatencyTesterEntryPoint::class.java,
-        ).nodeLatencyTester()
-    }
+    // Both come from the Activity: they need the kernel, they live in
+    // :core:probe, and the screens below only receive callbacks.
     val scope = rememberCoroutineScope()
     val onTestLatency: ((String) -> Unit) -> Unit = { onResult ->
         scope.launch { onResult(latencyTester.testSelectedNode()) }
@@ -93,14 +89,6 @@ fun StarveilNavHost(
         scope.launch { onResult(latencyTester.testNode(id)) }
     }
 
-    // The leak self-check watches the VpnService, so it also lives in :app and
-    // Settings only gets a callback.
-    val leakCheckRunner = remember(context) {
-        EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            LeakCheckRunnerEntryPoint::class.java,
-        ).leakCheckRunner()
-    }
     val onRunLeakCheck: () -> Unit = {
         scope.launch { leakCheckRunner.run() }
     }

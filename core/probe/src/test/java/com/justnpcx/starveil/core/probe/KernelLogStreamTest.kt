@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.logs
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelConnection
@@ -28,7 +28,7 @@ class KernelLogStreamTest {
 
     @Test
     fun `identical lines in the same millisecond get distinct ids`() = runBlocking {
-        val bridge = RecordingBridge()
+        val bridge = LogRecordingBridge()
         val stream = KernelLogStream(bridge)
 
         val line = KernelLogLine(LogLevel.INFO, "sing-box", "same text", timestampMs = 1_000L)
@@ -41,7 +41,7 @@ class KernelLogStreamTest {
     }
 }
 
-private class RecordingBridge : KernelBridge {
+private class LogRecordingBridge : KernelBridge {
 
     // Replayed, so a line emitted before the stream's collector subscribes is
     // still delivered — otherwise this test would race its own setup.

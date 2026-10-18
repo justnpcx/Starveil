@@ -8,10 +8,7 @@ import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.LATENCY_UNREACHABLE
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.WEIGHT_MANUAL
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
@@ -27,8 +24,8 @@ import kotlinx.coroutines.flow.first
  * handshake: a node that accepts TCP but rejects the protocol still reads as
  * fast. Proving the protocol works is what connecting is for.
  *
- * Lives in :core:probe with the rest of the probing; the Nodes screen reaches
- * it through [NodeLatencyTesterEntryPoint] and only receives a callback.
+ * Lives in :core:probe with the rest of the probing; the Activity injects it
+ * and the Nodes screen only receives a callback.
  *
  * Always returns a user-facing message, so a failed measurement is never
  * silent — "nothing happened" was the previous behaviour and read as a broken
@@ -92,11 +89,4 @@ class NodeLatencyTester @Inject constructor(
             }
         }
     }
-}
-
-/** Hilt bridge for the Composable that needs it. */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface NodeLatencyTesterEntryPoint {
-    fun nodeLatencyTester(): NodeLatencyTester
 }

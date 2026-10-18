@@ -16,7 +16,7 @@ import com.justnpcx.starveil.core.probe.TunnelProbe
 import com.justnpcx.starveil.core.probe.VpnServiceTunnelProbe
 import com.justnpcx.starveil.core.probe.NodeProbe
 import com.justnpcx.starveil.core.probe.TcpNodeProbe
-import com.justnpcx.starveil.logs.KernelLogStream
+import com.justnpcx.starveil.core.probe.KernelLogStream
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
