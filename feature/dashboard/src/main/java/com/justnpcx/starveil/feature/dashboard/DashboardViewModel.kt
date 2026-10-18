@@ -368,15 +368,19 @@ class DashboardViewModel @Inject constructor(
         if (nodes.isEmpty()) return null
         val samples = nodeHealth.observeAll().first()
         val selectedId = preferences.selectedProfileId.first()
+        // resolve(), not classify(): the same rule the region groups use, so a
+        // node the Nodes page files under 美国 is also the one the picker treats
+        // as American. Name-only classification would disagree for every node
+        // whose name says nothing — which is most imported ones.
         val preferredRegion = nodes.firstOrNull { it.id == selectedId }
-            ?.let { NodeRegions.classify(it.name)?.region }
+            ?.let { NodeRegions.resolve(it.name, it.country) }
 
         val candidates = nodes
             .filter { it.id != exclude }
             .map { profile ->
                 NodeCandidate(
                     profileId = profile.id,
-                    region = NodeRegions.classify(profile.name)?.region,
+                    region = NodeRegions.resolve(profile.name, profile.country),
                     health = samples[profile.id]?.let(::nodeHealthOf),
                 )
             }
