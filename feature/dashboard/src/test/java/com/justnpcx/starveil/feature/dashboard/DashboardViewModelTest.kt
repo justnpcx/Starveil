@@ -648,6 +648,7 @@ class DashboardViewModelTest {
             groups = groups,
             connection = connection,
             nodeHealth = nodeHealth,
+            recovery = DropRecovery(profiles, nodeHealth, preferences),
             sceneApply = SceneApplyState(),
         )
     }

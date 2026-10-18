@@ -13,11 +13,7 @@ import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
-import com.justnpcx.starveil.core.model.NodeCandidate
 import com.justnpcx.starveil.core.model.NodeHealth
-import com.justnpcx.starveil.core.model.NodePicker
-import com.justnpcx.starveil.core.model.NodeRecommendation
-import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.displayName
@@ -132,6 +128,7 @@ class DashboardViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val connection: ConnectionController,
     private val nodeHealth: NodeHealthRepository,
+    private val recovery: DropRecovery,
     private val sceneApply: SceneApplyState,
 ) : ViewModel() {
 
@@ -148,17 +145,6 @@ class DashboardViewModel @Inject constructor(
      * "the user changed the target" event and restart the tunnel a second time.
      */
     private var lastTargetKey: String? = null
-
-    /**
-     * One automatic reconnect per user-initiated connection.
-     *
-     * A reconnect that itself dies must not be retried, or a node that crashes
-     * the kernel every time would be retried forever. The user tapping connect
-     * again is what grants the next attempt — deliberately not the kernel
-     * reporting [KernelState.Running], since a kernel that starts and
-     * immediately dies would re-arm itself on every cycle.
-     */
-    private var canAutoReconnect = true
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
@@ -299,41 +285,47 @@ class DashboardViewModel @Inject constructor(
      */
     private fun applyConfigChange() {
         scope.launch {
-            canAutoReconnect = true
+            recovery.rearm()
             connection.restart()
         }
     }
 
     /**
-     * The kernel died under us. If the user had a tunnel up and asked for
-     * auto-reconnect, bring it back; otherwise settle into BLOCKED and say
-     * what happened rather than leaving a stale CONNECTED label.
+     * The kernel died under us. The policy lives in [DropRecovery]; this maps
+     * its decision onto the screen and, when it says so, moves the selection
+     * before reconnecting.
      */
     private suspend fun onKernelDropped() {
-        // Only a drop from a believed-connected state is ours to recover from.
-        // A crash while disconnected (or while blocked) is not a lost tunnel.
-        if (_uiState.value.connectionState != ConnectionState.CONNECTED) return
-        if (_uiState.value.isBusy) return
+        when (
+            val decision = recovery.decide(
+                connected = _uiState.value.connectionState == ConnectionState.CONNECTED,
+                busy = _uiState.value.isBusy,
+            )
+        ) {
+            DropRecovery.Decision.Ignore -> Unit
 
-        if (!preferences.autoReconnect.first()) {
-            _uiState.update {
-                it.copy(connectionState = ConnectionState.BLOCKED, notice = DashboardNotice.TunnelDropped)
+            is DropRecovery.Decision.GiveUp -> _uiState.update {
+                it.copy(connectionState = ConnectionState.BLOCKED, notice = decision.notice)
             }
-            return
-        }
-        if (!canAutoReconnect) {
-            _uiState.update {
-                it.copy(connectionState = ConnectionState.BLOCKED, notice = DashboardNotice.TunnelKeepsDropping)
+
+            is DropRecovery.Decision.Reconnect -> {
+                val pick = decision.switchedTo
+                if (pick != null) {
+                    // Claim the change before it is delivered: otherwise the
+                    // target collector sees a target it did not act on and
+                    // starts a second reconnect.
+                    lastTargetKey = ConnectionTarget.Node(pick.profileId).key()
+                    preferences.setSelectedProfileId(pick.profileId)
+                }
+                connect(
+                    notice = if (pick != null) {
+                        DashboardNotice.SwitchingNode
+                    } else {
+                        DashboardNotice.TunnelReconnecting
+                    },
+                )
             }
-            return
         }
-
-        canAutoReconnect = false
-
-        // Switching before reconnecting, when asked to: retrying the node that
-        // just died is the least useful thing to do with a drop.
-        val switched = preferences.autoSwitchOnDrop.first() && switchToNextBest()
-        connect(notice = if (switched) DashboardNotice.SwitchingNode else DashboardNotice.TunnelReconnecting)
     }
 
     /**
@@ -347,7 +339,7 @@ class DashboardViewModel @Inject constructor(
     fun autoSelect() {
         if (_uiState.value.isBusy) return
         scope.launch {
-            val pick = bestNode() ?: run {
+            val pick = recovery.best() ?: run {
                 _uiState.update { it.copy(notice = DashboardNotice.NoTarget) }
                 return@launch
             }
@@ -358,61 +350,6 @@ class DashboardViewModel @Inject constructor(
             // connect here as well would race that path.
             preferences.setSelectedProfileId(pick.profileId)
         }
-    }
-
-    /**
-     * Point the selection at the best node that is not [excluding].
-     *
-     * Only for a single-node target. A group already has urltest choosing
-     * within it, and switching away from the group would throw that away —
-     * the very thing it is good at.
-     */
-    private suspend fun switchToNextBest(): Boolean {
-        val current = (preferences.connectionTarget.first() as? ConnectionTarget.Node)?.id
-            ?: return false
-        val pick = bestNode(exclude = current) ?: return false
-        if (pick.profileId == current) return false
-        // Claim the change before it is delivered: otherwise the collector
-        // sees a target it did not act on and starts a second reconnect.
-        lastTargetKey = ConnectionTarget.Node(pick.profileId).key()
-        preferences.setSelectedProfileId(pick.profileId)
-        return true
-    }
-
-    /**
-     * The picker's answer over the current node list, or null when there is
-     * nothing to choose from.
-     *
-     * The preferred region is the region of the node the user already chose:
-     * that is the only manual preference the app stores, and inventing a
-     * second one would be a setting nobody asked for.
-     */
-    private suspend fun bestNode(exclude: Long? = null): NodeRecommendation? {
-        val nodes = profiles.observeAll().first()
-        if (nodes.isEmpty()) return null
-        val samples = nodeHealth.observeAll().first()
-        val selectedId = preferences.selectedProfileId.first()
-        // resolve(), not classify(): the same rule the region groups use, so a
-        // node the Nodes page files under 美国 is also the one the picker treats
-        // as American. Name-only classification would disagree for every node
-        // whose name says nothing — which is most imported ones.
-        val preferredRegion = nodes.firstOrNull { it.id == selectedId }
-            ?.let { NodeRegions.resolve(it.name, it.country) }
-
-        val candidates = nodes
-            .filter { it.id != exclude }
-            .map { profile ->
-                NodeCandidate(
-                    profileId = profile.id,
-                    region = NodeRegions.resolve(profile.name, profile.country),
-                    health = samples[profile.id]?.let(::nodeHealthOf),
-                )
-            }
-        return NodePicker.recommend(
-            candidates = candidates,
-            preferredRegion = preferredRegion,
-            nowMs = System.currentTimeMillis(),
-        )
     }
 
     /** Tap on the core: connect or disconnect. */
@@ -445,7 +382,7 @@ class DashboardViewModel @Inject constructor(
         userInitiated: Boolean = false,
         notice: DashboardNotice? = null,
     ) {
-        if (userInitiated) canAutoReconnect = true
+        if (userInitiated) recovery.rearm()
         _uiState.update {
             it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, notice = notice)
         }
