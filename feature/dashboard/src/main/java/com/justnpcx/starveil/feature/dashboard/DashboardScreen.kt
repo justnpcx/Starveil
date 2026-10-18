@@ -25,6 +25,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -109,6 +110,7 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         CurrentNodeCard(
             name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
+            health = state.health,
             onAutoSelect = viewModel::autoSelect,
         )
         // §7.2: the selected node's health over the window. Only for a node —
@@ -134,7 +136,10 @@ private fun NodeHealthSection(health: NodeHealth) {
         ) {
             Text(
                 text = stringResource(R.string.dashboard_health_title),
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 12.sp,
+                    letterSpacing = 0.5.sp,
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -147,7 +152,10 @@ private fun NodeHealthSection(health: NodeHealth) {
                         R.string.dashboard_health_availability,
                         health.availabilityPct.roundToInt(),
                     ),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
                     color = when (health.band) {
                         AvailabilityBand.GOOD -> StarveilColors.Connected
                         AvailabilityBand.FAIR -> StarveilColors.Warning
@@ -367,30 +375,69 @@ private fun formatScaledParts(value: Double, units: List<String>): RateParts {
     return RateParts(value.toLong().toString(), units.first())
 }
 
-/** The node the next connect will use, with the one-tap pick beside it. */
+/**
+ * The node the next connect will use, with the one-tap pick beside it.
+ *
+ * Three tiers, the same hierarchy the telemetry uses: an overline label, the
+ * value, and a supporting line. The button sits in the value's row, not the
+ * card's centre — it modifies the node, so it belongs to that line, and
+ * centring it over three lines is what made it look like it was floating.
+ */
 @Composable
-private fun CurrentNodeCard(name: String, onAutoSelect: () -> Unit) {
+private fun CurrentNodeCard(
+    name: String,
+    health: NodeHealth?,
+    onAutoSelect: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(
-            modifier = Modifier.padding(StarveilSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.dashboard_current_node),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+            Text(
+                text = stringResource(R.string.dashboard_current_node),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 12.sp,
+                    letterSpacing = 0.5.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onAutoSelect) {
+                    Text(stringResource(R.string.dashboard_auto_select))
+                }
+            }
+            health?.takeIf { !it.collecting }?.let { current ->
+                val latency = current.emaMs
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (latency != null) {
+                        stringResource(
+                            R.string.dashboard_node_health_line,
+                            current.availabilityPct.roundToInt(),
+                            latency,
+                        )
+                    } else {
+                        stringResource(
+                            R.string.dashboard_node_health_line_no_latency,
+                            current.availabilityPct.roundToInt(),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            TextButton(onClick = onAutoSelect) {
-                Text(stringResource(R.string.dashboard_auto_select))
             }
         }
     }
