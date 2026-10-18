@@ -29,7 +29,10 @@ import org.junit.Test
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
+import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
+import com.justnpcx.starveil.core.model.InstalledRulePack
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +59,7 @@ class RulesViewModelTest {
     @Test
     fun `add appends after the last rule`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN_SUFFIX, "example.com", RuleAction.DIRECT)
@@ -74,9 +77,29 @@ class RulesViewModelTest {
     }
 
     @Test
+    fun `subscribing to a pack is a preference change and shows in force`() = runBlocking {
+        val preferences = FakePreferences()
+        val viewModel = RulesViewModel(FakeRules(), FakeFlowLog(), preferences, NoRuleSets, NoRulePacks)
+        val job = launch { viewModel.uiState.collect {} }
+
+        viewModel.setPackSubscribed("ads-enhanced", subscribed = true)
+        yield()
+
+        assertEquals(setOf("ads-enhanced"), viewModel.uiState.value.subscribedPacks)
+        // The count the page shows includes it, so "N in force" cannot disagree
+        // with the switch that was just turned on.
+        assertEquals(1, viewModel.uiState.value.effectiveRuleCount - viewModel.uiState.value.presetRules.size)
+
+        viewModel.setPackSubscribed("ads-enhanced", subscribed = false)
+        yield()
+        assertTrue(viewModel.uiState.value.subscribedPacks.isEmpty())
+        job.cancel()
+    }
+
+    @Test
     fun `a blank value is not stored`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN, "   ", RuleAction.PROXY)
@@ -94,7 +117,7 @@ class RulesViewModelTest {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY, order = 0))
             seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 0))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -111,7 +134,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -127,7 +150,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -186,7 +209,11 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
 
     override val bypassMainland: Flow<Boolean> = bypass
     override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
-    override val blockAds: Flow<Boolean> = flowOf(false)
+    private val ads = MutableStateFlow(false)
+    override val blockAds: Flow<Boolean> = ads
+    private val packs = MutableStateFlow<Set<String>>(emptySet())
+    override val subscribedRulePacks: Flow<Set<String>> = packs
+    override val localApiEnabled: Flow<Boolean> = flowOf(false)
 
     override val themeMode: Flow<ThemeMode> get() = notUsed()
     override val dynamicColor: Flow<Boolean> get() = notUsed()
@@ -210,7 +237,11 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
 
     override suspend fun setBypassMainland(enabled: Boolean) { bypass.value = enabled }
     override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
-    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
+    override suspend fun setBlockAds(enabled: Boolean) { ads.value = enabled }
+    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) {
+        packs.value = if (subscribed) packs.value + id else packs.value - id
+    }
+    override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
     override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
@@ -232,4 +263,10 @@ private object NoRuleSets : MainlandRuleSetStore {
     override suspend fun ensure(): com.justnpcx.starveil.core.model.MainlandRuleSets? = null
     override suspend fun ensureAds(): String? = null
     override val failure: StateFlow<RuleSetFailure?> = MutableStateFlow(null)
+}
+
+/** No packs downloaded: these tests are about the subscription, not the files. */
+private object NoRulePacks : RulePackStore {
+    override suspend fun ensure(ids: Set<String>) = emptyList<InstalledRulePack>()
+    override val failure: StateFlow<RulePackFailure?> = MutableStateFlow(null)
 }

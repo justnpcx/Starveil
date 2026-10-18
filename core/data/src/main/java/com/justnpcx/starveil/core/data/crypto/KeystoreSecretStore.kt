@@ -38,6 +38,18 @@ class KeystoreSecretStore(
         return fresh
     }
 
+    /**
+     * Throw the stored secret away; the next read makes a new one.
+     *
+     * Used when a token has to be revoked — an old dashboard still holding it
+     * must stop working. The Keystore key stays: it protects whatever comes
+     * next, and deleting it would invalidate nothing else that matters.
+     */
+    @Synchronized
+    fun reset() {
+        file.delete()
+    }
+
     private fun wrap(secret: ByteArray): ByteArray {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKeystoreKey())

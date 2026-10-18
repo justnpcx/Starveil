@@ -220,8 +220,13 @@ class DashboardViewModel @Inject constructor(
         // rules page would say "in force" about a policy the tunnel has not
         // been told, which is exactly what happened on device.
         scope.launch {
-            var lastPolicy: Pair<RoutePreset, Boolean>? = null
-            combine(preferences.routePreset, preferences.blockAds) { preset, ads -> preset to ads }
+            var lastPolicy: Policy? = null
+            combine(
+                preferences.routePreset,
+                preferences.blockAds,
+                preferences.subscribedRulePacks,
+                preferences.localApiEnabled,
+            ) { preset, ads, packs, api -> Policy(preset, ads, packs, api) }
                 .collect { policy ->
                     val previous = lastPolicy
                     lastPolicy = policy
@@ -271,6 +276,17 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Everything a rebuild depends on, compared as one value so one user action
+     * (which may write two keys) rebuilds once.
+     */
+    private data class Policy(
+        val preset: RoutePreset,
+        val blockAds: Boolean,
+        val packs: Set<String>,
+        val localApi: Boolean,
+    )
 
     /**
      * Rebuild the running tunnel against the stored config.

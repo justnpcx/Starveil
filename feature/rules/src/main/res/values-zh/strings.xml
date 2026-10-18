@@ -47,6 +47,24 @@
     <string name="rules_effective_lan">局域网（私网地址）→ 直连 · 系统内置</string>
     <string name="rules_lan_note">局域网流量始终直连。</string>
     <string name="rules_effective_user">你自己的 %1$d 条规则</string>
+
+    <!-- 规则市场 -->
+    <string name="rules_market_title">规则市场</string>
+    <string name="rules_market_desc">精选规则包，固定版本并校验哈希</string>
+    <string name="rules_market_subscribed">已订阅 %1$d 个</string>
+    <string name="rules_market_failed">规则包「%1$s」校验失败，未生效。</string>
+    <string name="rules_market_close">关闭</string>
+    <string name="rules_pack_ads_enhanced">去广告增强</string>
+    <string name="rules_pack_ads_enhanced_desc">广告，加上应用遥测与崩溃上报。</string>
+    <string name="rules_pack_anti_tracking">仅反跟踪</string>
+    <string name="rules_pack_anti_tracking_desc">只拦应用遥测与错误上报，不拦广告。</string>
+    <string name="rules_pack_streaming">流媒体</string>
+    <string name="rules_pack_streaming_desc">Netflix、Disney+、HBO、Spotify 与海外游戏走代理。</string>
+    <string name="rules_pack_developer">开发者</string>
+    <string name="rules_pack_developer_desc">GitHub、npm、PyPI、Docker 与各发行版镜像。</string>
+    <string name="rules_pack_ai">AI 服务</string>
+    <string name="rules_pack_ai_desc">海外 AI 服务走代理。</string>
+    <string name="rules_effective_pack">%1$s → %2$s</string>
     <string name="rules_per_app_title">分应用路由</string>
     <string name="rules_per_app_desc">让单个应用直连，或走指定节点。</string>
     <string name="rules_empty_body_bypass">还没有你自己的规则。当前生效：绕过中国大陆（国内直连，其余走代理）。</string>

@@ -123,6 +123,7 @@ class SettingsViewModelTest {
         assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
         job.cancel()
     }
+
 }
 
 private class FakeKernel(private val reportedVersion: String) : KernelBridge {
@@ -149,6 +150,9 @@ private class FakePreferences : PreferencesRepository {
     override val bypassMainland: Flow<Boolean> = flowOf(false)
     override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
     override val blockAds: Flow<Boolean> = flowOf(false)
+    override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
+    private val localApi = MutableStateFlow(false)
+    override val localApiEnabled: Flow<Boolean> = localApi
     override val killSwitchMode: Flow<KillSwitchMode> = flowOf(KillSwitchMode.OFF)
     override val lastLeakCheck: Flow<LeakCheckRecord> = flowOf(LeakCheckRecord())
 
@@ -157,6 +161,8 @@ private class FakePreferences : PreferencesRepository {
     override suspend fun setBypassMainland(enabled: Boolean) = notUsed()
     override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
     override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
+    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
+    override suspend fun setLocalApiEnabled(enabled: Boolean) { localApi.value = enabled }
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = notUsed()

@@ -5,7 +5,6 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -133,61 +132,16 @@ class FileMainlandRuleSetStore(
         return obtain(ads)?.absolutePath
     }
 
-    private suspend fun obtain(set: PinnedRuleSet): File? {
-        val target = File(directory, set.name)
-        if (target.isFile && target.length() > 0) {
-            if (matches(target, set.sha256)) return target
-            // Present but wrong: written by an older build with a different
-            // pin, or replaced. Either way it is not the file we vetted.
-            warn("rule set ${set.name}: on disk but does not match its hash; discarding")
-            target.delete()
-        }
+    private val cache = PinnedFileCache(directory, download, warn)
 
-        var sawMismatch = false
-        for (url in set.urls) {
-            try {
-                val bytes = download(url)
-                if (bytes.isEmpty()) throw IOException("empty body")
-                if (!sha256(bytes).equals(set.sha256, ignoreCase = true)) {
-                    // Not written anywhere. A rejected body must never reach the
-                    // path sing-box reads, not even briefly.
-                    sawMismatch = true
-                    warn("rule set ${set.name}: hash mismatch from ${url.substringBefore("://")}")
-                    continue
-                }
-                directory.mkdirs()
-                // Written aside and moved into place: a half-written file that
-                // is then treated as present would be a corrupt rule set with
-                // no way to notice.
-                val partial = File(directory, "${set.name}.part")
-                partial.writeBytes(bytes)
-                if (!partial.renameTo(target)) {
-                    partial.delete()
-                    throw IOException("could not move into place")
-                }
-                return target
-            } catch (e: Exception) {
-                // The URL is not logged in full: it is a CDN path today, but
-                // the shape is the same as a subscription URL and that rule is
-                // absolute.
-                warn("rule set ${set.name}: ${e.javaClass.simpleName} from ${url.substringBefore("://")}")
+    private suspend fun obtain(set: PinnedRuleSet): File? =
+        when (val result = cache.obtain(set)) {
+            is PinnedFileCache.Result.Obtained -> result.file
+            is PinnedFileCache.Result.Failed -> {
+                _failure.value = RuleSetFailure(name = set.name, reason = result.reason)
+                null
             }
         }
-
-        _failure.value = RuleSetFailure(
-            name = set.name,
-            reason = if (sawMismatch) {
-                RuleSetFailure.Reason.HASH_MISMATCH
-            } else {
-                RuleSetFailure.Reason.DOWNLOAD_FAILED
-            },
-        )
-        return null
-    }
-
-    private fun matches(file: File, expected: String): Boolean = runCatching {
-        sha256(file.readBytes()).equals(expected, ignoreCase = true)
-    }.getOrDefault(false)
 
     companion object {
         /**
@@ -236,9 +190,7 @@ class FileMainlandRuleSetStore(
         private const val MAX_BYTES = 32 * 1024 * 1024
         private const val USER_AGENT = "Starveil"
 
-        internal fun sha256(bytes: ByteArray): String =
-            MessageDigest.getInstance("SHA-256").digest(bytes)
-                .joinToString("") { "%02x".format(it) }
+        internal fun sha256(bytes: ByteArray): String = PinnedFileCache.sha256(bytes)
 
         suspend fun httpGet(url: String): ByteArray = withContext(Dispatchers.IO) {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {

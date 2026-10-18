@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.rules
 
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 @Singleton
 class RuleSetFailureReporter @Inject constructor(
     private val store: MainlandRuleSetStore,
+    private val packs: RulePackStore,
 ) {
 
     fun start(scope: CoroutineScope) {
@@ -30,6 +32,14 @@ class RuleSetFailureReporter @Inject constructor(
                 KernelDiagnostics.logError(
                     "rule set ${failure.name}: ${failure.reason.name.lowercase()}; " +
                         "mainland preset disabled",
+                )
+            }
+        }
+        scope.launch {
+            packs.failure.collect { failure ->
+                if (failure == null) return@collect
+                KernelDiagnostics.logError(
+                    "rule pack ${failure.id}: ${failure.reason.name.lowercase()}; pack disabled",
                 )
             }
         }

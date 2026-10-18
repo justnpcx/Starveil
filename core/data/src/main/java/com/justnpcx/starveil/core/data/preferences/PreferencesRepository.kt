@@ -102,6 +102,23 @@ interface PreferencesRepository {
     val blockAds: Flow<Boolean>
 
     /**
+     * Rule packs the user subscribed to, by [com.justnpcx.starveil.core.data.ruleset.RulePack.id].
+     *
+     * Ids rather than a list of definitions: the pack's URL and hash live in
+     * the app, so a stored subscription cannot point the downloader somewhere
+     * else. An id this build no longer knows is simply ignored.
+     */
+    val subscribedRulePacks: Flow<Set<String>>
+
+    /**
+     * Whether the local Clash-compatible API is served.
+     *
+     * Off by default: it is a developer tool, and a listening socket is not
+     * something to turn on for someone who did not ask for it.
+     */
+    val localApiEnabled: Flow<Boolean>
+
+    /**
      * Scenes, in the order the user arranged them.
      *
      * The order is the priority: the first scene whose trigger matches is the
@@ -168,6 +185,16 @@ interface PreferencesRepository {
 
     suspend fun setBlockAds(enabled: Boolean)
 
+    /**
+     * Subscribe to or leave one pack.
+     *
+     * One id at a time rather than a whole set: the toggle is the only caller,
+     * and two quick taps must not race into a lost update.
+     */
+    suspend fun setRulePackSubscribed(id: String, subscribed: Boolean)
+
+    suspend fun setLocalApiEnabled(enabled: Boolean)
+
     suspend fun setScenes(scenes: List<Scene>)
 
     suspend fun recordManualPresetChange(atEpochMs: Long)
@@ -215,6 +242,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
         val ROUTE_PRESET = stringPreferencesKey("route_preset")
         val BLOCK_ADS = booleanPreferencesKey("block_ads")
+        val RULE_PACKS = stringPreferencesKey("subscribed_rule_packs")
+        val LOCAL_API = booleanPreferencesKey("local_api_enabled")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
@@ -310,12 +339,42 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.BLOCK_ADS] ?: false }
 
+    override val subscribedRulePacks: Flow<Set<String>> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs ->
+            prefs[Keys.RULE_PACKS].orEmpty()
+                .split(',')
+                .filter { it.isNotEmpty() }
+                .toSet()
+        }
+
+    override val localApiEnabled: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.LOCAL_API] ?: false }
+
     override suspend fun setRoutePreset(preset: RoutePreset) {
         dataStore.edit { it[Keys.ROUTE_PRESET] = preset.name }
     }
 
     override suspend fun setBlockAds(enabled: Boolean) {
         dataStore.edit { it[Keys.BLOCK_ADS] = enabled }
+    }
+
+    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) {
+        dataStore.edit { prefs ->
+            // Read and write inside one edit: two toggles in flight are then
+            // serialised by DataStore instead of overwriting each other.
+            val current = prefs[Keys.RULE_PACKS].orEmpty()
+                .split(',')
+                .filter { it.isNotEmpty() }
+                .toMutableSet()
+            if (subscribed) current += id else current -= id
+            prefs[Keys.RULE_PACKS] = current.joinToString(",")
+        }
+    }
+
+    override suspend fun setLocalApiEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.LOCAL_API] = enabled }
     }
 
     override suspend fun setAutoReconnect(enabled: Boolean) {

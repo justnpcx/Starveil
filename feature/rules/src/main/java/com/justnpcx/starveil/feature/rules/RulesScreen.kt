@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.feature.rules
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,12 +53,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
+import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.model.FlowOutcome
 import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.RulePack
+import com.justnpcx.starveil.core.model.RulePackAction
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
 import com.justnpcx.starveil.core.ui.components.EmptyState
@@ -80,6 +85,7 @@ fun RulesScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
+    var showMarket by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Rule?>(null) }
     var pendingDelete by remember { mutableStateOf<Rule?>(null) }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
@@ -95,6 +101,14 @@ fun RulesScreen(
     LaunchedEffect(ruleSetFailure) {
         if (ruleSetFailure != null) {
             snackbar.showSnackbar(context.getString(R.string.rules_ruleset_failed))
+        }
+    }
+    val packFailure = state.rulePackFailure
+    LaunchedEffect(packFailure) {
+        if (packFailure != null) {
+            snackbar.showSnackbar(
+                context.getString(R.string.rules_market_failed, packTitle(context, packFailure.id)),
+            )
         }
     }
 
@@ -132,8 +146,11 @@ fun RulesScreen(
                         failed = state.ruleSetFailure != null,
                         presetRules = state.presetRules,
                         userRuleCount = state.enabledUserRules,
+                        subscribedPacks = state.subscribedPacks,
+                        availablePacks = state.availablePacks,
                         onSelect = viewModel::setPreset,
                         onToggleAds = viewModel::setBlockAds,
+                        onOpenMarket = { showMarket = true },
                         onOpenPerApp = onOpenPerApp,
                         onOpenScenes = onOpenScenes,
                     )
@@ -238,6 +255,109 @@ fun RulesScreen(
             },
         )
     }
+
+    if (showMarket) {
+        RuleMarketDialog(
+            packs = state.availablePacks,
+            subscribed = state.subscribedPacks,
+            failure = state.rulePackFailure,
+            onToggle = viewModel::setPackSubscribed,
+            onDismiss = { showMarket = false },
+        )
+    }
+}
+
+/**
+ * The market, as a sheet over the rules page rather than a screen of its own.
+ *
+ * A pack is one switch and one line of explanation; a destination with its own
+ * back stack would be more navigation than content. When phase two adds
+ * user-supplied sources it will need a screen — the entry point is already a
+ * single callback, so that is where it changes.
+ */
+@Composable
+private fun RuleMarketDialog(
+    packs: List<RulePack>,
+    subscribed: Set<String>,
+    failure: RulePackFailure?,
+    onToggle: (String, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rules_market_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+            ) {
+                Text(
+                    text = stringResource(R.string.rules_market_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (failure != null) {
+                    Text(
+                        text = stringResource(
+                            R.string.rules_market_failed,
+                            packTitle(LocalContext.current, failure.id),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                packs.forEach { pack ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = packTitle(LocalContext.current, pack.id),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = packDescription(LocalContext.current, pack.id),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = pack.id in subscribed,
+                            onCheckedChange = { onToggle(pack.id, it) },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.rules_market_close))
+            }
+        },
+    )
+}
+
+/** The pack's name, or its id when a newer build subscribed to something this one does not know. */
+private fun packTitle(context: android.content.Context, id: String): String {
+    val res = when (id) {
+        RulePacks.ADS_ENHANCED.id -> R.string.rules_pack_ads_enhanced
+        RulePacks.ANTI_TRACKING.id -> R.string.rules_pack_anti_tracking
+        RulePacks.STREAMING.id -> R.string.rules_pack_streaming
+        RulePacks.DEVELOPER.id -> R.string.rules_pack_developer
+        RulePacks.AI.id -> R.string.rules_pack_ai
+        else -> return id
+    }
+    return context.getString(res)
+}
+
+private fun packDescription(context: android.content.Context, id: String): String {
+    val res = when (id) {
+        RulePacks.ADS_ENHANCED.id -> R.string.rules_pack_ads_enhanced_desc
+        RulePacks.ANTI_TRACKING.id -> R.string.rules_pack_anti_tracking_desc
+        RulePacks.STREAMING.id -> R.string.rules_pack_streaming_desc
+        RulePacks.DEVELOPER.id -> R.string.rules_pack_developer_desc
+        RulePacks.AI.id -> R.string.rules_pack_ai_desc
+        else -> return ""
+    }
+    return context.getString(res)
 }
 
 @Composable
@@ -507,8 +627,11 @@ private fun RoutePresetCard(
     failed: Boolean,
     presetRules: List<PresetRule>,
     userRuleCount: Int,
+    subscribedPacks: Set<String>,
+    availablePacks: List<RulePack>,
     onSelect: (RoutePreset) -> Unit,
     onToggleAds: (Boolean) -> Unit,
+    onOpenMarket: () -> Unit,
     onOpenPerApp: () -> Unit,
     onOpenScenes: () -> Unit,
 ) {
@@ -578,6 +701,34 @@ private fun RoutePresetCard(
                 Switch(checked = blockAds, onCheckedChange = onToggleAds)
             }
 
+            // The market sits beside the ad switch, not above the presets: it
+            // is a way to extend the policy, not a third policy.
+            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenMarket),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.rules_market_title),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.rules_market_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.rules_market_subscribed, subscribedPacks.size),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+
             HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
 
             // What the kernel will actually be told, not what the switches
@@ -592,7 +743,7 @@ private fun RoutePresetCard(
                 Text(
                     text = stringResource(
                         R.string.rules_effective_count,
-                        presetRules.size + userRuleCount,
+                        presetRules.size + subscribedPacks.size + userRuleCount,
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
@@ -619,6 +770,25 @@ private fun RoutePresetCard(
                                     PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
                                     PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
                                 },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // Named, not counted: "3 rules in force" answers how many,
+                    // and the next question is which pack is doing it.
+                    availablePacks.filter { it.id in subscribedPacks }.forEach { pack ->
+                        Text(
+                            text = stringResource(
+                                R.string.rules_effective_pack,
+                                packTitle(LocalContext.current, pack.id),
+                                stringResource(
+                                    if (pack.action == RulePackAction.REJECT) {
+                                        R.string.rules_action_block
+                                    } else {
+                                        R.string.rules_action_proxy
+                                    },
+                                ),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -2,8 +2,12 @@ package com.justnpcx.starveil.feature.dashboard
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
+import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
+import com.justnpcx.starveil.core.model.InstalledRulePack
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
@@ -628,6 +632,8 @@ class DashboardViewModelTest {
             preferences = preferences,
             configBuilder = ConfigBuilder(ProtocolRegistry.default()),
             mainlandRuleSets = mainlandRuleSets,
+            rulePackStore = NoRulePacks,
+            localApiToken = FakeTokens,
             timing = ConnectClock { },
         ).apply {
             // Config building hops threads in production; in a test that
@@ -654,6 +660,16 @@ class DashboardViewModelTest {
         override suspend fun ensure() = null
         override suspend fun ensureAds(): String? = null
         override val failure: StateFlow<RuleSetFailure?> = MutableStateFlow(null)
+    }
+
+    private object FakeTokens : LocalApiTokenStore {
+        override fun token(): String = "test-token"
+        override fun reset(): String = "test-token"
+    }
+
+    private object NoRulePacks : RulePackStore {
+        override suspend fun ensure(ids: Set<String>) = emptyList<InstalledRulePack>()
+        override val failure: StateFlow<RulePackFailure?> = MutableStateFlow(null)
     }
 
     private fun profile(id: Long, name: String, country: String? = null) = Profile(
@@ -729,6 +745,9 @@ private class FakePreferences(
     private val ads = MutableStateFlow(false)
     override val routePreset: Flow<RoutePreset> = preset
     override val blockAds: Flow<Boolean> = ads
+    private val rulePacks = MutableStateFlow<Set<String>>(emptySet())
+    override val subscribedRulePacks: Flow<Set<String>> = rulePacks
+    override val localApiEnabled: Flow<Boolean> = flowOf(false)
     // Real rather than notUsed(): the connect path reads it on every build.
     private val perAppRoutesFlow = MutableStateFlow<Map<String, AppRoute>>(emptyMap())
     override val perAppRoutes: Flow<Map<String, AppRoute>> = perAppRoutesFlow
@@ -777,6 +796,11 @@ private class FakePreferences(
         ads.value = enabled
         wrote()
     }
+    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) {
+        rulePacks.value = if (subscribed) rulePacks.value + id else rulePacks.value - id
+        wrote()
+    }
+    override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }

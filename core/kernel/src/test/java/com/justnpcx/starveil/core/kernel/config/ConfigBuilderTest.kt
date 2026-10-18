@@ -2,6 +2,8 @@ package com.justnpcx.starveil.core.kernel.config
 
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Hysteria2Settings
+import com.justnpcx.starveil.core.model.InstalledRulePack
+import com.justnpcx.starveil.core.model.LocalApiConfig
 import com.justnpcx.starveil.core.model.MainlandRuleSets
 import com.justnpcx.starveil.core.model.MatcherKind
 import com.justnpcx.starveil.core.model.ObfsOptions
@@ -14,6 +16,8 @@ import com.justnpcx.starveil.core.model.RealityOptions
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.model.RuleMatcher
+import com.justnpcx.starveil.core.model.RulePack
+import com.justnpcx.starveil.core.model.RulePackAction
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TlsOptions
@@ -743,6 +747,87 @@ class ConfigBuilderTest {
         )
         assertTrue(json.contains("\"final\":\"direct\""))
         assertTrue(json.contains("\"rule_set\":\"ads\",\"action\":\"reject\""))
+    }
+
+    @Test
+    fun `a subscribed pack is declared and its rule is emitted in order`() {
+        val json = builder.build(
+            vlessProfile(),
+            rules = listOf(
+                Rule(
+                    matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "example.com"),
+                    action = RuleAction.DIRECT,
+                    order = 0,
+                ),
+            ),
+            perApp = listOf(PerAppOutbound.Direct(setOf("com.example.app"))),
+            rulePacks = listOf(
+                pack("ads-enhanced", RulePackAction.REJECT),
+                pack("streaming", RulePackAction.PROXY),
+            ),
+        )
+        val route = json.substringAfter("\"route\":{").substringAfter("\"rules\":[")
+        val app = route.indexOf("\"package_name\"")
+        val reject = route.indexOf("\"rule_set\":\"pack-ads-enhanced\",\"action\":\"reject\"")
+        val proxy = route.indexOf(
+            "\"rule_set\":\"pack-streaming\",\"action\":\"route\",\"outbound\":\"proxy\"",
+        )
+        val user = route.indexOf("\"domain_suffix\":[\"example.com\"]")
+
+        assertTrue(reject >= 0)
+        assertTrue(proxy >= 0)
+        // Per-app is still the most specific thing the user can say.
+        assertTrue("per-app comes first", app < reject)
+        // And a rule someone wrote by hand can override a pack.
+        assertTrue("user rules come after packs", proxy < user)
+        // Both sets are declared, or the rules reference nothing.
+        assertTrue(json.contains("\"tag\":\"pack-ads-enhanced\""))
+        assertTrue(json.contains("\"tag\":\"pack-streaming\""))
+        assertTrue(json.contains("\"path\":\"/files/rulepacks/streaming.srs\""))
+    }
+
+    @Test
+    fun `a proxy pack names the proxy even when everything else is direct`() {
+        val json = builder.build(
+            vlessProfile(),
+            preset = RoutePreset.GLOBAL_DIRECT,
+            rulePacks = listOf(pack("streaming", RulePackAction.PROXY)),
+        )
+
+        assertTrue(json.contains("\"final\":\"direct\""))
+        // The final is direct, so naming it here would send the pack's domains
+        // the wrong way — the opposite of what subscribing means.
+        assertTrue(
+            json.contains(
+                "\"rule_set\":\"pack-streaming\",\"action\":\"route\",\"outbound\":\"proxy\"",
+            ),
+        )
+    }
+
+    private fun pack(id: String, action: RulePackAction) = InstalledRulePack(
+        pack = RulePack(
+            id = id,
+            name = id,
+            action = action,
+            fileName = "$id.srs",
+            sha256 = "",
+            urls = emptyList(),
+        ),
+        path = "/files/rulepacks/$id.srs",
+    )
+
+    @Test
+    fun `the local API is absent by default and loopback-only when asked for`() {
+        val off = builder.build(vlessProfile())
+        assertTrue("the traffic manager needs the key even when off", off.contains("\"clash_api\":{}"))
+        assertFalse(off.contains("external_controller"))
+
+        val on = builder.build(vlessProfile(), localApi = LocalApiConfig("tok-123"))
+        assertTrue(on.contains("\"external_controller\":\"127.0.0.1:9090\""))
+        assertTrue(on.contains("\"secret\":\"tok-123\""))
+        // Never a wildcard address: the listener must not be reachable from
+        // the LAN, which is the acceptance criterion this line protects.
+        assertFalse(on.contains("\"external_controller\":\"0.0.0.0"))
     }
 
     @Test

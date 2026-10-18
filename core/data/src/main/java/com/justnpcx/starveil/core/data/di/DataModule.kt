@@ -6,7 +6,9 @@ import com.justnpcx.starveil.core.data.StarveilDatabase
 import com.justnpcx.starveil.core.data.StarveilMigrations
 import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.ContentResolverBackupFileStore
+import com.justnpcx.starveil.core.data.crypto.KeystoreLocalApiTokenStore
 import com.justnpcx.starveil.core.data.crypto.KeystoreSecretStore
+import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.dao.GroupDao
 import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.dao.ProfileDao
@@ -15,7 +17,9 @@ import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepositor
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.geo.DohResolver
 import com.justnpcx.starveil.core.data.ruleset.FileMainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.FileRulePackStore
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import java.io.File
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
@@ -57,6 +61,20 @@ object DataModule {
     )
 
     /**
+     * Its own directory: a pack's file name is the upstream one, and the
+     * mainland preset already owns `geosite-cn.srs` — sharing a directory would
+     * make one feature's cleanup another's missing file.
+     */
+    @Provides
+    @Singleton
+    fun provideRulePackStore(
+        @ApplicationContext context: Context,
+    ): RulePackStore = FileRulePackStore(
+        directory = File(context.filesDir, "rulepacks"),
+        warn = { android.util.Log.w("StarveilRulePacks", it) },
+    )
+
+    /**
      * One resolver for the whole process: its concurrency limit and the cache
      * above it are only meaningful if every node lookup goes through the same
      * instance.
@@ -72,6 +90,12 @@ object DataModule {
     fun provideKeystoreSecretStore(
         @ApplicationContext context: Context,
     ): KeystoreSecretStore = KeystoreSecretStore(context)
+
+    @Provides
+    @Singleton
+    fun provideLocalApiTokenStore(
+        @ApplicationContext context: Context,
+    ): LocalApiTokenStore = KeystoreLocalApiTokenStore(context)
 
     @Provides
     @Singleton

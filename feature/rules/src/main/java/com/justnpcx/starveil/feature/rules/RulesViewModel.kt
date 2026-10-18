@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
+import com.justnpcx.starveil.core.data.ruleset.RulePackStore
+import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.model.FlowRecord
@@ -13,6 +16,7 @@ import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.model.RuleMatcher
+import com.justnpcx.starveil.core.model.RulePack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +53,12 @@ data class RulesUiState(
      * page would claim a policy the kernel was never given.
      */
     val ruleSetFailure: RuleSetFailure? = null,
+    /** The curated packs this build offers, in display order. */
+    val availablePacks: List<RulePack> = RulePacks.ALL,
+    /** Packs the user subscribed to, by id. */
+    val subscribedPacks: Set<String> = emptySet(),
+    /** A subscribed pack whose file could not be verified; it is not in force. */
+    val rulePackFailure: RulePackFailure? = null,
 ) {
     val isEmpty: Boolean get() = !loading && rules.isEmpty()
 
@@ -69,6 +79,9 @@ data class RulesUiState(
         }
 
     val enabledUserRules: Int get() = rules.count { it.enabled }
+
+    /** What the page claims is in force, across the preset, packs and rules. */
+    val effectiveRuleCount: Int get() = presetRules.size + subscribedPacks.size + enabledUserRules
 }
 
 /** One rule the preset emits, for the transparency list. */
@@ -99,7 +112,14 @@ class RulesViewModel @Inject constructor(
     private val flowLog: FlowLog,
     private val preferences: PreferencesRepository,
     private val ruleSets: MainlandRuleSetStore,
+    private val packStore: RulePackStore,
 ) : ViewModel() {
+
+    /** The market's two signals, paired so the outer combine stays at five. */
+    private val packs = combine(
+        preferences.subscribedRulePacks,
+        packStore.failure,
+    ) { subscribed, failure -> subscribed to failure }
 
     val uiState: StateFlow<RulesUiState> =
         combine(
@@ -116,6 +136,11 @@ class RulesViewModel @Inject constructor(
                 preset = preset,
                 blockAds = ads,
                 ruleSetFailure = failure,
+            )
+        }.combine(packs) { state, (subscribed, packFailure) ->
+            state.copy(
+                subscribedPacks = subscribed,
+                rulePackFailure = packFailure,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -135,6 +160,18 @@ class RulesViewModel @Inject constructor(
 
     fun setBlockAds(enabled: Boolean) {
         viewModelScope.launch { preferences.setBlockAds(enabled) }
+    }
+
+    /**
+     * Subscribe to or leave a pack.
+     *
+     * The preference is the whole change: the dashboard watches it and rebuilds
+     * the running config, so a subscription takes effect the same way a preset
+     * change does — no separate "apply" step, and no path where the page says a
+     * pack is on while the tunnel was never told.
+     */
+    fun setPackSubscribed(id: String, subscribed: Boolean) {
+        viewModelScope.launch { preferences.setRulePackSubscribed(id, subscribed) }
     }
 
     /** Appends: the first matching rule wins, so a new one belongs last. */

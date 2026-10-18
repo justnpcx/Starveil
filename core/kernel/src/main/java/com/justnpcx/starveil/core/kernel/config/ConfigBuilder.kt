@@ -3,12 +3,15 @@ package com.justnpcx.starveil.core.kernel.config
 import com.justnpcx.starveil.core.kernel.registry.ConfigPlacement
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.MainlandRuleSets
+import com.justnpcx.starveil.core.model.InstalledRulePack
+import com.justnpcx.starveil.core.model.LocalApiConfig
 import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RuleAction
+import com.justnpcx.starveil.core.model.RulePackAction
 import com.justnpcx.starveil.core.model.json.Json
 
 /**
@@ -35,6 +38,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         perApp: List<PerAppOutbound> = emptyList(),
         preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
         adsPath: String? = null,
+        rulePacks: List<InstalledRulePack> = emptyList(),
+        localApi: LocalApiConfig? = null,
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
@@ -59,6 +64,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             perAppRules = perAppEmission.rules,
             preset = preset,
             adsPath = adsPath,
+            rulePacks = rulePacks,
+            proxyTag = PROXY_TAG,
+            localApi = localApi,
         )
     }
 
@@ -84,6 +92,8 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         perApp: List<PerAppOutbound> = emptyList(),
         preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
         adsPath: String? = null,
+        rulePacks: List<InstalledRulePack> = emptyList(),
+        localApi: LocalApiConfig? = null,
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -142,6 +152,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             perAppRules = perAppEmission.rules,
             preset = preset,
             adsPath = adsPath,
+            rulePacks = rulePacks,
+            proxyTag = AUTO_TAG,
+            localApi = localApi,
         )
     }
 
@@ -183,11 +196,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      */
     private fun routeRules(
         rules: List<Rule>,
+        finalTag: String,
         proxyTag: String,
         mainland: MainlandRuleSets?,
         perAppRules: List<Map<String, Any?>>,
         preset: RoutePreset,
         adsPath: String?,
+        rulePacks: List<InstalledRulePack>,
     ): List<Map<String, Any?>> {
         // Per-app first, and that is a deliberate precedence: someone who says
         // "this app goes this way" means it more specifically than any domain
@@ -220,6 +235,26 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         } else {
             listOf(linkedMapOf<String, Any?>("rule_set" to ADS_TAG, "action" to "reject"))
         }
+        // Subscribed packs, after per-app so an app exception still wins, and
+        // before the user's own rules so a domain someone whitelisted by hand
+        // is not overruled by a pack they subscribed to later.
+        //
+        // A pack that routes to the proxy names [proxyTag], not the route's
+        // final: under "global direct" the final is `direct`, and a streaming
+        // pack that sent its domains direct would be the opposite of what the
+        // user subscribed to.
+        val packs = rulePacks.map { installed ->
+            when (installed.pack.action) {
+                RulePackAction.REJECT ->
+                    linkedMapOf<String, Any?>("rule_set" to installed.pack.tag, "action" to "reject")
+
+                RulePackAction.PROXY -> linkedMapOf<String, Any?>(
+                    "rule_set" to installed.pack.tag,
+                    "action" to "route",
+                    "outbound" to proxyTag,
+                )
+            }
+        }
         // The local network, in every preset. A private address is not a
         // destination anyone wants proxied: the router, the NAS, a printer, and
         // SSDP/DLNA discovery all live there, and `final: proxy` would send
@@ -241,14 +276,14 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // out: a missing rule set means the preset silently degrades, and the
         // rules must degrade with it.
         if (preset != RoutePreset.BYPASS_MAINLAND || mainland == null) {
-            return ads + perApp + lan + userRules
+            return ads + perApp + packs + lan + userRules
         }
         // After the user's own rules and before `final`: the user's intent wins
         // over the preset, which is the only order that lets someone carve an
         // exception out of it. geosite-cn is a domain match, so a domestic
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
-        return ads + perApp + lan + userRules + listOf(
+        return ads + perApp + packs + lan + userRules + listOf(
             linkedMapOf<String, Any?>(
                 "rule_set" to GEOSITE_CN_TAG,
                 "action" to "route",
@@ -515,6 +550,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         perAppRules: List<Map<String, Any?>> = emptyList(),
         preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
         adsPath: String? = null,
+        rulePacks: List<InstalledRulePack> = emptyList(),
+        proxyTag: String = finalTag,
+        localApi: LocalApiConfig? = null,
         cacheFileName: String = "cache.db",
     ): String {
         val config = linkedMapOf<String, Any?>(
@@ -530,7 +568,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             config["endpoints"] = endpoints
         }
         config["route"] = linkedMapOf<String, Any?>(
-            "rules" to routeRules(rules, finalTag, mainland, perAppRules, preset, adsPath),
+            "rules" to routeRules(rules, finalTag, proxyTag, mainland, perAppRules, preset, adsPath, rulePacks),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
             // The dialer installs the bind/protect control, which reaches
@@ -544,6 +582,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         val ruleSets = buildList {
             if (mainland != null) addAll(mainlandRuleSets(mainland))
             if (adsPath != null) add(adsRuleSet(adsPath))
+            rulePacks.forEach { installed ->
+                add(
+                    linkedMapOf<String, Any?>(
+                        "type" to "local",
+                        "tag" to installed.pack.tag,
+                        "format" to "binary",
+                        "path" to installed.path,
+                    ),
+                )
+            }
         }
         if (ruleSets.isNotEmpty()) {
             // Inserted rather than appended so the emitted JSON reads in the
@@ -570,7 +618,18 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // An empty controller opens no HTTP listener: the server is created
         // but never bound.
         config["experimental"] = linkedMapOf<String, Any?>(
-            "clash_api" to emptyMap<String, Any?>(),
+            // Off is an empty object, not an omitted key: the traffic manager
+            // only exists when `clash_api` is present, and the dashboard's
+            // rates depend on it. On adds a listener on loopback and the token
+            // the kernel checks every request against.
+            "clash_api" to if (localApi == null) {
+                emptyMap<String, Any?>()
+            } else {
+                linkedMapOf<String, Any?>(
+                    "external_controller" to localApi.controller,
+                    "secret" to localApi.token,
+                )
+            },
             // Named even when nothing is cached: the daemon forces the cache
             // file on (it passes itself as the platform log writer), so the
             // path is always opened and has to be a distinct one per policy.

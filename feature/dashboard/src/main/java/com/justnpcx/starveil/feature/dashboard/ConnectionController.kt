@@ -1,18 +1,23 @@
 package com.justnpcx.starveil.feature.dashboard
 
+import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.GroupMode
+import com.justnpcx.starveil.core.model.LocalApi
+import com.justnpcx.starveil.core.model.LocalApiConfig
 import com.justnpcx.starveil.core.model.PerAppOutbound
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.RoutePreset
@@ -76,6 +81,8 @@ class ConnectionController @Inject constructor(
     private val preferences: PreferencesRepository,
     private val configBuilder: ConfigBuilder,
     private val mainlandRuleSets: MainlandRuleSetStore,
+    private val rulePackStore: RulePackStore,
+    private val localApiToken: LocalApiTokenStore,
     private val timing: ConnectClock,
 ) {
 
@@ -123,6 +130,16 @@ class ConnectionController @Inject constructor(
         // Stacked on top of any preset, and independent of it: a failed
         // download leaves ads unblocked rather than taking the routing with it.
         val ads = if (preferences.blockAds.first()) mainlandRuleSets.ensureAds() else null
+        // Subscribed packs, on the same terms: one that cannot be verified is
+        // left out of this config and reported, and the tunnel still comes up.
+        val packs = rulePackStore.ensure(preferences.subscribedRulePacks.first())
+        // The token is read from the Keystore, which is disk and crypto work:
+        // off the caller's thread, and only when the feature is on.
+        val localApi = if (preferences.localApiEnabled.first()) {
+            withContext(Dispatchers.IO) { LocalApiConfig(localApiToken.token()) }
+        } else {
+            null
+        }
 
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
@@ -140,6 +157,8 @@ class ConnectionController @Inject constructor(
                         perApp = perApp,
                         preset = preset,
                         adsPath = ads,
+                        rulePacks = packs,
+                        localApi = localApi,
                     )
 
                     is Target.Group -> configBuilder.build(
@@ -150,6 +169,8 @@ class ConnectionController @Inject constructor(
                         perApp = perApp,
                         preset = preset,
                         adsPath = ads,
+                        rulePacks = packs,
+                        localApi = localApi,
                     )
 
                     Target.None -> null
@@ -161,6 +182,11 @@ class ConnectionController @Inject constructor(
 
         val result = kernel.start(config)
         return if (result.isSuccess) {
+            // A listener was opened on this device; say so where the user can
+            // find it. The token itself is never logged.
+            if (localApi != null) {
+                KernelDiagnostics.log("local API listening on ${LocalApi.address} (loopback only)")
+            }
             ConnectionOutcome.Connected(target.label())
         } else {
             // The bridge reports a redacted reason (PRD §8.3: tell the truth on
