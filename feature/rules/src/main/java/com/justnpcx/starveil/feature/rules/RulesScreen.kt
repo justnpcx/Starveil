@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,9 +41,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,15 +53,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
 import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.model.FlowOutcome
 import com.justnpcx.starveil.core.model.FlowRecord
+import com.justnpcx.starveil.core.model.FlowGroup
 import com.justnpcx.starveil.core.model.MatcherKind
+import com.justnpcx.starveil.core.model.groupFlow
 import com.justnpcx.starveil.core.model.Rule
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.RuleAction
@@ -68,6 +77,9 @@ import com.justnpcx.starveil.core.ui.components.rememberAppearance
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Rules — the routing table, in the order it is evaluated.
@@ -88,6 +100,8 @@ fun RulesScreen(
     var showMarket by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Rule?>(null) }
     var pendingDelete by remember { mutableStateOf<Rule?>(null) }
+    var showAllFlow by remember { mutableStateOf(false) }
+    var flowExpanded by remember { mutableStateOf(false) }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
@@ -159,22 +173,20 @@ fun RulesScreen(
                 // The kernel's actual decisions sit above the rules that were
                 // meant to produce them: the list is what was configured, this
                 // is what happened, and the difference is the whole point.
-                item(key = FLOW_HEADER_KEY) { FlowHeader(state.recentFlow.isEmpty()) }
-                state.recentFlow.take(SHOWN_FLOW_ROWS).forEach { record ->
-                    item(key = "flow-${record.connectionId}") { FlowRow(record) }
+                item(key = FLOW_HEADER_KEY) {
+                    FlowSection(
+                        records = state.recentFlow,
+                        expanded = flowExpanded,
+                        onToggleExpanded = { flowExpanded = !flowExpanded },
+                        onOpenAll = { showAllFlow = true },
+                    )
                 }
 
                 if (state.isEmpty) {
                     item(key = "empty") {
                         EmptyState(
                             title = stringResource(R.string.rules_empty_title),
-                            body = stringResource(
-                                when (state.preset) {
-                                    RoutePreset.BYPASS_MAINLAND -> R.string.rules_empty_body_bypass
-                                    RoutePreset.GLOBAL_PROXY -> R.string.rules_empty_body_proxy
-                                    RoutePreset.GLOBAL_DIRECT -> R.string.rules_empty_body_direct
-                                },
-                            ),
+                            body = stringResource(R.string.rules_empty_body),
                             // The FAB floats over this corner; the text wraps
                             // before it rather than under it.
                             modifier = Modifier.padding(end = 88.dp),
@@ -263,6 +275,16 @@ fun RulesScreen(
             failure = state.rulePackFailure,
             onToggle = viewModel::setPackSubscribed,
             onDismiss = { showMarket = false },
+        )
+    }
+
+    if (showAllFlow) {
+        AllFlowDialog(
+            records = state.recentFlow,
+            onDismiss = { showAllFlow = false },
+            // Reserved for Tap-to-Route (docs/16): the row is already the
+            // target, so the gesture does not have to be invented later.
+            onRecordClick = { },
         )
     }
 }
@@ -494,66 +516,262 @@ private fun RuleDialog(
     )
 }
 
+/**
+ * Recent decisions, grouped: which rule sent traffic where, and how often.
+ *
+ * The list used to show five connections and push the rules off the screen.
+ * Fifty connections are rarely fifty different answers — grouping is what
+ * makes them fit, and the count is the signal: the rule that matched 40 of 50
+ * is the rule that explains the tunnel.
+ */
 @Composable
-private fun FlowHeader(empty: Boolean) {
+private fun FlowSection(
+    records: List<FlowRecord>,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onOpenAll: () -> Unit,
+) {
+    val groups = remember(records) { groupFlow(records) }
+    val shown = if (expanded) groups else groups.take(GROUP_ROWS)
+
     Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-        Text(
-            text = stringResource(R.string.rules_flow_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = StarveilSpacing.sm),
-        )
-        if (empty) {
+        Row(
+            // Inset like the preset card's content, so the section header and
+            // the card's first line share a left edge.
+            modifier = Modifier.padding(start = StarveilSpacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.rules_flow_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = StarveilSpacing.sm),
+            )
+            if (records.isNotEmpty()) {
+                TextButton(
+                    onClick = onOpenAll,
+                    contentPadding = PaddingValues(horizontal = 0.dp),
+                ) {
+                    Text(stringResource(R.string.rules_flow_view_all, records.size))
+                }
+            }
+        }
+
+        if (records.isEmpty()) {
             Text(
                 text = stringResource(R.string.rules_flow_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = StarveilSpacing.lg),
             )
+        } else {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = StarveilSpacing.lg,
+                        vertical = StarveilSpacing.sm,
+                    ),
+                ) {
+                    shown.forEach { group -> FlowGroupRow(group) }
+                    if (groups.size > GROUP_ROWS) {
+                        TextButton(
+                            onClick = onToggleExpanded,
+                            contentPadding = PaddingValues(horizontal = 0.dp),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (expanded) {
+                                        R.string.rules_flow_collapse
+                                    } else {
+                                        R.string.rules_flow_expand
+                                    },
+                                    groups.size,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+/** One summary line: the rule, where it sent traffic, and how many times. */
+@Composable
+private fun FlowGroupRow(group: FlowGroup) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = StarveilSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = group.rule.ifBlank { stringResource(R.string.rules_flow_default_rule) },
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = stringResource(
+                R.string.rules_flow_group,
+                stringResource(group.outcome.labelRes()),
+                group.count,
+            ),
+            style = MaterialTheme.typography.labelLarge,
+            color = group.outcome.colour(),
+        )
+    }
+}
+
 /**
- * One real decision: where the request went, which rule sent it there, and how.
+ * Every decision, densely, with a search and a scroll that pauses the feed.
  *
- * Three lines rather than a drawn graph. A graph would have to be laid out from
- * something, and the only honest something is this record — so it is shown
- * directly instead of being redrawn as a diagram that could drift from it.
+ * Pausing is not a preference: a list that reorders under a moving finger is
+ * unreadable, so while the list is scrolling it shows the snapshot taken when
+ * the scroll began and picks the live feed back up when it stops.
+ *
+ * Rows are already clickable; the handler is empty until Tap-to-Route lands
+ * (docs/16), so the gesture does not have to be retrofitted later.
  */
 @Composable
-private fun FlowRow(record: FlowRecord) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+private fun AllFlowDialog(
+    records: List<FlowRecord>,
+    onDismiss: () -> Unit,
+    onRecordClick: (FlowRecord) -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = record.label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(record.outcome.labelRes()),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = record.outcome.colour(),
-                )
+        Surface(modifier = Modifier.fillMaxSize()) {
+            var query by remember { mutableStateOf("") }
+            val listState = rememberLazyListState()
+            val scrolling by remember { derivedStateOf { listState.isScrollInProgress } }
+            val latest by rememberUpdatedState(records)
+            var frozen by remember { mutableStateOf<List<FlowRecord>>(emptyList()) }
+            LaunchedEffect(scrolling) {
+                if (scrolling) frozen = latest
             }
-            // The rule in the kernel's own words. Deliberately not translated
-            // into the list's vocabulary: it is quoted, not restated, and
-            // restating it is how a viewer starts disagreeing with the kernel.
-            if (record.rule.isNotBlank()) {
-                Text(
-                    text = record.rule,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+            val source = if (scrolling) frozen else records
+            val needle = query.trim()
+            val filtered = remember(source, needle) {
+                if (needle.isEmpty()) {
+                    source
+                } else {
+                    source.filter { record ->
+                        record.label.contains(needle, ignoreCase = true) ||
+                            record.destination.contains(needle, ignoreCase = true) ||
+                            record.rule.contains(needle, ignoreCase = true)
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = StarveilSpacing.lg,
+                            top = StarveilSpacing.lg,
+                            end = StarveilSpacing.sm,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.rules_flow_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (scrolling) {
+                        Text(
+                            text = stringResource(R.string.rules_flow_paused),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.rules_flow_close))
+                    }
+                }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.rules_flow_search_hint)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
                 )
+                if (filtered.isEmpty()) {
+                    EmptyState(
+                        title = stringResource(R.string.rules_flow_no_match_title),
+                        body = stringResource(R.string.rules_flow_no_match_body),
+                    )
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = StarveilSpacing.lg,
+                            end = StarveilSpacing.lg,
+                            bottom = StarveilSpacing.lg,
+                        ),
+                    ) {
+                        items(filtered, key = { it.connectionId }) { record ->
+                            DenseFlowRow(record, onClick = { onRecordClick(record) })
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+/** One line: time, what was asked for, which rule, where it went. */
+@Composable
+private fun DenseFlowRow(record: FlowRecord, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
+    ) {
+        Text(
+            text = FLOW_TIME.format(
+                Instant.ofEpochMilli(record.createdAtMs).atZone(ZoneId.systemDefault()),
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = record.label,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1.2f),
+        )
+        Text(
+            text = record.rule.ifBlank { stringResource(R.string.rules_flow_default_rule) },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1.3f),
+        )
+        Text(
+            text = stringResource(record.outcome.labelRes()),
+            style = MaterialTheme.typography.labelSmall,
+            color = record.outcome.colour(),
+        )
     }
 }
 
@@ -581,13 +799,15 @@ private const val PRESET_KEY = "mainland-preset"
 private val CARD_CORNER = 16.dp
 
 /**
- * How many decisions are shown above the rule list.
+ * How many groups the summary shows before "show all".
  *
- * The adapter keeps a longer ring; this is what is glanceable. Showing the
- * whole ring here would push the rules off the screen, and the rules are what
- * this screen is for.
+ * The adapter keeps a ring of 100; this is what is glanceable. The rest are one
+ * tap away in the full list, which is where 100 rows belong.
  */
-private const val SHOWN_FLOW_ROWS = 5
+private const val GROUP_ROWS = 5
+
+/** The same shape the log viewer uses, so two lists of times read alike. */
+private val FLOW_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
 @Composable
 private fun kindLabel(kind: MatcherKind): String = stringResource(
@@ -691,6 +911,10 @@ private fun RoutePresetCard(
                     Text(
                         text = stringResource(R.string.rules_block_ads_title),
                         style = MaterialTheme.typography.titleSmall,
+                        // The card's content colour is onSurfaceVariant, which
+                        // reads as disabled on a toggle that is actually on.
+                        // The title is onSurface; the description stays dim.
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = stringResource(R.string.rules_block_ads_desc),
@@ -740,11 +964,23 @@ private fun RoutePresetCard(
                     .clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // One definition, used by both branches: a pack is one
+                // rule_set match, the preset contributes the rules it emits
+                // (LAN always, ads when on, the two mainland ones), and only
+                // enabled user rules count. Ads and LAN are therefore system
+                // rules, not user ones — the expanded list names them.
+                val systemRules = presetRules.size + subscribedPacks.size
                 Text(
-                    text = stringResource(
-                        R.string.rules_effective_count,
-                        presetRules.size + subscribedPacks.size + userRuleCount,
-                    ),
+                    text = if (userRuleCount == 0) {
+                        stringResource(R.string.rules_effective_count_system, systemRules)
+                    } else {
+                        stringResource(
+                            R.string.rules_effective_count,
+                            systemRules + userRuleCount,
+                            systemRules,
+                            userRuleCount,
+                        )
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )

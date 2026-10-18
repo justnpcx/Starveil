@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="rules_title">Rules</string>
-    <string name="rules_empty_title">No rules yet</string>
-    <string name="rules_empty_body">Everything goes through the proxy. Add a rule to send matching traffic direct, block it, or pick a specific node.</string>
+    <string name="rules_empty_title">No rules of your own</string>
+    <string name="rules_empty_body">Add a rule with the + button: send matching traffic direct, block it, or pick a node.</string>
 
     <!-- Matcher kinds, mirroring sing-box's rule fields. -->
     <string name="rules_kind_domain">Domain</string>
@@ -20,11 +20,21 @@
     <string name="rules_edit_title">Edit rule</string>
     <string name="rules_match_label">Match</string>
     <string name="rules_value_label">Value</string>
-    <string name="rules_action_label">Then</string>
+    <string name="rules_action_label">Action</string>
     <!-- Recent flow: what the kernel actually did, shown above the rules that
          were supposed to produce it. -->
     <string name="rules_flow_title">Recent flow</string>
     <string name="rules_flow_empty">Nothing routed yet. Decisions appear here as the kernel makes them.</string>
+    <string name="rules_flow_view_all">View all (%1$d)</string>
+    <string name="rules_flow_group">→ %1$s × %2$d</string>
+    <string name="rules_flow_default_rule">Default rule</string>
+    <string name="rules_flow_expand">Show all %1$d groups</string>
+    <string name="rules_flow_collapse">Show fewer</string>
+    <string name="rules_flow_search_hint">Search domain, address or rule</string>
+    <string name="rules_flow_paused">Paused while scrolling</string>
+    <string name="rules_flow_close">Close</string>
+    <string name="rules_flow_no_match_title">No matching connections</string>
+    <string name="rules_flow_no_match_body">Try a shorter search.</string>
     <string name="rules_save">Save</string>
     <string name="rules_cancel">Cancel</string>
 
@@ -43,7 +53,8 @@
     <string name="rules_preset_direct_desc">Everything direct; the tunnel stays up but forwards nothing.</string>
     <string name="rules_block_ads_title">Block ads</string>
     <string name="rules_block_ads_desc">Reject advertising domains. Stacks with any preset above.</string>
-    <string name="rules_effective_count">%1$d rules in force</string>
+    <string name="rules_effective_count">%1$d rules in force (%2$d system, %3$d of yours)</string>
+    <string name="rules_effective_count_system">No rules of your own; %1$d system rules in force</string>
     <string name="rules_effective_expand">Show</string>
     <string name="rules_effective_collapse">Hide</string>
     <string name="rules_effective_ads">Advertising domains → block</string>
@@ -73,9 +84,6 @@
     <string name="rules_effective_pack">%1$s → %2$s</string>
     <string name="rules_per_app_title">Per-app routing</string>
     <string name="rules_per_app_desc">Send individual apps direct, or through a specific node.</string>
-    <string name="rules_empty_body_bypass">No rules of your own. The preset is in force: domestic sites direct, everything else through the proxy.</string>
-    <string name="rules_empty_body_proxy">No rules yet. Everything goes through the proxy.</string>
-    <string name="rules_empty_body_direct">No rules yet. Everything goes direct.</string>
 
     <string name="rules_scenes_title">Scenes</string>
     <string name="rules_scenes_desc">Switch policy automatically by network.</string>

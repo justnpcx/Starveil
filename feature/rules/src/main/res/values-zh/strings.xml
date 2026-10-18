@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="rules_title">规则</string>
-    <string name="rules_empty_title">还没有规则</string>
-    <string name="rules_empty_body">默认全部走代理。添加规则可让匹配的流量直连、阻断，或指定节点。</string>
+    <string name="rules_empty_title">还没有自建规则</string>
+    <string name="rules_empty_body">点右下角 + 添加规则：让匹配的流量直连、阻断，或指定节点。</string>
 
     <string name="rules_kind_domain">域名</string>
     <string name="rules_kind_domain_suffix">域名后缀</string>
@@ -19,9 +19,19 @@
     <string name="rules_edit_title">编辑规则</string>
     <string name="rules_match_label">匹配</string>
     <string name="rules_value_label">值</string>
-    <string name="rules_action_label">则</string>
+    <string name="rules_action_label">动作</string>
     <string name="rules_flow_title">最近流向</string>
     <string name="rules_flow_empty">还没有流量经过。内核做出判定后会显示在这里。</string>
+    <string name="rules_flow_view_all">查看全部（%1$d）</string>
+    <string name="rules_flow_group">→ %1$s × %2$d</string>
+    <string name="rules_flow_default_rule">默认规则</string>
+    <string name="rules_flow_expand">展开全部 %1$d 组</string>
+    <string name="rules_flow_collapse">收起</string>
+    <string name="rules_flow_search_hint">搜索域名、地址或规则</string>
+    <string name="rules_flow_paused">滚动时暂停</string>
+    <string name="rules_flow_close">关闭</string>
+    <string name="rules_flow_no_match_title">没有匹配的连接</string>
+    <string name="rules_flow_no_match_body">试试更短的关键词。</string>
     <string name="rules_save">保存</string>
     <string name="rules_cancel">取消</string>
 
@@ -38,7 +48,8 @@
     <string name="rules_preset_direct_desc">全部直连；隧道仍在，但不转发任何流量。</string>
     <string name="rules_block_ads_title">去广告</string>
     <string name="rules_block_ads_desc">拦截广告域名，可与上面的任一预设叠加。</string>
-    <string name="rules_effective_count">当前生效 %1$d 条规则</string>
+    <string name="rules_effective_count">当前生效 %1$d 条规则（%2$d 条系统 + %3$d 条自建）</string>
+    <string name="rules_effective_count_system">暂无自建规则，当前生效 %1$d 条系统规则</string>
     <string name="rules_effective_expand">展开</string>
     <string name="rules_effective_collapse">收起</string>
     <string name="rules_effective_ads">广告域名 → 阻断</string>
@@ -67,9 +78,6 @@
     <string name="rules_effective_pack">%1$s → %2$s</string>
     <string name="rules_per_app_title">分应用路由</string>
     <string name="rules_per_app_desc">让单个应用直连，或走指定节点。</string>
-    <string name="rules_empty_body_bypass">还没有你自己的规则。当前生效：绕过中国大陆（国内直连，其余走代理）。</string>
-    <string name="rules_empty_body_proxy">还没有规则。当前生效：全局代理（全部走代理）。</string>
-    <string name="rules_empty_body_direct">还没有规则。当前生效：全局直连（全部直连）。</string>
 
     <string name="rules_scenes_title">场景自动化</string>
     <string name="rules_scenes_desc">按当前网络自动切换策略。</string>
