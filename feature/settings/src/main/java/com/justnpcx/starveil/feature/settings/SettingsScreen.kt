@@ -1,5 +1,8 @@
 package com.justnpcx.starveil.feature.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -36,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.LocalApi
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -97,6 +102,7 @@ fun SettingsScreen(
     /** Held between the passphrase dialog and the file picker's result. */
     var exportPassphrase by remember { mutableStateOf<CharArray?>(null) }
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
+    var confirmingTokenReset by remember { mutableStateOf(false) }
 
     val createBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -257,6 +263,49 @@ fun SettingsScreen(
             )
         }
 
+        // Developer options. Not hidden behind a secret gesture: the switch is
+        // off by default, and the person who wants it is the person who needs
+        // to find it.
+        SectionTitle(stringResource(R.string.settings_developer_title))
+        SwitchRow(
+            title = stringResource(R.string.settings_local_api_title),
+            description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
+            checked = state.localApiEnabled,
+            onCheckedChange = viewModel::setLocalApiEnabled,
+        )
+        if (state.localApiEnabled) {
+            Text(
+                text = stringResource(R.string.settings_local_api_address, LocalApi.address),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = state.apiToken,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                TextButton(
+                    enabled = state.apiToken.isNotEmpty(),
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText("Starveil local API token", state.apiToken),
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.settings_local_api_copy))
+                }
+                TextButton(
+                    enabled = state.apiToken.isNotEmpty(),
+                    onClick = { confirmingTokenReset = true },
+                ) {
+                    Text(stringResource(R.string.settings_local_api_reset))
+                }
+            }
+        }
+
         SectionTitle(stringResource(R.string.settings_about_title))
         Text(
             text = stringResource(R.string.settings_app_version, appVersion ?: "—"),
@@ -328,6 +377,29 @@ fun SettingsScreen(
                 context.startActivity(UpdateInstaller.permissionSettings(context))
             },
         )
+
+        if (confirmingTokenReset) {
+            AlertDialog(
+                onDismissRequest = { confirmingTokenReset = false },
+                title = { Text(stringResource(R.string.settings_local_api_reset_title)) },
+                text = { Text(stringResource(R.string.settings_local_api_reset_body)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.resetApiToken()
+                            confirmingTokenReset = false
+                        },
+                    ) {
+                        Text(stringResource(R.string.settings_local_api_reset))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmingTokenReset = false }) {
+                        Text(stringResource(R.string.settings_cancel))
+                    }
+                },
+            )
+        }
     }
 }
 

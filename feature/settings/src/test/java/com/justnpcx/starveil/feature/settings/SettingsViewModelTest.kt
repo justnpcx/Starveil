@@ -7,6 +7,7 @@ import com.justnpcx.starveil.core.data.update.UpdateChecker
 import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
 import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
+import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
@@ -44,6 +45,7 @@ import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -80,6 +82,7 @@ class SettingsViewModelTest {
             crash,
             UpdateChecker(),
             NoDownloads(),
+            FakeTokens,
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -94,7 +97,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens)
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -114,7 +117,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -124,6 +127,29 @@ class SettingsViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun `enabling the local API is a preference the dashboard can see`() = runBlocking {
+        val preferences = FakePreferences()
+        val viewModel = SettingsViewModel(
+            preferences,
+            FakeKernel(""),
+            emptyBackup(),
+            NoFiles(),
+            FakeCrashReporting(),
+            UpdateChecker(),
+            NoDownloads(),
+            FakeTokens,
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        assertFalse(viewModel.uiState.value.localApiEnabled)
+        viewModel.setLocalApiEnabled(true)
+        yield()
+
+        assertTrue(viewModel.uiState.value.localApiEnabled)
+        job.cancel()
+    }
 }
 
 private class FakeKernel(private val reportedVersion: String) : KernelBridge {
@@ -187,6 +213,12 @@ private class FakePreferences : PreferencesRepository {
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) = notUsed()
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) = notUsed()
     override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) = notUsed()
+}
+
+/** A token store without the Android Keystore, which a JVM test does not have. */
+private object FakeTokens : LocalApiTokenStore {
+    override fun token(): String = "test-token"
+    override fun reset(): String = "reset-token"
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")

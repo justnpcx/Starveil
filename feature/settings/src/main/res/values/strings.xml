@@ -63,6 +63,17 @@
     <string name="settings_kernel_unknown">Version unavailable.</string>
 
     <!-- About: the version to quote in a bug report, and the policy. -->
+    <!-- Developer options: the local Clash-compatible API. Off by default. -->
+    <string name="settings_developer_title">Developer options</string>
+    <string name="settings_local_api_title">Local API</string>
+    <string name="settings_local_api_desc">Clash-compatible, loopback only (%1$s). Every request needs the token below.</string>
+    <string name="settings_local_api_address">Listening on %1$s — not reachable from other devices.</string>
+    <string name="settings_local_api_copy">Copy token</string>
+    <string name="settings_local_api_reset">Reset token</string>
+    <string name="settings_local_api_reset_title">Reset the token?</string>
+    <string name="settings_local_api_reset_body">Every dashboard using the current token stops working until it is given the new one.</string>
+    <string name="settings_cancel">Cancel</string>
+
     <string name="settings_about_title">About</string>
     <string name="settings_app_version">Starveil %1$s</string>
     <string name="settings_privacy">Privacy policy</string>

@@ -62,6 +62,17 @@
     <string name="settings_kernel_version">sing-box 内核 %1$s</string>
     <string name="settings_kernel_unknown">版本不可用。</string>
 
+    <!-- 开发者选项：本地 Clash 兼容 API，默认关闭 -->
+    <string name="settings_developer_title">开发者选项</string>
+    <string name="settings_local_api_title">本地 API</string>
+    <string name="settings_local_api_desc">兼容 Clash 的接口，仅监听本机（%1$s）。每个请求都要带下面的 Token。</string>
+    <string name="settings_local_api_address">正在监听 %1$s，其他设备无法访问。</string>
+    <string name="settings_local_api_copy">复制 Token</string>
+    <string name="settings_local_api_reset">重置 Token</string>
+    <string name="settings_local_api_reset_title">重置 Token？</string>
+    <string name="settings_local_api_reset_body">所有使用当前 Token 的面板都会失效，直到填入新 Token。</string>
+    <string name="settings_cancel">取消</string>
+
     <string name="settings_about_title">关于</string>
     <string name="settings_app_version">Starveil %1$s</string>
     <string name="settings_privacy">隐私政策</string>

@@ -7,6 +7,7 @@ import com.justnpcx.starveil.core.data.backup.BackupCryptoException
 import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
+import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.update.UpdateCheck
 import com.justnpcx.starveil.core.data.update.UpdateChecker
@@ -18,6 +19,7 @@ import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +49,13 @@ data class SettingsUiState(
      * DSN; the screen hides the row otherwise.
      */
     val crashReports: Boolean = true,
+    /** Whether the local Clash-compatible API is served. Off unless asked for. */
+    val localApiEnabled: Boolean = false,
+    /**
+     * The bearer token a dashboard must send. Empty until the Keystore read
+     * lands, and never logged.
+     */
+    val apiToken: String = "",
 )
 
 /**
@@ -87,6 +96,7 @@ class SettingsViewModel @Inject constructor(
     private val crashReporting: CrashReportingSwitch,
     private val updateChecker: UpdateChecker,
     private val updateDownloader: UpdateDownloadPort,
+    private val localApiToken: LocalApiTokenStore,
 ) : ViewModel() {
 
     private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
@@ -183,10 +193,16 @@ class SettingsViewModel @Inject constructor(
     // synchronous, and why the screen mirrors it rather than observing it.
     private val crashReports = MutableStateFlow(crashReporting.isEnabled())
 
+    /** Read from the Keystore once, off the main thread. */
+    private val apiToken = MutableStateFlow("")
+
     init {
         // Read once. It is a build constant, and Settings is the one place it
         // is worth showing — a bug report needs to name the core it ran.
         viewModelScope.launch { kernelVersion.value = kernel.version() }
+        // Reading the token creates it if this is the first time, which is
+        // exactly when the developer section is opened for the first time.
+        viewModelScope.launch(Dispatchers.IO) { apiToken.value = localApiToken.token() }
     }
 
     private val preferencesState = combine(
@@ -218,12 +234,16 @@ class SettingsViewModel @Inject constructor(
             // says which.
             preferences.perAppRoutes.map { it.size },
             crashReports,
-        ) { state, version, perAppCount, reports ->
+            preferences.localApiEnabled,
+        ) { state, version, perAppCount, reports, apiEnabled ->
             state.copy(
                 kernelVersion = version,
                 perAppDirectCount = perAppCount,
                 crashReports = reports,
+                localApiEnabled = apiEnabled,
             )
+        }.combine(apiToken) { state, token ->
+            state.copy(apiToken = token)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -232,6 +252,20 @@ class SettingsViewModel @Inject constructor(
 
     fun setKillSwitchMode(mode: KillSwitchMode) {
         viewModelScope.launch { preferences.setKillSwitchMode(mode) }
+    }
+
+    /**
+     * Turning this on is a config change like any other: the dashboard watches
+     * the preference and rebuilds the tunnel, so the listener starts when the
+     * next config does rather than needing a separate start.
+     */
+    fun setLocalApiEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferences.setLocalApiEnabled(enabled) }
+    }
+
+    /** Revoke the current token; every dashboard must be reconfigured. */
+    fun resetApiToken() {
+        viewModelScope.launch(Dispatchers.IO) { apiToken.value = localApiToken.reset() }
     }
 
     fun setThemeMode(mode: ThemeMode) {
