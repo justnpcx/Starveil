@@ -13,6 +13,7 @@
     <string name="rules_action_direct">直连</string>
     <string name="rules_action_block">阻断</string>
 
+    <string name="rules_ruleset_failed">规则集校验失败，已停用「绕过中国大陆」。</string>
     <string name="rules_add">添加规则</string>
     <string name="rules_add_title">新建规则</string>
     <string name="rules_edit_title">编辑规则</string>

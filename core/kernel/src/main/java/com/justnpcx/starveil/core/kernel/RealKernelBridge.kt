@@ -96,6 +96,9 @@ class RealKernelBridge(
         // Kernel-side diagnostics also feed the log ring, so the Logs screen
         // shows them even when adb logcat is unavailable (it is, on some ROMs).
         platform.onDiagnostic = { message -> log(LogLevel.DEBUG, message) }
+        // Everything else that has no callback of its own (the VpnService, a
+        // rule-set check in :core:data) writes through this, levels included.
+        KernelDiagnostics.sink = { message, level -> log(level, message) }
     }
 
     @Volatile

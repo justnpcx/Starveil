@@ -3,6 +3,7 @@ package com.justnpcx.starveil.feature.dashboard
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
@@ -613,6 +614,7 @@ class DashboardViewModelTest {
     private val mainlandRuleSets = object : MainlandRuleSetStore {
         override suspend fun ensure() = null
         override suspend fun ensureAds(): String? = null
+        override val failure: StateFlow<RuleSetFailure?> = MutableStateFlow(null)
     }
 
     private fun profile(id: Long, name: String, country: String? = null) = Profile(

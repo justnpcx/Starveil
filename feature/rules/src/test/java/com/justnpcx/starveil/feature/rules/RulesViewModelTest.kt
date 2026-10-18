@@ -28,8 +28,11 @@ import org.junit.Before
 import org.junit.Test
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import kotlinx.coroutines.flow.StateFlow
 import com.justnpcx.starveil.core.model.RoutePreset
 
 /**
@@ -52,7 +55,7 @@ class RulesViewModelTest {
     @Test
     fun `add appends after the last rule`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN_SUFFIX, "example.com", RuleAction.DIRECT)
@@ -72,7 +75,7 @@ class RulesViewModelTest {
     @Test
     fun `a blank value is not stored`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN, "   ", RuleAction.PROXY)
@@ -90,7 +93,7 @@ class RulesViewModelTest {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY, order = 0))
             seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 0))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -107,7 +110,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -123,7 +126,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences())
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -216,4 +219,12 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
 
     private fun notUsed(): Nothing = error("not used by RulesViewModel")
+}
+
+
+/** No rule sets: the preset is not in force in these tests. */
+private object NoRuleSets : MainlandRuleSetStore {
+    override suspend fun ensure(): com.justnpcx.starveil.core.model.MainlandRuleSets? = null
+    override suspend fun ensureAds(): String? = null
+    override val failure: StateFlow<RuleSetFailure?> = MutableStateFlow(null)
 }

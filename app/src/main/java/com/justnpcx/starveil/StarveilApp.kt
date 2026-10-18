@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.crash.CrashReporting
 import com.justnpcx.starveil.latency.NodeHealthProbeScheduler
+import com.justnpcx.starveil.rules.RuleSetFailureReporter
 import com.justnpcx.starveil.widget.StarveilWidget
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.HiltAndroidApp
@@ -33,6 +34,9 @@ class StarveilApp : Application() {
     @Inject
     lateinit var healthProbe: NodeHealthProbeScheduler
 
+    @Inject
+    lateinit var ruleSetFailures: RuleSetFailureReporter
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -56,5 +60,10 @@ class StarveilApp : Application() {
         // WorkManager's store, and re-enqueueing it is how a changed interval
         // or constraint reaches an existing install.
         healthProbe.schedule(scope)
+
+        // A rejected rule set is the one failure that otherwise looks like the
+        // app quietly ignoring a setting; it belongs in the log the user can
+        // actually read.
+        ruleSetFailures.start(scope)
     }
 }

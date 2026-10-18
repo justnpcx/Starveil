@@ -15,11 +15,28 @@ object KernelDiagnostics {
 
     private const val TAG = "StarveilKernel"
 
+    /**
+     * Where a line goes, with its level. The bridge decides how a level is
+     * drawn; this object only knows that something wants to say it.
+     */
     @Volatile
-    var sink: ((String) -> Unit)? = null
+    var sink: ((String, LogLevel) -> Unit)? = null
 
-    fun log(message: String) {
-        android.util.Log.i(TAG, message)
-        sink?.invoke(message)
+    /** Ordinary narration. */
+    fun log(message: String) = emit(LogLevel.DEBUG, message)
+
+    /**
+     * A failure the user should be able to find in the Logs screen without
+     * adb: the rule set that failed verification, a sweep that could not run.
+     */
+    fun logError(message: String) = emit(LogLevel.ERROR, message)
+
+    private fun emit(level: LogLevel, message: String) {
+        if (level == LogLevel.ERROR) {
+            android.util.Log.e(TAG, message)
+        } else {
+            android.util.Log.i(TAG, message)
+        }
+        sink?.invoke(message, level)
     }
 }

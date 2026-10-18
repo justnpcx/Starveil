@@ -29,18 +29,22 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
@@ -80,6 +84,18 @@ fun RulesScreen(
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
+
+    // A rule set that failed its hash check leaves the preset out of the
+    // config, which otherwise looks like the switch doing nothing. Said once,
+    // when it happens, and left in the Logs screen afterwards.
+    val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val ruleSetFailure = state.ruleSetFailure
+    LaunchedEffect(ruleSetFailure) {
+        if (ruleSetFailure != null) {
+            snackbar.showSnackbar(context.getString(R.string.rules_ruleset_failed))
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -163,6 +179,11 @@ fun RulesScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.rules_add))
         }
+
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 
     if (showAdd || editing != null) {

@@ -14,6 +14,7 @@
     <string name="rules_action_direct">Direct</string>
     <string name="rules_action_block">Block</string>
 
+    <string name="rules_ruleset_failed">Rule set failed verification; bypass-mainland is off.</string>
     <string name="rules_add">Add rule</string>
     <string name="rules_add_title">New rule</string>
     <string name="rules_edit_title">Edit rule</string>

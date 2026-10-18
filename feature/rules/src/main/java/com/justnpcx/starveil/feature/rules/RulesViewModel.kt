@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
+import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
+import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.model.FlowRecord
 import com.justnpcx.starveil.core.model.MatcherKind
@@ -40,6 +42,13 @@ data class RulesUiState(
     val preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
     /** Whether advertising domains are rejected, on top of any preset. */
     val blockAds: Boolean = false,
+    /**
+     * A rule set that failed verification, if any.
+     *
+     * Shown because the preset is then quietly not in force: without this the
+     * page would claim a policy the kernel was never given.
+     */
+    val ruleSetFailure: RuleSetFailure? = null,
 ) {
     val isEmpty: Boolean get() = !loading && rules.isEmpty()
 
@@ -74,6 +83,7 @@ class RulesViewModel @Inject constructor(
     private val repository: RuleRepository,
     private val flowLog: FlowLog,
     private val preferences: PreferencesRepository,
+    private val ruleSets: MainlandRuleSetStore,
 ) : ViewModel() {
 
     val uiState: StateFlow<RulesUiState> =
@@ -82,13 +92,15 @@ class RulesViewModel @Inject constructor(
             flowLog.records,
             preferences.routePreset,
             preferences.blockAds,
-        ) { rules, flow, preset, ads ->
+            ruleSets.failure,
+        ) { rules, flow, preset, ads, failure ->
             RulesUiState(
                 rules = rules,
                 loading = false,
                 recentFlow = flow,
                 preset = preset,
                 blockAds = ads,
+                ruleSetFailure = failure,
             )
         }.stateIn(
             scope = viewModelScope,

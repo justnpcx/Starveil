@@ -80,8 +80,8 @@ class StarveilPlatformInterface(
         set(value) {
             field = value
             // The VpnService has no way to receive a callback, so it reads the
-            // same sink through KernelDiagnostics.
-            KernelDiagnostics.sink = value
+            // same sink through KernelDiagnostics. The bridge installs that sink
+            // itself, because it also has to carry levels.
         }
 
     internal fun diagnostic(message: String) = KernelDiagnostics.log(message)
