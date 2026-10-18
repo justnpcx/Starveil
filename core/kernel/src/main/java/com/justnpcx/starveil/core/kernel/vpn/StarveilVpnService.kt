@@ -41,6 +41,16 @@ class StarveilVpnService : VpnService() {
      */
     private var tun: ParcelFileDescriptor? = null
 
+    /**
+     * Every descriptor handed to a kernel.
+     *
+     * A set, not one value: a block keeps the tun and a reconnect hands the new
+     * kernel another duplicate, and the old kernel never closed its own — the
+     * interface outlived a stop and kept the VpnService bound, leaving the
+     * phone with no network (measured on the vivo).
+     */
+    private val kernelFds = mutableSetOf<Int>()
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -146,7 +156,9 @@ class StarveilVpnService : VpnService() {
         // reads the tun while no kernel is attached, which is the block.
         tun?.let { existing ->
             KernelDiagnostics.log("openTun: reusing tun fd ${existing.fd}")
-            return ParcelFileDescriptor.dup(existing.fileDescriptor).detachFd()
+            val fd = ParcelFileDescriptor.dup(existing.fileDescriptor).detachFd()
+            kernelFds.add(fd)
+            return fd
         }
         closeTun()
 
@@ -240,7 +252,9 @@ class StarveilVpnService : VpnService() {
         // when the kernel closes its copy, the interface stays up (that is
         // what makes the blackhole block possible), and a later start can
         // hand out another duplicate of the same tun.
-        return ParcelFileDescriptor.dup(descriptor.fileDescriptor).detachFd()
+        val fd = ParcelFileDescriptor.dup(descriptor.fileDescriptor).detachFd()
+        kernelFds.add(fd)
+        return fd
     }
 
     /** Whether a tun is established and kept by this service. */
@@ -253,6 +267,23 @@ class StarveilVpnService : VpnService() {
             runCatching { it.close() }
         }
         tun = null
+        closeKernelFds()
+    }
+
+    /**
+     * Closes every descriptor the kernel was handed.
+     *
+     * It has to be us: after the kernel's service closes, the fd is still open
+     * and the interface outlives the stop, which keeps the VpnService bound and
+     * leaves the phone with no network. The Go side does not close it, so this
+     * is not a double close in practice; if that ever changes, this becomes
+     * one — the alternative is a guaranteed leak.
+     */
+    private fun closeKernelFds() {
+        if (kernelFds.isEmpty()) return
+        KernelDiagnostics.log("VpnService closing ${kernelFds.size} kernel tun fd(s)")
+        kernelFds.forEach { runCatching { ParcelFileDescriptor.adoptFd(it).close() } }
+        kernelFds.clear()
     }
 
     private fun buildNotification(): Notification {
