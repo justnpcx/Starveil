@@ -61,6 +61,7 @@ data class RulesUiState(
     val presetRules: List<PresetRule>
         get() = buildList {
             if (blockAds) add(PresetRule.ADS)
+            add(PresetRule.LAN_DIRECT)
             if (preset == RoutePreset.BYPASS_MAINLAND) {
                 add(PresetRule.DOMESTIC_NAMES)
                 add(PresetRule.DOMESTIC_ADDRESSES)
@@ -71,7 +72,21 @@ data class RulesUiState(
 }
 
 /** One rule the preset emits, for the transparency list. */
-enum class PresetRule { ADS, DOMESTIC_NAMES, DOMESTIC_ADDRESSES }
+enum class PresetRule {
+    ADS,
+
+    /**
+     * Private and multicast addresses → direct.
+     *
+     * Always in force, in every preset: it is infrastructure, not a preference.
+     * Listed anyway, because "why is my NAS not going through the tunnel" is a
+     * question the page should answer without a debugger.
+     */
+    LAN_DIRECT,
+
+    DOMESTIC_NAMES,
+    DOMESTIC_ADDRESSES,
+}
 
 /**
  * Routing rules, in the order they are evaluated, plus the kernel's recent
@@ -109,7 +124,13 @@ class RulesViewModel @Inject constructor(
         )
 
     fun setPreset(preset: RoutePreset) {
-        viewModelScope.launch { preferences.setRoutePreset(preset) }
+        viewModelScope.launch {
+            // Stamped as manual: a scene must not undo this within the grace
+            // window. Written before the preset so a scene evaluating at the
+            // same instant sees the stamp.
+            preferences.recordManualPresetChange(System.currentTimeMillis())
+            preferences.setRoutePreset(preset)
+        }
     }
 
     fun setBlockAds(enabled: Boolean) {

@@ -220,18 +220,35 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         } else {
             listOf(linkedMapOf<String, Any?>("rule_set" to ADS_TAG, "action" to "reject"))
         }
+        // The local network, in every preset. A private address is not a
+        // destination anyone wants proxied: the router, the NAS, a printer, and
+        // SSDP/DLNA discovery all live there, and `final: proxy` would send
+        // them to a server that cannot reach them. Not a switch, not a preset:
+        // the handful of people who *do* want a private range tunnelled are not
+        // worth a setting that everyone else can get wrong.
+        //
+        // After per-app, before the user's rules: an app-level exception is
+        // more specific than an address, and everything below this line is
+        // about reaching the internet.
+        val lan = listOf(
+            linkedMapOf<String, Any?>(
+                "ip_cidr" to LAN_CIDRS,
+                "action" to "route",
+                "outbound" to DIRECT_TAG,
+            ),
+        )
         // The preset, not the files, decides whether domestic traffic is split
         // out: a missing rule set means the preset silently degrades, and the
         // rules must degrade with it.
         if (preset != RoutePreset.BYPASS_MAINLAND || mainland == null) {
-            return ads + perApp + userRules
+            return ads + perApp + lan + userRules
         }
         // After the user's own rules and before `final`: the user's intent wins
         // over the preset, which is the only order that lets someone carve an
         // exception out of it. geosite-cn is a domain match, so a domestic
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
-        return ads + perApp + userRules + listOf(
+        return ads + perApp + lan + userRules + listOf(
             linkedMapOf<String, Any?>(
                 "rule_set" to GEOSITE_CN_TAG,
                 "action" to "route",
@@ -573,6 +590,24 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val DNS_PROXY_TAG = "dns-proxy"
         const val GEOSITE_CN_TAG = "geosite-cn"
         const val ADS_TAG = "ads"
+
+        /**
+         * Private, loopback, link-local and multicast destinations.
+         *
+         * `224.0.0.0/4` is in the list for discovery: SSDP and mDNS advertise
+         * over multicast, and a proxied multicast packet is a device nobody
+         * finds.
+         */
+        val LAN_CIDRS = listOf(
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "127.0.0.0/8",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10",
+            "224.0.0.0/4",
+        )
         const val GEOIP_CN_TAG = "geoip-cn"
 
         /** Tag prefix for an outbound that exists only because an app names it. */

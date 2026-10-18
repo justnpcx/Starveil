@@ -193,8 +193,18 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun `no rules means an empty rules array`() {
-        assertTrue(builder.build(vlessProfile()).contains("\"rules\":[]"))
+    fun `with no user rules only the local network rule is emitted`() {
+        // Not an empty array any more: private and multicast addresses go
+        // direct in every config, because a proxied router is an unreachable
+        // one.
+        val json = builder.build(vlessProfile())
+        assertTrue(
+            json.contains(
+                "\"rules\":[{\"ip_cidr\":[\"10.0.0.0/8\",\"172.16.0.0/12\",\"192.168.0.0/16\"," +
+                    "\"127.0.0.0/8\",\"::1/128\",\"fc00::/7\",\"fe80::/10\",\"224.0.0.0/4\"]," +
+                    "\"action\":\"route\",\"outbound\":\"direct\"}]",
+            ),
+        )
     }
 
     @Test
@@ -232,6 +242,9 @@ class ConfigBuilderTest {
         assertTrue(
             json.contains(
                 "\"rules\":[" +
+                    "{\"ip_cidr\":[\"10.0.0.0/8\",\"172.16.0.0/12\",\"192.168.0.0/16\"," +
+                    "\"127.0.0.0/8\",\"::1/128\",\"fc00::/7\",\"fe80::/10\",\"224.0.0.0/4\"]," +
+                    "\"action\":\"route\",\"outbound\":\"direct\"}," +
                     "{\"domain_suffix\":[\"example.com\"],\"action\":\"route\",\"outbound\":\"direct\"}," +
                     "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"direct\"}," +
                     "{\"domain_keyword\":[\"ads\"],\"action\":\"reject\"}," +
@@ -788,6 +801,41 @@ class ConfigBuilderTest {
         assertTrue(perApp >= 0)
         assertTrue(geosite >= 0)
         assertTrue("per-app comes before the preset", perApp < geosite)
+    }
+
+    @Test
+    fun `the local network is direct in every preset`() {
+        // Infrastructure, not a preference: a private address sent to `final`
+        // is a router, NAS or printer that cannot be reached at all.
+        for (preset in RoutePreset.entries) {
+            val json = builder.build(vlessProfile(), preset = preset)
+            for (cidr in ConfigBuilder.LAN_CIDRS) {
+                assertTrue("$preset is missing $cidr", json.contains("\"$cidr\""))
+            }
+            assertTrue(
+                "$preset routes them direct",
+                json.contains("\"ip_cidr\":[\"10.0.0.0/8\"") &&
+                    json.contains("\"outbound\":\"direct\""),
+            )
+        }
+    }
+
+    @Test
+    fun `the local-network rule sits after per-app and before the preset`() {
+        val json = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            preset = RoutePreset.BYPASS_MAINLAND,
+            perApp = listOf(PerAppOutbound.Direct(setOf("com.example.bank"))),
+        )
+        val route = json.substringAfter("\"route\":{")
+        val perApp = route.indexOf("\"package_name\"")
+        val lan = route.indexOf("\"ip_cidr\"")
+        val geosite = route.indexOf("\"rule_set\":\"geosite-cn\"")
+
+        assertTrue(perApp >= 0 && lan >= 0 && geosite >= 0)
+        assertTrue("per-app before the local network", perApp < lan)
+        assertTrue("local network before the preset", lan < geosite)
     }
 
     @Test

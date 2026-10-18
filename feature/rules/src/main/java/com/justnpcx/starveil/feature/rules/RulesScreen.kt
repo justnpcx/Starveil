@@ -75,6 +75,7 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 fun RulesScreen(
     /** Opens the per-app routing screen, which lives with the other settings. */
     onOpenPerApp: () -> Unit = {},
+    onOpenScenes: () -> Unit = {},
     viewModel: RulesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -127,6 +128,7 @@ fun RulesScreen(
                         onSelect = viewModel::setPreset,
                         onToggleAds = viewModel::setBlockAds,
                         onOpenPerApp = onOpenPerApp,
+                        onOpenScenes = onOpenScenes,
                     )
                 }
 
@@ -498,6 +500,7 @@ private fun RoutePresetCard(
     onSelect: (RoutePreset) -> Unit,
     onToggleAds: (Boolean) -> Unit,
     onOpenPerApp: () -> Unit,
+    onOpenScenes: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Card(
@@ -525,6 +528,15 @@ private fun RoutePresetCard(
                 description = stringResource(R.string.rules_preset_direct_desc),
                 selected = preset == RoutePreset.GLOBAL_DIRECT,
                 onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
+            )
+
+            // One line, always: the one rule the user cannot turn off is also
+            // the one they would otherwise wonder about.
+            Text(
+                text = stringResource(R.string.rules_lan_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = StarveilSpacing.xs),
             )
 
             // Persistent, not only the Snackbar: the condition lasts until a
@@ -593,6 +605,7 @@ private fun RoutePresetCard(
                             text = stringResource(
                                 when (rule) {
                                     PresetRule.ADS -> R.string.rules_effective_ads
+                                    PresetRule.LAN_DIRECT -> R.string.rules_effective_lan
                                     PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
                                     PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
                                 },
@@ -627,6 +640,35 @@ private fun RoutePresetCard(
                     )
                     Text(
                         text = stringResource(R.string.rules_per_app_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = "›",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.xs))
+
+            // Same place as per-app routing: both answer "what decides where
+            // traffic goes", and splitting them across tabs would be a quiz.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenScenes)
+                    .padding(vertical = StarveilSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.rules_scenes_title),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.rules_scenes_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
