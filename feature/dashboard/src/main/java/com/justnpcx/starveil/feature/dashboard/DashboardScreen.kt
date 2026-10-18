@@ -216,16 +216,28 @@ private fun DashboardNotice.text(): String = when (this) {
  */
 @Composable
 private fun RecommendationReason.text(): String = when (this) {
-    is RecommendationReason.Healthiest ->
-        stringResource(R.string.dashboard_reason_healthiest, score)
+    is RecommendationReason.Healthiest -> healthClause(availabilityPct, latencyMs)
     is RecommendationReason.TiedOnScore -> region
-        ?.let { stringResource(R.string.dashboard_reason_tied_region, score, it.displayName) }
-        ?: stringResource(R.string.dashboard_reason_tied, score)
+        ?.let { stringResource(R.string.dashboard_reason_tied_region, healthClause(availabilityPct, latencyMs), it.displayName) }
+        ?: stringResource(R.string.dashboard_reason_tied, healthClause(availabilityPct, latencyMs))
     is RecommendationReason.AllCoolingDown ->
         stringResource(R.string.dashboard_reason_cooling_down, minutesLeft)
     RecommendationReason.NothingMeasured ->
         stringResource(R.string.dashboard_reason_unmeasured)
 }
+
+/**
+ * What the picker saw, in the units the user measures in.
+ *
+ * The score is a 0–10099 internal number (availability in the high digits,
+ * latency in the low ones). It is deliberately not shown: "score 10099" is
+ * precise about the wrong thing, and the two numbers it is made of are the
+ * ones a person can check against the health chart above.
+ */
+@Composable
+private fun healthClause(availabilityPct: Int, latencyMs: Long?): String =
+    latencyMs?.let { stringResource(R.string.dashboard_reason_health, availabilityPct, it) }
+        ?: stringResource(R.string.dashboard_reason_health_no_latency, availabilityPct)
 
 @Composable
 private fun SpeedRow(stats: TrafficStats) {

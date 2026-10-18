@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.scene.SceneApplyState
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
@@ -344,6 +345,9 @@ class DashboardViewModel @Inject constructor(
                 return@launch
             }
             val name = profiles.getById(pick.profileId)?.name.orEmpty()
+            // The raw score lives here, not on screen: it is a ranking key, and
+            // the notice shows the availability and latency it is made of.
+            KernelDiagnostics.log("auto-select $name: score ${pick.score}")
             _uiState.update { it.copy(notice = DashboardNotice.AutoSelected(name, pick.reason)) }
             // The target collector does the rest: it reconnects when the tunnel
             // is up, and only arms the selection when it is not. Doing the

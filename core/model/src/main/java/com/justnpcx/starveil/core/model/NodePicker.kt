@@ -52,6 +52,10 @@ fun healthScore(health: NodeHealth?): Int {
     return availability * 100 + latencyPoints
 }
 
+/** Availability as the whole percent the UI shows; 0 when nothing measured. */
+private fun NodeHealth?.availabilityPctRounded(): Int =
+    this?.availabilityPct?.coerceIn(0f, 100f)?.roundToInt() ?: 0
+
 /** How many probes failed in a row, counting back from the newest. */
 fun trailingFailures(health: NodeHealth?): Int =
     health?.samples?.takeLastWhile { !it.reachable }?.size ?: 0
@@ -82,14 +86,29 @@ data class NodeCandidate(
 
 /** Why this node was picked. Rendered by the UI, never by the picker. */
 sealed interface RecommendationReason {
-    /** It scored highest and nothing else came close. */
-    data class Healthiest(val score: Int) : RecommendationReason
+    /**
+     * It scored highest and nothing else came close.
+     *
+     * [score] is the internal 0–10099 number and is for logs only. The screen
+     * shows [availabilityPct] and [latencyMs], because "score 10099" answers a
+     * question nobody asked — see the dashboard's auto-select notice.
+     */
+    data class Healthiest(
+        val score: Int,
+        val availabilityPct: Int,
+        val latencyMs: Long?,
+    ) : RecommendationReason
 
     /**
      * Several nodes scored the same; [region] is the one the user prefers, or
      * null when there was no preference to apply and the lowest id won.
      */
-    data class TiedOnScore(val score: Int, val region: NodeRegion?) : RecommendationReason
+    data class TiedOnScore(
+        val score: Int,
+        val availabilityPct: Int,
+        val latencyMs: Long?,
+        val region: NodeRegion?,
+    ) : RecommendationReason
 
     /** Everything is in time-out; this is the one that recovers soonest. */
     data class AllCoolingDown(val minutesLeft: Long) : RecommendationReason
@@ -128,13 +147,18 @@ object NodePicker {
         val tied = scored.filter { it.second == best }
 
         if (tied.size == 1) {
+            val chosen = tied.single().first
             return NodeRecommendation(
-                profileId = tied.single().first.profileId,
+                profileId = chosen.profileId,
                 score = best,
                 reason = if (best == 0) {
                     RecommendationReason.NothingMeasured
                 } else {
-                    RecommendationReason.Healthiest(best)
+                    RecommendationReason.Healthiest(
+                        score = best,
+                        availabilityPct = chosen.health.availabilityPctRounded(),
+                        latencyMs = chosen.health?.emaMs,
+                    )
                 },
             )
         }
@@ -146,7 +170,12 @@ object NodePicker {
         return NodeRecommendation(
             profileId = winner.first.profileId,
             score = best,
-            reason = RecommendationReason.TiedOnScore(best, preferred?.first?.region),
+            reason = RecommendationReason.TiedOnScore(
+                score = best,
+                availabilityPct = winner.first.health.availabilityPctRounded(),
+                latencyMs = winner.first.health?.emaMs,
+                region = preferred?.first?.region,
+            ),
         )
     }
 

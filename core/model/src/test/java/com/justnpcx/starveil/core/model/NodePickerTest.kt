@@ -31,7 +31,10 @@ class NodePickerTest {
         // 90% at 50 ms, because a node that drops one connection in ten is
         // worse than a slow one that never does.
         assertEquals(1L, pick?.profileId)
-        assertTrue(pick!!.reason is RecommendationReason.Healthiest)
+        val reason = pick!!.reason as RecommendationReason.Healthiest
+        // The screen shows these two; the score stays in the log.
+        assertEquals(100, reason.availabilityPct)
+        assertEquals(400L, reason.latencyMs)
     }
 
     @Test
@@ -46,10 +49,9 @@ class NodePickerTest {
         )
 
         assertEquals(2L, pick?.profileId)
-        assertEquals(
-            RecommendationReason.TiedOnScore(pick!!.score, NodeRegion.JAPAN),
-            pick.reason,
-        )
+        val reason = pick!!.reason as RecommendationReason.TiedOnScore
+        assertEquals(NodeRegion.JAPAN, reason.region)
+        assertEquals(100, reason.availabilityPct)
     }
 
     @Test
@@ -61,7 +63,9 @@ class NodePickerTest {
 
         // Lowest id, so the same input always picks the same node.
         assertEquals(3L, pick?.profileId)
-        assertEquals(RecommendationReason.TiedOnScore(pick!!.score, null), pick.reason)
+        val reason = pick!!.reason as RecommendationReason.TiedOnScore
+        assertEquals(null, reason.region)
+        assertEquals(100, reason.availabilityPct)
     }
 
     @Test

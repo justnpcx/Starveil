@@ -38,9 +38,10 @@
     <string name="dashboard_auto_select">自动选择</string>
     <string name="dashboard_notice_auto_selected">已自动选择 %1$s——%2$s。</string>
     <string name="dashboard_notice_switching_node">连接已断开，正在尝试另一个节点。</string>
-    <string name="dashboard_reason_healthiest">最健康，评分 %1$d</string>
-    <string name="dashboard_reason_tied">评分并列 %1$d</string>
-    <string name="dashboard_reason_tied_region">评分并列 %1$d，优先 %2$s</string>
+    <string name="dashboard_reason_health">在线率 %1$d%% · 延迟 %2$d ms</string>
+    <string name="dashboard_reason_health_no_latency">在线率 %1$d%%</string>
+    <string name="dashboard_reason_tied">%1$s（同分）</string>
+    <string name="dashboard_reason_tied_region">%1$s（同分，优先 %2$s）</string>
     <string name="dashboard_reason_cooling_down">所有节点都在冷却，还剩 %1$d 分钟</string>
     <string name="dashboard_reason_unmeasured">尚无测量数据</string>
     <string name="dashboard_notice_kernel_refused_reason">内核启动失败：%1$s</string>
