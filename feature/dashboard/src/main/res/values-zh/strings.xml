@@ -31,8 +31,7 @@
 
     <!-- §7.2 node health history. -->
     <string name="dashboard_health_title">节点健康 · 最近 30 分钟</string>
-    <string name="dashboard_node_health_line">在线率 %1$d%% · 延迟 %2$d ms</string>
-    <string name="dashboard_node_health_line_no_latency">在线率 %1$d%%</string>
+    <string name="dashboard_node_health_line">延迟 %1$d ms</string>
     <string name="dashboard_health_availability">在线 %1$d%%</string>
     <string name="dashboard_health_chart_desc">%1$d 次探测的延迟曲线：最低 %2$d ms，最高 %3$d ms。</string>
     <string name="dashboard_health_chart_empty">延迟曲线：该时间窗内没有成功探测。</string>

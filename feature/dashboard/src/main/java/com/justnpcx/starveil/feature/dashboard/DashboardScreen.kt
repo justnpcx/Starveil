@@ -433,22 +433,13 @@ private fun CurrentNodeCard(
                     ),
                 )
             }
-            health?.takeIf { !it.collecting }?.let { current ->
-                val latency = current.emaMs
+            // Latency only: availability is 100% for the node you are
+            // connected to, so repeating it here says nothing (C4). The health
+            // card keeps it, where it is the window's summary.
+            health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (latency != null) {
-                        stringResource(
-                            R.string.dashboard_node_health_line,
-                            current.availabilityPct.roundToInt(),
-                            latency,
-                        )
-                    } else {
-                        stringResource(
-                            R.string.dashboard_node_health_line_no_latency,
-                            current.availabilityPct.roundToInt(),
-                        )
-                    },
+                    text = stringResource(R.string.dashboard_node_health_line, latency),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
