@@ -27,6 +27,14 @@ object StarveilColors {
     /** Raised surface (cards, sheets). */
     val Raised = Color(0xFF121A2E)
 
+    /**
+     * Snackbar surface: one step above [Raised].
+     *
+     * The bar floats over cards, so it cannot share their fill — at [Raised]
+     * it read as the bottom of the health card it covered.
+     */
+    val Snackbar = Color(0xFF1A2438)
+
     /** Primary glow: cyan-blue. */
     val GlowPrimary = Color(0xFF38BDF8)
 
@@ -108,16 +116,16 @@ object StarveilColors {
  *
  * M3's default is a near-white bar in a dark scheme, which in a dark-first
  * theme becomes the brightest thing on screen — a flash, not a footnote.
- * [StarveilColors.Raised] keeps the bar floating above the panel while staying
- * in the HUD palette; the action colour is the glow the rest of the app uses
- * for anything tappable.
+ * [StarveilColors.Snackbar] keeps the bar floating above the panel — and a
+ * step above the cards it covers — while staying in the HUD palette; the
+ * action colour is the glow the rest of the app uses for anything tappable.
  *
  * Applied to the hand-built dark scheme *and* to the wallpaper-derived one:
  * turning on dynamic colour may change the palette, but it must not turn the
  * snackbar back into a white block.
  */
 private fun ColorScheme.withHudSnackbar(): ColorScheme = copy(
-    inverseSurface = StarveilColors.Raised,
+    inverseSurface = StarveilColors.Snackbar,
     inverseOnSurface = Color(0xFFE2E8F0),
     inversePrimary = StarveilColors.GlowPrimary,
 )
