@@ -19,11 +19,6 @@
     <string name="widget_disconnected">未连接</string>
     <string name="widget_tap_connect">点一下连接</string>
     <string name="widget_tap_disconnect">点一下断开</string>
-    <string name="latency_measured">延迟：%1$d ms</string>
-    <string name="latency_no_node">请先选择节点。</string>
-    <string name="latency_timeout">探测窗口内节点没有响应。</string>
-    <string name="latency_unreachable">无法连到节点——其端口没有 TCP 响应。</string>
-    <string name="latency_not_applicable">无法测量——WireGuard 只走 UDP，而这次探测是 TCP 握手。</string>
 
     <string name="scene_channel_name">场景</string>
     <string name="scene_channel_desc">自动切换策略的记录。</string>

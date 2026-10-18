@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.flows
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -17,9 +17,10 @@ import kotlinx.coroutines.launch
 /**
  * Adapts the kernel's connection flow to the UI's [FlowLog].
  *
- * Lives in :app because it is the only layer allowed to touch the kernel. It
- * maps the kernel's vocabulary onto the app's and keeps a bounded ring, so a
- * busy tunnel cannot grow the list without limit.
+ * Lives in :core:probe, the layer allowed to touch the kernel without being
+ * the UI. It maps the kernel's vocabulary onto the app's and keeps a bounded
+ * ring, so a busy tunnel cannot grow the list without limit; :app only binds
+ * it.
  */
 class KernelFlowLog(bridge: KernelBridge) : FlowLog {
 

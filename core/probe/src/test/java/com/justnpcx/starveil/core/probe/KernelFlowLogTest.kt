@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.flows
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelConnection

@@ -22,8 +22,8 @@ import androidx.navigation.compose.composable
 import com.justnpcx.starveil.BuildConfig
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
-import com.justnpcx.starveil.latency.NodeLatencyTesterEntryPoint
-import com.justnpcx.starveil.leak.LeakCheckRunnerEntryPoint
+import com.justnpcx.starveil.core.probe.NodeLatencyTesterEntryPoint
+import com.justnpcx.starveil.core.probe.LeakCheckRunnerEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen

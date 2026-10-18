@@ -219,6 +219,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:subscription"))
+    // Probes: latency, health sampling, the leak self-check, flow log.
+    implementation(project(":core:probe"))
     // The background health sweep. Already on the classpath transitively via
     // :core:subscription, but named here because :app now enqueues work itself.
     implementation(libs.workmanager)

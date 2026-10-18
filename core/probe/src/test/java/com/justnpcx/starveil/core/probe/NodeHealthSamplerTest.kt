@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.latency
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
@@ -163,19 +163,19 @@ private class FakeProbe(private val result: ProbeResult) : NodeProbe {
 }
 
 private class FakeProfiles(private val byId: Map<Long, Profile>) : ProfileRepository {
-    override fun observeAll(): Flow<List<Profile>> = notUsed()
-    override fun observeByGroup(groupId: Long): Flow<List<Profile>> = notUsed()
+    override fun observeAll(): Flow<List<Profile>> = samplerNotUsed()
+    override fun observeByGroup(groupId: Long): Flow<List<Profile>> = samplerNotUsed()
     override suspend fun getById(id: Long): Profile? = byId[id]
-    override suspend fun upsert(profile: Profile): Long = notUsed()
-    override suspend fun deleteById(id: Long) = notUsed()
-    override suspend fun deleteByGroup(groupId: Long) = notUsed()
-    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = notUsed()
+    override suspend fun upsert(profile: Profile): Long = samplerNotUsed()
+    override suspend fun deleteById(id: Long) = samplerNotUsed()
+    override suspend fun deleteByGroup(groupId: Long) = samplerNotUsed()
+    override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = samplerNotUsed()
 }
 
 private class FakeHealth : NodeHealthRepository {
     val recorded = mutableListOf<Triple<Long, Long, Long>>()
 
-    override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = notUsed()
+    override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = samplerNotUsed()
     override suspend fun record(
         profileId: Long,
         latencyMs: Long,
@@ -185,54 +185,54 @@ private class FakeHealth : NodeHealthRepository {
         recorded += Triple(profileId, latencyMs, atMs)
     }
 
-    override suspend fun forget(profileId: Long) = notUsed()
+    override suspend fun forget(profileId: Long) = samplerNotUsed()
 }
 
 /** Only the selection matters to the sampler. */
 private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val selectedProfileId: Flow<Long> = flowOf(selectedId)
 
-    override val themeMode: Flow<ThemeMode> get() = notUsed()
-    override val dynamicColor: Flow<Boolean> get() = notUsed()
-    override val autoReconnect: Flow<Boolean> get() = notUsed()
-    override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
-    override val bypassMainland: Flow<Boolean> get() = notUsed()
+    override val themeMode: Flow<ThemeMode> get() = samplerNotUsed()
+    override val dynamicColor: Flow<Boolean> get() = samplerNotUsed()
+    override val autoReconnect: Flow<Boolean> get() = samplerNotUsed()
+    override val autoSwitchOnDrop: Flow<Boolean> get() = samplerNotUsed()
+    override val bypassMainland: Flow<Boolean> get() = samplerNotUsed()
     override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
     override val onboardingDone: Flow<Boolean> = flowOf(true)
-    override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
-    override val selectedGroupId: Flow<Long> get() = notUsed()
-    override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
-    override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val killSwitchMode: Flow<KillSwitchMode> get() = samplerNotUsed()
+    override val selectedGroupId: Flow<Long> get() = samplerNotUsed()
+    override val connectionTarget: Flow<ConnectionTarget> get() = samplerNotUsed()
+    override val lastLeakCheck: Flow<LeakCheckRecord> get() = samplerNotUsed()
     override val scenes: Flow<List<Scene>> = flowOf(emptyList())
-    override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
+    override suspend fun setScenes(scenes: List<Scene>) { samplerNotUsed() }
     override val manualPresetAt: Flow<Long> = flowOf(0L)
-    override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
+    override suspend fun recordManualPresetChange(atEpochMs: Long) { samplerNotUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
-    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
-    override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
-    override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
-    override val subscriptionLastError: Flow<String?> get() = notUsed()
-    override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
-    override suspend fun setThemeMode(mode: ThemeMode) = notUsed()
-    override suspend fun setDynamicColor(enabled: Boolean) = notUsed()
-    override suspend fun setBypassMainland(enabled: Boolean) = notUsed()
-    override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
-    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
-    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
-    override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
-    override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
-    override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
-    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()
-    override suspend fun setKillSwitchMode(mode: KillSwitchMode) = notUsed()
-    override suspend fun recordLeakCheck(record: LeakCheckRecord) = notUsed()
-    override suspend fun setSelectedProfileId(id: Long) = notUsed()
-    override suspend fun setSelectedGroupId(id: Long) = notUsed()
-    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) = notUsed()
-    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) = notUsed()
-    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) = notUsed()
+    override suspend fun recordHealthProbe(atEpochMs: Long) { samplerNotUsed() }
+    override val subscriptionLastSuccessAt: Flow<Long> get() = samplerNotUsed()
+    override val subscriptionLastFailureAt: Flow<Long> get() = samplerNotUsed()
+    override val subscriptionLastError: Flow<String?> get() = samplerNotUsed()
+    override val perAppRoutes: Flow<Map<String, AppRoute>> get() = samplerNotUsed()
+    override suspend fun setThemeMode(mode: ThemeMode) = samplerNotUsed()
+    override suspend fun setDynamicColor(enabled: Boolean) = samplerNotUsed()
+    override suspend fun setBypassMainland(enabled: Boolean) = samplerNotUsed()
+    override suspend fun setRoutePreset(preset: RoutePreset) { samplerNotUsed() }
+    override suspend fun setBlockAds(enabled: Boolean) { samplerNotUsed() }
+    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { samplerNotUsed() }
+    override suspend fun setLocalApiEnabled(enabled: Boolean) { samplerNotUsed() }
+    override suspend fun setOnboardingDone(done: Boolean) { samplerNotUsed() }
+    override suspend fun setAutoReconnect(enabled: Boolean) = samplerNotUsed()
+    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = samplerNotUsed()
+    override suspend fun setKillSwitchMode(mode: KillSwitchMode) = samplerNotUsed()
+    override suspend fun recordLeakCheck(record: LeakCheckRecord) = samplerNotUsed()
+    override suspend fun setSelectedProfileId(id: Long) = samplerNotUsed()
+    override suspend fun setSelectedGroupId(id: Long) = samplerNotUsed()
+    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) = samplerNotUsed()
+    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) = samplerNotUsed()
+    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) = samplerNotUsed()
 }
 
-private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
+private fun samplerNotUsed(): Nothing = throw NotImplementedError("not used by this test")

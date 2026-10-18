@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Results of the manual latency probe. They live with the probe because
+         it is the only thing that can phrase them: the numbers and the
+         timeout/unreachable split are its own vocabulary. -->
+    <string name="latency_measured">Latency: %1$d ms</string>
+    <string name="latency_no_node">Pick a node first.</string>
+    <string name="latency_timeout">No reply from the node within the probe window.</string>
+    <string name="latency_unreachable">Could not reach the node — no TCP reply on its port.</string>
+    <string name="latency_not_applicable">Not measurable — WireGuard speaks UDP only, and this probe is a TCP handshake.</string>
+</resources>

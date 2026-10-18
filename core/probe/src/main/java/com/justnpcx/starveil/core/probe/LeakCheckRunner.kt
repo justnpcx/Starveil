@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.leak
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge

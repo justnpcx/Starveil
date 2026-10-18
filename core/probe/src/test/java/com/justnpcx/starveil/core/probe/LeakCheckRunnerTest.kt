@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.leak
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
@@ -36,10 +36,10 @@ class LeakCheckRunnerTest {
 
     @Test
     fun `a blocking policy with no tunnel standing is a leak`() = runBlocking {
-        val preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT)
+        val preferences = LeakFakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT)
         val runner = LeakCheckRunner(
             preferences = preferences,
-            kernel = FakeKernel(KernelState.Stopped),
+            kernel = LeakFakeKernel(KernelState.Stopped),
             tunnel = TunnelProbe { false },
         )
 
@@ -52,8 +52,8 @@ class LeakCheckRunnerTest {
     @Test
     fun `a blocking policy with the tunnel standing is clean`() = runBlocking {
         val runner = LeakCheckRunner(
-            preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
-            kernel = FakeKernel(KernelState.Stopped),
+            preferences = LeakFakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel = LeakFakeKernel(KernelState.Stopped),
             tunnel = TunnelProbe { true },
         )
 
@@ -65,8 +65,8 @@ class LeakCheckRunnerTest {
         // The block is a running kernel with a block-only config now. Calling
         // that "connected" would report a working Kill Switch as a leak.
         val runner = LeakCheckRunner(
-            preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
-            kernel = FakeKernel(KernelState.Running, blockingNow = true),
+            preferences = LeakFakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel = LeakFakeKernel(KernelState.Running, blockingNow = true),
             tunnel = TunnelProbe { true },
         )
 
@@ -78,8 +78,8 @@ class LeakCheckRunnerTest {
         // The kernel believes it is blocking, but nothing is holding the tun:
         // traffic leaves directly, which is exactly the failure to report.
         val runner = LeakCheckRunner(
-            preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
-            kernel = FakeKernel(KernelState.Running, blockingNow = true),
+            preferences = LeakFakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel = LeakFakeKernel(KernelState.Running, blockingNow = true),
             tunnel = TunnelProbe { false },
         )
 
@@ -90,8 +90,8 @@ class LeakCheckRunnerTest {
     fun `the kill switch off is never a leak`() = runBlocking {
         // No tunnel and traffic flowing freely is the intended state here.
         val runner = LeakCheckRunner(
-            preferences = FakePreferences(KillSwitchMode.OFF),
-            kernel = FakeKernel(KernelState.Stopped),
+            preferences = LeakFakePreferences(KillSwitchMode.OFF),
+            kernel = LeakFakeKernel(KernelState.Stopped),
             tunnel = TunnelProbe { false },
         )
 
@@ -103,8 +103,8 @@ class LeakCheckRunnerTest {
         // The policy allows traffic while connected, so a missing tunnel is not
         // a leak — it is just not connected yet.
         val runner = LeakCheckRunner(
-            preferences = FakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
-            kernel = FakeKernel(KernelState.Running),
+            preferences = LeakFakePreferences(KillSwitchMode.BLOCK_ON_DISCONNECT),
+            kernel = LeakFakeKernel(KernelState.Running),
             tunnel = TunnelProbe { false },
         )
 
@@ -114,8 +114,8 @@ class LeakCheckRunnerTest {
     @Test
     fun `the record is stamped so the screen can show when it ran`() = runBlocking {
         val runner = LeakCheckRunner(
-            preferences = FakePreferences(KillSwitchMode.OFF),
-            kernel = FakeKernel(KernelState.Stopped),
+            preferences = LeakFakePreferences(KillSwitchMode.OFF),
+            kernel = LeakFakeKernel(KernelState.Stopped),
             tunnel = TunnelProbe { true },
         )
 
@@ -123,7 +123,7 @@ class LeakCheckRunnerTest {
     }
 }
 
-private class FakeKernel(initial: KernelState, blockingNow: Boolean = false) : KernelBridge {
+private class LeakFakeKernel(initial: KernelState, blockingNow: Boolean = false) : KernelBridge {
     override val state: StateFlow<KernelState> = MutableStateFlow(initial)
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
     override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()
@@ -136,7 +136,7 @@ private class FakeKernel(initial: KernelState, blockingNow: Boolean = false) : K
     override suspend fun version(): String = "test"
 }
 
-private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRepository {
+private class LeakFakePreferences(private val mode: KillSwitchMode) : PreferencesRepository {
 
     var lastRecord: LeakCheckRecord? = null
         private set
@@ -148,46 +148,46 @@ private class FakePreferences(private val mode: KillSwitchMode) : PreferencesRep
     }
 
     // The rest of the preferences are not what this test is about.
-    override val selectedProfileId: Flow<Long> get() = notUsed()
-    override val selectedGroupId: Flow<Long> get() = notUsed()
-    override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
-    override val themeMode: Flow<ThemeMode> get() = notUsed()
-    override val dynamicColor: Flow<Boolean> get() = notUsed()
-    override val autoReconnect: Flow<Boolean> get() = notUsed()
-    override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
-    override val bypassMainland: Flow<Boolean> get() = notUsed()
+    override val selectedProfileId: Flow<Long> get() = leakNotUsed()
+    override val selectedGroupId: Flow<Long> get() = leakNotUsed()
+    override val connectionTarget: Flow<ConnectionTarget> get() = leakNotUsed()
+    override val themeMode: Flow<ThemeMode> get() = leakNotUsed()
+    override val dynamicColor: Flow<Boolean> get() = leakNotUsed()
+    override val autoReconnect: Flow<Boolean> get() = leakNotUsed()
+    override val autoSwitchOnDrop: Flow<Boolean> get() = leakNotUsed()
+    override val bypassMainland: Flow<Boolean> get() = leakNotUsed()
     override val routePreset: Flow<RoutePreset> = flowOf(RoutePreset.GLOBAL_PROXY)
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
     override val onboardingDone: Flow<Boolean> = flowOf(true)
-    override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
+    override val lastLeakCheck: Flow<LeakCheckRecord> get() = leakNotUsed()
     override val scenes: Flow<List<Scene>> = flowOf(emptyList())
-    override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
+    override suspend fun setScenes(scenes: List<Scene>) { leakNotUsed() }
     override val manualPresetAt: Flow<Long> = flowOf(0L)
-    override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
+    override suspend fun recordManualPresetChange(atEpochMs: Long) { leakNotUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
-    override suspend fun recordHealthProbe(atEpochMs: Long) { notUsed() }
-    override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
-    override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
-    override val subscriptionLastError: Flow<String?> get() = notUsed()
-    override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
-    override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
-    override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
-    override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
-    override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
-    override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
-    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
-    override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
-    override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
-    override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
-    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
-    override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }
-    override suspend fun setSelectedProfileId(id: Long) { notUsed() }
-    override suspend fun setSelectedGroupId(id: Long) { notUsed() }
-    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
-    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }
-    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) { notUsed() }
+    override suspend fun recordHealthProbe(atEpochMs: Long) { leakNotUsed() }
+    override val subscriptionLastSuccessAt: Flow<Long> get() = leakNotUsed()
+    override val subscriptionLastFailureAt: Flow<Long> get() = leakNotUsed()
+    override val subscriptionLastError: Flow<String?> get() = leakNotUsed()
+    override val perAppRoutes: Flow<Map<String, AppRoute>> get() = leakNotUsed()
+    override suspend fun setThemeMode(mode: ThemeMode) { leakNotUsed() }
+    override suspend fun setDynamicColor(enabled: Boolean) { leakNotUsed() }
+    override suspend fun setBypassMainland(enabled: Boolean) { leakNotUsed() }
+    override suspend fun setRoutePreset(preset: RoutePreset) { leakNotUsed() }
+    override suspend fun setBlockAds(enabled: Boolean) { leakNotUsed() }
+    override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { leakNotUsed() }
+    override suspend fun setLocalApiEnabled(enabled: Boolean) { leakNotUsed() }
+    override suspend fun setOnboardingDone(done: Boolean) { leakNotUsed() }
+    override suspend fun setAutoReconnect(enabled: Boolean) { leakNotUsed() }
+    override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { leakNotUsed() }
+    override suspend fun setKillSwitchMode(mode: KillSwitchMode) { leakNotUsed() }
+    override suspend fun setSelectedProfileId(id: Long) { leakNotUsed() }
+    override suspend fun setSelectedGroupId(id: Long) { leakNotUsed() }
+    override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { leakNotUsed() }
+    override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { leakNotUsed() }
+    override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) { leakNotUsed() }
 }
 
-private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
+private fun leakNotUsed(): Nothing = throw NotImplementedError("not used by this test")

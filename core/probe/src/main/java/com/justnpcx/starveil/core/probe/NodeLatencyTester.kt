@@ -1,7 +1,7 @@
-package com.justnpcx.starveil.latency
+package com.justnpcx.starveil.core.probe
 
 import android.content.Context
-import com.justnpcx.starveil.R
+import com.justnpcx.starveil.core.probe.R
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -27,8 +27,8 @@ import kotlinx.coroutines.flow.first
  * handshake: a node that accepts TCP but rejects the protocol still reads as
  * fast. Proving the protocol works is what connecting is for.
  *
- * Lives in :app so the navigation layer can trigger it; the Nodes screen only
- * receives a callback.
+ * Lives in :core:probe with the rest of the probing; the Nodes screen reaches
+ * it through [NodeLatencyTesterEntryPoint] and only receives a callback.
  *
  * Always returns a user-facing message, so a failed measurement is never
  * silent — "nothing happened" was the previous behaviour and read as a broken

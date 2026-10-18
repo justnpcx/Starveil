@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.latency
+package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository

@@ -34,7 +34,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
-import com.justnpcx.starveil.latency.NodeHealthSampler
+import com.justnpcx.starveil.core.probe.NodeHealthSampler
 import com.justnpcx.starveil.onboarding.OnboardingScreen
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.Destination

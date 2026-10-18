@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.latency
+package com.justnpcx.starveil.core.probe
 
 import java.io.IOException
 import java.net.InetAddress
