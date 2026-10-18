@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -415,9 +418,20 @@ private fun CurrentNodeCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = onAutoSelect) {
-                    Text(stringResource(R.string.dashboard_auto_select))
-                }
+                AssistChip(
+                    onClick = onAutoSelect,
+                    label = {
+                        Text(
+                            text = stringResource(R.string.dashboard_auto_select),
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                        )
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
             }
             health?.takeIf { !it.collecting }?.let { current ->
                 val latency = current.emaMs
