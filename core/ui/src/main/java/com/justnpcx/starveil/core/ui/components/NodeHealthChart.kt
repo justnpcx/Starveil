@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -96,7 +97,6 @@ fun NodeHealthChart(
         return
     }
 
-    val band = health.band.color()
     val trace = emaSeries(health.samples)
 
     Box(
@@ -104,15 +104,10 @@ fun NodeHealthChart(
             .semantics { this.contentDescription = contentDescription },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // The background bar. Tinted across the plot so the band reads at a
-            // glance, and solid along the bottom edge so it is unambiguous
-            // rather than a shade the eye has to judge.
-            drawRect(color = band.copy(alpha = BAND_TINT_ALPHA))
-            drawRect(
-                color = band,
-                topLeft = Offset(0f, size.height - BAND_BAR_HEIGHT_PX),
-                size = androidx.compose.ui.geometry.Size(size.width, BAND_BAR_HEIGHT_PX),
-            )
+            // No background plate and no band strip: the card is the only
+            // background (G2). The curve carries its own gradient, which fades
+            // into the card at the bottom.
+            drawLatencyFill(trace, StarveilColors.Chart3)
 
             // Loss first, so the trace sits over the dots rather than under
             // them — a dot the line crosses is still a dot you can see.
@@ -121,11 +116,33 @@ fun NodeHealthChart(
                 values = trace,
                 color = StarveilColors.Chart3,
                 strokeWidth = 2f,
-                // Keep the trace clear of the availability bar.
-                bottomInset = BAND_BAR_HEIGHT_PX + 1f,
             )
         }
     }
+}
+
+/**
+ * The ribbon under the latency trace: the same spline, closed to the baseline
+ * and filled with a fade. It is what makes the curve sit on the card instead of
+ * on a plate of its own colour.
+ */
+private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color) {
+    val points = latencyTrace(values, size.width, size.height)
+    if (points.size < 2) return
+    val fill = Path().apply {
+        addPath(catmullRomPath(points))
+        lineTo(points.last().x, size.height)
+        lineTo(points.first().x, size.height)
+        close()
+    }
+    drawPath(
+        path = fill,
+        brush = Brush.verticalGradient(
+            colors = listOf(color.copy(alpha = 0.30f), Color.Transparent),
+            startY = 0f,
+            endY = size.height,
+        ),
+    )
 }
 
 /**
@@ -248,7 +265,7 @@ private fun DrawScope.drawLatencyTrace(
 }
 
 private fun DrawScope.drawLossDots(samples: List<LatencySample>, color: Color) {
-    val bottom = size.height - BAND_BAR_HEIGHT_PX - LOSS_DOT_RADIUS - 1f
+    val bottom = size.height - LOSS_DOT_RADIUS - 1f
     lossDots(samples, size.width).forEach { x ->
         drawCircle(color = color, radius = LOSS_DOT_RADIUS, center = Offset(x, bottom))
     }
@@ -257,11 +274,6 @@ private fun DrawScope.drawLossDots(samples: List<LatencySample>, color: Color) {
 /** Half a stroke, so the trace is not clipped at the top edge. */
 private const val STROKE_INSET = 1f
 
-/** How tall the availability bar is, in pixels. */
-private const val BAND_BAR_HEIGHT_PX = 4f
-
 /** Loss dot radius, in pixels. */
 private const val LOSS_DOT_RADIUS = 2.5f
 
-/** The band tint across the plot: present, but not so strong it colours the trace. */
-private const val BAND_TINT_ALPHA = 0.14f
