@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -90,6 +91,8 @@ fun ConnectionCore(
      */
     label: String,
     modifier: Modifier = Modifier,
+    /** The ring's diameter. The dashboard shrinks it on short screens. */
+    diameter: Dp = CORE_SIZE,
     /**
      * A connect or disconnect is in flight. Drawn as the same charge arc as
      * CONNECTING and the tap is ignored: a swap can take seconds, and a
@@ -206,7 +209,7 @@ fun ConnectionCore(
 
     Box(
         modifier = modifier
-            .size(CORE_SIZE)
+            .size(diameter)
             .semantics { this.contentDescription = contentDescription }
             .clickable(
                 enabled = !busy,
@@ -218,7 +221,7 @@ fun ConnectionCore(
         // The breath lives on the drawing, not on the Box: scaling the whole
         // core scaled the state word with it, and text that breathes reads as
         // a rendering fault.
-        Canvas(modifier = Modifier.size(CORE_SIZE).scale(breathScale)) {
+        Canvas(modifier = Modifier.size(diameter).scale(breathScale)) {
             val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
             val outer = size.minDimension / 2
             val ringRadius = outer - RING_INSET.toPx()

@@ -1,7 +1,11 @@
 package com.justnpcx.starveil.feature.dashboard
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
@@ -15,20 +19,28 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import java.util.Locale
 import kotlin.math.round
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -59,69 +71,106 @@ fun DashboardScreen(
     requestVpnConsent: (onGranted: () -> Unit) -> Unit = { it() },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(StarveilSpacing.lg),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top,
-    ) {
-        Spacer(modifier = Modifier.height(StarveilSpacing.xl))
-        ConnectionCore(
-            state = state.coreState,
-            busy = state.isBusy,
-            label = stringResource(
-                when (state.coreState) {
-                    ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
-                    ConnectionState.CONNECTING -> R.string.dashboard_state_connecting
-                    ConnectionState.CONNECTED -> R.string.dashboard_state_connected
-                    ConnectionState.BLOCKED -> R.string.dashboard_state_blocked
-                    ConnectionState.WARNING -> R.string.dashboard_state_warning
-                },
-            ),
-            onClick = { requestVpnConsent { viewModel.onCoreClick() } },
-            // The core is the screen's primary control, so its description
-            // carries both the state and what tapping does (design system §6.1).
-            contentDescription = stringResource(
-                when (state.coreState) {
-                    ConnectionState.DISCONNECTED -> R.string.dashboard_core_disconnected
-                    ConnectionState.CONNECTING -> R.string.dashboard_core_connecting
-                    ConnectionState.CONNECTED -> R.string.dashboard_core_connected
-                    ConnectionState.WARNING -> R.string.dashboard_core_warning
-                    ConnectionState.BLOCKED -> R.string.dashboard_core_blocked
-                },
-            ),
-        )
-        // The state is in the ring and the node name is in the card below, so
-        // there is nothing between the hero and the context: the extra air is
-        // the point (A5).
-        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
-        // The same banner the Nodes screen uses (K3), but not dismissible: it
-        // says why the core is blocked, and dismissing it would leave a blocked
-        // core with no reason on screen (C5).
-        state.notice?.let {
-            MessageBanner(
-                message = it.text(),
-                // 12 dp above and below in total, counting the banner's own 8.
-                modifier = Modifier.padding(vertical = 4.dp),
+    val snackbar = remember { SnackbarHostState() }
+
+    // A persistent notice is a condition that lasts until something changes —
+    // it gets the fixed slot. Everything else is a one-off confirmation and
+    // goes to a Snackbar, so it can never push the layout around (D3).
+    val notice = state.notice
+    val noticeText = notice?.text()
+    val persistent = notice?.isPersistent() == true
+    LaunchedEffect(notice) {
+        if (noticeText != null && !persistent) {
+            snackbar.showSnackbar(noticeText, duration = SnackbarDuration.Short)
+        }
+    }
+
+    // Landscape cannot hold the column, so it scrolls. Portrait must not (E1).
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // The hero is the one elastic element besides the chart: 260 dp when
+        // there is room, 220 dp on a short screen, so the fixed blocks below
+        // always fit.
+        val heroSize = if (maxHeight < 720.dp) 220.dp else 260.dp
+        val scroll = if (landscape) Modifier.verticalScroll(rememberScrollState()) else Modifier
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(scroll)
+                .padding(horizontal = StarveilSpacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ConnectionCore(
+                state = state.coreState,
+                busy = state.isBusy,
+                diameter = heroSize,
+                label = stringResource(
+                    when (state.coreState) {
+                        ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
+                        ConnectionState.CONNECTING -> R.string.dashboard_state_connecting
+                        ConnectionState.CONNECTED -> R.string.dashboard_state_connected
+                        ConnectionState.BLOCKED -> R.string.dashboard_state_blocked
+                        ConnectionState.WARNING -> R.string.dashboard_state_warning
+                    },
+                ),
+                onClick = { requestVpnConsent { viewModel.onCoreClick() } },
+                // The core is the screen's primary control, so its description
+                // carries both the state and what tapping does (§6.1).
+                contentDescription = stringResource(
+                    when (state.coreState) {
+                        ConnectionState.DISCONNECTED -> R.string.dashboard_core_disconnected
+                        ConnectionState.CONNECTING -> R.string.dashboard_core_connecting
+                        ConnectionState.CONNECTED -> R.string.dashboard_core_connected
+                        ConnectionState.WARNING -> R.string.dashboard_core_warning
+                        ConnectionState.BLOCKED -> R.string.dashboard_core_blocked
+                    },
+                ),
             )
-            Spacer(modifier = Modifier.height(12.dp))
+
+            // D2: a slot that is always 48 dp. Empty means transparent, not
+            // absent — "a sentence appears and pushes everything down" is the
+            // bug this exists to make impossible.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(BANNER_SLOT_HEIGHT),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (persistent && noticeText != null) {
+                    MessageBanner(message = noticeText)
+                }
+            }
+
+            SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 2.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            CurrentNodeCard(
+                name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
+                health = state.health,
+                onAutoSelect = viewModel::autoSelect,
+            )
+            // §7.2: the selected node's health over the window. Only for a
+            // node — a group has no single curve — and the chart says
+            // "collecting" in words until there is a shape worth drawing.
+            state.health?.let { health ->
+                Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                NodeHealthSection(
+                    health = health,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    chartHeight = if (landscape) 160.dp else null,
+                )
+            }
+            if (landscape) Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         }
-        SpeedSection(state = state)
-        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
-        CurrentNodeCard(
-            name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
-            health = state.health,
-            onAutoSelect = viewModel::autoSelect,
+
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
-        // §7.2: the selected node's health over the window. Only for a node —
-        // a group has no single curve — and the chart says "collecting" in
-        // words until there is a shape worth drawing.
-        state.health?.let { health ->
-            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
-            NodeHealthSection(health)
-        }
     }
 }
 
@@ -130,15 +179,29 @@ fun DashboardScreen(
  * under a line that says what the area is.
  */
 @Composable
-private fun NodeHealthSection(health: NodeHealth) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+private fun NodeHealthSection(
+    health: NodeHealth,
+    modifier: Modifier = Modifier,
+    /** Non-null only in landscape, where weight() has no bounded height. */
+    chartHeight: Dp? = null,
+) {
+    // The same card as the node above: same container colour, same rounded
+    // shape. The chart used to sit on the bare page, which made the two blocks
+    // look like different kinds of thing.
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = StarveilSpacing.lg,
+                vertical = StarveilSpacing.sm,
+            ),
+        ) {
         Row(
-            // Inset like the card's text, not the screen: the section's own
-            // chart is full-bleed, but a header is type and follows the type
-            // grid (C5).
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = StarveilSpacing.lg),
+                .height(HEALTH_HEADER_HEIGHT),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -171,10 +234,10 @@ private fun NodeHealthSection(health: NodeHealth) {
                 )
             }
         }
-        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
         val reachable = health.samples.filter { it.reachable }
         NodeHealthChart(
             health = health,
+            height = chartHeight,
             contentDescription = if (reachable.isEmpty()) {
                 stringResource(R.string.dashboard_health_chart_empty)
             } else {
@@ -185,7 +248,14 @@ private fun NodeHealthSection(health: NodeHealth) {
                     reachable.maxOf { it.latencyMs },
                 )
             },
+            modifier = if (chartHeight == null) {
+                // The chart absorbs whatever the fixed blocks left (D4/E1).
+                Modifier.weight(1f).fillMaxWidth().heightIn(min = HEALTH_MIN_HEIGHT)
+            } else {
+                Modifier.fillMaxWidth()
+            },
         )
+        }
     }
 }
 
@@ -386,7 +456,7 @@ private fun CurrentNodeCard(
                 ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+            Spacer(modifier = Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = name,
@@ -418,7 +488,7 @@ private fun CurrentNodeCard(
             // connected to, so repeating it here says nothing (C4). The health
             // card keeps it, where it is the window's summary.
             health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.dashboard_node_health_line, latency),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
@@ -427,6 +497,29 @@ private fun CurrentNodeCard(
             }
         }
     }
+}
+
+/** D2: the context slot's height, occupied or not. */
+private val BANNER_SLOT_HEIGHT = 48.dp
+
+/** D1: the telemetry block's height, with or without numbers. */
+private val TELEMETRY_HEIGHT = 96.dp
+
+/** D4: the health chart never gets smaller than this. */
+private val HEALTH_MIN_HEIGHT = 96.dp
+
+/** The health header is a fixed 32 dp so the chart's share is predictable. */
+private val HEALTH_HEADER_HEIGHT = 32.dp
+
+/**
+ * A condition that lasts, as opposed to a one-off confirmation.
+ *
+ * Only these get the slot; everything else is a Snackbar. Adding a new notice
+ * forces this decision instead of defaulting to "show it inline".
+ */
+private fun DashboardNotice.isPersistent(): Boolean = when (this) {
+    DashboardNotice.KillSwitchBlocking, DashboardNotice.KillSwitchFailed -> true
+    else -> false
 }
 
 private val RATE_UNITS = listOf("B/s", "KB/s", "MB/s", "GB/s")

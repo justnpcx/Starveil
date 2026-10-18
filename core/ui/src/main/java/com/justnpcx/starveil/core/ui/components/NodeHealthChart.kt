@@ -78,7 +78,11 @@ fun NodeHealthChart(
      */
     contentDescription: String,
     modifier: Modifier = Modifier.fillMaxWidth(),
-    height: Dp = 72.dp,
+    /**
+     * Null means "take the size the caller gave me" — the dashboard hands it a
+     * weight so the chart absorbs the screen's remaining height (D4).
+     */
+    height: Dp? = 72.dp,
 ) {
     if (health.collecting) {
         CollectingState(health, modifier, height)
@@ -89,8 +93,7 @@ fun NodeHealthChart(
     val trace = emaSeries(health.samples)
 
     Box(
-        modifier = modifier
-            .height(height)
+        modifier = (if (height != null) modifier.height(height) else modifier)
             .semantics { this.contentDescription = contentDescription },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -126,10 +129,9 @@ fun NodeHealthChart(
  * answered is exactly what the user wants to know, and a spinner would hide it.
  */
 @Composable
-private fun CollectingState(health: NodeHealth, modifier: Modifier, height: Dp) {
+private fun CollectingState(health: NodeHealth, modifier: Modifier, height: Dp?) {
     Box(
-        modifier = modifier
-            .height(height)
+        modifier = (if (height != null) modifier.height(height) else modifier)
             .background(StarveilColors.Raised),
         contentAlignment = Alignment.Center,
     ) {
