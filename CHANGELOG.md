@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.7.4] — 2026-10-20
+
+### Fixed
+
+- **Unreadable latency badge in dark mode**: "untested" and "timeout" were
+  drawn in a fixed slate meant for light surfaces, which on a dark raised card
+  measured 1.2:1 — invisible, and worse with a wallpaper-derived palette. The
+  dimming now follows the scheme (5.5:1 dark, 7.2:1 light, measured on device).
+
 ## [Unreleased]
 
 ### Added
