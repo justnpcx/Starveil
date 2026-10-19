@@ -138,6 +138,9 @@ fun ProfilesScreen(
     // Long-press a node for its actions. A tap has to stay "select", because
     // that is what the dashboard connects to.
     var rowMenu by remember { mutableStateOf<Profile?>(null) }
+    // The menu's delete is a tap, not a gesture: confirm it. The swipe keeps
+    // its instant delete + undo, because a swipe cannot be a stray tap.
+    var nodeToDelete by remember { mutableStateOf<Profile?>(null) }
     var pickingProtocol by remember { mutableStateOf(false) }
     // One add entry, four ways in. Two buttons that looked alike but did
     // different things was the original complaint.
@@ -498,7 +501,7 @@ fun ProfilesScreen(
                     TextButton(
                         onClick = {
                             rowMenu = null
-                            viewModel.deleteWithUndo(profile)
+                            nodeToDelete = profile
                         },
                     ) {
                         Text(
@@ -510,6 +513,32 @@ fun ProfilesScreen(
             },
             confirmButton = {
                 TextButton(onClick = { rowMenu = null }) {
+                    Text(stringResource(R.string.profiles_group_cancel))
+                }
+            },
+        )
+    }
+
+    nodeToDelete?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { nodeToDelete = null },
+            title = { Text(stringResource(R.string.profiles_node_delete_title)) },
+            text = { Text(stringResource(R.string.profiles_node_delete_body, profile.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteWithUndo(profile)
+                        nodeToDelete = null
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.profiles_delete, profile.name),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { nodeToDelete = null }) {
                     Text(stringResource(R.string.profiles_group_cancel))
                 }
             },

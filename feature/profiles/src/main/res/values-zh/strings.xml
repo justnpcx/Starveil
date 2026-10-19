@@ -102,4 +102,6 @@
     <string name="profiles_scan_prompt">对准分享链接或订阅二维码</string>
 
     <string name="profiles_delete">删除 %1$s</string>
+    <string name="profiles_node_delete_title">删除这个节点？</string>
+    <string name="profiles_node_delete_body">%1$s 及其凭据会被删除。底部提示条可在几秒内恢复。</string>
 </resources>
