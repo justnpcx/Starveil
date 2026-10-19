@@ -41,7 +41,7 @@
 **分流矩阵（2026-10-18）**
 
 判定依据是内核自己的记录（规则页「最近流向」+ 运行中的 `configuration.json`），不是出口
-IP——这台机器的 WiFi 本身经 VPS LA 出口（`node.example.com` = `203.0.113.10`），直连与
+IP——这台机器的 WiFi 本身经上游代理出口（`node.example.com` = `203.0.113.10`），直连与
 代理看到的公网 IP 相同，IP 对比在这里没有区分度。
 
 | 预设 | 运行配置 | 观察到的判定 |
@@ -351,7 +351,7 @@ kernel start failed: ... openTun failed [java.lang.IllegalStateException] mtu=90
 当天内核动了四刀，此前没有任何真机记录：`eb0ad0e` mixed + xudp → `c140dd1` 回退
 gvisor → `77aa442` mixed 的 Android 适配 → `553100b`/`3ae7cbf` 本地 DNS 限界 →
 `612dc9f` HY2 端口跳跃。设备 vivo V2238A / Android 16，预设「绕过大陆」，节点
-subscription（HY2，`mport=20000:30000`）。
+订阅里的 HY2 节点（`mport=20000:30000`）。
 
 **1. TCP 连通性（mixed 栈）**
 

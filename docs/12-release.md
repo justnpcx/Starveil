@@ -4,7 +4,7 @@
 
 ### 签名密钥
 
-发布用的 keystore 在仓库**之外**：`/root/release.jks`（alias `starveil`，RSA 4096，有效期 10000 天）。
+发布用的 keystore 在仓库**之外**，路径由环境变量 `STARVEIL_KEYSTORE` 指定（alias `starveil`，RSA 4096，有效期 10000 天）。
 密码在 `the environment file outside the repository` 的 `STARVEIL_KEYSTORE_PASSWORD` / `STARVEIL_KEY_PASSWORD`。
 
 **这个文件丢了就再也发不了升级包**——已安装的用户只能卸载重装（数据丢失）。请离线备份到至少两个地方。
@@ -12,7 +12,7 @@
 本地构建时它通过环境变量注入：
 
 ```bash
-export STARVEIL_KEYSTORE=/root/release.jks
+export STARVEIL_KEYSTORE=/path/to/release.jks
 export STARVEIL_KEYSTORE_PASSWORD=…
 export STARVEIL_KEY_ALIAS=starveil
 export STARVEIL_KEY_PASSWORD=…
@@ -57,7 +57,7 @@ GH_TOKEN=<token> scripts/set-signing-secrets.sh
 
 2026-10-17 这条流水线第一次跑通（run `39034766016`，v0.7.0）：draft 里三个 APK
 （arm64 85.7 MB / armeabi-v7a 76.7 MB / x86_64 90.0 MB），`apksigner verify` 的证书
-SHA-256 是 `f904a417…0b268c`，与 `/root/release.jks` 里 alias `starveil` 的
+SHA-256 是 `f904a417…0b268c`，与 `$STARVEIL_KEYSTORE` 里 alias `starveil` 的
 一致；`mapping-v0.7.0` 作为 artifact 保留。**draft 还没发布**，所以更新通道仍然看不到它。
 
 ## 更新通道怎么读到它
