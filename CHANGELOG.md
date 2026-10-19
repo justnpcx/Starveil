@@ -13,8 +13,9 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 - **Update channel**: releases are read from this repository
   (`justnpcx/Starveil`) instead of the artifact-only mirror, which no longer
   exists. The source is public now, so `releases/latest` answers without a
-  token. Older builds still point at the mirror and cannot see this release —
-  they need one manual install.
+  token. Only 0.7.2 and 0.7.3 point at the deleted mirror and will report
+  "no published release" until installed by hand; 0.7.0 and 0.7.1 named
+  `justnpcx/Starveil`, which is this repository today, so they can see it.
 
 ### Fixed
 

@@ -29,8 +29,10 @@ sealed interface UpdateCheck {
 /**
  * Reads the latest release from GitHub.
  *
- * The repository is private today, so this answers [UpdateCheck.Failed] until
- * M8 makes it public — a wrong answer would be worse than an honest "could not
+ * Unauthenticated by design: the app cannot ship a token, so the repository it
+ * reads has to be public for `releases/latest` to answer at all. A 404 comes
+ * back as [UpdateCheck.Failed] with "no published release" rather than as an
+ * empty answer — a wrong answer would be worse than an honest "could not
  * check", and the release page is still one tap away.
  *
  * `fetch` is injected so the parsing and the version comparison can be tested
@@ -111,7 +113,6 @@ class UpdateChecker internal constructor(
         Build.SUPPORTED_ABIS.firstOrNull { it in SUPPORTED_ABIS }
 
     private companion object {
-        /** Public in M8; until then this answers "could not check". */
         /**
          * The repository the updater reads releases from.
          *
