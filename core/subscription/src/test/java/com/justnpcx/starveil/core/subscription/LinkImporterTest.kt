@@ -59,6 +59,10 @@ private class ImpGroups : GroupRepository {
     override suspend fun deleteById(id: Long) {
         rows.remove(id)
     }
+
+    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) {
+        rows.remove(id)
+    }
 }
 
 private class ImpFetcher(

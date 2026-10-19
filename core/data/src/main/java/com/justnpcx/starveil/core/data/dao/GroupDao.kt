@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.justnpcx.starveil.core.data.entity.GroupEntity
 import kotlinx.coroutines.flow.Flow
@@ -48,4 +49,21 @@ interface GroupDao {
 
     @Query("DELETE FROM `groups` WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    /**
+     * Delete a group and, when [deleteProfiles], the nodes it owns — atomically.
+     *
+     * Two statements in one transaction matters here: an interruption between
+     * them would leave a group with no nodes and nothing left to refresh it,
+     * which is indistinguishable from an empty subscription. A region group
+     * owns no profiles (its members are derived), so callers pass false.
+     */
+    @Transaction
+    suspend fun deleteWithProfiles(groupId: Long, deleteProfiles: Boolean) {
+        if (deleteProfiles) deleteProfilesOfGroup(groupId)
+        deleteById(groupId)
+    }
+
+    @Query("DELETE FROM profiles WHERE groupId = :groupId")
+    suspend fun deleteProfilesOfGroup(groupId: Long)
 }

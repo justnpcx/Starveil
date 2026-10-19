@@ -253,6 +253,7 @@ private class NoGroups : GroupRepository {
     override suspend fun findByRegion(region: NodeRegion): ProxyGroup? = notUsed()
     override suspend fun upsert(group: ProxyGroup): Long = notUsed()
     override suspend fun deleteById(id: Long) = notUsed()
+    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) = notUsed()
 }
 
 private class NoRules : RuleRepository {

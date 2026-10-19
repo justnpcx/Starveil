@@ -197,7 +197,10 @@ class ProfilesViewModelTest {
                 profile(TWO, "two").copy(groupId = 0L),
             ),
         )
-        val groups = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
+        val groups = FakeGroups(
+            all = listOf(ProxyGroup(id = SUB, name = "sub")),
+            onDeleteProfiles = { profiles.deleteByGroup(it) },
+        )
         val scheduler = FakeRefreshScheduler()
         val viewModel = viewModel(profiles, FakePreferences(TWO), groups, scheduler)
         val job = launch { viewModel.uiState.collect {} }
@@ -208,7 +211,9 @@ class ProfilesViewModelTest {
         viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)))
         yield()
 
-        assertEquals(SUB, groups.deletedId)
+        // One call, one transaction: the fake records the delegation, the DAO
+        // removes the group and its nodes together.
+        assertEquals(SUB to true, groups.deletedWithProfiles)
         assertEquals(listOf(TWO), profiles.remainingIds())
         // The refresh work must not outlive the group it refreshes.
         assertEquals(listOf(SUB), scheduler.cancelled)
@@ -771,11 +776,17 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) { notUsed() }
 }
 
-private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : GroupRepository {
+private class FakeGroups(
+    private val all: List<ProxyGroup> = emptyList(),
+    /** Stands in for the DAO's transactional delete of the group's nodes. */
+    private val onDeleteProfiles: suspend (Long) -> Unit = {},
+) : GroupRepository {
 
     var upserted: ProxyGroup? = null
         private set
     var deletedId: Long? = null
+        private set
+    var deletedWithProfiles: Pair<Long, Boolean>? = null
         private set
 
     override fun observeAll(): Flow<List<ProxyGroup>> = flowOf(all)
@@ -793,6 +804,12 @@ private class FakeGroups(private val all: List<ProxyGroup> = emptyList()) : Grou
 
     override suspend fun deleteById(id: Long) {
         deletedId = id
+    }
+
+    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) {
+        deletedWithProfiles = id to deleteProfiles
+        deletedId = id
+        if (deleteProfiles) onDeleteProfiles(id)
     }
 }
 

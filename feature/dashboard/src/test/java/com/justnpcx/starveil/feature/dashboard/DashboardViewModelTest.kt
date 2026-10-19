@@ -836,6 +836,7 @@ private class FakeGroups(private val all: List<ProxyGroup>) : GroupRepository {
     override suspend fun findByRegion(region: NodeRegion): ProxyGroup? = notUsed()
     override suspend fun upsert(group: ProxyGroup): Long = notUsed()
     override suspend fun deleteById(id: Long) = notUsed()
+    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) = notUsed()
 }
 
 /** No rules configured — the config just has an empty `rules` array. */

@@ -32,6 +32,15 @@ interface GroupRepository {
     suspend fun findByRegion(region: NodeRegion): ProxyGroup?
     suspend fun upsert(group: ProxyGroup): Long
     suspend fun deleteById(id: Long)
+
+    /**
+     * Delete a group and, when [deleteProfiles], the nodes it owns.
+     *
+     * One transaction on purpose: the row and its members must disappear
+     * together, or an interrupted delete leaves an empty group that looks
+     * like a subscription that refreshed to nothing.
+     */
+    suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean)
 }
 
 class RoomGroupRepository @Inject constructor(
@@ -70,6 +79,9 @@ class RoomGroupRepository @Inject constructor(
     override suspend fun upsert(group: ProxyGroup): Long = groupDao.upsert(group.toEntity())
 
     override suspend fun deleteById(id: Long) = groupDao.deleteById(id)
+
+    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) =
+        groupDao.deleteWithProfiles(id, deleteProfiles)
 
     private suspend fun profileIdsOf(entity: GroupEntity): List<Long> {
         val region = entity.region.toRegion() ?: return profileDao.getProfileIdsByGroup(entity.id)

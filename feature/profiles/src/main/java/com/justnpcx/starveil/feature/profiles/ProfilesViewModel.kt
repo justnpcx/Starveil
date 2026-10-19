@@ -272,14 +272,17 @@ class ProfilesViewModel @Inject constructor(
             // node names and belong to their subscription. Deleting them would
             // take the user's nodes with it, which is the opposite of what
             // "delete this group" means here.
+            //
+            // The row and its nodes go in one transaction: a half-finished
+            // delete would leave an empty group that looks like a subscription
+            // which refreshed to nothing.
+            groups.deleteWithProfiles(group.id, deleteProfiles = group.region == null)
             if (group.region == null) {
-                profiles.deleteByGroup(group.id)
                 // A subscription group's refresh work outlives the row
                 // otherwise, and would keep re-creating nodes for a group that
                 // is gone.
                 refreshScheduler.cancel(group.id)
             }
-            groups.deleteById(group.id)
             // Same rule as deleting one node: the target must not outlive the
             // thing it points at.
             if (preferences.selectedGroupId.first() == group.id) {

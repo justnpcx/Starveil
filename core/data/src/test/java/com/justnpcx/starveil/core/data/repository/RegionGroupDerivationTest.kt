@@ -106,6 +106,7 @@ private class StubGroupDao(private val rows: List<GroupEntity>) : GroupDao {
     override suspend fun update(entity: GroupEntity) = error("read-only")
     override suspend fun delete(entity: GroupEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
+    override suspend fun deleteProfilesOfGroup(groupId: Long) = error("read-only")
 }
 
 private class StubProfileDao(private val rows: List<ProfileEntity>) : ProfileDao {
