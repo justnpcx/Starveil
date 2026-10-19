@@ -1200,8 +1200,11 @@ private val SPARKLINE_HEIGHT = 20.dp
 private const val SELECTED_HALO_ALPHA = 0.16f
 
 /**
- * A group filter chip (design system §6.4): capsule, raised surface when idle,
- * brand glow when selected.
+ * A group filter chip (design system §6.4): rounded rect, raised surface when
+ * idle, brand glow when selected. The radius is fixed, not a percentage: a
+ * percent radius follows the chip's height and width, so "全部" (two glyphs)
+ * came out a circle while "Subscription" came out a capsule — one component
+ * with two shapes on the same row.
  *
  * Long-press opens group management. A tap has to stay the filter, so the
  * destructive actions cannot live there.
@@ -1241,7 +1244,7 @@ private fun GroupChip(
                 // similar; without this TalkBack reads only the label.
                 if (stateText != null) stateDescription = stateText
             },
-        shape = RoundedCornerShape(percent = 50),
+        shape = RoundedCornerShape(NODE_CARD_CORNER),
         // Theme colours, not the HUD's dark constants. In dark mode primary is
         // GlowPrimary and surfaceVariant is Raised, so this is the spec's
         // "GlowPrimary 20%" exactly; in light mode the same two tokens are a
