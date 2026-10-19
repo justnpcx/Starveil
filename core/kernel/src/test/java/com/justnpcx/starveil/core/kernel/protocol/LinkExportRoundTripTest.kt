@@ -151,6 +151,8 @@ class LinkExportRoundTripTest {
                     upMbps = 100,
                     downMbps = 200,
                     tls = TlsOptions(security = SecurityMode.TLS, sni = "h.example.com"),
+                    serverPorts = listOf("20000:30000", "40000:41000"),
+                    hopInterval = "15s",
                 ),
             ),
         )

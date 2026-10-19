@@ -205,6 +205,35 @@ class ShadowsocksLinkTest {
     }
 
     @Test
+    fun `parses port hopping in both separators`() {
+        val colon = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=20000:30000&hop-interval=15#N",
+        )
+        assertNotNull(colon)
+        val a = colon!!.settings as Hysteria2Settings
+        assertEquals(listOf("20000:30000"), a.serverPorts)
+        assertEquals("15s", a.hopInterval)
+
+        val dash = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=1000-2000,3000-4000",
+        )
+        assertNotNull(dash)
+        assertEquals(
+            listOf("1000:2000", "3000:4000"),
+            (dash!!.settings as Hysteria2Settings).serverPorts,
+        )
+    }
+
+    @Test
+    fun `drops invalid port ranges instead of failing the config`() {
+        val profile = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=0:100,2000:1000,abc,70000:80000",
+        )
+        assertNotNull(profile)
+        assertEquals(emptyList<String>(), (profile!!.settings as Hysteria2Settings).serverPorts)
+    }
+
+    @Test
     fun `rejects malformed links`() {
         assertNull(StarveilProtocols.parseShadowsocks("vless://u@h.example:443"))
         assertNull(StarveilProtocols.parseShadowsocks("ss://${b64("nocolon")}#x"))
@@ -268,6 +297,35 @@ class VmessLinkTest {
         // No `scy` in the link — VMess negotiates the cipher itself.
         assertEquals("auto", s.security)
         assertEquals(SecurityMode.NONE, s.tls.security)
+    }
+
+    @Test
+    fun `parses port hopping in both separators`() {
+        val colon = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=20000:30000&hop-interval=15#N",
+        )
+        assertNotNull(colon)
+        val a = colon!!.settings as Hysteria2Settings
+        assertEquals(listOf("20000:30000"), a.serverPorts)
+        assertEquals("15s", a.hopInterval)
+
+        val dash = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=1000-2000,3000-4000",
+        )
+        assertNotNull(dash)
+        assertEquals(
+            listOf("1000:2000", "3000:4000"),
+            (dash!!.settings as Hysteria2Settings).serverPorts,
+        )
+    }
+
+    @Test
+    fun `drops invalid port ranges instead of failing the config`() {
+        val profile = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=0:100,2000:1000,abc,70000:80000",
+        )
+        assertNotNull(profile)
+        assertEquals(emptyList<String>(), (profile!!.settings as Hysteria2Settings).serverPorts)
     }
 
     @Test
@@ -337,6 +395,35 @@ class Hysteria2LinkTest {
         )
         assertNotNull(profile)
         assertNull((profile!!.settings as Hysteria2Settings).obfs)
+    }
+
+    @Test
+    fun `parses port hopping in both separators`() {
+        val colon = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=20000:30000&hop-interval=15#N",
+        )
+        assertNotNull(colon)
+        val a = colon!!.settings as Hysteria2Settings
+        assertEquals(listOf("20000:30000"), a.serverPorts)
+        assertEquals("15s", a.hopInterval)
+
+        val dash = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=1000-2000,3000-4000",
+        )
+        assertNotNull(dash)
+        assertEquals(
+            listOf("1000:2000", "3000:4000"),
+            (dash!!.settings as Hysteria2Settings).serverPorts,
+        )
+    }
+
+    @Test
+    fun `drops invalid port ranges instead of failing the config`() {
+        val profile = StarveilProtocols.parseHysteria2(
+            "hysteria2://pw@h.example:443?mport=0:100,2000:1000,abc,70000:80000",
+        )
+        assertNotNull(profile)
+        assertEquals(emptyList<String>(), (profile!!.settings as Hysteria2Settings).serverPorts)
     }
 
     @Test

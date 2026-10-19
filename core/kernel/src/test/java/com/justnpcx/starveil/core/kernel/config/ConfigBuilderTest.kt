@@ -340,6 +340,44 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `Hysteria2 port hopping is emitted as server_ports and hop_interval`() {
+        val profile = Profile(
+            name = "hy2 hop",
+            type = ProfileType.HYSTERIA2,
+            server = "hy.example.com",
+            port = 443,
+            settings = Hysteria2Settings(
+                password = "pw",
+                tls = TlsOptions(security = SecurityMode.TLS, sni = "hy.example.com"),
+                serverPorts = listOf("20000:30000"),
+                hopInterval = "15s",
+            ),
+        )
+        val json = builder.build(profile)
+        assertTrue(json.contains("\"server_ports\":[\"20000:30000\"]"))
+        assertTrue(json.contains("\"hop_interval\":\"15s\""))
+        // The advertised port is kept: it is the fallback when hopping fails.
+        assertTrue(json.contains("\"server_port\":443"))
+    }
+
+    @Test
+    fun `Hysteria2 without a range emits no hopping keys`() {
+        val profile = Profile(
+            name = "hy2 plain",
+            type = ProfileType.HYSTERIA2,
+            server = "hy.example.com",
+            port = 443,
+            settings = Hysteria2Settings(
+                password = "pw",
+                tls = TlsOptions(security = SecurityMode.TLS),
+            ),
+        )
+        val json = builder.build(profile)
+        assertFalse(json.contains("server_ports"))
+        assertFalse(json.contains("hop_interval"))
+    }
+
+    @Test
     fun `TUIC config carries uuid, password and the QUIC knobs`() {
         val profile = Profile(
             name = "tuic",

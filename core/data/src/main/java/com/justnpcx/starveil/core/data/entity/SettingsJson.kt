@@ -82,6 +82,8 @@ internal object SettingsJson {
                 },
                 "upMbps" to settings.upMbps,
                 "downMbps" to settings.downMbps,
+                "serverPorts" to settings.serverPorts.takeIf { it.isNotEmpty() },
+                "hopInterval" to settings.hopInterval,
                 "tls" to encodeTls(settings.tls),
             )
 
@@ -176,6 +178,8 @@ internal object SettingsJson {
                     },
                     upMbps = map.int("upMbps"),
                     downMbps = map.int("downMbps"),
+                    serverPorts = map["serverPorts"].asStringList(),
+                    hopInterval = map.str("hopInterval"),
                     tls = decodeTls(map["tls"]),
                 )
             }

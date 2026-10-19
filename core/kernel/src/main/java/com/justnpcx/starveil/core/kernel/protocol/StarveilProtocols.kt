@@ -420,6 +420,11 @@ object StarveilProtocols {
                 obfs = obfsFrom(q),
                 upMbps = q.mbps("up", "upmbps"),
                 downMbps = q.mbps("down", "downmbps"),
+                // Port hopping. `mport` is written both as `start:end` and
+                // `start-end` by different clients; sing-box wants the colon
+                // form and one entry per range.
+                serverPorts = portRanges(q["mport"] ?: q["ports"]),
+                hopInterval = hopInterval(q["hop-interval"] ?: q["hopinterval"]),
                 // Hysteria2 runs over QUIC, so TLS is not optional — the
                 // default here is plain TLS rather than none.
                 tls = tlsFrom(q, SecurityMode.TLS, reality = null),
@@ -431,6 +436,36 @@ object StarveilProtocols {
         keys.firstNotNullOfOrNull { key ->
             this[key]?.trim()?.toIntOrNull()?.takeIf { it > 0 }
         }
+
+    /**
+     * `mport=20000:30000` or `mport=20000-30000`, comma separated for several
+     * ranges. Anything invalid is dropped rather than passed through: a bad
+     * range makes sing-box reject the whole config, which stops the kernel.
+     */
+    private fun portRanges(raw: String?): List<String> =
+        raw?.split(',')?.mapNotNull { part ->
+            val trimmed = part.trim()
+            val separator = trimmed.indexOfFirst { it == ':' || it == '-' }
+            if (separator <= 0) return@mapNotNull null
+            val start = trimmed.substring(0, separator).trim().toIntOrNull()
+                ?: return@mapNotNull null
+            val end = trimmed.substring(separator + 1).trim().toIntOrNull()
+                ?: return@mapNotNull null
+            if (start !in 1..65535 || end !in 1..65535 || start > end) {
+                return@mapNotNull null
+            }
+            "$start:$end"
+        }?.distinct().orEmpty()
+
+    /** `hop-interval=30` or `30s`; sing-box expects a Go duration. */
+    private fun hopInterval(raw: String?): String? {
+        val value = raw?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
+        if (value.all { it.isDigit() }) {
+            val seconds = value.toIntOrNull() ?: return null
+            return if (seconds > 0) "${seconds}s" else null
+        }
+        return value.takeIf { it.matches(Regex("[1-9]\\d*(ms|s|m|h)")) }
+    }
 
     /**
      * Only the obfs types sing-box still accepts, and only when the password

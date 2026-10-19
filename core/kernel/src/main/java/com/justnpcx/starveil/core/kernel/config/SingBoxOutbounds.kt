@@ -94,6 +94,12 @@ internal object SingBoxOutbounds {
         ).apply {
             s.upMbps?.let { put("up_mbps", it) }
             s.downMbps?.let { put("down_mbps", it) }
+            // A hopping node usually refuses the advertised server_port, so
+            // the range is not an optimisation — without it the node is dead.
+            if (s.serverPorts.isNotEmpty()) {
+                put("server_ports", s.serverPorts)
+                s.hopInterval?.let { put("hop_interval", it) }
+            }
             s.obfs?.let { obfs ->
                 put(
                     "obfs",

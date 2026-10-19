@@ -111,6 +111,8 @@ internal object StarveilLinkWriters {
             "obfs-password" to s.obfs?.password,
             "up" to s.upMbps?.toString(),
             "down" to s.downMbps?.toString(),
+            "mport" to s.serverPorts.takeIf { it.isNotEmpty() }?.joinToString(","),
+            "hop-interval" to s.hopInterval,
         )
         return "hysteria2://${LinkParsing.percentEncode(s.password)}@${authority(profile)}$query" +
             fragment(profile)

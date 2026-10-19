@@ -55,7 +55,22 @@ class SingBoxJsonSubscriptionParser : SubscriptionParser {
     private fun Map<*, *>.toProfile(): Profile? {
         val type = this["type"] as? String ?: return null
         val server = (this["server"] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        val port = (this["server_port"] as? Number)?.toInt()?.takeIf { it in 1..65535 } ?: return null
+        val serverPorts = (this["server_ports"] as? List<*>)
+            ?.mapNotNull { (it as? String)?.trim() }
+            ?.mapNotNull { range ->
+                val separator = range.indexOfFirst { c -> c == ':' || c == '-' }
+                if (separator <= 0) return@mapNotNull null
+                val start = range.substring(0, separator).toIntOrNull() ?: return@mapNotNull null
+                val end = range.substring(separator + 1).toIntOrNull() ?: return@mapNotNull null
+                if (start !in 1..65535 || end !in 1..65535 || start > end) return@mapNotNull null
+                "$start:$end"
+            }
+            .orEmpty()
+        // A hopping node may carry no server_port at all; the first range's
+        // start is the best stand-in for the profile's single port field.
+        val port = (this["server_port"] as? Number)?.toInt()?.takeIf { it in 1..65535 }
+            ?: serverPorts.firstOrNull()?.substringBefore(':')?.toIntOrNull()
+            ?: return null
         val name = (this["tag"] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: "$server:$port"
         val tls = tlsOptions() ?: return null
         val transport = transportOptions()
@@ -92,7 +107,14 @@ class SingBoxJsonSubscriptionParser : SubscriptionParser {
 
             else -> {
                 val password = (this["password"] as? String)?.takeIf { it.isNotEmpty() } ?: return null
-                Hysteria2Settings(password = password, tls = tls)
+                Hysteria2Settings(
+                    password = password,
+                    tls = tls,
+                    serverPorts = serverPorts,
+                    hopInterval = (this["hop_interval"] as? String)
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() },
+                )
             }
         }
 

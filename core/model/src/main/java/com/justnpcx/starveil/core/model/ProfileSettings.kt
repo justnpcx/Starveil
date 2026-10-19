@@ -187,6 +187,17 @@ data class Hysteria2Settings(
     val upMbps: Int? = null,
     val downMbps: Int? = null,
     val tls: TlsOptions = TlsOptions.Plain,
+    /**
+     * Port-hopping ranges, in sing-box's `start:end` form, from the link's
+     * `mport`. Empty means the node is reached on [Profile.port] only.
+     *
+     * Servers that advertise a range often do not accept the advertised
+     * `server_port` at all, so dropping this field makes the node unusable
+     * rather than merely slower.
+     */
+    val serverPorts: List<String> = emptyList(),
+    /** How long one port is kept, e.g. `30s`. Null leaves sing-box's 30s default. */
+    val hopInterval: String? = null,
 ) : ProfileSettings
 
 /** TUIC congestion control. sing-box accepts only these three. */
