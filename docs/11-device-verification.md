@@ -346,6 +346,64 @@ kernel start failed: ... openTun failed [java.lang.IllegalStateException] mtu=90
 对照：同一台机器、同一档「始终阻断」，授权正常时连接 → 「已阻断」，Chrome 无法联网。
 两条路径现在说的是同一件事：**界面上的阻断 = 真的有一个在丢包的隧道**。
 
+### 10-19 内核连击回归（2026-10-19）
+
+当天内核动了四刀，此前没有任何真机记录：`eb0ad0e` mixed + xudp → `c140dd1` 回退
+gvisor → `77aa442` mixed 的 Android 适配 → `553100b`/`3ae7cbf` 本地 DNS 限界 →
+`612dc9f` HY2 端口跳跃。设备 vivo V2238A / Android 16，预设「绕过大陆」，节点
+subscription（HY2，`mport=20000:30000`）。
+
+**1. TCP 连通性（mixed 栈）**
+
+| 目标 | 结果 |
+|---|---|
+| Chrome `example.com`（走代理） | 加载成功（Example Domain） |
+| Chrome `www.baidu.com`（直连） | 加载成功（百度一下） |
+| Chrome `www.qq.com`（直连） | 加载成功（腾讯网） |
+| 微信 | 会话列表刷新，状态栏 VPN 图标，13.3 KB/s |
+
+`c140dd1` 回退的原因是 mixed 下 TCP 全黑洞（SYN_SENT / SYN_RECV）；修复后未复现，
+mixed 下国内 10–16 MB/s、境外 ~4 MB/s。
+
+**回归中发现并修复：AAAA 黑洞**
+
+首轮 Chrome 打不开百度和腾讯（`ERR_CONNECTION_RESET`），但 curl 到同一 IPv4 地址是
+200。内核日志给出原因：
+
+```
+connection: open connection to [2408:...]:443 using outbound/direct[direct]:
+dial wlan0 (37): dial tcp [2408:...]:443: connect: network is unreachable
+```
+
+Wi-Fi 没有 IPv6 出口，但 tun 带 IPv6 地址，于是所有 AAAA 目标都被路由进隧道；应用已经
+和 tun 完成握手，看到的是 reset 而不是「网络不可达」，Happy Eyeballs 因此不回退 IPv4。
+
+修复（`972e7ed`）：tun 不再声明 IPv6 地址，`dns.strategy = ipv4_only`。之后
+`network is unreachable` 计数为 0，Chrome 与微信均正常。
+
+**2. 本地 DNS**
+
+| 项 | 方法 | 结果 |
+|---|---|---|
+| 路由器管理页 | `curl http://192.168.50.1` | HTTP 200 |
+| 局域网域名 | `openwrt.lan`（仅 LAN 可解析） | HTTP 200，`Server: nginx/1.30.3 (OpenWrt)` |
+| DNS 不进隧道 | 上述 `.lan` 由 `local` 服务器解析 | 成功；若进隧道会 NXDOMAIN |
+| 启停竞态 | 断开→连接后立刻解析+连接 `www.baidu.com` ×3 | 214 ms / 55 ms / 88 ms，`dns: exchange failed` = 0 |
+
+**3. HY2 端口跳跃**
+
+| 项 | 结果 |
+|---|---|
+| 生成配置 | `server_ports: ["20000:30000"]` |
+| 端口采样（每 5 s，90 s） | 28410 → 23108 → 24955 → 21103 → 29470 |
+| 跳跃期间短请求 | 12/12 HTTP 200 |
+| 跨跳跃长连接 | 100 MB 下载 HTTP 200，24.9 MB/s |
+
+跳跃间隔约 30–40 s，端口变化时连接不断。
+
+**未覆盖**：纯 IPv6 网络。当前实现有意关闭隧道 IPv6（与 `ipv4_only` 一致），在只有
+IPv6 出口的网络里会不可用；需要时应做成可配置项，而不是恢复 AAAA 黑洞。
+
 ## 未验证
 
 以下项目需要真机，且当时无法完成（设备不在网、无相应素材）：
