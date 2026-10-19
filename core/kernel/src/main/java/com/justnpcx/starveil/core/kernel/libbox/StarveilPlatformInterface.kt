@@ -87,20 +87,20 @@ class StarveilPlatformInterface(
     internal fun diagnostic(message: String) = KernelDiagnostics.log(message)
 
     /**
-     * Deliberately does nothing.
+     * Exempts one outbound socket from the tunnel.
      *
-     * sing-box calls this to exempt each outbound socket from the tunnel, and
-     * the usual answer is `VpnService.protect(fd)`. On the test device that
-     * returns true but exempts nothing: the kernel's SYNs still land in the tun
-     * (its RX counter rises in step with the dial rate) and every dial times
-     * out — even to the LAN gateway. Worse, protect()'s socket mark overrode
-     * the UID-based self-exclusion and pulled the socket *back* into the
-     * tunnel. The whole process is excluded from the tunnel instead (see
-     * StarveilVpnService.establishTun), so there is nothing to do per socket.
+     * This is what lets the kernel dial the node while the rest of the process
+     * stays inside the VPN. It has to be per socket, not per UID: the
+     * system/mixed tun stacks complete TCP through a kernel listener owned by
+     * this app, and a UID-wide exclusion also exempts that listener's
+     * SYN-ACKs, which then never re-enter the tunnel (client stuck in
+     * SYN_SENT, listener in SYN_RECV).
      */
     override fun autoDetectInterfaceControl(fd: Int) {
+        val protected = runCatching { StarveilVpnService.current?.protect(fd) == true }
+            .getOrElse { false }
         if (protectCalls++ == 0) {
-            diagnostic("autoDetectInterfaceControl: no per-socket protect (process is excluded)")
+            diagnostic("autoDetectInterfaceControl: protect($fd)=$protected")
         }
     }
 

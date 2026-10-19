@@ -227,10 +227,13 @@ class StarveilVpnService : VpnService() {
         // gateway. Worse, protect()'s socket mark overrode the UID exclusion
         // and pulled the socket back into the tunnel. So: no protect(), and
         // route the whole process around the tunnel instead.
-        val excluded = runCatching { builder.addDisallowedApplication(packageName) }
-        KernelDiagnostics.log(
-            "exclude self ($packageName): ${excluded.exceptionOrNull() ?: "ok"}",
-        )
+        // Do NOT exclude the process by UID. The system/mixed tun stacks run
+        // TCP through a kernel listener owned by this app; a UID exclusion
+        // sends that listener's SYN-ACKs outside the tunnel, so the handshake
+        // never completes (SYN_SENT on the client, SYN_RECV on the listener).
+        // Exemption is per socket instead: libbox calls
+        // autoDetectInterfaceControl for every outbound dial and we protect
+        // exactly that fd.
 
         // Diagnostic: what the kernel actually asked for. Without routes (or
         // without an address) the tun is established but captures nothing, and

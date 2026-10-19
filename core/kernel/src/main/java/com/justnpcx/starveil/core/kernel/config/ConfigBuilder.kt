@@ -536,12 +536,18 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         "dns_mode" to "hijack",
         "auto_route" to true,
         "strict_route" to false,
-        // gvisor, not mixed. Mixed moves TCP to the system stack, which on
-        // Android 16 accepts the tun fd but forwards nothing: every TCP
-        // connection black-holes while the kernel still reports "up". Verified
-        // on device — mixed gave zero bytes through the tunnel for both
-        // domestic-direct and proxied destinations, gvisor carries traffic.
-        "stack" to "gvisor",
+        // Mixed: TCP on the kernel stack, UDP through gVisor. It only works
+        // when the process is NOT excluded from the VPN by UID — the kernel
+        // stack completes TCP through a listener owned by this app, and a UID
+        // exclusion sends that listener's SYN-ACKs outside the tunnel (client
+        // SYN_SENT, listener SYN_RECV, zero bytes). Starveil therefore exempts
+        // individual outbound sockets with VpnService.protect() instead; see
+        // StarveilPlatformInterface.autoDetectInterfaceControl.
+        //
+        // Measured on device (same node, bypass preset, 10 s samples): mixed
+        // 10-16 MB/s domestic (mean ~13) vs gVisor ~10 MB/s; foreign is
+        // unchanged at ~4.0 MB/s.
+        "stack" to "mixed",
     )
 
     private fun render(

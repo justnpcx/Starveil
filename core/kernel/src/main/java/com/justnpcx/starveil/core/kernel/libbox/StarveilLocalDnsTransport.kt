@@ -86,6 +86,25 @@ class StarveilLocalDnsTransport(
      * is the one that ends up looping into our own tunnel.
      */
     private fun resolve(domain: String): List<InetAddress> {
+        // While the tunnel is the default network, the process resolver sends
+        // the query into our own tun: sing-box then routes the node's own name
+        // to the proxy, whose dial needs that name resolved — a loop that only
+        // ends when the query is cancelled (the "use of closed network
+        // connection" errors, and a TLS handshake that takes ten seconds).
+        // Ask the underlying network directly instead; only fall back to the
+        // process resolver when no non-VPN network is available.
+        val onVpn = isDefaultNetworkVpn()
+        if (onVpn) {
+            underlyingNetwork()?.let { network ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val addresses = runCatching {
+                        network.getAllByName(domain).toList()
+                    }.getOrDefault(emptyList())
+                    if (addresses.isNotEmpty()) return addresses
+                    onDiagnostic("local dns: $domain underlying resolver empty")
+                }
+            }
+        }
         try {
             val addresses = InetAddress.getAllByName(domain).toList()
             if (addresses.isNotEmpty()) return addresses
@@ -98,6 +117,13 @@ class StarveilLocalDnsTransport(
             return runCatching { network.getAllByName(domain).toList() }.getOrDefault(emptyList())
         }
         return emptyList()
+    }
+
+    private fun isDefaultNetworkVpn(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
+        val active = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(active) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
     }
 
     /** The network to resolve on: the app's own, as long as it is not a VPN. */
