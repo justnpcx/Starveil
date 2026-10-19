@@ -1044,10 +1044,15 @@ private fun NodeRow(
         } else {
             MaterialTheme.colorScheme.surfaceVariant
         },
-        border = BorderStroke(
-            width = if (selected) SELECTED_BORDER_WIDTH else IDLE_BORDER_WIDTH,
-            color = if (selected) StarveilColors.BorderGlow else StarveilColors.Border,
-        ),
+        // Idle is a tonal surface with no outline, the same language as the
+        // dashboard's cards. The old 1dp Border is a dark slate meant for the
+        // HUD; on a light page a full outline around every row is what made
+        // the list look sharp and unlike the rest of the app.
+        border = if (selected) {
+            BorderStroke(SELECTED_BORDER_WIDTH, StarveilColors.BorderGlow)
+        } else {
+            null
+        },
     ) {
         Row(
             modifier = Modifier
@@ -1190,7 +1195,6 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
 private val NODE_CARD_MIN_HEIGHT = 72.dp
 private val NODE_CARD_CORNER = 16.dp
 private val NODE_CARD_PADDING = 16.dp
-private val IDLE_BORDER_WIDTH = 1.dp
 private val SELECTED_BORDER_WIDTH = 2.dp
 private val STATUS_DOT_SIZE = 8.dp
 private val SPARKLINE_WIDTH = 64.dp
