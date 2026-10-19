@@ -93,6 +93,8 @@
 3. **并发红线**：禁止 `GlobalScope`（用结构化并发，Scope 随生命周期取消）；禁止 `allowMainThreadQueries`；迁移失败禁止 `fallbackToDestructiveMigration`。
 4. **存储**：节点凭证走加密存储（Keystore + SQLCipher / EncryptedSharedPreferences）；备份默认加密。
 
+发现安全问题请按 [SECURITY.md](SECURITY.md) **私密上报**，不要开公开 issue。
+
 ## 路线
 
 | 里程碑 | 状态 |
@@ -116,6 +118,7 @@
 - [双轨制 UX 设计（P3，定稿）](docs/16-dual-mode-ux.md)
 - [基准对比方法（P3，定稿）](docs/17-benchmark-report.md)
 - [未完成任务总览](docs/18-open-tasks.md)
+- [安全策略与漏洞上报](SECURITY.md)
 - [更新日志](CHANGELOG.md)
 - [libbox 构建](docs/04-libbox-build.md)
 - [发布流程](docs/12-release.md)
