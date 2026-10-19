@@ -405,7 +405,7 @@ Wi-Fi 没有 IPv6 出口，但 tun 带 IPv6 地址，于是所有 AAAA 目标都
 
 - `ip -6 route show` 为空，wlan0 只有 `fe80::` link-local（路由器不下发 RA）；
 - `gsm.sim.state = ABSENT`，没有 SIM，`ip link` 里没有 rmnet/wwan；
-- `node.example.com` 没有 AAAA 记录——即使接入网有 IPv6，当前节点也建立不了隧道。
+- 节点域名没有 AAAA 记录——即使接入网有 IPv6，当前节点也建立不了隧道。
 
 当前实现有意关闭隧道 IPv6（与 `ipv4_only` 一致）。在双栈网络里，IPv6 流量不会进隧道
 （tun 没有 v6），会直连底层网络，属于已知泄漏面。要支持 IPv6 需要三件事：可配置的
