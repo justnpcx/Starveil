@@ -2,13 +2,19 @@ package com.justnpcx.starveil.core.kernel.libbox
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.DnsResolver
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.SystemClock
 import io.nekohasekai.libbox.ExchangeContext
 import io.nekohasekai.libbox.LocalDNSTransport
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Backs sing-box's `local` DNS server with Android's resolver, on the
@@ -50,12 +56,14 @@ class StarveilLocalDnsTransport(
      * system resolver for a host called "ip4" and answer NXDOMAIN.
      */
     override fun lookup(ctx: ExchangeContext, network: String, domain: String) {
-        val addresses = try {
-            resolve(domain)
-        } catch (e: Exception) {
-            onDiagnostic("local dns: $domain ($network) failed: ${e::class.java.simpleName}: ${e.message}")
-            emptyList()
+        val started = SystemClock.elapsedRealtime()
+        val types = when (network) {
+            "ip4" -> intArrayOf(DnsResolver.TYPE_A)
+            "ip6" -> intArrayOf(DnsResolver.TYPE_AAAA)
+            else -> intArrayOf(DnsResolver.TYPE_A, DnsResolver.TYPE_AAAA)
         }
+        val addresses = types.flatMap { query(domain, it) }.distinct()
+        val elapsed = SystemClock.elapsedRealtime() - started
 
         val wanted = addresses.filter {
             when (network) {
@@ -65,8 +73,12 @@ class StarveilLocalDnsTransport(
             }
         }
         if (wanted.isEmpty()) {
+            onDiagnostic("local dns: $domain ($network) empty after ${elapsed}ms")
             ctx.errorCode(ERROR_NOT_FOUND)
             return
+        }
+        if (elapsed > SLOW_LOOKUP_MS) {
+            onDiagnostic("local dns: $domain ($network) took ${elapsed}ms")
         }
         // Success() replaces the address list wholesale and splits on newlines,
         // so hand over every address in a single call.
@@ -74,51 +86,82 @@ class StarveilLocalDnsTransport(
     }
 
     /**
-     * Resolve the way the rest of the app does.
+     * One family, with a hard deadline.
      *
-     * [InetAddress.getAllByName] uses the process's default network. Our
-     * process is excluded from the tunnel (StarveilVpnService disallows its own
-     * package), so this is the real upstream — and unlike the network-bound
-     * resolver it honours /etc/hosts and Private DNS, which is what the
-     * subscription import relies on.
-     *
-     * The network-bound path stays as a fallback in case the process resolver
-     * is the one that ends up looping into our own tunnel.
+     * While the tunnel is the default network the process resolver sends the
+     * query into our own tun, where sing-box routes the node's own name to the
+     * proxy whose dial needs that name — a loop that only ends when the
+     * caller's context expires (the ten-second `context deadline exceeded`
+     * errors on the first connection after a cold start). Ask the underlying
+     * network directly, and bound it: a DNS answer that takes longer than
+     * [LOOKUP_TIMEOUT_MS] is not worth blocking the kernel for.
      */
-    private fun resolve(domain: String): List<InetAddress> {
-        // While the tunnel is the default network, the process resolver sends
-        // the query into our own tun: sing-box then routes the node's own name
-        // to the proxy, whose dial needs that name resolved — a loop that only
-        // ends when the query is cancelled (the "use of closed network
-        // connection" errors, and a TLS handshake that takes ten seconds).
-        // Ask the underlying network directly instead; only fall back to the
-        // process resolver when no non-VPN network is available.
-        val onVpn = isDefaultNetworkVpn()
-        if (onVpn) {
-            underlyingNetwork()?.let { network ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val addresses = runCatching {
-                        network.getAllByName(domain).toList()
-                    }.getOrDefault(emptyList())
-                    if (addresses.isNotEmpty()) return addresses
-                    onDiagnostic("local dns: $domain underlying resolver empty")
-                }
-            }
+    private fun query(domain: String, type: Int): List<InetAddress> {
+        if (isDefaultNetworkVpn()) {
+            val network = underlyingNetwork() ?: return emptyList()
+            return queryOnNetwork(network, domain, type, LOOKUP_TIMEOUT_MS)
         }
-        try {
-            val addresses = InetAddress.getAllByName(domain).toList()
-            if (addresses.isNotEmpty()) return addresses
-        } catch (e: Exception) {
-            onDiagnostic("local dns: $domain default resolver failed: ${e::class.java.simpleName}")
-        }
-        val network = underlyingNetwork()
-        if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            onDiagnostic("local dns: $domain falling back to network resolver")
-            return runCatching { network.getAllByName(domain).toList() }.getOrDefault(emptyList())
-        }
-        return emptyList()
+        return queryDefault(domain, type, LOOKUP_TIMEOUT_MS)
     }
 
+    /** Resolve on a named network; the callback is asynchronous, so wait on it. */
+    private fun queryOnNetwork(
+        network: Network,
+        domain: String,
+        type: Int,
+        timeoutMs: Long,
+    ): List<InetAddress> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return emptyList()
+        val latch = CountDownLatch(1)
+        val answers = java.util.Collections.synchronizedList(mutableListOf<InetAddress>())
+        return try {
+            DnsResolver.getInstance().query(
+                network,
+                domain,
+                type,
+                DnsResolver.FLAG_NO_RETRY,
+                callbackExecutor,
+                null,
+                object : DnsResolver.Callback<List<InetAddress>> {
+                    override fun onAnswer(answer: List<InetAddress>, rcode: Int) {
+                        answers.addAll(answer)
+                        latch.countDown()
+                    }
+
+                    override fun onError(error: DnsResolver.DnsException) {
+                        latch.countDown()
+                    }
+                },
+            )
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+            answers.toList()
+        } catch (e: Exception) {
+            onDiagnostic("local dns: $domain network query failed: ${e::class.java.simpleName}")
+            emptyList()
+        }
+    }
+
+    /**
+     * The process resolver, for the normal case where no tunnel is up. Bounded
+     * for the same reason as above: it must never hold the kernel's lookup
+     * thread past the caller's deadline.
+     */
+    private fun queryDefault(domain: String, type: Int, timeoutMs: Long): List<InetAddress> {
+        val future = blockingExecutor.submit<List<InetAddress>> {
+            InetAddress.getAllByName(domain).toList()
+        }
+        return try {
+            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+                .filter { type != DnsResolver.TYPE_A || it is Inet4Address }
+                .filter { type != DnsResolver.TYPE_AAAA || it is Inet6Address }
+        } catch (e: Exception) {
+            future.cancel(true)
+            onDiagnostic("local dns: $domain default resolver failed: ${e::class.java.simpleName}")
+            emptyList()
+        }
+    }
+
+    /** True while the VPN is the network the process would resolve on. */
     private fun isDefaultNetworkVpn(): Boolean {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
         val active = manager.activeNetwork ?: return false
@@ -155,5 +198,21 @@ class StarveilLocalDnsTransport(
         /** DNS RCODEs; ErrorCode maps straight to dns.RcodeError. */
         const val ERROR_NOT_FOUND = 3 // NXDOMAIN
         const val ERROR_NOT_IMPLEMENTED = 4 // NOTIMP
+
+        /** A lookup that cannot answer within this window is a failure. */
+        const val LOOKUP_TIMEOUT_MS = 1_500L
+
+        /** Above this, a successful lookup is worth reporting. */
+        const val SLOW_LOOKUP_MS = 300L
+    }
+
+    /** Receives DnsResolver callbacks; must never run blocking work. */
+    private val callbackExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "starveil-dns-callback").apply { isDaemon = true }
+    }
+
+    /** Runs blocking process-resolver lookups so they can be abandoned. */
+    private val blockingExecutor = Executors.newCachedThreadPool { runnable ->
+        Thread(runnable, "starveil-dns-lookup").apply { isDaemon = true }
     }
 }
