@@ -3,10 +3,8 @@ package com.justnpcx.starveil.feature.profiles
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -18,6 +16,8 @@ import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
+import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.components.StarveilChip
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
@@ -67,7 +67,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -1026,7 +1025,7 @@ private fun NodeRow(
     onTestClick: () -> Unit,
 ) {
     val reading = latencyReading(profile, health)
-    Surface(
+    StarveilCard(
         // Long-press moves the node between groups; a tap stays the selection.
         modifier = Modifier
             .fillMaxWidth()
@@ -1039,28 +1038,7 @@ private fun NodeRow(
                 // named; without this the action simply does not exist there.
                 onLongClickLabel = stringResource(R.string.profiles_node_long_press),
             ),
-        shape = RoundedCornerShape(NODE_CARD_CORNER),
-        // Selection is a border plus a halo, never a different fill: the fill
-        // says "this is a surface", and giving it a second meaning would make
-        // the card's own colour ambiguous (§2.1, §6.3).
-        color = if (selected) {
-            lerp(
-                MaterialTheme.colorScheme.surfaceVariant,
-                StarveilColors.GlowPrimary,
-                SELECTED_HALO_ALPHA,
-            )
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-        // Idle is a tonal surface with no outline, the same language as the
-        // dashboard's cards. The old 1dp Border is a dark slate meant for the
-        // HUD; on a light page a full outline around every row is what made
-        // the list look sharp and unlike the rest of the app.
-        border = if (selected) {
-            BorderStroke(SELECTED_BORDER_WIDTH, StarveilColors.BorderGlow)
-        } else {
-            null
-        },
+        selected = selected,
     ) {
         Row(
             modifier = Modifier
@@ -1221,7 +1199,6 @@ private const val SELECTED_HALO_ALPHA = 0.16f
  * Long-press opens group management. A tap has to stay the filter, so the
  * destructive actions cannot live there.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupChip(
     label: String,
@@ -1231,108 +1208,23 @@ private fun GroupChip(
     /** The tunnel goes through this group, as opposed to the list being filtered to it. */
     inUse: Boolean = false,
 ) {
-    // Named apart from the semantics property it feeds: inside the `semantics`
-    // block an unqualified `selected` would resolve to the receiver's, not to
-    // this parameter.
-    val isSelected = selected
     val stateText = when {
         inUse -> stringResource(R.string.profiles_group_state_in_use)
-        isSelected -> stringResource(R.string.profiles_group_state_selected)
+        selected -> stringResource(R.string.profiles_group_state_selected)
         else -> null
     }
-    Surface(
-        modifier = Modifier
-            // Material's 48dp minimum applies to its own components, not to a
-            // raw Surface; the chip's padding alone came out around 40dp.
-            .heightIn(min = MIN_TOUCH_TARGET)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-                role = Role.Button,
-            )
-            .semantics {
-                this.selected = isSelected
-                // "In use" and "filtered to" are different states that look
-                // similar; without this TalkBack reads only the label.
-                if (stateText != null) stateDescription = stateText
-            },
-        shape = RoundedCornerShape(NODE_CARD_CORNER),
-        // Theme colours, not the HUD's dark constants. In dark mode primary is
-        // GlowPrimary and surfaceVariant is Raised, so this is the spec's
-        // "GlowPrimary 20%" exactly; in light mode the same two tokens are a
-        // deep blue and a pale slate, which is what keeps the row looking like
-        // it belongs to the page instead of a dark-mode island.
-        // Mixed with the chip's own surface rather than alpha-composited over
-        // the page: a 20% wash of a dark primary over a light page moved the
-        // fill by nine levels out of 255, which is not a difference anyone can
-        // see. Mixing keeps the same recipe meaningful in both themes.
-        color = if (selected) {
-            lerp(
-                MaterialTheme.colorScheme.surfaceVariant,
-                MaterialTheme.colorScheme.primary,
-                GROUP_SELECTED_MIX,
-            )
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-        // The accent lives on the border, not in the label: primary as text on
-        // a 24% primary fill measured 3.55:1 in the light scheme, and a chip's
-        // label is 12sp, so it has to clear 4.5. The border says "selected"
-        // without spending the label's contrast.
-        border = if (selected) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-        } else {
-            null
-        },
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(
-                horizontal = StarveilSpacing.md,
-                vertical = StarveilSpacing.sm,
-            ),
-        ) {
-            if (inUse) {
-                // A dot rather than another chip colour: `selected` here means
-                // "the list is filtered to this group", which is a different
-                // thing from "the tunnel goes through it".
-                Box(
-                    modifier = Modifier
-                        .size(IN_USE_DOT)
-                        .clip(CircleShape)
-                        .background(StarveilColors.Connected),
-                )
-                Spacer(modifier = Modifier.width(StarveilSpacing.xs))
-            }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
-    }
+    StarveilChip(
+        label = label,
+        selected = selected,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        inUse = inUse,
+        stateDescription = stateText,
+    )
 }
-
-/**
- * Selected chip fill: how far the surface moves toward primary.
- *
- * The spec says "GlowPrimary 20%", which was written for a dark page; 24% is
- * where the same idea survives on a light one.
- */
-private const val GROUP_SELECTED_MIX = 0.24f
 
 /** Tap target padding around the latency badge. */
 private val LATENCY_TOUCH_CORNER = 8.dp
-
-/** The "tunnel goes through this group" marker on a chip. */
-private val IN_USE_DOT = 6.dp
-
-/** The platform's minimum touch target; chips and other raw surfaces use it. */
-private val MIN_TOUCH_TARGET = 48.dp
 
 @Composable
 private fun Hint(text: String) {

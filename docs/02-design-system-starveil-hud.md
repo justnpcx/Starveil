@@ -309,3 +309,28 @@
 | 焦点顺序 | TalkBack 焦点按视觉顺序：核心 → 速率 → 节点选择器 → 列表；禁止焦点跳变 |
 | 大字体 | 系统字体 1.3x / 1.5x 下布局不溢出、不截断；数字用 Mono 但允许换行 |
 | 动效减弱 | 遵循系统"减弱动效"设置：开启时呼吸/旋转动画降为静态辉光，状态切换保留 120ms 颜色过渡 |
+
+## 组件收敛（2026-10-19）
+
+`core/ui/components/StarveilCard.kt` 与 `StarveilChip.kt` 是唯一的卡片与筛选 chip
+实现：
+
+- **Card**：`surfaceVariant`、16dp 圆角、idle 无边框；选中才加 2dp glow 边框与 16%
+  halo。不要再用 `StarveilColors.Border` 给 idle 卡片描边——那是深色 HUD 的颜色，
+  浅色主题下就是一条黑边。
+- **Chip**：固定 16dp 圆角（**不要 percent**，percent 会随文本长度变成圆/胶囊两种
+  形状）；选中为 24% primary 混合 + 1dp 55% primary 边框。
+
+新代码必须使用这两个组件。存量替换清单：
+
+| 页面 | 位置 | 现状 | 替换为 |
+|---|---|---|---|
+| Dashboard | `DashboardScreen.kt:210` 节点健康区 | `Card` | `StarveilCard` |
+| Dashboard | `DashboardScreen.kt:468` 当前节点卡 | `Card` | `StarveilCard` |
+| Rules | `RulesScreen.kt:883` 路由预设卡 | `Card` | `StarveilCard` |
+| Rules | `RulesScreen.kt:399/572` 规则行 | `Surface` | 行可保留；若成卡用 `StarveilCard` |
+| Logs | 无卡片 | — | 新增卡片用 `StarveilCard` |
+| Settings | 无卡片 | — | 新增卡片用 `StarveilCard` |
+| Profiles | 已完成迁移 | — | — |
+
+空状态统一用现有 `EmptyState`（Profiles 已用）。
