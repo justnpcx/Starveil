@@ -528,7 +528,7 @@ class ConfigBuilderTest {
         // sing-box 1.14 removed the legacy {"address": ...} DNS server shape:
         // it fails config decode outright.
         val json = builder.build(vlessProfile())
-        assertTrue(json.contains("\"servers\":[{\"type\":\"local\",\"tag\":\"local\"}]"))
+        assertTrue(json.contains("\"strategy\":\"ipv4_only\",\"servers\":[{\"type\":\"local\",\"tag\":\"local\"}]"))
         assertFalse(json.contains("\"address\":\"local\""))
     }
 

@@ -403,12 +403,17 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // deprecated in sing-box 1.12 and REMOVED in 1.14, where it fails
             // config decode with an explicit migration message.
             return linkedMapOf(
+                "strategy" to DNS_STRATEGY,
                 "servers" to listOf(
-                    linkedMapOf<String, Any?>("type" to "local", "tag" to LOCAL_DNS_TAG),
+                    linkedMapOf<String, Any?>(
+                        "type" to "local",
+                        "tag" to LOCAL_DNS_TAG,
+                    ),
                 ),
             )
         }
         return linkedMapOf(
+            "strategy" to DNS_STRATEGY,
             "servers" to listOf(
                 linkedMapOf<String, Any?>(
                     "type" to "local",
@@ -528,7 +533,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
     private fun tunInbound() = linkedMapOf<String, Any?>(
         "type" to "tun",
         "tag" to TUN_TAG,
-        "address" to listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126"),
+        // IPv4 only. An IPv6 address here makes the OS route every AAAA
+        // destination into the tunnel; on a Wi-Fi network with no IPv6 egress
+        // the direct outbound then fails with `network is unreachable`, but
+        // the app has already completed its TCP handshake with the tun and
+        // sees a reset instead of an unreachable network — so Happy Eyeballs
+        // never falls back to IPv4. Chrome shows ERR_CONNECTION_RESET on
+        // domestic sites while curl to the same IPv4 address works. Leaving
+        // IPv6 off the interface makes the OS reject AAAA immediately, which
+        // is the behaviour the IPv4-only DNS strategy already assumes.
+        "address" to listOf("172.19.0.1/30"),
         "mtu" to 9000,
         // hijack: sing-box answers DNS itself instead of letting queries reach
         // the tun and be dropped. Without it an Android app resolves nothing
@@ -725,6 +739,17 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
         /** Cloudflare, reached through the tunnel, for everything else. */
         const val DNS_PROXY_SERVER = "1.1.1.1"
+
+        /**
+         * IPv4 only, like every mainstream Android client's default.
+         *
+         * With `as_is`, a dual-stack name returns AAAA too, and a direct dial
+         * to that address fails on a Wi-Fi network with no IPv6 route:
+         * `dial tcp [2408:...]:443: connect: network is unreachable`. Chrome
+         * surfaces that as ERR_CONNECTION_RESET on domestic sites while the
+         * IPv4 path is fine, so the resolver must not hand out AAAA.
+         */
+        const val DNS_STRATEGY = "ipv4_only"
 
         /**
          * Names that can only be answered on the LAN.
