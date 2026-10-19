@@ -31,6 +31,9 @@ internal object SingBoxOutbounds {
             "server" to profile.server,
             "server_port" to profile.port,
             "uuid" to s.uuid,
+            // The encoding current VLESS servers expect for UDP. Without it
+            // QUIC falls back to the legacy path, which some servers drop.
+            "packet_encoding" to "xudp",
         ).apply {
             s.flow?.takeIf { it.isNotBlank() }?.let { put("flow", it) }
             tlsBlock(s.tls)?.let { put("tls", it) }

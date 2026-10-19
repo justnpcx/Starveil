@@ -536,9 +536,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         "dns_mode" to "hijack",
         "auto_route" to true,
         "strict_route" to false,
-        // gvisor, not mixed: the mixed stack sends UDP through the system
-        // stack, which needs privileges Android does not grant an app.
-        "stack" to "gvisor",
+        // Mixed, not gvisor: gvisor runs TCP in userspace, which costs a copy
+        // and a scheduler trip per packet and shows up as lower throughput and
+        // higher latency than a kernel-stack client (NekoBox uses mixed). The
+        // mixed stack keeps TCP on the system stack and only puts UDP through
+        // gvisor, which is the combination Android supports without extra
+        // privileges. The old comment here had it backwards.
+        "stack" to "mixed",
     )
 
     private fun render(
