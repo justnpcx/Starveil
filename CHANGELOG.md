@@ -8,6 +8,14 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [0.7.4] — 2026-10-20
 
+### Changed
+
+- **Update channel**: releases are read from this repository
+  (`justnpcx/Starveil`) instead of the artifact-only mirror, which no longer
+  exists. The source is public now, so `releases/latest` answers without a
+  token. Older builds still point at the mirror and cannot see this release —
+  they need one manual install.
+
 ### Fixed
 
 - **Unreadable latency badge in dark mode**: "untested" and "timeout" were

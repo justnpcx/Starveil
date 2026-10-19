@@ -113,14 +113,15 @@ class UpdateChecker internal constructor(
     private companion object {
         /** Public in M8; until then this answers "could not check". */
         /**
-         * A public mirror that holds release artifacts only.
+         * The repository the updater reads releases from.
          *
-         * The source repository is private, so an unauthenticated
-         * `releases/latest` there returns 404 — and the app must not ship a
-         * token. The mirror carries nothing but APKs, which is exactly what
-         * the updater needs.
+         * The source repository is public, so this is the source repository:
+         * `releases/latest` answers unauthenticated, which is the only kind of
+         * request an app can make without shipping a token. It used to be an
+         * artifact-only mirror, which existed solely because the source was
+         * private.
          */
-        const val REPO = "justnpcx/Starveil-releases"
+        const val REPO = "justnpcx/Starveil"
 
         /** The three libbox ships; x86 32-bit is deliberately absent. */
         val SUPPORTED_ABIS = setOf("arm64-v8a", "armeabi-v7a", "x86_64")

@@ -84,20 +84,19 @@ jobs:
           path: app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
 
-      # The source repository is private, and the app cannot ship a token:
-      # `releases/latest` there would answer 404. Publish to the public
-      # artifact-only mirror instead, and publish immediately — `latest`
-      # ignores drafts.
-      - name: Publish to the release mirror
+      # The source repository is public, so the release belongs here: the
+      # updater reads `releases/latest` without a token, and a public
+      # repository answers it. Publishing immediately because `latest` ignores
+      # drafts, and the app has no notion of a draft to wait for.
+      - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:
-          repository: justnpcx/Starveil-releases
-          token: ${{ secrets.RELEASE_MIRROR_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref_name }}
-          target_commitish: main
           name: Starveil ${{ github.ref_name }}
           body: |
-            APK artifacts only. The source repository is private.
+            APKs for the three supported ABIs. What changed is in
+            [CHANGELOG.md](https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md).
           files: dist/*.apk
           draft: false
           make_latest: true
