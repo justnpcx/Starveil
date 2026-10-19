@@ -385,7 +385,7 @@ Wi-Fi 没有 IPv6 出口，但 tun 带 IPv6 地址，于是所有 AAAA 目标都
 
 | 项 | 方法 | 结果 |
 |---|---|---|
-| 路由器管理页 | `curl http://192.168.50.1` | HTTP 200 |
+| 路由器管理页 | `curl http://192.168.1.1` | HTTP 200 |
 | 局域网域名 | `openwrt.lan`（仅 LAN 可解析） | HTTP 200，`Server: nginx/1.30.3 (OpenWrt)` |
 | DNS 不进隧道 | 上述 `.lan` 由 `local` 服务器解析 | 成功；若进隧道会 NXDOMAIN |
 | 启停竞态 | 断开→连接后立刻解析+连接 `www.baidu.com` ×3 | 214 ms / 55 ms / 88 ms，`dns: exchange failed` = 0 |
