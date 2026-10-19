@@ -361,6 +361,25 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `Hysteria2 disables the Chrome QUIC parrot`() {
+        // 1.14 defaults ChromeParrot on. Measured on device, it halves HY2
+        // throughput on a normal node; the 1.12 core NekoBox ships has no
+        // such behaviour and was 1.3-2x faster because of it.
+        val profile = Profile(
+            name = "hy2 parrot",
+            type = ProfileType.HYSTERIA2,
+            server = "hy.example.com",
+            port = 443,
+            settings = Hysteria2Settings(
+                password = "pw",
+                tls = TlsOptions(security = SecurityMode.TLS),
+            ),
+        )
+        val json = builder.build(profile)
+        assertTrue(json.contains("\"disable_chrome_parrot\":true"))
+    }
+
+    @Test
     fun `Hysteria2 without a range emits no hopping keys`() {
         val profile = Profile(
             name = "hy2 plain",

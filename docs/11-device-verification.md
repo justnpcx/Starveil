@@ -412,6 +412,32 @@ Wi-Fi 没有 IPv6 出口，但 tun 带 IPv6 地址，于是所有 AAAA 目标都
 IPv6 模式（给 tun 加回 v6 与路由）、配套的 DNS 策略、以及一个带 AAAA 的节点；同时要
 明确 `ipv4_only` 下是阻断还是放行 IPv6。
 
+### HY2 性能：与 NekoBox 同机对比（2026-10-19）
+
+同一台 vivo、同一订阅、同一节点，homeproxy 关闭；测试为 100 MB 单流/4 并发下载
+（cachefly）与 20 MB 上传（Cloudflare `__up`）。
+
+| 节点 | 指标 | Starveil 0.7.2 | NekoBox 1.4.2 |
+|---|---|---|---|
+| HY2 | 单流下载 | 12.9 MB/s | 16.6–27.5 |
+| HY2 | 4 并发下载 | 26.5 MB/s | 39.4 |
+| HY2 | 单流上传 | 6.19 MB/s | 6.11 |
+| VLESS | 单流下载 | 13.9 | 14.6 |
+| VLESS | 4 并发下载 | 29.3 | 29.7 |
+| VLESS | 单流上传 | 5.0 | 3.9 |
+
+**根因**：NekoBox 1.4.2 打包 sing-box 1.12.19-neko，两边用的 `sing-quic` 都是
+v0.5.2，所以不是客户端库版本。差异在 outbound 包装层：1.14 默认
+`ChromeParrot = true`（QUIC 模仿 Chrome 的传输行为），1.12 没有这个特性。
+
+**修复**：HY2 outbound 显式 `disable_chrome_parrot: true`。同机复测单流
+**20.3 / 24.9 / 24.4 MB/s**，4 并发 **36.0 MB/s**，上传 6.39 MB/s——与 NekoBox 持平或更好。
+代价是失去 Chrome QUIC 伪装，属于速度与抗探测的取舍。
+
+排除项（均实测无效）：TUN 栈（mixed 12.9 > system 10.6 > gvisor 10.1）、
+MTU 9000/1500、Go 内存上限/GOGC、`endpoint_independent_nat`（只改善并发）、
+QUIC 窗口（默认已 8 MB/20 MB）、强制带宽提示（服务端不接受，直接零流量）。
+
 ## 未验证
 
 以下项目需要真机，且当时无法完成（设备不在网、无相应素材）：

@@ -94,6 +94,17 @@ internal object SingBoxOutbounds {
         ).apply {
             s.upMbps?.let { put("up_mbps", it) }
             s.downMbps?.let { put("down_mbps", it) }
+            // 1.14 turns ChromeParrot on unless told otherwise: the QUIC
+            // client imitates Chrome's transport behaviour. On the same node
+            // (HY2, 100 MB download) that cost 12.9 MB/s single-stream and
+            // 26.5 MB/s across four streams; with it off the same build does
+            // 20-25 MB/s and ~36 MB/s. NekoBox's 1.12 core has no such
+            // feature, which is why it was faster on this node.
+            //
+            // The trade-off is camouflage: the parrot exists to look like
+            // Chrome's QUIC on the wire. Speed is the priority here; revisit
+            // if this node ever needs to survive active probing.
+            put("disable_chrome_parrot", true)
             // A hopping node usually refuses the advertised server_port, so
             // the range is not an optimisation — without it the node is dead.
             if (s.serverPorts.isNotEmpty()) {

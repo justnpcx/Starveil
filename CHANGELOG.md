@@ -36,6 +36,18 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 - The mainland preset's name and description were Chinese in the default
   (English) resource file.
 
+## [0.7.3] — 2026-10-19
+
+### Fixed
+
+- **Hysteria2 throughput**: sing-box 1.14 turns ChromeParrot on by default, so
+  the QUIC client imitates Chrome's transport behaviour. On the same node that
+  cost roughly half the throughput — 12.9 MB/s single-stream and 26.5 MB/s
+  across four streams, against 20–25 and ~36 with it off. NekoBox's 1.12 core
+  has no such feature, which is why it was faster on the same node. Starveil
+  now sets `disable_chrome_parrot`. The trade-off is camouflage: the parrot
+  exists to look like Chrome on the wire.
+
 ## [0.7.2] — 2026-10-19
 
 ### Changed
