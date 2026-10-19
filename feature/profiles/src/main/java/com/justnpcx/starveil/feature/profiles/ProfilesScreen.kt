@@ -323,7 +323,15 @@ fun ProfilesScreen(
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(StarveilSpacing.lg),
+                    // 8dp from the chip row's own bottom padding plus 4dp here
+                    // is the 12dp the row needs; 16dp on both sides left a
+                    // 24dp hole that read as a missing element.
+                    contentPadding = PaddingValues(
+                        start = StarveilSpacing.lg,
+                        top = StarveilSpacing.xs,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.lg,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     itemsIndexed(state.profiles, key = { _, profile -> profile.id }) { index, profile ->
