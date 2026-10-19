@@ -97,9 +97,16 @@ class StarveilLocalDnsTransport(
      * [LOOKUP_TIMEOUT_MS] is not worth blocking the kernel for.
      */
     private fun query(domain: String, type: Int): List<InetAddress> {
-        if (isDefaultNetworkVpn()) {
-            val network = underlyingNetwork() ?: return emptyList()
-            return queryOnNetwork(network, domain, type, LOOKUP_TIMEOUT_MS)
+        // Always prefer the non-VPN network. Deciding by "is the VPN the
+        // default yet" races with the connect sequence: for a moment the
+        // active network is still the old one while the process resolver is
+        // already routed into the new tun, and the lookup pays the full
+        // timeout for nothing.
+        val network = underlyingNetwork()
+        if (network != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val answers = queryOnNetwork(network, domain, type, LOOKUP_TIMEOUT_MS)
+            if (answers.isNotEmpty()) return answers
+            if (isDefaultNetworkVpn()) return emptyList()
         }
         return queryDefault(domain, type, LOOKUP_TIMEOUT_MS)
     }
