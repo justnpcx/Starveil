@@ -93,6 +93,19 @@
     <string name="update_up_to_date">You are on the latest version.</string>
     <string name="update_failed">Could not check for updates: %1$s</string>
     <string name="update_download_failed">Download failed: %1$s</string>
+    <!-- Reasons are sentence fragments: the line above supplies the capital
+         and the colon, so these stay lowercase and unpunctuated. -->
+    <string name="update_error_no_release">the repository has no published release</string>
+    <string name="update_error_rate_limited">GitHub is rate-limiting this device, try again later</string>
+    <string name="update_error_http">GitHub answered HTTP %1$d</string>
+    <string name="update_error_network">network unavailable or the connection timed out</string>
+    <string name="update_error_unreadable">GitHub\'s answer could not be read</string>
+    <string name="update_error_no_apk">this release has no package for this device</string>
+    <string name="update_error_no_apk_for">this release has no package for %1$s</string>
+    <string name="update_error_no_url">the package has no download address</string>
+    <string name="update_error_size">the download was incomplete</string>
+    <string name="update_error_checksum">the file does not match the published checksum</string>
+    <string name="update_error_signature">the file was not signed by Starveil</string>
     <string name="update_needs_permission">Allow Starveil to install unknown apps, then try again.</string>
     <string name="update_open_settings">Open settings</string>
 

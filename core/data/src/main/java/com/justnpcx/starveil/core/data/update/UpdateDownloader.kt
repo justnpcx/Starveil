@@ -51,7 +51,9 @@ class UpdateDownloader @Inject constructor(
             }
             try {
                 if (connection.responseCode != 200) {
-                    return@withContext UpdateDownloadPort.Result.Failed("HTTP ${connection.responseCode}")
+                    return@withContext UpdateDownloadPort.Result.Failed(
+                        UpdateFailure.Http(connection.responseCode),
+                    )
                 }
                 connection.inputStream.use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
@@ -61,20 +63,20 @@ class UpdateDownloader @Inject constructor(
             }
         } catch (e: IOException) {
             target.delete()
-            return@withContext UpdateDownloadPort.Result.Failed(e.message ?: "download failed")
+            return@withContext UpdateDownloadPort.Result.Failed(UpdateFailure.Network)
         }
 
         if (info.sizeBytes > 0 && target.length() != info.sizeBytes) {
             target.delete()
-            return@withContext UpdateDownloadPort.Result.Failed("size mismatch")
+            return@withContext UpdateDownloadPort.Result.Failed(UpdateFailure.SizeMismatch)
         }
         if (info.sha256 != null && !info.sha256.equals(sha256(target), ignoreCase = true)) {
             target.delete()
-            return@withContext UpdateDownloadPort.Result.Failed("checksum mismatch")
+            return@withContext UpdateDownloadPort.Result.Failed(UpdateFailure.ChecksumMismatch)
         }
         if (!signedByThisApp(target)) {
             target.delete()
-            return@withContext UpdateDownloadPort.Result.Failed("signature mismatch")
+            return@withContext UpdateDownloadPort.Result.Failed(UpdateFailure.SignatureMismatch)
         }
         UpdateDownloadPort.Result.Ready(target)
     }

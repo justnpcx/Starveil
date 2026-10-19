@@ -43,6 +43,11 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ### Changed
 
+- **Update failures are localised**: the update dialog used to append an
+  internal English string ("no published release", "checksum mismatch") to a
+  translated sentence. The data layer now returns a closed set of reasons and
+  the screen owns the wording, so both languages get a sentence — and a new
+  reason cannot ship without one.
 - The drop-and-reconnect policy moved out of the dashboard view model into
   `DropRecovery`; the probe, sampler, leak-check and flow-log classes moved
   into `:core:probe`. No behaviour change, and both are testable on their own.

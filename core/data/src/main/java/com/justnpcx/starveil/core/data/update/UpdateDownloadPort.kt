@@ -10,7 +10,7 @@ interface UpdateDownloadPort {
 
     sealed interface Result {
         data class Ready(val file: File) : Result
-        data class Failed(val reason: String) : Result
+        data class Failed(val reason: UpdateFailure) : Result
     }
 
     suspend fun download(info: UpdateInfo): Result

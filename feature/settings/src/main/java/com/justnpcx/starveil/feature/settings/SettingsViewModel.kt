@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.update.UpdateCheck
 import com.justnpcx.starveil.core.data.update.UpdateChecker
+import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -72,10 +73,10 @@ sealed interface UpdateUiState {
     data class Available(val info: UpdateInfo) : UpdateUiState
     data object UpToDate : UpdateUiState
     /** The check itself failed — no network, no release, unreadable answer. */
-    data class Failed(val reason: String) : UpdateUiState
+    data class Failed(val reason: UpdateFailure) : UpdateUiState
     data object Downloading : UpdateUiState
     /** The download or its verification failed; [reason] names which check. */
-    data class DownloadFailed(val reason: String) : UpdateUiState
+    data class DownloadFailed(val reason: UpdateFailure) : UpdateUiState
     /** Downloaded and verified; the screen hands it to the installer. */
     data class Ready(val file: java.io.File) : UpdateUiState
 }

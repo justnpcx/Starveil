@@ -99,7 +99,7 @@ class UpdateCheckerTest {
 
         val result = parse(body, "0.7.0", "x86_64")
         assertTrue(result is UpdateCheck.Failed)
-        assertTrue((result as UpdateCheck.Failed).reason.contains("x86_64"))
+        assertEquals(UpdateFailure.NoApkForDevice("x86_64"), (result as UpdateCheck.Failed).reason)
     }
 
     @Test
@@ -122,15 +122,17 @@ class UpdateCheckerTest {
 
     @Test
     fun `malformed json is a failure`() {
-        assertTrue(parse("not json", "0.7.0") is UpdateCheck.Failed)
+        val result = parse("not json", "0.7.0")
+        assertEquals(UpdateFailure.Unreadable, (result as UpdateCheck.Failed).reason)
     }
 
     @Test
     fun `a network error becomes a failure, not a crash`() {
         val offline = UpdateChecker { throw java.io.IOException("offline") }
         val result = kotlinx.coroutines.runBlocking { offline.check("0.7.0", "someone/repo") }
-        assertTrue(result is UpdateCheck.Failed)
-        assertEquals("offline", (result as UpdateCheck.Failed).reason)
+        // The exception's message is a diagnostic; the reason is a value the
+        // screen can translate. Losing the message here is the point.
+        assertEquals(UpdateFailure.Network, (result as UpdateCheck.Failed).reason)
     }
 
     @Test

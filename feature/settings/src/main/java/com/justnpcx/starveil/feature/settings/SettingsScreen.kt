@@ -61,6 +61,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInstaller
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -425,6 +426,38 @@ fun SettingsScreen(
 }
 
 /**
+ * The failure, in the user's language.
+ *
+ * The data layer returns a closed set of reasons precisely so this can be a
+ * `when` the compiler checks: a new reason without a sentence here is a build
+ * error, not a dialog showing an internal string to someone who cannot act on
+ * it. The sentence follows "Could not check for updates:" — a fragment, no
+ * capital, no full stop.
+ */
+@Composable
+private fun UpdateFailure.describe(): String = when (this) {
+    UpdateFailure.NoRelease -> stringResource(R.string.update_error_no_release)
+    UpdateFailure.RateLimited -> stringResource(R.string.update_error_rate_limited)
+    is UpdateFailure.Http -> stringResource(R.string.update_error_http, code)
+    UpdateFailure.Network -> stringResource(R.string.update_error_network)
+    UpdateFailure.Unreadable -> stringResource(R.string.update_error_unreadable)
+    is UpdateFailure.NoApkForDevice -> {
+        // Local, because a public property from another module does not smart
+        // cast.
+        val deviceAbi = abi
+        if (deviceAbi == null) {
+            stringResource(R.string.update_error_no_apk)
+        } else {
+            stringResource(R.string.update_error_no_apk_for, deviceAbi)
+        }
+    }
+    UpdateFailure.NoDownloadUrl -> stringResource(R.string.update_error_no_url)
+    UpdateFailure.SizeMismatch -> stringResource(R.string.update_error_size)
+    UpdateFailure.ChecksumMismatch -> stringResource(R.string.update_error_checksum)
+    UpdateFailure.SignatureMismatch -> stringResource(R.string.update_error_signature)
+}
+
+/**
  * One dialog for every step of the update flow.
  *
  * The alternative — a dialog per state — puts the wording for "checking" and
@@ -483,7 +516,7 @@ private fun UpdateDialog(
         is UpdateUiState.Failed -> AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(stringResource(R.string.update_check)) },
-            text = { Text(stringResource(R.string.update_failed, state.reason)) },
+            text = { Text(stringResource(R.string.update_failed, state.reason.describe())) },
             confirmButton = {
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.per_app_close)) }
             },
@@ -492,7 +525,7 @@ private fun UpdateDialog(
         is UpdateUiState.DownloadFailed -> AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(stringResource(R.string.update_check)) },
-            text = { Text(stringResource(R.string.update_download_failed, state.reason)) },
+            text = { Text(stringResource(R.string.update_download_failed, state.reason.describe())) },
             confirmButton = {
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.per_app_close)) }
             },

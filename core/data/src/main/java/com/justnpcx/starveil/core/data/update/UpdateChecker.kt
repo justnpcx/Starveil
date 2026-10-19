@@ -23,7 +23,7 @@ data class UpdateInfo(
 sealed interface UpdateCheck {
     data class Available(val info: UpdateInfo) : UpdateCheck
     data object UpToDate : UpdateCheck
-    data class Failed(val reason: String) : UpdateCheck
+    data class Failed(val reason: UpdateFailure) : UpdateCheck
 }
 
 /**
@@ -31,7 +31,7 @@ sealed interface UpdateCheck {
  *
  * Unauthenticated by design: the app cannot ship a token, so the repository it
  * reads has to be public for `releases/latest` to answer at all. A 404 comes
- * back as [UpdateCheck.Failed] with "no published release" rather than as an
+ * back as [UpdateCheck.Failed] with [UpdateFailure.NoRelease] rather than as an
  * empty answer — a wrong answer would be worse than an honest "could not
  * check", and the release page is still one tap away.
  *
@@ -49,8 +49,18 @@ class UpdateChecker internal constructor(
     suspend fun check(currentVersion: String, repo: String = REPO): UpdateCheck {
         val body = try {
             fetch("https://api.github.com/repos/$repo/releases/latest")
+        } catch (e: HttpStatusException) {
+            return UpdateCheck.Failed(
+                when (e.code) {
+                    404 -> UpdateFailure.NoRelease
+                    403 -> UpdateFailure.RateLimited
+                    else -> UpdateFailure.Http(e.code)
+                },
+            )
         } catch (e: Exception) {
-            return UpdateCheck.Failed(e.message ?: e::class.java.simpleName)
+            // Anything the request itself threw: no route, no DNS, a timeout.
+            // The message is a diagnostic, not something to show a user.
+            return UpdateCheck.Failed(UpdateFailure.Network)
         }
         return parse(body, currentVersion, deviceAbi())
     }
@@ -62,11 +72,11 @@ class UpdateChecker internal constructor(
      */
     internal fun parse(body: String, currentVersion: String, abi: String?): UpdateCheck {
         val release = runCatching { Json.parseObject(body) }.getOrNull()
-            ?: return UpdateCheck.Failed("unreadable release")
+            ?: return UpdateCheck.Failed(UpdateFailure.Unreadable)
         if (release["draft"] == true) return UpdateCheck.UpToDate
 
         val tag = release["tag_name"] as? String
-            ?: return UpdateCheck.Failed("release has no tag")
+            ?: return UpdateCheck.Failed(UpdateFailure.Unreadable)
         val version = tag.removePrefix("v")
         if (!isNewer(version, currentVersion)) return UpdateCheck.UpToDate
 
@@ -82,16 +92,10 @@ class UpdateChecker internal constructor(
         val asset = apks.firstOrNull { candidate ->
             abi != null && (candidate["name"] as? String)?.contains(abi) == true
         } ?: apks.singleOrNull()
-            ?: return UpdateCheck.Failed(
-                if (abi == null) {
-                    "release has no APK for this device"
-                } else {
-                    "release has no APK for $abi"
-                },
-            )
+            ?: return UpdateCheck.Failed(UpdateFailure.NoApkForDevice(abi))
 
         val url = asset["browser_download_url"] as? String
-            ?: return UpdateCheck.Failed("APK has no download URL")
+            ?: return UpdateCheck.Failed(UpdateFailure.NoDownloadUrl)
         // `sha256:abc…`; the algorithm prefix is part of the format.
         val digest = (asset["digest"] as? String)
             ?.substringAfter("sha256:", "")
@@ -157,6 +161,15 @@ private fun versionParts(version: String): List<Int> =
         .split('.')
         .mapNotNull { it.toIntOrNull() }
 
+/**
+ * A non-200 answer, carried as a code rather than a message.
+ *
+ * The HTTP layer knows the number; only the caller knows which of them means
+ * "nothing published" and which means "slow down". A message here would have to
+ * be parsed back out, or shown to a user in English.
+ */
+private class HttpStatusException(val code: Int) : Exception("HTTP $code")
+
 private suspend fun httpGet(url: String): String = withContext(Dispatchers.IO) {
     val connection = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
         connectTimeout = 10_000
@@ -167,15 +180,7 @@ private suspend fun httpGet(url: String): String = withContext(Dispatchers.IO) {
     }
     try {
         val code = connection.responseCode
-        if (code != 200) {
-            throw IllegalStateException(
-                when (code) {
-                    404 -> "no published release"
-                    403 -> "GitHub rate limit"
-                    else -> "HTTP $code"
-                },
-            )
-        }
+        if (code != 200) throw HttpStatusException(code)
         connection.inputStream.bufferedReader().use { it.readText() }
     } finally {
         connection.disconnect()
