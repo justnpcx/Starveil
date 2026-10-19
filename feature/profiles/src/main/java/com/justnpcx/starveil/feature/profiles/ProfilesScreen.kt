@@ -1103,10 +1103,17 @@ private fun NodeRow(
                     // Dimmed, not red, when there is no reading: the status dot
                     // already says "down", and colouring the number too would be
                     // the same signal twice (§6.3).
+                    //
+                    // The dimming is a step down the scheme, not a fixed slate:
+                    // TextDisabled (#475569) is a light-theme value and on a
+                    // dark raised card — especially a wallpaper-derived one —
+                    // it measured 1.2:1, i.e. invisible. onSurface carries the
+                    // reading, onSurfaceVariant the absence of one; both are
+                    // theme-aware and both clear AA on every surface.
                     color = when (reading) {
-                        is LatencyReading.Value -> MaterialTheme.colorScheme.onSurfaceVariant
+                        is LatencyReading.Value -> MaterialTheme.colorScheme.onSurface
                         LatencyReading.Timeout, LatencyReading.Untested ->
-                            StarveilColors.TextDisabled
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
             }
