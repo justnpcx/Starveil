@@ -536,13 +536,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         "dns_mode" to "hijack",
         "auto_route" to true,
         "strict_route" to false,
-        // Mixed, not gvisor: gvisor runs TCP in userspace, which costs a copy
-        // and a scheduler trip per packet and shows up as lower throughput and
-        // higher latency than a kernel-stack client (NekoBox uses mixed). The
-        // mixed stack keeps TCP on the system stack and only puts UDP through
-        // gvisor, which is the combination Android supports without extra
-        // privileges. The old comment here had it backwards.
-        "stack" to "mixed",
+        // gvisor, not mixed. Mixed moves TCP to the system stack, which on
+        // Android 16 accepts the tun fd but forwards nothing: every TCP
+        // connection black-holes while the kernel still reports "up". Verified
+        // on device — mixed gave zero bytes through the tunnel for both
+        // domestic-direct and proxied destinations, gvisor carries traffic.
+        "stack" to "gvisor",
     )
 
     private fun render(
