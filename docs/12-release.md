@@ -31,6 +31,7 @@ export STARVEIL_KEY_PASSWORD=…
 | `STARVEIL_KEYSTORE_PASSWORD` | keystore 口令 |
 | `STARVEIL_KEY_ALIAS` | `starveil` |
 | `STARVEIL_KEY_PASSWORD` | key 口令 |
+| `RELEASE_MIRROR_TOKEN` | 对 `justnpcx/Starveil-releases` 有 `contents:write` 的 token；workflow 用它把 APK 发到公开镜像 |
 
 用有 `secrets:write` 权限的 token 跑一次：
 
@@ -52,8 +53,9 @@ GH_TOKEN=<token> scripts/set-signing-secrets.sh
    git tag -a v0.8.0 -m "0.8.0"
    git push origin v0.8.0
    ```
-5. **等 Release workflow**（tag 触发）：构建、签名、上传三个 ABI 的 APK，并创建 **draft** release
-6. **检查并发布 draft**——更新通道读的是 `releases/latest`，**draft 不会被看到**，发布之后才算上线
+5. **等 Release workflow**（tag 触发）：构建、签名三个 ABI 的 APK，并**直接发布**到公开镜像
+   `justnpcx/Starveil-releases`（`draft: false`，`make_latest: true`）
+6. **核对镜像里的三个 APK**——更新通道读的是镜像的 `releases/latest`；发布即上线，没有 draft 这一步
 
 2026-10-17 这条流水线第一次跑通（run `39034766016`，v0.7.0）：draft 里三个 APK
 （arm64 85.7 MB / armeabi-v7a 76.7 MB / x86_64 90.0 MB），`apksigner verify` 的证书
@@ -62,14 +64,14 @@ SHA-256 是 `f904a417…0b268c`，与 `$STARVEIL_KEYSTORE` 里 alias `starveil` 
 
 ## 更新通道怎么读到它
 
-`UpdateChecker` 请求 `https://api.github.com/repos/justnpcx/Starveil/releases/latest`，
-取 `tag_name` 与当前版本比较，下载名字里带 `arm64` 的 asset，校验：
+`UpdateChecker` 请求 `https://api.github.com/repos/justnpcx/Starveil-releases/releases/latest`，
+取 `tag_name` 与当前版本比较，下载名字里带设备 ABI 的 asset，校验：
 
 - SHA-256 对比 asset 的 `digest`
 - 签名证书对比已安装应用
 
-**仓库私有期间该接口返回 404**，App 显示「no published release」。M8 转公开后自动可用；
-在此之前更新只能靠手动侧载。
+镜像仓库是公开的、只放 APK；源码与文档保持私有。**不要**把 `REPO` 指回源码仓库——
+私有仓库的 `releases/latest` 未鉴权时返回 404，而客户端不能内置 token。
 
 ## 崩溃符号化
 

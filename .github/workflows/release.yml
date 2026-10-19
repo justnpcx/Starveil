@@ -84,9 +84,20 @@ jobs:
           path: app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
 
-      - name: Publish the release
+      # The source repository is private, and the app cannot ship a token:
+      # `releases/latest` there would answer 404. Publish to the public
+      # artifact-only mirror instead, and publish immediately — `latest`
+      # ignores drafts.
+      - name: Publish to the release mirror
         uses: softprops/action-gh-release@v2
         with:
+          repository: justnpcx/Starveil-releases
+          token: ${{ secrets.RELEASE_MIRROR_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          target_commitish: main
+          name: Starveil ${{ github.ref_name }}
+          body: |
+            APK artifacts only. The source repository is private.
           files: dist/*.apk
-          generate_release_notes: true
-          draft: true
+          draft: false
+          make_latest: true

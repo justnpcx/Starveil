@@ -36,6 +36,33 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 - The mainland preset's name and description were Chinese in the default
   (English) resource file.
 
+## [0.7.2] — 2026-10-19
+
+### Changed
+
+- **Update channel**: releases are read from the public artifact mirror
+  `justnpcx/Starveil-releases`. The source repository is private, where
+  `releases/latest` answers 404 without a token, and the app must not ship one.
+
+### Fixed
+
+- **Mixed tun stack**: TCP flows again. The process is no longer excluded from
+  the VPN by UID; outbound sockets are protected individually, so the kernel
+  stack's listener SYN-ACKs re-enter the tunnel instead of leaking out of it.
+- **Local DNS**: lookups are bounded and resolved on the underlying network,
+  and no longer race the tunnel. First connection after a cold start drops
+  from ~7 s to ~0.5 s.
+- **IPv4-only tunnel**: AAAA destinations are no longer routed into a tunnel
+  that cannot carry them, which Chrome surfaced as `ERR_CONNECTION_RESET` on
+  domestic sites.
+- **HY2 port hopping**: `mport` is parsed and emitted as `server_ports` /
+  `hop_interval`; hopping nodes are reachable instead of refusing on the
+  advertised port.
+- **Dashboard**: `BLOCKED` is only claimed when a tunnel is actually dropping
+  packets — on connect, at launch, and after an external stop.
+- **Profiles**: deleting a group is one transaction, and the node row menu
+  asks for confirmation before deleting a node.
+
 ## [0.7.1] — 2026-10-18
 
 ### Added
