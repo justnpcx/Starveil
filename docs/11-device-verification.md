@@ -401,8 +401,16 @@ Wi-Fi 没有 IPv6 出口，但 tun 带 IPv6 地址，于是所有 AAAA 目标都
 
 跳跃间隔约 30–40 s，端口变化时连接不断。
 
-**未覆盖**：纯 IPv6 网络。当前实现有意关闭隧道 IPv6（与 `ipv4_only` 一致），在只有
-IPv6 出口的网络里会不可用；需要时应做成可配置项，而不是恢复 AAAA 黑洞。
+**未覆盖**：纯 IPv6 网络。2026-10-19 尝试验证，环境不具备条件：
+
+- `ip -6 route show` 为空，wlan0 只有 `fe80::` link-local（路由器不下发 RA）；
+- `gsm.sim.state = ABSENT`，没有 SIM，`ip link` 里没有 rmnet/wwan；
+- `node.example.com` 没有 AAAA 记录——即使接入网有 IPv6，当前节点也建立不了隧道。
+
+当前实现有意关闭隧道 IPv6（与 `ipv4_only` 一致）。在双栈网络里，IPv6 流量不会进隧道
+（tun 没有 v6），会直连底层网络，属于已知泄漏面。要支持 IPv6 需要三件事：可配置的
+IPv6 模式（给 tun 加回 v6 与路由）、配套的 DNS 策略、以及一个带 AAAA 的节点；同时要
+明确 `ipv4_only` 下是阻断还是放行 IPv6。
 
 ## 未验证
 
