@@ -295,6 +295,57 @@ adb shell settings put secure always_on_vpn_lockdown 0
 link-local 地址、没有 v6 出口（`ping6 -I rmnet_data4` 通、`-I wlan0` 不通）。蜂窝有
 IPv6。所以这是正确结果，不是分流 bug。
 
+### connect / disconnect 的失败语义（2026-10-19）
+
+**先核实**：`DashboardViewModel` 的 connect 分支把 `ConnectionOutcome.Blocked` 一律映射成
+`BLOCKED`，忽略了 `started`。这不是有意设计——没有任何注释解释它，而 disconnect 分支在
+`9930507` 里已经把同一情形改成 `DISCONNECTED`。是同一 bug 在另一条路径上的遗漏。
+
+**修的时候又牵出两处同类的谎报**：
+
+- 启动时内核状态是 `Stopped`，`onStoppedElsewhere` 却按 Kill Switch 策略直接写
+  `BLOCKED`。结果是「始终阻断」下冷启动就显示「阻断中」，而当时没有内核、没有 tun。
+- `onRunningElsewhere` 也把策略当作阻断依据，一个正常转发的内核在「始终阻断」下会被
+  说成阻断。
+
+三处统一为：**`BLOCKED` 只描述「有一个正在丢包的隧道」**，判据是桥接层的
+`kernel.blocking`，不是策略，也不是 `started` 之外的猜测。策略只决定「要不要去建立
+阻断」，建立失败就必须说失败。
+
+**失败语义对照表**
+
+| 路径 | 失败情形 | 界面 | 实际流量状态 |
+|---|---|---|---|
+| connect | 始终阻断，阻断内核启动成功 | 已阻断 · 「Kill Switch 正在阻断全部流量」 | 全部丢弃（阻断配置生效） |
+| connect | 始终阻断，阻断内核启动失败 | 未连接 · 「Kill Switch 启动失败，流量未被阻断。」 | 直连，未阻断 |
+| connect | 配置无法生成 | 未连接 · 「无法为该目标生成配置」 | 直连 |
+| connect | 内核拒绝启动 | 未连接 · 「内核启动失败[：原因]」 | 直连 |
+| connect | 没有目标 | 未连接 · 「请先在「节点」页选择节点或分组」 | 直连 |
+| disconnect | 断开时阻断，黑洞建立成功 | 已阻断 · 「Kill Switch 正在阻断全部流量」 | 全部丢弃（tun 保留、无内核读取） |
+| disconnect | 黑洞建立失败（没有 tun 可留） | 未连接 · 「Kill Switch 启动失败，流量未被阻断。」 | 直连 |
+| disconnect | Kill Switch 关闭 | 未连接 | 直连 |
+| 任意 | 内核停止但没有黑洞（外部 stop / 崩溃） | 未连接 | 直连 |
+
+**真机验证（vivo V2238A / Android 16，2026-10-19）**
+
+用 `cmd appops set com.justnpcx.starveil ACTIVATE_VPN` 在 connect 的 consent 检查之后、
+`establish()` 之前撤销授权，制造「阻断内核启动失败」：
+
+```
+openTun: ... 
+kernel start failed: ... openTun failed [java.lang.IllegalStateException] mtu=9000: VPN consent not granted
+```
+
+| 项 | 结果 |
+|---|---|
+| 圆圈 | **未连接**（不再是「阻断中」） |
+| 提示 | **Kill Switch 启动失败，流量未被阻断。** |
+| tun0 | 不存在 |
+| Chrome 打开 example.com | **正常加载**（「Example Domain」），证明确实没拦住 |
+
+对照：同一台机器、同一档「始终阻断」，授权正常时连接 → 「已阻断」，Chrome 无法联网。
+两条路径现在说的是同一件事：**界面上的阻断 = 真的有一个在丢包的隧道**。
+
 ## 未验证
 
 以下项目需要真机，且当时无法完成（设备不在网、无相应素材）：

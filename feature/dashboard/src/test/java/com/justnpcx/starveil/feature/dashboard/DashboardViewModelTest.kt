@@ -179,6 +179,35 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `always block that cannot start is disconnected, not blocked`() = runBlocking {
+        val kernel = RecordingKernel().apply { blockFails = true }
+        val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.ALWAYS_BLOCK), kernel)
+
+        viewModel.onCoreClick()
+
+        // The block was asked for but nothing enforces it, so the honest
+        // state is "not connected" — the same rule disconnect() follows.
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+        assertEquals(DashboardNotice.KillSwitchFailed, viewModel.uiState.value.notice)
+        assertEquals(false, kernel.blocking.value)
+    }
+
+    @Test
+    fun `a connect the kernel refuses is disconnected, not blocked`() = runBlocking {
+        val kernel = RecordingKernel().apply { refuseOnStart = true }
+        val viewModel = viewModel(
+            FakePreferences(ONE, KillSwitchMode.OFF, autoReconnect = false),
+            kernel,
+        )
+
+        viewModel.onCoreClick()
+        yield()
+
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+        assertTrue(viewModel.uiState.value.notice is DashboardNotice.KernelRefused)
+    }
+
+    @Test
     fun `block on disconnect swaps in a kernel that forwards nothing`() = runBlocking {
         val kernel = RecordingKernel()
         val viewModel = viewModel(FakePreferences(ONE, KillSwitchMode.BLOCK_ON_DISCONNECT), kernel)
@@ -256,7 +285,7 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `a stop from outside honours the kill switch`() = runBlocking {
+    fun `a raw stop from outside leaves no block, so it is disconnected`() = runBlocking {
         val kernel = RecordingKernel()
         val viewModel = viewModel(
             FakePreferences(ONE, KillSwitchMode.BLOCK_ON_DISCONNECT),
@@ -264,11 +293,27 @@ class DashboardViewModelTest {
         )
         viewModel.onCoreClick()
 
+        // A bare stop, not the notification's Disconnect (which goes through
+        // ConnectionController and therefore applies the policy). Nothing is
+        // dropping packets here, so BLOCKED would be a claim about traffic
+        // that nothing enforces.
         kernel.stop()
         yield()
 
-        // Blocked, not exposed: whoever pressed Disconnect, the policy is the
-        // same one this view model would have applied itself.
+        assertEquals(ConnectionState.DISCONNECTED, viewModel.uiState.value.connectionState)
+    }
+
+    @Test
+    fun `a blackhole left by an outside disconnect is blocked`() = runBlocking {
+        val kernel = RecordingKernel()
+        val viewModel = viewModel(FakePreferences(ONE), kernel)
+        viewModel.onCoreClick()
+
+        // What ConnectionController.disconnect() does under the policy: the
+        // kernel stops, the tun stays, and the bridge reports blocking.
+        kernel.stopKeepingTunnel()
+        yield()
+
         assertEquals(ConnectionState.BLOCKED, viewModel.uiState.value.connectionState)
     }
 
@@ -860,6 +905,12 @@ private class RecordingKernel : KernelBridge {
     /** When set, the next [start] dies immediately — a flapping node. */
     var crashOnStart = false
 
+    /** When set, [start] refuses without emitting a crash, like a bad config. */
+    var refuseOnStart = false
+
+    /** When set, [block] fails: there is no tunnel to turn into a block. */
+    var blockFails = false
+
     private val _state = MutableStateFlow<KernelState>(KernelState.Stopped)
     override val state: StateFlow<KernelState> = _state
     private val _blocking = MutableStateFlow(false)
@@ -886,6 +937,9 @@ private class RecordingKernel : KernelBridge {
             _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
             return Result.failure(IllegalStateException("kernel stopped unexpectedly"))
         }
+        if (refuseOnStart) {
+            return Result.failure(IllegalStateException("kernel refused"))
+        }
         _blocking.value = false
         _state.value = KernelState.Running
         return Result.success(Unit)
@@ -893,6 +947,10 @@ private class RecordingKernel : KernelBridge {
 
     override suspend fun block(): Result<Unit> {
         blocks++
+        if (blockFails) {
+            _blocking.value = false
+            return Result.failure(IllegalStateException("no tunnel to keep"))
+        }
         _blocking.value = true
         _state.value = KernelState.Running
         return Result.success(Unit)
@@ -902,6 +960,12 @@ private class RecordingKernel : KernelBridge {
         _blocking.value = false
         _state.value = KernelState.Stopped
         return Result.success(Unit)
+    }
+
+    /** The blackhole: kernel gone, tunnel kept, packets still dropped. */
+    fun stopKeepingTunnel() {
+        _blocking.value = true
+        _state.value = KernelState.Stopped
     }
 
     override suspend fun queryStats(): TrafficStats = TrafficStats()

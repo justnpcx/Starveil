@@ -11,8 +11,6 @@ import com.justnpcx.starveil.core.data.scene.SceneApplyState
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
-import com.justnpcx.starveil.core.kernel.KillSwitchController
-import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
@@ -419,18 +417,29 @@ class DashboardViewModel @Inject constructor(
                 startStatsLoop()
             }
 
-            is ConnectionOutcome.Blocked -> _uiState.update {
-                it.copy(
-                    isBusy = false,
-                    connectionState = ConnectionState.BLOCKED,
-                    stats = TrafficStats(),
-                    history = emptyList(),
-                    notice = if (outcome.started) {
-                        DashboardNotice.KillSwitchBlocking
-                    } else {
-                        DashboardNotice.KernelRefused(outcome.reason)
-                    },
-                )
+            is ConnectionOutcome.Blocked -> {
+                // `started` is the difference between a tunnel that drops
+                // packets and no tunnel at all. BLOCKED is a claim about the
+                // traffic, so only make it when the kernel that enforces it is
+                // running — the same rule disconnect() follows since 9930507.
+                val blocked = outcome.started
+                _uiState.update {
+                    it.copy(
+                        isBusy = false,
+                        connectionState = if (blocked) {
+                            ConnectionState.BLOCKED
+                        } else {
+                            ConnectionState.DISCONNECTED
+                        },
+                        stats = TrafficStats(),
+                        history = emptyList(),
+                        notice = if (blocked) {
+                            DashboardNotice.KillSwitchBlocking
+                        } else {
+                            DashboardNotice.KillSwitchFailed
+                        },
+                    )
+                }
             }
 
             ConnectionOutcome.NoTarget -> _uiState.update {
@@ -441,10 +450,13 @@ class DashboardViewModel @Inject constructor(
                 )
             }
 
+            // No tunnel was started, so traffic still leaves directly. Saying
+            // BLOCKED here would be the same false claim the Kill Switch fix
+            // removed; the notice is what carries the failure.
             ConnectionOutcome.ConfigUnbuildable -> _uiState.update {
                 it.copy(
                     isBusy = false,
-                    connectionState = ConnectionState.BLOCKED,
+                    connectionState = ConnectionState.DISCONNECTED,
                     notice = DashboardNotice.ConfigUnbuildable,
                 )
             }
@@ -452,7 +464,7 @@ class DashboardViewModel @Inject constructor(
             is ConnectionOutcome.Refused -> _uiState.update {
                 it.copy(
                     isBusy = false,
-                    connectionState = ConnectionState.BLOCKED,
+                    connectionState = ConnectionState.DISCONNECTED,
                     notice = DashboardNotice.KernelRefused(outcome.reason),
                 )
             }
@@ -533,12 +545,11 @@ class DashboardViewModel @Inject constructor(
     private suspend fun onRunningElsewhere() {
         if (_uiState.value.isBusy) return
         if (_uiState.value.connectionState == ConnectionState.CONNECTED) return
-        // A blocking kernel is running too, so the policy alone would call it
-        // "connected" — the bridge's own flag is what tells them apart.
-        val blocked = kernel.blocking.value || KillSwitchController.policyFor(
-            preferences.killSwitchMode.first(),
-            connected = true,
-        ) == TrafficPolicy.BLOCK
+        // The bridge's own flag, not the policy: a kernel that is running and
+        // forwarding is a connection, and only a blackhole sets `blocking`.
+        // Reading the policy here would call a working tunnel "blocked" the
+        // moment the switch says always-block.
+        val blocked = kernel.blocking.value
         _uiState.update {
             it.copy(
                 isBusy = false,
@@ -567,10 +578,11 @@ class DashboardViewModel @Inject constructor(
      * recomputing it from the same policy is a no-op rather than a race.
      */
     private suspend fun onStoppedElsewhere() {
-        val blocking = KillSwitchController.policyFor(
-            preferences.killSwitchMode.first(),
-            connected = false,
-        ) == TrafficPolicy.BLOCK
+        // A stopped kernel is not a block. The blackhole keeps the tunnel and
+        // sets `blocking`; a stop without it leaves traffic free. Reading the
+        // policy instead is how a fresh launch under "always block" claimed
+        // 阻断中 with no tunnel, no kernel, and nothing being dropped.
+        val blocking = kernel.blocking.value
         statsJob?.cancel()
         _uiState.update {
             it.copy(
