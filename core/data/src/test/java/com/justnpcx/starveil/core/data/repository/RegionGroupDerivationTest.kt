@@ -66,6 +66,21 @@ class RegionGroupDerivationTest {
     }
 
     @Test
+    fun `observeAll answers from the emission instead of querying per group`() = runBlocking {
+        // The regression this guards: one DAO round trip per group on every
+        // emission, for profiles the flow had already delivered.
+        val counting = CountingProfileDao(profiles)
+        val repository = RoomGroupRepository(
+            groupDao = StubGroupDao(groups),
+            profileDao = counting,
+        )
+
+        repository.observeAll().first()
+
+        assertEquals("getProfileIdsByGroup was called from observeAll", 0, counting.groupQueries)
+    }
+
+    @Test
     fun `a node added later joins the region group without being touched`() = runBlocking {
         val grown = RoomGroupRepository(
             groupDao = StubGroupDao(groups),
@@ -107,6 +122,29 @@ private class StubGroupDao(private val rows: List<GroupEntity>) : GroupDao {
     override suspend fun delete(entity: GroupEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
     override suspend fun deleteProfilesOfGroup(groupId: Long) = error("read-only")
+}
+
+/** Counts the per-group query, which observeAll must not make. */
+private class CountingProfileDao(private val rows: List<ProfileEntity>) : ProfileDao {
+    var groupQueries = 0
+        private set
+
+    override fun observeAll(): Flow<List<ProfileEntity>> = flowOf(rows)
+    override suspend fun getAll(): List<ProfileEntity> = rows
+    override fun observeByGroup(groupId: Long): Flow<List<ProfileEntity>> =
+        flowOf(rows.filter { it.groupId == groupId })
+
+    override suspend fun getProfileIdsByGroup(groupId: Long): List<Long> {
+        groupQueries++
+        return rows.filter { it.groupId == groupId }.map { it.id }
+    }
+
+    override suspend fun getById(id: Long): ProfileEntity? = rows.firstOrNull { it.id == id }
+    override suspend fun upsert(entity: ProfileEntity): Long = error("read-only")
+    override suspend fun update(entity: ProfileEntity) = error("read-only")
+    override suspend fun delete(entity: ProfileEntity) = error("read-only")
+    override suspend fun deleteById(id: Long) = error("read-only")
+    override suspend fun deleteByGroup(groupId: Long) = error("read-only")
 }
 
 private class StubProfileDao(private val rows: List<ProfileEntity>) : ProfileDao {

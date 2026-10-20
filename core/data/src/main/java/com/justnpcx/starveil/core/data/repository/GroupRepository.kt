@@ -50,12 +50,16 @@ class RoomGroupRepository @Inject constructor(
     override fun observeAll(): Flow<List<ProxyGroup>> =
         combine(groupDao.observeAll(), profileDao.observeAll()) { groups, profiles ->
             val membersByRegion = regionMembers(profiles)
+            // Grouped from the list this emission already carries. Asking the
+            // DAO per group meant one query per group per emission, against a
+            // SQLCipher database, for data that was already in hand.
+            val membersByGroup = profiles.groupBy({ it.groupId }, { it.id })
             groups.map { entity ->
                 val region = entity.region.toRegion()
                 val profileIds = if (region != null) {
                     membersByRegion[region].orEmpty()
                 } else {
-                    profileDao.getProfileIdsByGroup(entity.id)
+                    membersByGroup[entity.id].orEmpty()
                 }
                 entity.toDomain(profileIds, region)
             }
