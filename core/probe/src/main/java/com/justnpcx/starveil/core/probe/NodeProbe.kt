@@ -59,19 +59,27 @@ interface NodeProbe {
     }
 }
 
-class TcpNodeProbe @Inject constructor() : NodeProbe {
+class TcpNodeProbe @Inject constructor(
+    private val dns: com.justnpcx.starveil.core.data.geo.DohResolver,
+) : NodeProbe {
 
     /**
      * The name is resolved first and outside the clock, so the number reported
      * is the network round-trip rather than however long DNS happened to take.
+     *
+     * Over DoH, and strictly: a plaintext lookup would announce every node's
+     * hostname to the local network, which is exactly what the rest of the app
+     * goes out of its way to avoid — and on a polluted resolver a live node
+     * would be read as dead. A failed lookup is therefore a failed probe, not a
+     * reason to ask the system resolver instead.
      */
     override suspend fun probe(server: String, port: Int, timeoutMs: Int): ProbeResult =
         withContext(Dispatchers.IO) {
             val address = try {
-                InetAddress.getByName(server)
+                resolve(server)
             } catch (e: UnknownHostException) {
-                return@withContext ProbeResult.Failed
-            }
+                null
+            } ?: return@withContext ProbeResult.Failed
             val socket = Socket()
             try {
                 val started = System.nanoTime()
@@ -86,4 +94,14 @@ class TcpNodeProbe @Inject constructor() : NodeProbe {
             }
         }
 
+    private suspend fun resolve(server: String): InetAddress? {
+        // A literal is already an address; asking would be a round trip for
+        // something known, and the DoH resolver only answers for names.
+        if (server.contains(':') || server.count { it == '.' } == 3 && server.all { it.isDigit() || it == '.' }) {
+            return InetAddress.getByName(server)
+        }
+        // The address DoH returned is itself a literal, so this second call
+        // does no lookup of its own.
+        return dns.resolveStrict(server)?.let { InetAddress.getByName(it) }
+    }
 }

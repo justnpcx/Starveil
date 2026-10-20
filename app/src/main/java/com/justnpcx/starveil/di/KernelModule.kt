@@ -105,5 +105,6 @@ object KernelModule {
      */
     @Provides
     @Singleton
-    fun provideNodeProbe(): NodeProbe = TcpNodeProbe()
+    fun provideNodeProbe(dns: com.justnpcx.starveil.core.data.geo.DohResolver): NodeProbe =
+        TcpNodeProbe(dns)
 }

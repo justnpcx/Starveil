@@ -55,6 +55,27 @@ class DohResolver(
         // something already known.
         if (isIpv4Literal(host)) return host
 
+        resolveOverDoh(host)?.let { return it }
+
+        warn("DoH unavailable; falling back to the system resolver for a node host")
+        return fallback(host)
+    }
+
+    /**
+     * Like [resolve], but never falls back to the system resolver.
+     *
+     * For the caller where a cleartext query is the thing being avoided rather
+     * than a cost to trade: the node probe. A null here means "could not
+     * resolve privately", and the caller reports that instead of announcing the
+     * node's hostname to the local network.
+     */
+    suspend fun resolveStrict(host: String): String? {
+        if (host.isBlank()) return null
+        if (isIpv4Literal(host)) return host
+        return resolveOverDoh(host)
+    }
+
+    private suspend fun resolveOverDoh(host: String): String? {
         val query = DnsMessage.query(host)
         val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(query)
         for (endpoint in endpoints) {
@@ -77,9 +98,7 @@ class DohResolver(
             }
             warn("DoH ${endpoint.substringAfter("://")} answered without an A record")
         }
-
-        warn("DoH unavailable; falling back to the system resolver for a node host")
-        return fallback(host)
+        return null
     }
 
     private companion object {
