@@ -58,18 +58,19 @@ jobs:
       - name: Lint
         run: ./gradlew lintDebug --no-daemon
       # Sideload build: the debug APKs are debug-signed, so they install on a
-      # device without any signing secrets in CI. One APK per ABI — a single
-      # universal APK would be ~230 MB of native code.
+      # device without any signing secrets in CI. All three ABIs are still
+      # built — the splits are what the release path depends on — but only the
+      # arm64 one is uploaded, because the artifact exists to be sideloaded
+      # onto the test phone and that phone is arm64.
       #
-      # Three days, not the default ninety: one run of this artifact is about
-      # 128 MB, and the free Actions storage is 500 MB shared with Packages.
-      # At the default retention ten runs fill it, which is what the account
-      # warning was about. The APKs exist to be sideloaded from the run that
-      # produced them; nobody needs yesterday's.
-      - name: Upload debug APKs
+      # Three days, and one ABI: three APKs were ~128 MB per run against a
+      # 500 MB free allowance shared with Packages, so ten runs at the default
+      # ninety days filled it — the account warning. One ABI is ~43 MB, which
+      # keeps a three-day window under the allowance at normal push rates.
+      - name: Upload the arm64 debug APK
         uses: actions/upload-artifact@v4
         with:
           name: starveil-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 3
