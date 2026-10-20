@@ -1,12 +1,17 @@
 package com.justnpcx.starveil.core.subscription
 
+import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import java.util.Base64
 import org.junit.Assert.assertEquals
@@ -101,17 +106,22 @@ class ClashYamlSubscriptionParserTest {
             port: 8388
             cipher: 2022-blake3-aes-128-gcm
             password: pw
-          - name: "unsupported"
+          - name: "vmess-node"
             type: vmess
             server: v.example.com
             port: 443
             uuid: x
+            alterId: 0
+            cipher: auto
+            network: ws
+            ws-opts:
+              path: /vm
     """.trimIndent()
 
     @Test
-    fun `maps vless, trojan and ss and skips unsupported types`() {
+    fun `maps every protocol this app can build`() {
         val profiles = ClashYamlSubscriptionParser().parse(clash)
-        assertEquals(3, profiles.size)
+        assertEquals(4, profiles.size)
 
         val vless = profiles.first { it.type == ProfileType.VLESS }
         val vs = vless.settings as VlessSettings
@@ -132,6 +142,98 @@ class ClashYamlSubscriptionParserTest {
         val ss = profiles.first { it.type == ProfileType.SHADOWSOCKS }
         val ss2 = ss.settings as ShadowsocksSettings
         assertEquals("2022-blake3-aes-128-gcm", ss2.method)
+
+        val vmess = profiles.first { it.type == ProfileType.VMESS }
+        val vm = vmess.settings as VmessSettings
+        assertEquals("x", vm.uuid)
+        assertEquals("auto", vm.security)
+        assertEquals(0, vm.alterId)
+        assertEquals(TransportType.WS, vm.transport.type)
+        assertEquals("/vm", vm.transport.path)
+    }
+
+    @Test
+    fun `a vless entry without tls is plain, not tls`() {
+        // The default used to be TLS, so a plaintext vless node was imported
+        // with a handshake it cannot complete.
+        val yaml = """
+            proxies:
+              - name: plain
+                type: vless
+                server: p.example.com
+                port: 80
+                uuid: 11111111-2222-3333-4444-555555555555
+        """.trimIndent()
+
+        val settings = ClashYamlSubscriptionParser().parse(yaml).single().settings as VlessSettings
+        assertEquals(SecurityMode.NONE, settings.tls.security)
+    }
+
+    @Test
+    fun `a trojan entry without tls still defaults to tls`() {
+        // Trojan has no plaintext mode; only vless gained the NONE default.
+        val yaml = """
+            proxies:
+              - name: tj
+                type: trojan
+                server: t.example.com
+                port: 443
+                password: pw
+        """.trimIndent()
+
+        val settings = ClashYamlSubscriptionParser().parse(yaml).single().settings as TrojanSettings
+        assertEquals(SecurityMode.TLS, settings.tls.security)
+    }
+
+    @Test
+    fun `hysteria2 keeps obfs and its port-hopping range`() {
+        val yaml = """
+            proxies:
+              - name: hy2
+                type: hysteria2
+                server: h.example.com
+                port: 443
+                password: pw
+                obfs: salamander
+                obfs-password: obfspw
+                sni: h.example.com
+                skip-cert-verify: true
+                ports: 20000-30000
+        """.trimIndent()
+
+        val settings = ClashYamlSubscriptionParser().parse(yaml).single().settings as Hysteria2Settings
+        assertEquals("pw", settings.password)
+        assertEquals("salamander", settings.obfs?.type)
+        assertEquals("obfspw", settings.obfs?.password)
+        assertEquals(SecurityMode.TLS, settings.tls.security)
+        assertEquals(true, settings.tls.allowInsecure)
+        assertEquals(listOf("20000:30000"), settings.serverPorts)
+    }
+
+    @Test
+    fun `tuic keeps its congestion control and relay mode`() {
+        val yaml = """
+            proxies:
+              - name: tuic
+                type: tuic
+                server: u.example.com
+                port: 443
+                uuid: 11111111-2222-3333-4444-555555555555
+                password: pw
+                congestion-controller: bbr
+                udp-relay-mode: native
+                reduce-rtt: true
+                sni: u.example.com
+                alpn: [h3]
+        """.trimIndent()
+
+        val settings = ClashYamlSubscriptionParser().parse(yaml).single().settings as TuicSettings
+        assertEquals("pw", settings.password)
+        assertEquals(TuicCongestionControl.BBR, settings.congestionControl)
+        assertEquals(TuicUdpRelayMode.NATIVE, settings.udpRelayMode)
+        assertEquals(true, settings.zeroRttHandshake)
+        assertEquals(SecurityMode.TLS, settings.tls.security)
+        assertEquals(listOf("h3"), settings.tls.alpn)
     }
 
     @Test
@@ -163,10 +265,24 @@ class ClashYamlSubscriptionParserTest {
 
     @Test
     fun `an unsupported protocol counts as a dropped node`() {
-        // The vmess entry is a real node the subscription offers and this app
-        // cannot build. Reporting 3 of 4 is the only honest summary.
-        val outcome = ClashYamlSubscriptionParser().parseDetailed(clash)
-        assertEquals(3, outcome.profiles.size)
+        // WireGuard over Clash YAML is a real node the subscription offers and
+        // this app cannot build from it. Reporting 1 of 2 is the honest summary.
+        val yaml = """
+            proxies:
+              - name: wg
+                type: wireguard
+                server: w.example.com
+                port: 51820
+              - name: ok
+                type: ss
+                server: s.example.com
+                port: 8388
+                cipher: aes-128-gcm
+                password: p
+        """.trimIndent()
+
+        val outcome = ClashYamlSubscriptionParser().parseDetailed(yaml)
+        assertEquals(1, outcome.profiles.size)
         assertEquals(1, outcome.dropped)
     }
 }

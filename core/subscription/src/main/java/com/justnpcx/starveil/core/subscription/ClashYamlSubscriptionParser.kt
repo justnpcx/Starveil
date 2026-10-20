@@ -1,5 +1,7 @@
 package com.justnpcx.starveil.core.subscription
 
+import com.justnpcx.starveil.core.model.Hysteria2Settings
+import com.justnpcx.starveil.core.model.ObfsOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -9,7 +11,11 @@ import com.justnpcx.starveil.core.model.TlsOptions
 import com.justnpcx.starveil.core.model.TransportOptions
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TrojanSettings
+import com.justnpcx.starveil.core.model.TuicCongestionControl
+import com.justnpcx.starveil.core.model.TuicSettings
+import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
+import com.justnpcx.starveil.core.model.VmessSettings
 import org.yaml.snakeyaml.LoaderOptions
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.SafeConstructor
@@ -22,8 +28,9 @@ import org.yaml.snakeyaml.error.MarkedYAMLException
  * subscription can never instantiate arbitrary Java objects. Loader limits are
  * tightened against alias bombs. The document is never logged (credentials).
  *
- * M2 maps the three in-scope protocols (vless / trojan / ss); other types are
- * skipped rather than mis-mapped.
+ * Scope: vless, vmess, trojan, shadowsocks, hysteria2 and tuic — every protocol
+ * this app can build. Anything else (wireguard, ssh, …) is skipped rather than
+ * mis-mapped.
  */
 class ClashYamlSubscriptionParser : SubscriptionParser {
 
@@ -36,9 +43,10 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
 
     /**
      * Every proxy entry that produced no profile counts as dropped — including
-     * the protocols this app does not implement (vmess, hysteria2, tuic). That
-     * is the honest number: those nodes exist in the subscription and are not
-     * in the list, and the user is the one who needs to know.
+     * a protocol this app cannot build, and an entry of a known protocol whose
+     * required fields are missing. That is the honest number: those nodes exist
+     * in the subscription and are not in the list, and the user is the one who
+     * needs to know.
      */
     override fun parseDetailed(text: String): ParseOutcome {
         val root = try {
@@ -88,7 +96,24 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
                     settings = VlessSettings(
                         uuid = uuid,
                         flow = proxy.str("flow"),
-                        tls = tlsFrom(proxy, defaultSecurity = SecurityMode.TLS),
+                        tls = tlsFrom(proxy, defaultSecurity = SecurityMode.NONE),
+                        transport = transportFrom(proxy),
+                    ),
+                )
+            }
+
+            "vmess" -> {
+                val uuid = proxy.str("uuid") ?: return null
+                Profile(
+                    name = name,
+                    type = ProfileType.VMESS,
+                    server = server,
+                    port = port,
+                    settings = VmessSettings(
+                        uuid = uuid,
+                        security = proxy.str("cipher") ?: proxy.str("security") ?: "auto",
+                        alterId = proxy.int("alterId") ?: proxy.int("alter-id") ?: 0,
+                        tls = tlsFrom(proxy, defaultSecurity = SecurityMode.NONE),
                         transport = transportFrom(proxy),
                     ),
                 )
@@ -121,7 +146,48 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
                 )
             }
 
-            // Out of M2 scope (vmess / hysteria2 / tuic / wireguard …).
+            "hysteria2", "hy2" -> {
+                val password = proxy.str("password") ?: return null
+                val obfs = proxy.str("obfs")
+                    ?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }
+                    ?.let { ObfsOptions(type = it, password = proxy.str("obfs-password").orEmpty()) }
+                Profile(
+                    name = name,
+                    type = ProfileType.HYSTERIA2,
+                    server = server,
+                    port = port,
+                    settings = Hysteria2Settings(
+                        password = password,
+                        obfs = obfs,
+                        // QUIC: always TLS, never a stream transport.
+                        tls = tlsFrom(proxy, defaultSecurity = SecurityMode.TLS),
+                        serverPorts = portRanges(proxy.str("ports")),
+                    ),
+                )
+            }
+
+            "tuic" -> {
+                val uuid = proxy.str("uuid") ?: return null
+                val password = proxy.str("password") ?: return null
+                Profile(
+                    name = name,
+                    type = ProfileType.TUIC,
+                    server = server,
+                    port = port,
+                    settings = TuicSettings(
+                        uuid = uuid,
+                        password = password,
+                        congestionControl = proxy.str("congestion-controller")
+                            ?.let { TuicCongestionControl.fromWireName(it) },
+                        udpRelayMode = proxy.str("udp-relay-mode")
+                            ?.let { TuicUdpRelayMode.fromWireName(it) },
+                        zeroRttHandshake = proxy.bool("reduce-rtt") ?: false,
+                        tls = tlsFrom(proxy, defaultSecurity = SecurityMode.TLS),
+                    ),
+                )
+            }
+
+            // A protocol this app cannot build: skipped, and counted as dropped.
             else -> null
         }
     }
@@ -145,6 +211,32 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
             reality = reality,
         )
     }
+
+    /**
+     * Clash writes port hopping as `ports: 20000-30000` or `443,8443`; the
+     * model carries sing-box's `start:end` form. An unreadable token is
+     * dropped rather than guessed at.
+     */
+    private fun portRanges(raw: String?): List<String> = raw.orEmpty()
+        .split(',')
+        .mapNotNull { token ->
+            val text = token.trim()
+            when {
+                text.isEmpty() -> null
+                '-' in text -> {
+                    val bounds = text.split('-', limit = 2).map { it.trim().toIntOrNull() }
+                    val start = bounds.getOrNull(0)
+                    val end = bounds.getOrNull(1)
+                    if (start != null && end != null && start in 1..65535 && end in 1..65535) {
+                        "$start:$end"
+                    } else {
+                        null
+                    }
+                }
+
+                else -> text.toIntOrNull()?.takeIf { it in 1..65535 }?.toString()
+            }
+        }
 
     private fun transportFrom(proxy: Map<*, *>): TransportOptions {
         val network = proxy.str("network")?.lowercase()
