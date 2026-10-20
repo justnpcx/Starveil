@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # `main` requires a green `build` before a push is accepted, and the check
+  # is recorded against the commit, not the branch. This lets a branch build
+  # first, so the commit can then be pushed to `main` without the check being
+  # missing. It also runs nothing by itself — someone has to ask for it.
+  workflow_dispatch:
 
 jobs:
   build:
