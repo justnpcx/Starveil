@@ -40,6 +40,7 @@ class BackupManager @Inject constructor(
     private val profiles: ProfileRepository,
     private val groups: GroupRepository,
     private val rules: RuleRepository,
+    private val transaction: RestoreTransaction,
 ) {
 
     suspend fun export(passphrase: CharArray): ByteArray {
@@ -53,16 +54,22 @@ class BackupManager @Inject constructor(
     }
 
     /**
-     * Restore a backup. A wrong passphrase or a corrupt file throws
-     * [BackupCryptoException] before anything is written, so a failed import
-     * never leaves the database half-updated.
+     * Restore a backup.
+     *
+     * Two ways this can fail, and both leave the database untouched: a wrong
+     * passphrase or a corrupt file throws [BackupCryptoException] before the
+     * first write, and a write that fails part-way rolls back with the
+     * transaction. Without the transaction the second case left groups and
+     * rules restored and profiles missing — half a backup, silently.
      */
     suspend fun restore(blob: ByteArray, passphrase: CharArray): RestoreResult {
         val json = BackupCrypto.decrypt(blob, passphrase)
         val snapshot = BackupSerializer.decode(String(json, Charsets.UTF_8))
-        snapshot.groups.forEach { groups.upsert(it) }
-        snapshot.rules.forEach { rules.upsert(it) }
-        snapshot.profiles.forEach { profiles.upsert(it) }
+        transaction.run {
+            snapshot.groups.forEach { groups.upsert(it) }
+            snapshot.rules.forEach { rules.upsert(it) }
+            snapshot.profiles.forEach { profiles.upsert(it) }
+        }
         return RestoreResult(snapshot.profiles.size, snapshot.groups.size, snapshot.rules.size)
     }
 }

@@ -23,6 +23,49 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** Pass-through transaction for the cases that are not about atomicity. */
+private object NoTransaction : RestoreTransaction {
+    override suspend fun <T> run(block: suspend () -> T): T = block()
+}
+
+/** Snapshots the in-memory stores so a throw rolls them back, like Room does. */
+private class MemTransaction(
+    private val profiles: MemProfiles,
+    private val groups: MemGroups,
+    private val rules: MemRules,
+) : RestoreTransaction {
+    override suspend fun <T> run(block: suspend () -> T): T {
+        val beforeProfiles = LinkedHashMap(profiles.rows)
+        val beforeGroups = LinkedHashMap(groups.rows)
+        val beforeRules = LinkedHashMap(rules.rows)
+        return try {
+            block()
+        } catch (e: Throwable) {
+            profiles.rows.clear()
+            profiles.rows.putAll(beforeProfiles)
+            groups.rows.clear()
+            groups.rows.putAll(beforeGroups)
+            rules.rows.clear()
+            rules.rows.putAll(beforeRules)
+            throw e
+        }
+    }
+}
+
+/** Fails the nth upsert, the way a disk error would arrive mid-restore. */
+private class FailingProfiles(
+    private val delegate: ProfileRepository,
+    private val failOnCall: Int,
+) : ProfileRepository by delegate {
+    private var calls = 0
+
+    override suspend fun upsert(profile: Profile): Long {
+        calls++
+        if (calls >= failOnCall) error("disk full")
+        return delegate.upsert(profile)
+    }
+}
+
 private class MemProfiles : ProfileRepository {
     val rows = LinkedHashMap<Long, Profile>()
     override fun observeAll(): Flow<List<Profile>> = flow { emit(rows.values.toList()) }
@@ -116,13 +159,13 @@ class BackupManagerTest {
         }
         val srcRules = MemRules().apply { upsert(Rule(id = 9L, matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "cn"), action = RuleAction.DIRECT, order = 1)) }
 
-        val blob = BackupManager(srcProfiles, srcGroups, srcRules).export(passphrase)
+        val blob = BackupManager(srcProfiles, srcGroups, srcRules, NoTransaction).export(passphrase)
 
         // Restore into a fresh, empty store.
         val dstProfiles = MemProfiles()
         val dstGroups = MemGroups()
         val dstRules = MemRules()
-        val result = BackupManager(dstProfiles, dstGroups, dstRules).restore(blob, passphrase)
+        val result = BackupManager(dstProfiles, dstGroups, dstRules, NoTransaction).restore(blob, passphrase)
 
         assertEquals(RestoreResult(profiles = 1, groups = 1, rules = 1), result)
         assertEquals(node, dstProfiles.rows[1L])
@@ -143,9 +186,9 @@ class BackupManagerTest {
             )
         }
 
-        val blob = BackupManager(MemProfiles(), srcGroups, MemRules()).export(passphrase)
+        val blob = BackupManager(MemProfiles(), srcGroups, MemRules(), NoTransaction).export(passphrase)
         val dstGroups = MemGroups()
-        BackupManager(MemProfiles(), dstGroups, MemRules()).restore(blob, passphrase)
+        BackupManager(MemProfiles(), dstGroups, MemRules(), NoTransaction).restore(blob, passphrase)
 
         // A region group owns no profiles, so the marker IS its membership.
         // Dropping it would restore an ordinary empty group and the members
@@ -156,11 +199,11 @@ class BackupManagerTest {
     @Test
     fun `restore with the wrong passphrase writes nothing`() = runBlocking {
         val srcProfiles = MemProfiles().apply { upsert(node) }
-        val blob = BackupManager(srcProfiles, MemGroups(), MemRules()).export(passphrase)
+        val blob = BackupManager(srcProfiles, MemGroups(), MemRules(), NoTransaction).export(passphrase)
 
         val dstProfiles = MemProfiles()
         try {
-            BackupManager(dstProfiles, MemGroups(), MemRules()).restore(blob, "wrong".toCharArray())
+            BackupManager(dstProfiles, MemGroups(), MemRules(), NoTransaction).restore(blob, "wrong".toCharArray())
             throw AssertionError("expected BackupCryptoException")
         } catch (e: BackupCryptoException) {
             assertTrue(dstProfiles.rows.isEmpty())
@@ -168,9 +211,52 @@ class BackupManagerTest {
     }
 
     @Test
+    fun `a restore that fails part-way leaves the store as it was`() = runBlocking {
+        val srcProfiles = MemProfiles().apply {
+            upsert(node)
+            upsert(node.copy(id = 0L, name = "second", server = "r2.example.com"))
+        }
+        val srcGroups = MemGroups().apply {
+            upsert(ProxyGroup(id = 5L, name = "sub", mode = GroupMode.URL_TEST))
+        }
+        val srcRules = MemRules().apply {
+            upsert(Rule(id = 9L, matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "cn"), action = RuleAction.DIRECT, order = 1))
+        }
+        val blob = BackupManager(srcProfiles, srcGroups, srcRules, NoTransaction).export(passphrase)
+
+        // The destination already holds a group; groups and rules are written
+        // before profiles, so without a transaction the failure would leave
+        // them replaced and the nodes missing.
+        val dstProfiles = MemProfiles()
+        val dstGroups = MemGroups().apply {
+            upsert(ProxyGroup(id = 1L, name = "keep", mode = GroupMode.SELECTOR))
+        }
+        val dstRules = MemRules()
+        val before = dstGroups.rows.toMap()
+
+        val manager = BackupManager(
+            FailingProfiles(dstProfiles, failOnCall = 2),
+            dstGroups,
+            dstRules,
+            MemTransaction(dstProfiles, dstGroups, dstRules),
+        )
+
+        try {
+            manager.restore(blob, passphrase)
+            throw AssertionError("expected the restore to fail")
+        } catch (e: IllegalStateException) {
+            // The write error, as it would reach the caller.
+        }
+
+        assertTrue("profiles were left behind", dstProfiles.rows.isEmpty())
+        assertEquals("groups were left half-restored", before, dstGroups.rows)
+        assertTrue("rules were left behind", dstRules.rows.isEmpty())
+    }
+
+    @Test
     fun `the exported blob does not contain the credentials in the clear`() = runBlocking {
         val srcProfiles = MemProfiles().apply { upsert(node) }
-        val blob = BackupManager(srcProfiles, MemGroups(), MemRules()).export(passphrase)
+        val blob = BackupManager(srcProfiles, MemGroups(), MemRules(), NoTransaction).export(passphrase)
         val asText = String(blob, Charsets.ISO_8859_1)
         assertTrue(!asText.contains("11111111-2222-3333-4444-555555555555"))
         assertTrue(!asText.contains("r.example.com"))

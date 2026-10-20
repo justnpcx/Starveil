@@ -15,6 +15,8 @@ import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
 import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.backup.RestoreTransaction
+import com.justnpcx.starveil.core.data.backup.RoomRestoreTransaction
 import com.justnpcx.starveil.core.data.geo.DohResolver
 import com.justnpcx.starveil.core.data.ruleset.FileMainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.FileRulePackStore
@@ -153,4 +155,10 @@ object DataModule {
     fun providePreferencesRepository(
         @ApplicationContext context: Context,
     ): PreferencesRepository = DataStorePreferencesRepository(context)
+
+    /** Room's transaction, behind an interface the feature layer never sees. */
+    @Provides
+    @Singleton
+    fun provideRestoreTransaction(database: StarveilDatabase): RestoreTransaction =
+        RoomRestoreTransaction(database)
 }

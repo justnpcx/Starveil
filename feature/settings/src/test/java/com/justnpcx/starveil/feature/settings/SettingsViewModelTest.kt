@@ -229,7 +229,11 @@ private fun notUsed(): Nothing = throw NotImplementedError("not used by this tes
  * A [BackupManager] over empty stores. This test is about the preference and
  * kernel state; backup is constructed only because the view model needs one.
  */
-private fun emptyBackup() = BackupManager(NoProfiles(), NoGroups(), NoRules())
+private object NoTransaction : com.justnpcx.starveil.core.data.backup.RestoreTransaction {
+    override suspend fun <T> run(block: suspend () -> T): T = block()
+}
+
+private fun emptyBackup() = BackupManager(NoProfiles(), NoGroups(), NoRules(), NoTransaction)
 
 private class NoFiles : BackupFileStore {
     override suspend fun write(uri: Uri, bytes: ByteArray) = notUsed()
