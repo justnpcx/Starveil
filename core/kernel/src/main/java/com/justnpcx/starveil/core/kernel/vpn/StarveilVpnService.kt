@@ -106,9 +106,22 @@ class StarveilVpnService : VpnService() {
         }
         callbackSlot = NetworkCallbackSlot(
             register = {
-                runCatching { manager.registerDefaultNetworkCallback(callback) }.isSuccess
+                runCatching { manager.registerDefaultNetworkCallback(callback) }
+                    .onFailure {
+                        KernelDiagnostics.logError(
+                            "network callback registration failed: ${it.javaClass.simpleName}",
+                        )
+                    }
+                    .isSuccess
             },
-            unregister = { runCatching { manager.unregisterNetworkCallback(callback) } },
+            unregister = {
+                runCatching { manager.unregisterNetworkCallback(callback) }
+                    .onFailure {
+                        KernelDiagnostics.logError(
+                            "network callback unregister failed: ${it.javaClass.simpleName}",
+                        )
+                    }
+            },
         ).also { it.acquire() }
     }
 
@@ -120,7 +133,12 @@ class StarveilVpnService : VpnService() {
      * both. The slot makes the second call a no-op.
      */
     private fun releaseNetworkCallback() {
-        callbackSlot?.release()
+        val released = callbackSlot?.release() == true
+        if (released) {
+            // Paired with the registration above: one line each way makes a
+            // leak visible in the Logs screen instead of only in dumpsys.
+            KernelDiagnostics.log("network callback released")
+        }
         callbackSlot = null
         underlying = null
     }
