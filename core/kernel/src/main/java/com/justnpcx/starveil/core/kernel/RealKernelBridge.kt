@@ -106,24 +106,30 @@ class RealKernelBridge(
     @Volatile
     private var restarted = false
 
+    /** Every lifecycle transition runs under this; see [LifecycleGate]. */
+    private val lifecycle = LifecycleGate()
+
     private fun log(level: LogLevel, message: String) {
         _logs.tryEmit(KernelLogLine(level = level, tag = "kernel", message = message))
     }
 
-    override suspend fun start(config: String): Result<Unit> = apply(config, blocking = false)
+    override suspend fun start(config: String): Result<Unit> =
+        lifecycle.exclusive { applyLocked(config, blocking = false) }
 
     /**
      * Forward nothing: run the block-only config.
      *
      * The block is a config the kernel enforces, not a tun with no reader.
      * Going there is the same full teardown as any other config change — see
-     * [apply] for why a second start has to be preceded by one — which costs a
+     * [applyLocked] for why a second start has to be preceded by one — which costs a
      * short window with no VPN. That window is the price of the block actually
      * being in force; the alternative, keeping the old tun and closing the
      * kernel, leaves the cache database locked and breaks the next connect.
      */
-    override suspend fun block(): Result<Unit> =
-        apply(configBuilder.buildBlocking(), blocking = true)
+    override suspend fun block(): Result<Unit> {
+        val config = configBuilder.buildBlocking()
+        return lifecycle.exclusive { applyLocked(config, blocking = true) }
+    }
 
     /**
      * Blackhole: stop the kernel, keep the tunnel.
@@ -134,6 +140,16 @@ class RealKernelBridge(
      * start a second kernel and lost that race every time on this device.
      */
     override suspend fun blockKeepingTunnel(): Result<Unit> =
+        lifecycle.exclusive { blockKeepingTunnelLocked() }
+
+    /**
+     * The body of [blockKeepingTunnel], without the gate.
+     *
+     * Split out rather than locked inline so the public entry point is the only
+     * place that takes the gate: a locked method calling another locked method
+     * on the same non-reentrant mutex would deadlock.
+     */
+    private suspend fun blockKeepingTunnelLocked(): Result<Unit> =
         withContext(Dispatchers.IO) {
             val current = server
             if (current == null) {
@@ -199,7 +215,7 @@ class RealKernelBridge(
      * The cost is a short window with no VPN between the two halves, which is
      * why this is only reached when there was going to be a change anyway.
      */
-    private suspend fun apply(config: String, blocking: Boolean): Result<Unit> =
+    private suspend fun applyLocked(config: String, blocking: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {
             lastConfig = config
             restarted = false
@@ -309,7 +325,10 @@ class RealKernelBridge(
      * and routes every app into an interface that forwards nothing — which is
      * why the Kill Switch's block is a *config* now, not this state.
      */
-    override suspend fun stop(): Result<Unit> =
+    override suspend fun stop(): Result<Unit> = lifecycle.exclusive { stopLocked() }
+
+    /** The body of [stop], without the gate — see [blockKeepingTunnelLocked]. */
+    private suspend fun stopLocked(): Result<Unit> =
         withContext(Dispatchers.IO) {
             val current = server
             if (current == null) {
@@ -353,20 +372,27 @@ class RealKernelBridge(
 
     /** The command channel dropped without us asking it to. */
     private fun onCommandChannelDropped() {
-        if (stopping || server == null) return
-        if (!restarted) {
-            restarted = true
-            log(LogLevel.WARN, "kernel dropped unexpectedly; restarting once")
-            scope.launch {
-                val wasBlocking = _blocking.value
-                teardownQuietly()
-                lastConfig?.let { doStart(it, wasBlocking) }
+        // Scheduled, not run inline: this arrives on a libbox callback thread,
+        // and the transition it wants is the same one a user action may be
+        // running right now. The gate decides the order; the guards are read
+        // inside it so a drop that arrives during a deliberate stop sees
+        // `stopping` after that stop has set it.
+        scope.launch {
+            lifecycle.exclusive {
+                if (stopping || server == null) return@exclusive
+                if (!restarted) {
+                    restarted = true
+                    log(LogLevel.WARN, "kernel dropped unexpectedly; restarting once")
+                    val wasBlocking = _blocking.value
+                    teardownQuietly()
+                    lastConfig?.let { doStart(it, wasBlocking) }
+                } else {
+                    server = null
+                    client = null
+                    _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
+                    log(LogLevel.ERROR, "kernel crashed; not restarting again")
+                }
             }
-        } else {
-            server = null
-            client = null
-            _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
-            log(LogLevel.ERROR, "kernel crashed; not restarting again")
         }
     }
 
