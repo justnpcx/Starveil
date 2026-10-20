@@ -31,6 +31,15 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Added
+
+- **Subscriptions, wider**: a sing-box JSON subscription no longer drops
+  REALITY outbounds — `public_key` and `short_id` map onto the node, and the
+  SNI, ALPN and uTLS fingerprint come along. A Clash YAML subscription now
+  reads vmess, hysteria2 and tuic instead of counting them as unsupported;
+  hysteria2 keeps its obfs settings and its port range is converted into the
+  form the kernel takes.
+
 ### Changed
 
 - **Update failures are localised**: the update dialog used to append an
@@ -38,6 +47,41 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   translated sentence. The data layer now returns a closed set of reasons and
   the screen owns the wording, so both languages get a sentence — and a new
   reason cannot ship without one.
+- **XHTTP carries what the kernel reads**: a 3x-ui link's `extra` is no longer
+  ignored. The fields sing-box 1.14 actually decodes — the uplink method,
+  `no_grpc_header`, the three padding keys, and a downlink block that does not
+  bring its own TLS — reach the config and are written back on export. Keys the
+  kernel does not know are deliberately not written: options are decoded
+  strictly, so an unknown key fails the whole config instead of being ignored.
+- **Export keeps headers**: WebSocket headers were parsed from Clash and then
+  dropped on export. They now round-trip, and `host` merges with them rather
+  than replacing them.
+
+### Fixed
+
+- **VPN service leak**: the default-network callback was registered on every
+  start and never unregistered, so each connect/disconnect cycle left one
+  behind, holding the service. Both termination paths release it now, and the
+  Logs screen says whether the release happened.
+- **Kernel lifecycle**: start, stop, block and block-keeping-tunnel run one at a
+  time. Tapping connect and disconnect in quick succession could interleave a
+  teardown with a start.
+- **Crash reports**: a REALITY public key is base64url, and the redaction rule
+  only knew standard base64 — a key containing `-` or `_` was split into
+  fragments shorter than the threshold and left the device verbatim.
+- **Latency probe**: node hostnames are resolved over DoH, never through the
+  system resolver, which the rest of the app already avoided. A DoH failure
+  fails the probe rather than falling back to cleartext.
+- **Backup restore**: the three writes share one transaction. A failure
+  part-way used to leave groups and rules restored and the nodes missing.
+- **Node flags**: a failed country lookup is retried after a minute instead of
+  being remembered for the life of the process, so a list first read while
+  offline gets its flags back without a restart.
+- **Clash VLESS**: an entry that does not declare TLS is imported as plaintext.
+  It used to be given a handshake it could not complete.
+- **Group list**: membership comes from the profiles already in hand instead of
+  one query per group per update. **Health samples** are written in one
+  transaction instead of three.
 
 ## [0.7.3] — 2026-10-19
 
