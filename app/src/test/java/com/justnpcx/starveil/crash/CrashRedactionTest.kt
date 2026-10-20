@@ -58,6 +58,35 @@ class CrashRedactionTest {
     }
 
     @Test
+    fun `a reality public key in the url-safe alphabet is removed`() {
+        // 43 characters, the length of a REALITY public key (32 bytes of
+        // base64url), and it uses both characters standard base64 does not:
+        // `-` and `_`. With only `+/` in the class this key was split into
+        // three fragments, none long enough to trip the threshold.
+        val key = "jNXHt1yRo0vDtaCyGjXeRzXk9pQ3mB8sWcVfL2uKn-_"
+        assertEquals(43, key.length)
+
+        val text = "reality public key $key rejected"
+        assertEquals("reality public key [redacted secret] rejected", CrashRedaction.scrub(text))
+    }
+
+    @Test
+    fun `a standard base64 key with plus and slash is still removed`() {
+        val key = "aB3+cd/ef" + "gH7".repeat(10) + "ijk"   // 42 chars, both symbols
+        val text = "bad key $key here"
+        assertEquals("bad key [redacted secret] here", CrashRedaction.scrub(text))
+    }
+
+    @Test
+    fun `a string just under the threshold is not treated as a key`() {
+        // The rule is a shape, and the shape starts at 40 characters. A short
+        // identifier that happens to be base64-ish must survive, or every frame
+        // in a report becomes unreadable.
+        val identifier = "A".repeat(39)
+        assertEquals(identifier, CrashRedaction.scrub(identifier))
+    }
+
+    @Test
     fun `ordinary text is untouched`() {
         val text = "java.lang.IllegalStateException: tunnel stopped while connecting"
         assertEquals(text, CrashRedaction.scrub(text))

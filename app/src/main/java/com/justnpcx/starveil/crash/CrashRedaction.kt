@@ -41,7 +41,12 @@ object CrashRedaction {
         // A base64 or hex key. Nothing in a stack trace is this long without
         // punctuation, so the false-positive rate is low and the cost of one is
         // a slightly less readable frame.
-        Regex("""\b[A-Za-z0-9+/]{40,}={0,2}""") to "[redacted secret]",
+        //
+        // Both alphabets: `+/` is standard base64, `-_` is base64url, and a
+        // REALITY public key is the URL-safe kind. With only `+/` in the class,
+        // a key containing either character was split into fragments shorter
+        // than the threshold and went out in the clear.
+        Regex("""\b[A-Za-z0-9+/_-]{40,}={0,2}""") to "[redacted secret]",
     )
 
     fun scrub(text: String): String = RULES.fold(text) { scrubbed, (pattern, replacement) ->
