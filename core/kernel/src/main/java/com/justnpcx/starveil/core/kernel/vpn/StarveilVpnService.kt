@@ -72,7 +72,7 @@ class StarveilVpnService : VpnService() {
 
     /** The network the tunnel sits on; declared to the system while we run. */
     private var underlying: android.net.Network? = null
-    private var underlyingCallback: android.net.ConnectivityManager.NetworkCallback? = null
+    private var callbackSlot: NetworkCallbackSlot? = null
 
     /**
      * Tracks the network the tunnel sits on, and declares it to the system.
@@ -92,7 +92,7 @@ class StarveilVpnService : VpnService() {
                 )
             }
         }
-        if (underlyingCallback != null) return
+        if (callbackSlot?.isActive == true) return
         val callback = object : android.net.ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: android.net.Network) {
                 if (isVpn(manager, network)) return
@@ -104,8 +104,25 @@ class StarveilVpnService : VpnService() {
                 if (underlying == network) underlying = null
             }
         }
-        underlyingCallback = callback
-        runCatching { manager.registerDefaultNetworkCallback(callback) }
+        callbackSlot = NetworkCallbackSlot(
+            register = {
+                runCatching { manager.registerDefaultNetworkCallback(callback) }.isSuccess
+            },
+            unregister = { runCatching { manager.unregisterNetworkCallback(callback) } },
+        ).also { it.acquire() }
+    }
+
+    /**
+     * Releases the default-network callback.
+     *
+     * Called from both [onRevoke] and [onDestroy]: the first path is the system
+     * taking the VPN away, the second is a normal stop, and a revoke reaches
+     * both. The slot makes the second call a no-op.
+     */
+    private fun releaseNetworkCallback() {
+        callbackSlot?.release()
+        callbackSlot = null
+        underlying = null
     }
 
     private fun isVpn(
@@ -116,7 +133,9 @@ class StarveilVpnService : VpnService() {
 
     override fun onRevoke() {
         // The system revoked our VPN: tear down so the kernel does not keep
-        // running against a dead tun.
+        // running against a dead tun. The callback goes first — a callback
+        // left registered here outlives the service that owns it.
+        releaseNetworkCallback()
         closeTun()
         current = null
         stopSelf()
@@ -124,6 +143,7 @@ class StarveilVpnService : VpnService() {
 
     override fun onDestroy() {
         KernelDiagnostics.log("VpnService onDestroy; releasing tun")
+        releaseNetworkCallback()
         closeTun()
         current = null
         super.onDestroy()
