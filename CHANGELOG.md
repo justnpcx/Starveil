@@ -16,6 +16,11 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   token. Only 0.7.2 and 0.7.3 point at the deleted mirror and will report
   "no published release" until installed by hand; 0.7.0 and 0.7.1 named
   `justnpcx/Starveil`, which is this repository today, so they can see it.
+- **Node page**: group chips are one fixed 16dp shape instead of a circle for
+  a short label and a capsule for a long one, an idle node card no longer
+  draws an outline, and the chip row sits against the list it filters. The
+  card and the chip are now shared components (`StarveilCard`,
+  `StarveilChip`) rather than one screen's private drawing.
 
 ### Fixed
 
@@ -62,6 +67,16 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   and proxy selection. See [docs/14-local-api.md](docs/14-local-api.md).
 - **First-run flow**: three steps — welcome, import, auto-select and connect —
   skippable at every step and shown once.
+- **Scenes**: the network decides the policy. A known SSID or mobile data picks
+  a profile, and the decision is written down; coarse location is requested
+  because the platform requires it to read the SSID.
+- **Background health**: every node is probed, not only the selected one, so
+  auto-select chooses from measurements instead of a guess.
+- **Keep-alive page**: the three switches a ROM hides.
+- **Node hostnames over DNS-over-HTTPS**, resolved without the system resolver.
+- **Rule sets pinned to a commit and verified by SHA-256**; the local network is
+  always direct.
+- **Time to first proxied byte** is measured and recorded.
 
 ### Changed
 
@@ -73,6 +88,10 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   into `:core:probe`. No behaviour change, and both are testable on their own.
 - Latency result copy moved into `:core:probe`, with the probe that produces
   it.
+- **Dashboard, rebuilt**: one screen with fixed slots and an elastic chart; the
+  connection state lives in the ring, the telemetry block is built around the
+  number, auto-select is a chip, and the speed ribbons are gone.
+- **APK size**: native libraries are stored compressed — 85.7 MB → 31.2 MB.
 
 ### Fixed
 
@@ -94,6 +113,22 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   asks for confirmation before deleting a node.
 - The mainland preset's name and description were Chinese in the default
   (English) resource file.
+- **Snackbar**: the dark HUD colour in both schemes, unchanged by dynamic
+  colour, and lifted a step above the cards it covers.
+- **Auto-select chip**: the press is visible, and the chip no longer competes
+  with the node name beside it.
+- **Kill Switch**: blocks with a config instead of a dangling descriptor.
+- **Tun descriptors**: every one handed to the kernel is closed.
+- **Health curve**: the first point lands in half a minute, the skeleton follows
+  the theme, the curve sits on the card with the same spline as the ribbons,
+  and no chart draws a baseline under itself.
+- **Rules**: the full flow list scrolls, the paused state is visible, and the
+  screen shows one count against one baseline.
+- **Profiles**: one scan entry, and the filter chips belong to the page.
+- **Onboarding**: VPN consent is asked before the first connect, not after it
+  fails.
+- **Update**: the APK is chosen by the device's ABI rather than a hardcoded
+  "arm64".
 
 ## [0.7.1] — 2026-10-18
 
@@ -112,19 +147,25 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ### Changed
 
-- The node page has one add entry (a sheet with import, subscription,
-  clipboard and QR) and its actions live in the app bar, so the filter row
-  holds filters and nothing else.
+- The node page has one add entry (a sheet with manual entry, clipboard, QR
+  scan and a subscription URL) and its actions live in the app bar, so the
+  filter row holds filters and nothing else.
 - The kernel version reads `1.14.3`, without the fork's commit hash.
+- **Kernel**: libbox rebuilt without the outbounds this app cannot use
+  (tailscale, naive, openvpn, openconnect, usbip) — 19.5 MB of the binary,
+  and the arm64 APK goes from 134.7 MB to 115.2 MB.
 
 ### Fixed
 
 - The node label keeps its flag when any other setting changes. The label was
   rebuilt from the stored name on every preference write, while the connect
   path used the flagged name, so the two disagreed until the screen reloaded.
-- Changing a routing preset while connected now rebuilds the tunnel. The rules
-  page said the policy was in force while the kernel kept running the config
-  it was started with.
+- Changing a routing preset, or the ads switch, while connected now rebuilds
+  the tunnel. The rules page said the policy was in force while the kernel
+  kept running the config it was started with.
+- **Grouping by region** answers every time and says what it needs, instead of
+  leaving a strip of text where a dialog belongs.
+- **Update**: the dialog says whether the check or the download failed.
 
 ## [0.7.0] — 2026-10-17
 
@@ -139,9 +180,17 @@ the app does rather than what changed.
 - **Nodes**: import from share links, subscription URLs, clipboard or QR;
   latency probing with a health curve over the last 30 minutes; groups with
   folder, selector and fastest-node modes.
+- **Node editor**: all seven protocols, with the fields each transport needs.
+- **Sharing**: a node as a link, and as a QR code.
+- **Subscriptions**: re-pull on demand, refresh on a schedule, and fall back to
+  the last good copy instead of dropping the nodes when a refresh fails.
+- **Groups**: create, rename and delete them, move nodes between them, and
+  group the list by subscription as well as by region.
 - **Routing**: ordered rules by domain, domain suffix, domain keyword or CIDR,
   with proxy / direct / block actions, plus a one-tap mainland-China preset
-  that sends domestic sites direct and everything else through the tunnel.
+  that sends domestic sites direct and everything else through the tunnel. The
+  rules screen also shows where traffic actually went, not only what the rules
+  say.
 - **Per-app routing**: send an individual app direct, or through a specific
   node, independently of the tunnel's default.
 - **Auto select**: picks the healthiest node, breaking ties by preferred
@@ -153,6 +202,16 @@ the app does rather than what changed.
   a subscription refresh cannot undo it.
 - **Kill Switch**: off, block-on-disconnect, or always-block, enforced in the
   kernel rather than in the UI.
+- **Leak check**: says whether traffic is leaving outside the tunnel.
+- **Dashboard**: live downlink and uplink rates and totals from the kernel's
+  own counters, the selected node's 30-minute health curve, and a sparkline
+  that pinch-zooms.
+- **Diagnostics**: the kernel's log lines on the device, searchable and
+  copyable, and a failed connect that names its reason instead of a generic
+  error.
+- **Theme**: light, dark, or follow the system.
+- **Privacy**: the database is encrypted with SQLCipher, and the privacy policy
+  is a screen rather than a link out.
 - **Backup**: export and restore nodes, groups and rules as one file encrypted
   with scrypt and AES-256-GCM.
 - **Surfaces**: home-screen widget, quick-settings tile, and a notification
