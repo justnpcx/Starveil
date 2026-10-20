@@ -474,3 +474,46 @@ QUIC 窗口（默认已 8 MB/20 MB）、强制带宽提示（服务端不接受�
    而不是「直连成功」；再开「断开时阻断」，连接后断开，同样确认失败。阻断态现在是
    `buildBlocking()` 的配置在跑，不是「关内核留 fd」——libbox 一升级，这条就从「配置保证」
    退回「实现细节」，所以每次都要重跑
+
+## 红军整改 R1–R12（2026-10-20）
+
+基线 `5ae5b29`（0.7.4）。代码与单测已完成并随分支提交；**真机项（R1、R2、R4）
+未执行**：写这一节时手机处于安全锁屏（`mDreamingLockscreen=true`，`wm dismiss-keyguard`
+与上滑均无法越过密码），`adb install` 直接被系统拒绝（`INSTALL_FAILED_ABORTED:
+User rejected permissions`）。以下把待跑步骤写死，设备可用时照做即可。
+
+| 项 | 代码 / 单测证据 | 真机 |
+|---|---|---|
+| R1 网络回调注销 | `NetworkCallbackSlotTest`：注册一次、注销一次、两条终止路径幂等、注册失败可重试 | **待执行**：启停 VPN ≥10 次后 `adb shell dumpsys connectivity` 中无本应用的 default network callback |
+| R2 生命周期互斥 | `LifecycleGateTest`：50 个并发转换无重叠、失败转换不持锁 | **待执行**：快速点按连接/断开 20 次，状态与最后一次操作一致，日志无 `initialize cache-file: timeout` |
+| R3 脱敏 base64url | `CrashRedactionTest`：43 字符含 `-`/`_` 的 REALITY 公钥被替换；39 字符不误杀 | 不需要 |
+| R4 探针 DoH | `TcpNodeProbeTest`：域名走 DoH、IP 直连不发查询、DoH 失败不回退系统解析、解析不计入时延 | **待执行**：抓包或等效日志确认测速期间无 53 端口明文查询节点域名 |
+| R5 JSON REALITY | `SingBoxJsonSubscriptionParserTest`：VLESS/Trojan 的 pbk / sid / sni / fp / mlKem 完整，`dropped=0` | 不需要 |
+| R6 Clash 三协议 | `SubscriptionParsersTest`：vmess / hysteria2（obfs + ports 跳跃）/ tuic 各一条；明文 VLESS 为 NONE，trojan 仍 TLS | 不需要 |
+| R7 XHTTP extra | `VlessLinkTest`（3x-ui 链接解析）、`ConfigBuilderTest`（配置含 extra 且无 `xmux`）、`LinkExportRoundTripTest`（xhttp extra 与 ws headers 往返） | 不需要 |
+| R8 分组 N+1 | `RegionGroupDerivationTest`：`observeAll` 期间 `getProfileIdsByGroup` 调用数为 0 | 不需要 |
+| R9 采样单事务 | `RoomNodeHealthRepositoryTest`：走复合方法一次；窗口修剪与 cap 行为不变 | 不需要 |
+| R10 国旗负缓存 | `NodeCountryResolverTest`：60 s 内不重试、到期重试可成功、成功结果进程级缓存 | 不需要 |
+| R11 还原事务化 | `BackupManagerTest`：第二条 profile 写入失败后，原有分组保留、节点与规则均未写入 | 不需要 |
+| R12 FD 所有权 | 未改动，`closeKernelFds()` 与注释保持原样 | 不需要 |
+
+### R1 待跑步骤
+
+```bash
+# 启停 10 次后检查残留（应只有系统自己的注册）
+for i in $(seq 10); do adb shell am startservice ...; adb shell am stopservice ...; done
+adb shell dumpsys connectivity | grep -A3 "NetworkCallback"
+```
+
+### R2 待跑步骤
+
+快速点按首页的连接/断开 20 次（间隔 < 300 ms），随后检查：
+
+- 首页状态与最后一次点按一致
+- `adb logcat -d | grep "initialize cache-file"` 无输出
+- `adb shell ps -A | grep -c starveil` 仍为 1 个进程
+
+### R4 待跑步骤
+
+节点页点「测速」，同时抓包（`tcpdump -i any port 53`，需 root）或读内核日志，
+确认没有对该节点域名的明文查询；节点为域名时测速结果仍应正常返回。
