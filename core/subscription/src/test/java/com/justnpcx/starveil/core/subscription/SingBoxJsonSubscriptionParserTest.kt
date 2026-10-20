@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
+import com.justnpcx.starveil.core.model.TrojanSettings
 import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.VlessSettings
 import org.junit.Assert.assertEquals
@@ -19,7 +20,8 @@ import org.junit.Test
  * The cases that matter are the ones that must be *dropped*: a REALITY
  * outbound without its key, an unknown protocol, a transport this app does
  * not model. Importing those with fields missing produces a node that cannot
- * connect and blames the kernel.
+ * connect and blames the kernel. REALITY *with* a key is imported in full —
+ * it is the common shape of a modern subscription.
  */
 class SingBoxJsonSubscriptionParserTest {
 
@@ -79,7 +81,7 @@ class SingBoxJsonSubscriptionParserTest {
         val json = """
             {"outbounds":[
               {"type":"vless","tag":"reality","server":"a.example.com","server_port":443,
-               "uuid":"u","tls":{"enabled":true,"reality":{"public_key":"k","short_id":"01"}}},
+               "uuid":"u","tls":{"enabled":true,"reality":{"enabled":true}}},
               {"type":"wireguard","tag":"wg","server":"b.example.com","server_port":51820},
               {"type":"vless","tag":"no-uuid","server":"c.example.com","server_port":443},
               {"type":"trojan","tag":"ok","server":"d.example.com","server_port":443,
@@ -93,6 +95,41 @@ class SingBoxJsonSubscriptionParserTest {
         assertEquals(listOf("ok"), profiles.map { it.name })
         // The wireguard, the keyless REALITY and the uuid-less VLESS.
         assertEquals(3, parser.parseDetailed(json).dropped)
+    }
+
+    @Test
+    fun `a reality outbound keeps its key, short id and fingerprint`() {
+        val json = """
+            {"outbounds":[
+              {"type":"vless","tag":"r","server":"a.example.com","server_port":443,
+               "uuid":"11111111-2222-3333-4444-555555555555",
+               "tls":{"enabled":true,"server_name":"www.example.com","alpn":["h2"],
+                      "utls":{"enabled":true,"fingerprint":"chrome"},
+                      "reality":{"enabled":true,"public_key":"jNXHt1yRo0vDtaCyGjXeRzXk9pQ3mB8sWcVfL2uKn-_",
+                                 "short_id":"ab12","support_x25519mlkem768":true}}},
+              {"type":"trojan","tag":"rt","server":"b.example.com","server_port":443,
+               "password":"pw",
+               "tls":{"enabled":true,"server_name":"b.example.com",
+                      "reality":{"enabled":true,"public_key":"key2"}}}
+            ]}
+        """.trimIndent()
+
+        val outcome = parser.parseDetailed(json)
+
+        assertEquals("nothing should be dropped", 0, outcome.dropped)
+        val vless = outcome.profiles[0].settings as VlessSettings
+        assertEquals(SecurityMode.REALITY, vless.tls.security)
+        assertEquals("jNXHt1yRo0vDtaCyGjXeRzXk9pQ3mB8sWcVfL2uKn-_", vless.tls.reality?.publicKey)
+        assertEquals("ab12", vless.tls.reality?.shortId)
+        assertEquals(true, vless.tls.reality?.mlKem)
+        assertEquals("www.example.com", vless.tls.sni)
+        assertEquals("chrome", vless.tls.fingerprint)
+        assertEquals(listOf("h2"), vless.tls.alpn)
+
+        val trojan = outcome.profiles[1].settings as TrojanSettings
+        assertEquals(SecurityMode.REALITY, trojan.tls.security)
+        assertEquals("key2", trojan.tls.reality?.publicKey)
+        assertNull(trojan.tls.reality?.shortId)
     }
 
     @Test

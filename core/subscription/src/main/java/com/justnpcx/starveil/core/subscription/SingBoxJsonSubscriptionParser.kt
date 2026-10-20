@@ -3,6 +3,7 @@ package com.justnpcx.starveil.core.subscription
 import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.model.RealityOptions
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.ShadowsocksSettings
 import com.justnpcx.starveil.core.model.TlsOptions
@@ -21,9 +22,10 @@ import com.justnpcx.starveil.core.model.json.JsonException
  * map onto profiles almost field for field.
  *
  * Scope, stated rather than implied: `vless`, `trojan`, `shadowsocks` and
- * `hysteria2`, with TLS and the transports this app models. Anything else —
- * a different protocol, a REALITY block, an unknown transport — is **dropped**
- * rather than imported with fields missing. A profile that cannot connect is
+ * `hysteria2`, with TLS (including REALITY, when the block carries its public
+ * key) and the transports this app models. Anything else — a different
+ * protocol, a REALITY block without a key, an unknown transport — is
+ * **dropped** rather than imported with fields missing. A profile that cannot connect is
  * worse than an absent one: the user sees a node, tries it, and gets a kernel
  * error that says nothing about the subscription.
  */
@@ -129,24 +131,41 @@ class SingBoxJsonSubscriptionParser : SubscriptionParser {
 
     /**
      * `{"enabled":true,"server_name":"…","insecure":true,"alpn":[…],
-     *   "utls":{"enabled":true,"fingerprint":"chrome"}}`
+     *   "utls":{"enabled":true,"fingerprint":"chrome"},
+     *   "reality":{"enabled":true,"public_key":"…","short_id":"…"}}`
      *
-     * REALITY is not mapped: the model's [TlsOptions.reality] needs the public
-     * key and short id, and a half-mapped REALITY block connects to nothing.
-     * An outbound with one is dropped by [toProfile] because its TLS block
-     * comes back as `null`.
+     * REALITY maps when the block carries a public key: that is the one field
+     * the handshake cannot do without, and the rest of the block (SNI, uTLS
+     * fingerprint, ALPN) is already the same fields as plain TLS. A REALITY
+     * block without a key is still dropped by [toProfile] rather than imported
+     * half-mapped.
      */
     private fun Map<*, *>.tlsOptions(): TlsOptions? {
         val tls = this["tls"] as? Map<*, *> ?: return TlsOptions.None
         if (tls["enabled"] != true) return TlsOptions.None
-        if (tls["reality"] != null) return null
         val utls = tls["utls"] as? Map<*, *>
+        val reality = (tls["reality"] as? Map<*, *>)?.takeIf { it["enabled"] != false }
+        val publicKey = reality?.let {
+            (it["public_key"] as? String)?.trim()?.takeIf { key -> key.isNotEmpty() }
+                ?: return null
+        }
         return TlsOptions(
-            security = SecurityMode.TLS,
+            security = if (publicKey != null) SecurityMode.REALITY else SecurityMode.TLS,
             sni = (tls["server_name"] as? String)?.takeIf { it.isNotBlank() },
             alpn = (tls["alpn"] as? List<*>)?.filterIsInstance<String>().orEmpty(),
             fingerprint = (utls?.get("fingerprint") as? String)?.takeIf { it.isNotBlank() },
             allowInsecure = tls["insecure"] == true,
+            reality = publicKey?.let {
+                RealityOptions(
+                    publicKey = it,
+                    shortId = (reality?.get("short_id") as? String)
+                        ?.trim()
+                        ?.takeIf { id -> id.isNotEmpty() },
+                    // sing-box has no field for an ML-KEM key, only this
+                    // switch — the same one the config builder writes.
+                    mlKem = reality?.get("support_x25519mlkem768") == true,
+                )
+            },
         )
     }
 
