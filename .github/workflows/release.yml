@@ -77,12 +77,18 @@ jobs:
       # Kept out of the release itself: it maps obfuscated names back to real
       # ones, which is exactly what a crash report needs and what an attacker
       # would like to have.
+      #
+      # Ninety days, stated rather than inherited: a mapping file is only
+      # useful while the build it describes is still on someone's phone, and a
+      # crash report from that build can arrive months later. It is 4 MB, so it
+      # is not what the storage warning was about — the debug APKs were.
       - name: Keep the mapping file
         uses: actions/upload-artifact@v4
         with:
           name: mapping-${{ github.ref_name }}
           path: app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
+          retention-days: 90
 
       # The source repository is public, so the release belongs here: the
       # updater reads `releases/latest` without a token, and a public

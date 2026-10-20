@@ -60,9 +60,16 @@ jobs:
       # Sideload build: the debug APKs are debug-signed, so they install on a
       # device without any signing secrets in CI. One APK per ABI — a single
       # universal APK would be ~230 MB of native code.
+      #
+      # Three days, not the default ninety: one run of this artifact is about
+      # 128 MB, and the free Actions storage is 500 MB shared with Packages.
+      # At the default retention ten runs fill it, which is what the account
+      # warning was about. The APKs exist to be sideloaded from the run that
+      # produced them; nobody needs yesterday's.
       - name: Upload debug APKs
         uses: actions/upload-artifact@v4
         with:
           name: starveil-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 3
