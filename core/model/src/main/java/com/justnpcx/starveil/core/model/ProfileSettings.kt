@@ -109,12 +109,47 @@ data class TransportOptions(
     /** XHTTP only: how the two directions are split. Null means "let the core pick". */
     val mode: XhttpMode? = null,
     val headers: Map<String, String> = emptyMap(),
+    /**
+     * XHTTP only: the HTTP method for the uplink.
+     *
+     * The fields from here to [downloadSettings] are the part of Xray's
+     * `extra` object that sing-box 1.14 actually reads (verified against the
+     * fork's `option.V2RayXHTTPOptions` and its client). `xmux`,
+     * `scMaxEachPostBytes` and `scMinPostsIntervalMs` are not in that struct,
+     * and the config decoder rejects unknown fields — writing them would fail
+     * the whole config, not degrade it.
+     */
+    val uplinkHttpMethod: String? = null,
+    /** XHTTP only: omit the gRPC-style framing header. */
+    val noGrpcHeader: Boolean = false,
+    /** XHTTP only: Xray's `xPaddingBytes`, a `start-end` range. */
+    val xPaddingBytes: String? = null,
+    val xPaddingKey: String? = null,
+    val xPaddingHeader: String? = null,
+    /** XHTTP only: a separate connection for the downlink. */
+    val downloadSettings: XhttpDownloadSettings? = null,
 ) {
     companion object {
         /** Plain TCP — no `transport` block is emitted for this. */
         val Tcp = TransportOptions()
     }
 }
+
+/**
+ * The downlink half of an XHTTP transport (`downloadSettings` in Xray's link).
+ *
+ * Only the plaintext form is modelled: a block that brings its own TLS would
+ * have to be mapped as a second TLS configuration, and emitting it without
+ * that block would silently downgrade the downlink to cleartext. Such a block
+ * is therefore not imported at all, and the transport falls back to one
+ * connection — which works, just without the split.
+ */
+data class XhttpDownloadSettings(
+    val server: String? = null,
+    val port: Int? = null,
+    val host: String? = null,
+    val path: String? = null,
+)
 
 /** Multiplexing options. `null` on a profile means "not configured". */
 data class MuxOptions(

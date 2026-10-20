@@ -26,6 +26,30 @@ import org.junit.Test
 class VlessLinkTest {
 
     @Test
+    fun `a 3x-ui xhttp link keeps the extra the core reads`() {
+        // Percent-encoded extra as a panel writes it:
+        // {"xPaddingBytes":"100-1000","noGRPCHeader":true,"uplinkHttpMethod":"PUT",
+        //  "xmux":{"maxConcurrency":"16-32"}}
+        // The last key is deliberately included: sing-box has no field for it,
+        // and it must not reach the config.
+        val link = "vless://uuid-1234@example.com:443?type=xhttp&security=tls" +
+            "&sni=example.com&mode=auto" +
+            "&extra=%7B%22xPaddingBytes%22%3A%22100-1000%22%2C%22noGRPCHeader%22%3Atrue" +
+            "%2C%22uplinkHttpMethod%22%3A%22PUT%22%2C%22xmux%22%3A%7B%22maxConcurrency%22" +
+            "%3A%2216-32%22%7D%7D#panel"
+
+        val profile = StarveilProtocols.parseVless(link)
+        assertNotNull(profile)
+        val transport = (profile!!.settings as VlessSettings).transport
+        assertEquals(TransportType.XHTTP, transport.type)
+        assertEquals("100-1000", transport.xPaddingBytes)
+        assertEquals(true, transport.noGrpcHeader)
+        assertEquals("PUT", transport.uplinkHttpMethod)
+        // `auto` is the core's own default; the model keeps null for it.
+        assertNull(transport.mode)
+    }
+
+    @Test
     fun `parses a basic ws + tls link`() {
         val profile = StarveilProtocols.parseVless(
             "vless://uuid-1234@example.com:443?security=tls&sni=example.com&type=ws&path=%2Fws#My%20Node",

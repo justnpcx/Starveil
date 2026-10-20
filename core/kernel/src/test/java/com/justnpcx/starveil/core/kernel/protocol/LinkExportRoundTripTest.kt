@@ -20,6 +20,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpDownloadSettings
 import com.justnpcx.starveil.core.model.XhttpMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -237,6 +238,67 @@ class LinkExportRoundTripTest {
                     uuid = "11111111-2222-3333-4444-555555555555",
                     tls = TlsOptions(security = SecurityMode.TLS),
                     transport = TransportOptions(type = TransportType.WS, host = "cdn.example", path = "/w"),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `xhttp extra survives the round trip`() {
+        // The shape 3x-ui puts in `extra`, minus the keys sing-box does not
+        // read. A field the writer forgets is invisible against a default, so
+        // every one here is set to a non-default value.
+        assertRoundTrip(
+            Profile(
+                name = "xhttp node",
+                type = ProfileType.VLESS,
+                server = "x.example.com",
+                port = 443,
+                settings = VlessSettings(
+                    uuid = "11111111-2222-3333-4444-555555555555",
+                    tls = TlsOptions(security = SecurityMode.TLS, sni = "x.example.com"),
+                    transport = TransportOptions(
+                        type = TransportType.XHTTP,
+                        host = "cdn.example.com",
+                        path = "/xh",
+                        mode = XhttpMode.STREAM_ONE,
+                        headers = mapOf("X-Extra" to "1"),
+                        uplinkHttpMethod = "PUT",
+                        noGrpcHeader = true,
+                        xPaddingBytes = "100-1000",
+                        xPaddingKey = "x_pad",
+                        xPaddingHeader = "X-Padding",
+                        downloadSettings = XhttpDownloadSettings(
+                            server = "down.example.com",
+                            port = 8443,
+                            path = "/down",
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `ws headers survive the round trip`() {
+        assertRoundTrip(
+            Profile(
+                name = "ws node",
+                type = ProfileType.VLESS,
+                server = "w.example.com",
+                port = 443,
+                settings = VlessSettings(
+                    uuid = "11111111-2222-3333-4444-555555555555",
+                    tls = TlsOptions(security = SecurityMode.TLS, sni = "w.example.com"),
+                    transport = TransportOptions(
+                        type = TransportType.WS,
+                        host = "cdn.example.com",
+                        path = "/ws",
+                        headers = mapOf(
+                            "Host" to "cdn.example.com",
+                            "User-Agent" to "Mozilla/5.0",
+                        ),
+                    ),
                 ),
             ),
         )

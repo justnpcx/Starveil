@@ -225,14 +225,38 @@ internal object SingBoxOutbounds {
                 transport.path?.takeIf { it.isNotBlank() }?.let { block["path"] = it }
                 if (transport.type == TransportType.XHTTP) {
                     transport.mode?.let { block["mode"] = it.wireName }
-                }
-                if (transport.headers.isNotEmpty()) {
-                    block["headers"] = transport.headers.toMap()
-                } else {
-                    transport.host?.takeIf { it.isNotBlank() }?.let { host ->
-                        block["headers"] = mapOf("Host" to host)
+                    // Only the keys sing-box 1.14 decodes: an unknown one here
+                    // fails the whole config, because option.Options reads with
+                    // DisallowUnknownFields.
+                    transport.uplinkHttpMethod?.takeIf { it.isNotBlank() }
+                        ?.let { block["uplink_http_method"] = it }
+                    if (transport.noGrpcHeader) block["no_grpc_header"] = true
+                    transport.xPaddingBytes?.takeIf { it.isNotBlank() }
+                        ?.let { block["x_padding_bytes"] = it }
+                    transport.xPaddingKey?.takeIf { it.isNotBlank() }
+                        ?.let { block["x_padding_key"] = it }
+                    transport.xPaddingHeader?.takeIf { it.isNotBlank() }
+                        ?.let { block["x_padding_header"] = it }
+                    transport.downloadSettings?.let { downlink ->
+                        val settings = linkedMapOf<String, Any?>()
+                        downlink.server?.takeIf { it.isNotBlank() }
+                            ?.let { settings["server"] = it }
+                        downlink.port?.let { settings["port"] = it }
+                        downlink.host?.takeIf { it.isNotBlank() }?.let { settings["host"] = it }
+                        downlink.path?.takeIf { it.isNotBlank() }?.let { settings["path"] = it }
+                        if (settings.isNotEmpty()) block["download_settings"] = settings
                     }
                 }
+                // `host` is the Host header. Merged rather than substituted,
+                // so a node that carries both keeps the other headers too.
+                val headerBlock = linkedMapOf<String, String>()
+                headerBlock.putAll(transport.headers)
+                transport.host?.takeIf { it.isNotBlank() }?.let { host ->
+                    if (headerBlock.keys.none { it.equals("Host", ignoreCase = true) }) {
+                        headerBlock["Host"] = host
+                    }
+                }
+                if (headerBlock.isNotEmpty()) block["headers"] = headerBlock
             }
         }
         return block

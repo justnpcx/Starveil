@@ -22,6 +22,7 @@ import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardPeer
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.model.XhttpDownloadSettings
 import com.justnpcx.starveil.core.model.XhttpMode
 import com.justnpcx.starveil.core.model.json.Json
 import com.justnpcx.starveil.core.model.json.JsonException
@@ -663,17 +664,75 @@ object StarveilProtocols {
             "xhttp" -> TransportType.XHTTP
             else -> TransportType.TCP
         }
+        // Xray panels put the parameters that have no place in the link grammar
+        // into `extra`, a JSON object. Only the keys sing-box 1.14 reads are
+        // taken from it — see TransportOptions for the ones that are not there.
+        val extra = q["extra"]?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { Json.parseObject(it) }.getOrNull() }
+            .orEmpty()
+
+        val headers = linkedMapOf<String, String>()
+        (extra["headers"] as? Map<*, *>)?.forEach { (key, value) ->
+            if (key is String && value is String) headers[key] = value
+        }
+        // This app's own export writes them as one JSON parameter, because the
+        // link grammar has nowhere else to put them.
+        q["headers"]?.takeIf { it.isNotBlank() }?.let { raw ->
+            runCatching { Json.parseObject(raw) }.getOrNull()?.forEach { (key, value) ->
+                if (key is String && value is String) headers[key] = value
+            }
+        }
+        val host = q["host"]?.takeIf { it.isNotBlank() }
+
+        // The plain parameter wins: panels mirror the same value into `extra`,
+        // and an unreadable mode decodes to null so the core picks its default.
+        val mode = q["mode"]?.takeIf { it.isNotBlank() } ?: extra.text("mode")
         return TransportOptions(
             type = type,
-            host = q["host"]?.takeIf { it.isNotBlank() },
-            path = q["path"]?.takeIf { it.isNotBlank() },
+            host = host,
+            path = q["path"]?.takeIf { it.isNotBlank() } ?: extra.text("path"),
             serviceName = (q["serviceName"] ?: q["servicename"])?.takeIf { it.isNotBlank() },
-            // The link carries this as a plain `mode` parameter. Xray panels also
-            // mirror it inside `extra={"mode":…}`; that copy is ignored because it
-            // is the same value, and a mode we do not implement decodes to null so
-            // the core falls back to its own default.
-            mode = q["mode"]?.takeIf { it.isNotBlank() }?.let { XhttpMode.fromWireName(it) },
+            mode = mode?.let { XhttpMode.fromWireName(it) },
+            headers = headers,
+            uplinkHttpMethod = extra.text("uplinkHttpMethod", "uplink_http_method"),
+            noGrpcHeader = extra.flag("noGRPCHeader", "no_grpc_header") ?: false,
+            xPaddingBytes = extra.text("xPaddingBytes", "x_padding_bytes"),
+            xPaddingKey = extra.text("xPaddingKey", "x_padding_key"),
+            xPaddingHeader = extra.text("xPaddingHeader", "x_padding_header"),
+            downloadSettings = extra.downloadSettings(),
         )
+    }
+
+    /** First non-blank string among [keys]. */
+    private fun Map<String, Any?>.text(vararg keys: String): String? =
+        keys.firstNotNullOfOrNull { key -> (this[key] as? String)?.takeIf { it.isNotBlank() } }
+
+    /** First boolean among [keys]; null when none is present. */
+    private fun Map<String, Any?>.flag(vararg keys: String): Boolean? =
+        keys.firstNotNullOfOrNull { key -> this[key] as? Boolean }
+
+    /**
+     * The downlink half of an XHTTP transport, when it can be carried whole.
+     *
+     * A block with its own TLS is skipped rather than half-imported: the model
+     * has no second TLS configuration, and emitting the address without it
+     * would quietly downgrade the downlink to cleartext. Without the block the
+     * transport uses one connection, which works.
+     */
+    private fun Map<String, Any?>.downloadSettings(): XhttpDownloadSettings? {
+        val block = (this["downloadSettings"] ?: this["download_settings"]) as? Map<*, *>
+            ?: return null
+        if (block["tls"] != null || block["security"] != null) return null
+        val settings = XhttpDownloadSettings(
+            server = (block["server"] as? String ?: block["address"] as? String)
+                ?.takeIf { it.isNotBlank() },
+            port = (block["port"] as? Number)?.toInt()?.takeIf { it in 1..65535 },
+            host = (block["host"] as? String)?.takeIf { it.isNotBlank() },
+            path = (block["path"] as? String)?.takeIf { it.isNotBlank() },
+        )
+        return settings.takeIf {
+            it.server != null || it.port != null || it.host != null || it.path != null
+        }
     }
 
     private fun muxFrom(q: Map<String, String>): MuxOptions? {

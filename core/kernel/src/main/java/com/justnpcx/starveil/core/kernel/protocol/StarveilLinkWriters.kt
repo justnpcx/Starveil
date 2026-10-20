@@ -215,13 +215,39 @@ private fun tlsParams(tls: TlsOptions, transport: TransportOptions): Array<Pair<
 /** Plain TCP is the parser's default, so it emits nothing at all. */
 private fun transportParams(transport: TransportOptions): Array<Pair<String, String?>> {
     if (transport.type == TransportType.TCP) return emptyArray()
-    return arrayOf(
+    val params = mutableListOf(
         "type" to transport.type.wireName,
         "host" to transport.host,
         "path" to transport.path,
         "serviceName" to transport.serviceName,
         "mode" to transport.mode?.wireName,
     )
+    // Arbitrary headers have nowhere to go in the vless:// grammar. They are
+    // written as one JSON parameter so this app's own export round-trips; other
+    // clients ignore a parameter they do not know.
+    if (transport.headers.isNotEmpty()) {
+        params += "headers" to com.justnpcx.starveil.core.model.json.Json.write(transport.headers)
+    }
+    if (transport.type == TransportType.XHTTP) {
+        val extra = linkedMapOf<String, Any?>()
+        transport.uplinkHttpMethod?.let { extra["uplinkHttpMethod"] = it }
+        if (transport.noGrpcHeader) extra["noGRPCHeader"] = true
+        transport.xPaddingBytes?.let { extra["xPaddingBytes"] = it }
+        transport.xPaddingKey?.let { extra["xPaddingKey"] = it }
+        transport.xPaddingHeader?.let { extra["xPaddingHeader"] = it }
+        transport.downloadSettings?.let { downlink ->
+            val settings = linkedMapOf<String, Any?>()
+            downlink.server?.let { settings["server"] = it }
+            downlink.port?.let { settings["port"] = it }
+            downlink.host?.let { settings["host"] = it }
+            downlink.path?.let { settings["path"] = it }
+            if (settings.isNotEmpty()) extra["downloadSettings"] = settings
+        }
+        if (extra.isNotEmpty()) {
+            params += "extra" to com.justnpcx.starveil.core.model.json.Json.write(extra)
+        }
+    }
+    return params.toTypedArray()
 }
 
 private fun muxParams(settings: ProfileSettings): Array<Pair<String, String?>> {

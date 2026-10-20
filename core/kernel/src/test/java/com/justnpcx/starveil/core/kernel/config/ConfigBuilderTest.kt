@@ -106,6 +106,44 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `xhttp emits the extra fields the core reads, and nothing else`() {
+        val base = vlessProfile()
+        val settings = base.settings as VlessSettings
+        val profile = base.copy(
+            settings = settings.copy(
+                transport = settings.transport.copy(
+                    uplinkHttpMethod = "PUT",
+                    noGrpcHeader = true,
+                    xPaddingBytes = "100-1000",
+                    xPaddingKey = "x_pad",
+                    xPaddingHeader = "X-Padding",
+                    downloadSettings = com.justnpcx.starveil.core.model.XhttpDownloadSettings(
+                        server = "down.example.com",
+                        port = 8443,
+                        path = "/down",
+                    ),
+                ),
+            ),
+        )
+
+        val json = builder.build(profile)
+
+        assertTrue(json.contains("\"uplink_http_method\":\"PUT\""))
+        assertTrue(json.contains("\"no_grpc_header\":true"))
+        assertTrue(json.contains("\"x_padding_bytes\":\"100-1000\""))
+        assertTrue(json.contains("\"x_padding_key\":\"x_pad\""))
+        assertTrue(json.contains("\"x_padding_header\":\"X-Padding\""))
+        assertTrue(
+            json.contains(
+                "\"download_settings\":{\"server\":\"down.example.com\",\"port\":8443,\"path\":\"/down\"}",
+            ),
+        )
+        // Not in option.V2RayXHTTPOptions: writing it would make the kernel
+        // reject the whole config, not ignore one field.
+        assertFalse(json.contains("xmux"))
+    }
+
+    @Test
     fun `REALITY without an ML-KEM key advertises plain X25519 only`() {
         val base = vlessProfile()
         val settings = base.settings as VlessSettings
