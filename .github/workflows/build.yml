@@ -4,10 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
-  # `main` requires a green `build` before a push is accepted, and the check
-  # is recorded against the commit, not the branch. This lets a branch build
-  # first, so the commit can then be pushed to `main` without the check being
-  # missing. It also runs nothing by itself — someone has to ask for it.
+  # Runs nothing by itself; someone has to ask for it. Useful to build a
+  # branch without opening a pull request — a green run on a branch does *not*
+  # satisfy main's required check (tried it: the hook only counts the run the
+  # push itself triggered), but seeing whether a branch compiles before it
+  # goes anywhere still helps.
   workflow_dispatch:
 
 jobs:

@@ -63,13 +63,22 @@ remote: - Required status check "build" is expected.
  ! [remote rejected] HEAD -> main (protected branch hook declined)
 ```
 
-`build` 记在提交上，不在分支上，所以落 main 的顺序是「先让这个提交在 CI 里绿，再推」：
-推到临时分支 → 等 `build` 通过 → 把同一个 SHA 推到 `main`。
+「先在分支上跑绿、再把同一个 SHA 推上去」**不行**。2026-10-20 实测：`726f6ce` 在分支上
+`build` 已是 success（check run 查得到），推 main 仍被拒，报文还是那句
+`Required status check "build" is expected`。直推时钩子只认这次 push 自己触发的检查，
+分支上的绿不算数。
 
-改写历史（rebase、压缩提交）会被挡。真要改写，只能临时摘掉 required check、
-推完立刻恢复，然后回读 `branches/main/protection` 确认三项都在：
-`contexts=['build']`、`enforce_admins=true`、`allow_force_pushes=false`。
-这一步容易忘，别省。
+所以落 main 只有两条路：
+
+1. **走 PR**（干净）：推分支 → 开 PR → `build` 绿 → rebase 合并 → 删分支。要求 token 有
+   `Pull requests: Read and write`。当前 fine-grained token 缺这一项，`POST /pulls` 返回
+   `403 Resource not accessible by personal access token`（响应头
+   `x-accepted-github-permissions: pull_requests=write`）。
+2. **临时摘 check**（退化）：`PATCH .../protection/required_status_checks` 置空 → 快进推
+   → 立刻 `PUT .../protection` 恢复 → 回读确认 `contexts=['build']`、`enforce_admins=true`、
+   `allow_force_pushes=false`。这一步容易忘，别省。
+
+改写历史（rebase、压缩提交）同理，只能走第 2 条。
 
 ## 发一个版本
 
