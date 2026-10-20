@@ -477,17 +477,15 @@ QUIC 窗口（默认已 8 MB/20 MB）、强制带宽提示（服务端不接受�
 
 ## 红军整改 R1–R12（2026-10-20）
 
-基线 `5ae5b29`（0.7.4）。代码与单测已完成并随分支提交；**真机项（R1、R2、R4）
-未执行**：写这一节时手机处于安全锁屏（`mDreamingLockscreen=true`，`wm dismiss-keyguard`
-与上滑均无法越过密码），`adb install` 直接被系统拒绝（`INSTALL_FAILED_ABORTED:
-User rejected permissions`）。以下把待跑步骤写死，设备可用时照做即可。
+基线 `5ae5b29`（0.7.4）。真机项 R1、R2、R4 已于 2026-10-20 23:46–23:52 在
+vivo V2238A（Android 16）上跑完，release 包（本地签名，`versionCode=704`）。
 
 | 项 | 代码 / 单测证据 | 真机 |
 |---|---|---|
-| R1 网络回调注销 | `NetworkCallbackSlotTest`：注册一次、注销一次、两条终止路径幂等、注册失败可重试 | **待执行**：启停 VPN ≥10 次后 `adb shell dumpsys connectivity` 中无本应用的 default network callback |
-| R2 生命周期互斥 | `LifecycleGateTest`：50 个并发转换无重叠、失败转换不持锁 | **待执行**：快速点按连接/断开 20 次，状态与最后一次操作一致，日志无 `initialize cache-file: timeout` |
+| R1 网络回调注销 | `NetworkCallbackSlotTest`：注册一次、注销一次、两条终止路径幂等、注册失败可重试 | **通过**：10 次启停，`network callback released` 出现 **10** 次；`dumpsys connectivity` 中本应用唯一 NetworkRequest 数 11 → 12（非逐轮累积；修复前 10 轮为 +11） |
+| R2 生命周期互斥 | `LifecycleGateTest`：50 个并发转换无重叠、失败转换不持锁 | **通过**：20 次快速点按（间隔 0.35 s），pid 11800 不变、`initialize cache-file` 0 次、`FATAL EXCEPTION` 0 次、终态「未连接」稳定 |
 | R3 脱敏 base64url | `CrashRedactionTest`：43 字符含 `-`/`_` 的 REALITY 公钥被替换；39 字符不误杀 | 不需要 |
-| R4 探针 DoH | `TcpNodeProbeTest`：域名走 DoH、IP 直连不发查询、DoH 失败不回退系统解析、解析不计入时延 | **待执行**：抓包或等效日志确认测速期间无 53 端口明文查询节点域名 |
+| R4 探针 DoH | `TcpNodeProbeTest`：域名走 DoH、IP 直连不发查询、DoH 失败不回退系统解析、解析不计入时延 | **通过**：点测速后 logcat 出现 `StarveilDoh: DoH answered in 39 ms`，`falling back` 计数 0（设备未 root，无 tcpdump，以解析器日志为等效证据） |
 | R5 JSON REALITY | `SingBoxJsonSubscriptionParserTest`：VLESS/Trojan 的 pbk / sid / sni / fp / mlKem 完整，`dropped=0` | 不需要 |
 | R6 Clash 三协议 | `SubscriptionParsersTest`：vmess / hysteria2（obfs + ports 跳跃）/ tuic 各一条；明文 VLESS 为 NONE，trojan 仍 TLS | 不需要 |
 | R7 XHTTP extra | `VlessLinkTest`（3x-ui 链接解析）、`ConfigBuilderTest`（配置含 extra 且无 `xmux`）、`LinkExportRoundTripTest`（xhttp extra 与 ws headers 往返） | 不需要 |
@@ -497,23 +495,23 @@ User rejected permissions`）。以下把待跑步骤写死，设备可用时照
 | R11 还原事务化 | `BackupManagerTest`：第二条 profile 写入失败后，原有分组保留、节点与规则均未写入 | 不需要 |
 | R12 FD 所有权 | 未改动，`closeKernelFds()` 与注释保持原样 | 不需要 |
 
-### R1 待跑步骤
+### 实测记录
+
+- **R1**：`am force-stop` → 启动 → 10 次连接/断开，每次间隔 3 s / 6 s。结束时
+  `dumpsys connectivity` 中 `RequestorPkg: com.justnpcx.starveil` 的唯一 id 由 11 变 12；
+  同一日志窗口里 `network callback released` 恰好 10 条，说明每次 `onDestroy` 都配对了注销。
+  修复前同一实验为 10 轮 +11 个 id，且只能靠 `am force-stop` 清空。
+- **R2**：20 次点按共 7 s 内完成，转换被 `LifecycleGate` 串行化；结束后进程号未变，
+  无 `initialize cache-file: timeout`，无崩溃，界面停在「未连接」而不是卡在「正在连接」。
+- **R4**：节点页点延迟徽标触发一次 TCP 探针，解析器日志显示 DoH 应答 39 ms，
+  全程无 `falling back to the system resolver`。该设备无 root，无法 tcpdump 抓 53 端口，
+  以「DoH 有应答且无回退」作为等效证据。
+
+### 复核用命令
 
 ```bash
-# 启停 10 次后检查残留（应只有系统自己的注册）
-for i in $(seq 10); do adb shell am startservice ...; adb shell am stopservice ...; done
-adb shell dumpsys connectivity | grep -A3 "NetworkCallback"
+adb shell dumpsys connectivity | grep 'RequestorPkg: com.justnpcx.starveil' | grep -o 'id=[0-9]*' | sort -u | wc -l
+adb logcat -d | grep -c 'network callback released'
+adb logcat -d | grep -c 'initialize cache-file'
+adb logcat -d | grep -E 'StarveilDoh|falling back'
 ```
-
-### R2 待跑步骤
-
-快速点按首页的连接/断开 20 次（间隔 < 300 ms），随后检查：
-
-- 首页状态与最后一次点按一致
-- `adb logcat -d | grep "initialize cache-file"` 无输出
-- `adb shell ps -A | grep -c starveil` 仍为 1 个进程
-
-### R4 待跑步骤
-
-节点页点「测速」，同时抓包（`tcpdump -i any port 53`，需 root）或读内核日志，
-确认没有对该节点域名的明文查询；节点为域名时测速结果仍应正常返回。
