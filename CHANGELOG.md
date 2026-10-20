@@ -26,6 +26,28 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Changed
+
+- **Update failures are localised**: the update dialog used to append an
+  internal English string ("no published release", "checksum mismatch") to a
+  translated sentence. The data layer now returns a closed set of reasons and
+  the screen owns the wording, so both languages get a sentence — and a new
+  reason cannot ship without one.
+
+## [0.7.3] — 2026-10-19
+
+### Fixed
+
+- **Hysteria2 throughput**: sing-box 1.14 turns ChromeParrot on by default, so
+  the QUIC client imitates Chrome's transport behaviour. On the same node that
+  cost roughly half the throughput — 12.9 MB/s single-stream and 26.5 MB/s
+  across four streams, against 20–25 and ~36 with it off. NekoBox's 1.12 core
+  has no such feature, which is why it was faster on the same node. Starveil
+  now sets `disable_chrome_parrot`. The trade-off is camouflage: the parrot
+  exists to look like Chrome on the wire.
+
+## [0.7.2] — 2026-10-19
+
 ### Added
 
 - **Subscription formats**: SIP008 and full sing-box configs join base64 and
@@ -43,41 +65,14 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ### Changed
 
-- **Update failures are localised**: the update dialog used to append an
-  internal English string ("no published release", "checksum mismatch") to a
-  translated sentence. The data layer now returns a closed set of reasons and
-  the screen owns the wording, so both languages get a sentence — and a new
-  reason cannot ship without one.
+- **Update channel**: releases are read from the public artifact mirror
+  `justnpcx/Starveil-releases`. The source repository is private, where
+  `releases/latest` answers 404 without a token, and the app must not ship one.
 - The drop-and-reconnect policy moved out of the dashboard view model into
   `DropRecovery`; the probe, sampler, leak-check and flow-log classes moved
   into `:core:probe`. No behaviour change, and both are testable on their own.
 - Latency result copy moved into `:core:probe`, with the probe that produces
   it.
-
-### Fixed
-
-- The mainland preset's name and description were Chinese in the default
-  (English) resource file.
-
-## [0.7.3] — 2026-10-19
-
-### Fixed
-
-- **Hysteria2 throughput**: sing-box 1.14 turns ChromeParrot on by default, so
-  the QUIC client imitates Chrome's transport behaviour. On the same node that
-  cost roughly half the throughput — 12.9 MB/s single-stream and 26.5 MB/s
-  across four streams, against 20–25 and ~36 with it off. NekoBox's 1.12 core
-  has no such feature, which is why it was faster on the same node. Starveil
-  now sets `disable_chrome_parrot`. The trade-off is camouflage: the parrot
-  exists to look like Chrome on the wire.
-
-## [0.7.2] — 2026-10-19
-
-### Changed
-
-- **Update channel**: releases are read from the public artifact mirror
-  `justnpcx/Starveil-releases`. The source repository is private, where
-  `releases/latest` answers 404 without a token, and the app must not ship one.
 
 ### Fixed
 
@@ -97,6 +92,8 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   packets — on connect, at launch, and after an external stop.
 - **Profiles**: deleting a group is one transaction, and the node row menu
   asks for confirmation before deleting a node.
+- The mainland preset's name and description were Chinese in the default
+  (English) resource file.
 
 ## [0.7.1] — 2026-10-18
 
