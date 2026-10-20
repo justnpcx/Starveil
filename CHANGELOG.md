@@ -82,6 +82,13 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 - **Group list**: membership comes from the profiles already in hand instead of
   one query per group per update. **Health samples** are written in one
   transaction instead of three.
+- **IPv6-only nodes**: a node whose hostname has only an AAAA record could not
+  be used. `dns.strategy` is `ipv4_only` so apps never receive an address the
+  v4-only tunnel cannot carry, but that rule was also being applied to the
+  proxy's own name — which the kernel dials on the underlying network, where
+  IPv6 works. Node addresses now resolve `prefer_ipv4` (A first, AAAA when
+  there is no A) while app-facing answers stay IPv4-only, and the DoH resolver
+  behind the latency probe and the flags asks the second question too.
 
 ## [0.7.3] — 2026-10-19
 

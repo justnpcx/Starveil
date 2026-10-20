@@ -622,17 +622,29 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // that reference them.
             val route = config["route"] as LinkedHashMap<String, Any?>
             route["rule_set"] = ruleSets
-            // Needed the moment there is more than one DNS server. With one,
-            // the kernel resolves an outbound's own address with it and says
-            // nothing; with several it will not choose, and refuses the start
-            // with "missing `route.default_domain_resolver`". The preset takes
-            // the count from one to three, so this arrives with it.
-            //
-            // `local` is the only correct pick: it is the platform resolver,
-            // and the address being resolved here is the node's — the tunnel
-            // that `dns-proxy` dials through is not up yet at that point.
-            route["default_domain_resolver"] = LOCAL_DNS_TAG
         }
+        // How the *proxy server's own* name is resolved, as opposed to what
+        // apps are told. Set unconditionally: with one DNS server the kernel
+        // picks it silently, with several it refuses to choose at all
+        // ("missing `route.default_domain_resolver`"), and the strategy is the
+        // part that matters here.
+        //
+        // `dns.strategy` is ipv4_only so apps never receive an AAAA they
+        // cannot route into a v4-only tun. That reasoning does not extend to
+        // the node: its address is dialled by the kernel on the underlying
+        // network, through a protected socket, where IPv6 works — and a node
+        // whose domain has only an AAAA record would otherwise never resolve,
+        // which looks exactly like "connected, no internet". `prefer_ipv4`
+        // keeps A first and falls back to AAAA only when there is no A.
+        //
+        // `local` is the only correct server pick: it is the platform
+        // resolver, and the tunnel that `dns-proxy` dials through is not up
+        // yet at that point.
+        (config["route"] as LinkedHashMap<String, Any?>)["default_domain_resolver"] =
+            linkedMapOf<String, Any?>(
+                "server" to LOCAL_DNS_TAG,
+                "strategy" to NODE_RESOLVE_STRATEGY,
+            )
         // Present, though empty. sing-box only builds its traffic manager —
         // and therefore only reports uplink/downlink to the CommandClient —
         // when `experimental.clash_api` is set (box.go: `needClashAPI`).
@@ -750,6 +762,16 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
          * IPv4 path is fine, so the resolver must not hand out AAAA.
          */
         const val DNS_STRATEGY = "ipv4_only"
+
+        /**
+         * What the node's own hostname is resolved with.
+         *
+         * Separate from [DNS_STRATEGY] on purpose: that one exists so apps do
+         * not get AAAA answers, while this one exists so a node that has only
+         * an AAAA record can still be reached. A first, AAAA only when there
+         * is no A.
+         */
+        const val NODE_RESOLVE_STRATEGY = "prefer_ipv4"
 
         /**
          * Names that can only be answered on the LAN.

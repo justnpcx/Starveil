@@ -211,6 +211,23 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `the node's own name is resolved with an IPv6 fallback`() {
+        // dns.strategy stays ipv4_only so apps never receive an AAAA they
+        // cannot route into a v4-only tun. The node is a different question:
+        // the kernel dials it on the underlying network, where IPv6 works, and
+        // a node whose domain has only an AAAA record otherwise never
+        // resolves — which reads as "connected, no internet".
+        val json = builder.build(vlessProfile())
+
+        assertTrue(
+            json.contains(
+                "\"default_domain_resolver\":{\"server\":\"local\",\"strategy\":\"prefer_ipv4\"}",
+            ),
+        )
+        assertTrue("apps must still get IPv4 only", json.contains("\"strategy\":\"ipv4_only\""))
+    }
+
+    @Test
     fun `VMess config carries uuid, security and alter_id`() {
         val profile = Profile(
             name = "vm",
@@ -780,16 +797,25 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun `the preset asks for a default domain resolver and the plain config does not`() {
+    fun `the node's resolver is named in every config, preset or not`() {
         // With one DNS server the kernel resolves an outbound's own address
         // with it and says nothing; with two or more it will not choose, and
         // refuses the start with "missing route.default_domain_resolver". The
         // preset takes the count from one to three.
-        val single = builder.build(vlessProfile(), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
+        //
+        // Named either way now, and as an object rather than a bare tag: the
+        // strategy is the part that lets a node with only an AAAA record
+        // resolve. Apps are still answered ipv4_only.
+        val withPreset = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            preset = RoutePreset.BYPASS_MAINLAND,
+        )
         val without = builder.build(vlessProfile())
 
-        assertTrue(single.contains("\"default_domain_resolver\":\"local\""))
-        assertFalse(without.contains("default_domain_resolver"))
+        val expected = "\"default_domain_resolver\":{\"server\":\"local\",\"strategy\":\"prefer_ipv4\"}"
+        assertTrue(withPreset.contains(expected))
+        assertTrue(without.contains(expected))
     }
 
     // ---- per-app routing ----
