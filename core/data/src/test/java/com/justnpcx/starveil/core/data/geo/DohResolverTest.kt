@@ -70,9 +70,10 @@ class DohResolverTest {
         )
 
         assertEquals("10.0.0.1", resolver.resolve("node.example"))
-        // Both endpoints were tried, and the fallback is announced rather than
-        // silent: a cleartext lookup is a decision the log should carry.
-        assertEquals(2, warnings.count { it.contains("failed") })
+        // Both endpoints were tried, for both families, and the fallback is
+        // announced rather than silent: a cleartext lookup is a decision the
+        // log should carry.
+        assertEquals(4, warnings.count { it.contains("failed") })
         assertTrue(warnings.any { it.contains("falling back") })
     }
 
@@ -92,6 +93,67 @@ class DohResolverTest {
         assertEquals(2, calls)
     }
 
+    @Test
+    fun `a name with only an AAAA record resolves on the second question`() = runBlocking {
+        // A node's own domain can have no A at all — a home server on a
+        // dual-stack line is the ordinary case. Asking A alone made the probe
+        // call a live node dead, and left the kernel with nothing to dial.
+        val asked = mutableListOf<Int>()
+        val resolver = DohResolver(
+            endpoints = listOf("https://one/dns-query"),
+            fetch = { url, _ ->
+                val query = Base64.getUrlDecoder().decode(url.substringAfter("dns="))
+                val qtype = ((query[query.size - 4].toInt() and 0xFF) shl 8) or
+                    (query[query.size - 3].toInt() and 0xFF)
+                asked += qtype
+                if (qtype == DnsMessage.TYPE_AAAA) aaaaResponse() else ByteArray(12)
+            },
+            fallback = { null },
+        )
+
+        assertEquals(
+            "2408:8256:2284:20a5:56d1:96ff:fed5:d317",
+            resolver.resolve("www.example.com"),
+        )
+        // A first, then AAAA: the common case must not pay for the fallback.
+        assertEquals(listOf(DnsMessage.TYPE_A, DnsMessage.TYPE_AAAA), asked)
+    }
+
+    @Test
+    fun `an A answer stops before the second question`() = runBlocking {
+        var calls = 0
+        val resolver = DohResolver(
+            endpoints = listOf("https://one/dns-query"),
+            fetch = { _, _ -> calls++; response() },
+            fallback = { null },
+        )
+
+        assertEquals("93.184.216.34", resolver.resolve("www.example.com"))
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `an IPv6 literal needs no request`() = runBlocking {
+        var calls = 0
+        val resolver = DohResolver(fetch = { _, _ -> calls++; ByteArray(0) })
+
+        assertEquals("::1", resolver.resolveStrict("::1"))
+        assertEquals(0, calls)
+    }
+
+    @Test
+    fun `the AAAA query asks for type 28 and is otherwise the same message`() {
+        val a = DnsMessage.query("www.example.com")
+        val aaaa = DnsMessage.query("www.example.com", type = DnsMessage.TYPE_AAAA)
+
+        assertEquals(a.size, aaaa.size)
+        val qtype = ((aaaa[aaaa.size - 4].toInt() and 0xFF) shl 8) or
+            (aaaa[aaaa.size - 3].toInt() and 0xFF)
+        assertEquals(DnsMessage.TYPE_AAAA, qtype)
+        // Everything before the question type is identical.
+        assertTrue(a.copyOfRange(0, a.size - 4).contentEquals(aaaa.copyOfRange(0, aaaa.size - 4)))
+    }
+
     /** A minimal successful answer for `www.example.com` with one A record. */
     private fun response(type: Int = 1, address: String? = "93.184.216.34"): ByteArray {
         val out = java.io.ByteArrayOutputStream()
@@ -107,6 +169,30 @@ class DohResolverTest {
         val rdata = address?.split('.')?.map { it.toInt().toByte() }?.toByteArray() ?: ByteArray(16)
         out.write(byteArrayOf(0, rdata.size.toByte()))
         out.write(rdata)
+        return out.toByteArray()
+    }
+
+    /** A minimal successful answer carrying one AAAA record. */
+    private fun aaaaResponse(): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        out.write(byteArrayOf(0, 0, 0x81.toByte(), 0x80.toByte(), 0, 1, 0, 1, 0, 0, 0, 0))
+        out.write(3); out.write("www".toByteArray())
+        out.write(7); out.write("example".toByteArray())
+        out.write(3); out.write("com".toByteArray())
+        out.write(0)
+        out.write(byteArrayOf(0, 28, 0, 1)) // qtype AAAA, qclass IN
+        out.write(byteArrayOf(0xC0.toByte(), 0x0C))
+        out.write(byteArrayOf(0, 28, 0, 1)) // type AAAA, class
+        out.write(byteArrayOf(0, 0, 0, 0x3C)) // ttl 60
+        out.write(byteArrayOf(0, 16))
+        // 2408:8256:2284:20a5:56d1:96ff:fed5:d317
+        out.write(
+            byteArrayOf(
+                0x24, 0x08, 0x82.toByte(), 0x56, 0x22, 0x84.toByte(), 0x20, 0xA5.toByte(),
+                0x56, 0xD1.toByte(), 0x96.toByte(), 0xFF.toByte(), 0xFE.toByte(), 0xD5.toByte(),
+                0xD3.toByte(), 0x17,
+            ),
+        )
         return out.toByteArray()
     }
 }

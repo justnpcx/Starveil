@@ -53,7 +53,7 @@ class DohResolver(
         if (host.isBlank()) return null
         // A literal address needs no lookup; asking would be a round trip for
         // something already known.
-        if (isIpv4Literal(host)) return host
+        if (isIpLiteral(host)) return host
 
         resolveOverDoh(host)?.let { return it }
 
@@ -71,12 +71,24 @@ class DohResolver(
      */
     suspend fun resolveStrict(host: String): String? {
         if (host.isBlank()) return null
-        if (isIpv4Literal(host)) return host
+        if (isIpLiteral(host)) return host
         return resolveOverDoh(host)
     }
 
-    private suspend fun resolveOverDoh(host: String): String? {
-        val query = DnsMessage.query(host)
+    /**
+     * A first, AAAA only when there is no A.
+     *
+     * A node's domain can have only an AAAA record — a home server on a
+     * dual-stack line with no IPv4 address is the ordinary case. Asking for A
+     * alone made such a node look unresolvable: the probe called it dead and
+     * the kernel could not dial it. The order still matters, because most
+     * names have an A and the common case should cost one request.
+     */
+    private suspend fun resolveOverDoh(host: String): String? =
+        lookup(host, DnsMessage.TYPE_A) ?: lookup(host, DnsMessage.TYPE_AAAA)
+
+    private suspend fun lookup(host: String, type: Int): String? {
+        val query = DnsMessage.query(host, type = type)
         val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(query)
         for (endpoint in endpoints) {
             val url = "$endpoint?dns=$encoded"
@@ -89,14 +101,17 @@ class DohResolver(
                 warn("DoH ${endpoint.substringAfter("://")} failed: ${e.javaClass.simpleName}")
                 continue
             }
-            DnsMessage.firstAddress(body)?.let {
+            DnsMessage.firstAddress(body, type = type)?.let {
                 // No hostname here: the log ring is readable from the UI, and
                 // which servers someone connects to is the thing this class
                 // exists to keep off the wire.
                 warn("DoH answered in ${(System.nanoTime() - startedAt) / 1_000_000} ms")
                 return it
             }
-            warn("DoH ${endpoint.substringAfter("://")} answered without an A record")
+            warn(
+                "DoH ${endpoint.substringAfter("://")} answered without " +
+                    (if (type == DnsMessage.TYPE_AAAA) "an AAAA" else "an A") + " record",
+            )
         }
         return null
     }
@@ -114,6 +129,12 @@ class DohResolver(
 
         fun isIpv4Literal(host: String): Boolean =
             host.count { it == '.' } == 3 && host.all { it.isDigit() || it == '.' }
+
+        /** A literal needs no lookup, whichever family it belongs to. */
+        fun isIpLiteral(host: String): Boolean =
+            isIpv4Literal(host) || (host.contains(':') && runCatching {
+                java.net.InetAddress.getByName(host)
+            }.isSuccess)
 
         suspend fun systemResolve(host: String): String? = withContext(Dispatchers.IO) {
             runCatching { java.net.InetAddress.getByName(host).hostAddress }.getOrNull()
@@ -139,15 +160,16 @@ class DohResolver(
 }
 
 /**
- * The smallest DNS wire format that answers "what is this host's IPv4".
+ * The smallest DNS wire format that answers "what is this host's address".
  *
- * Only A records are asked for and only A records are read: the GeoIP database
- * this feeds is IPv4, and an AAAA answer would be a lookup that always misses.
+ * A and AAAA only: the GeoIP database is IPv4, but the node's own name may be
+ * AAAA-only, so the caller asks for one family at a time and decides what a
+ * missing answer means.
  */
 internal object DnsMessage {
 
-    /** A query for [host]'s A record, with a fixed transaction id. */
-    fun query(host: String, id: Int = 0): ByteArray {
+    /** A query for [host]'s record of [type], with a fixed transaction id. */
+    fun query(host: String, type: Int = TYPE_A, id: Int = 0): ByteArray {
         val name = host.trimEnd('.').split('.').filter { it.isNotEmpty() }
         require(name.isNotEmpty()) { "empty host" }
         require(name.all { it.length in 1..63 }) { "label too long" }
@@ -160,19 +182,20 @@ internal object DnsMessage {
             out.write(label.toByteArray(Charsets.US_ASCII))
         }
         out.write(0) // root label
-        out.write(byteArrayOf(0, 1)) // QTYPE A
+        out.write(byteArrayOf((type shr 8).toByte(), type.toByte()))
         out.write(byteArrayOf(0, 1)) // QCLASS IN
         return out.toByteArray()
     }
 
     /**
-     * The first A record's address, or null.
+     * The first record of [type]'s address, or null.
      *
      * Null for anything that is not a successful answer — a refused query, a
-     * truncated message, a response whose only records are AAAA. The caller
-     * treats all of those the same way: try the next endpoint.
+     * truncated message, a response whose only records are the other family.
+     * The caller treats all of those the same way: try the next endpoint, then
+     * the other family.
      */
-    fun firstAddress(response: ByteArray): String? {
+    fun firstAddress(response: ByteArray, type: Int = TYPE_A): String? {
         if (response.size < 12) return null
         val flags = ((response[2].toInt() and 0xFF) shl 8) or (response[3].toInt() and 0xFF)
         if (flags and 0x8000 == 0) return null // not a response
@@ -190,22 +213,31 @@ internal object DnsMessage {
         repeat(answers) {
             offset = skipName(response, offset) ?: return null
             if (offset + 10 > response.size) return null
-            val type = readU16(response, offset)
+            // `recordType`, not `type`: the parameter says which family the
+            // caller asked for, and a record of the other family is skipped.
+            val recordType = readU16(response, offset)
             val length = readU16(response, offset + 8)
             val dataStart = offset + 10
             if (dataStart + length > response.size) return null
-            if (type == TYPE_A && length == 4) {
+            if (type == TYPE_A && recordType == TYPE_A && length == 4) {
                 return "${response[dataStart].toInt() and 0xFF}." +
                     "${response[dataStart + 1].toInt() and 0xFF}." +
                     "${response[dataStart + 2].toInt() and 0xFF}." +
                     "${response[dataStart + 3].toInt() and 0xFF}"
+            }
+            if (type == TYPE_AAAA && recordType == TYPE_AAAA && length == 16) {
+                val bytes = response.copyOfRange(dataStart, dataStart + 16)
+                return runCatching {
+                    java.net.InetAddress.getByAddress(bytes).hostAddress
+                }.getOrNull()
             }
             offset = dataStart + length
         }
         return null
     }
 
-    private const val TYPE_A = 1
+    const val TYPE_A = 1
+    const val TYPE_AAAA = 28
 
     private fun readU16(data: ByteArray, at: Int): Int =
         ((data[at].toInt() and 0xFF) shl 8) or (data[at + 1].toInt() and 0xFF)
