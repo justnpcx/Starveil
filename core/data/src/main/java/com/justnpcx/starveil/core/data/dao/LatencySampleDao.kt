@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.justnpcx.starveil.core.data.entity.LatencySampleEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -57,4 +58,22 @@ interface LatencySampleDao {
         """,
     )
     suspend fun trimToCap(profileId: Long, keep: Int)
+
+    /**
+     * Insert one sample, then age-prune and cap — in one transaction.
+     *
+     * As three separate calls this was three transactions per recorded probe,
+     * and the background sweep records one probe per node. [trimToCap] also
+     * carries a correlated subquery, so the cost was not just the commit.
+     *
+     * The window and the cap keep their meanings; only the number of commits
+     * changes. [entity] is inserted before pruning so a sample at the window's
+     * edge is present when the cutoff is applied.
+     */
+    @Transaction
+    suspend fun recordSample(entity: LatencySampleEntity, cutoffMs: Long, keep: Int) {
+        insert(entity)
+        deleteOlderThan(cutoffMs)
+        trimToCap(entity.profileId, keep)
+    }
 }

@@ -47,6 +47,18 @@ private class FakeLatencySampleDao : LatencySampleDao {
         rows.removeAll { it.profileId == profileId && it.atMs in drop }
     }
 
+    var batchCalls = 0
+        private set
+
+    override suspend fun recordSample(
+        entity: LatencySampleEntity,
+        cutoffMs: Long,
+        keep: Int,
+    ) {
+        batchCalls++
+        super.recordSample(entity, cutoffMs, keep)
+    }
+
     fun all(): List<LatencySampleEntity> = rows.toList()
 }
 
@@ -80,6 +92,15 @@ class RoomNodeHealthRepositoryTest {
         val sample = repo.observeAll().first().getValue(7L).single()
         assertEquals(-1L, sample.latencyMs)
         assertFalse(sample.reachable)
+    }
+
+    @Test
+    fun `a recorded probe takes the single-transaction path`() = runBlocking {
+        // The repository must not go back to three separate DAO calls; the
+        // fake inherits the composite and counts it.
+        repo.record(profileId = 7L, latencyMs = 10L, atMs = now)
+
+        assertEquals(1, dao.batchCalls)
     }
 
     @Test

@@ -63,18 +63,20 @@ class RoomNodeHealthRepository @Inject constructor(
         atMs: Long,
         weightTenths: Int,
     ) {
-        dao.insert(
+        // One transaction for insert + prune + cap: three separate calls were
+        // three commits per probe, and the background sweep records one probe
+        // per node. Pruning on write (rather than on a timer) is unchanged, so
+        // the store still cannot grow while nothing is sampling it.
+        dao.recordSample(
             LatencySampleEntity(
                 profileId = profileId,
                 atMs = atMs,
                 latencyMs = latencyMs,
                 weightTenths = weightTenths,
             ),
+            cutoffMs = atMs - HEALTH_WINDOW_MS,
+            keep = MAX_SAMPLES_PER_NODE,
         )
-        // Prune on write rather than on a timer: the store then cannot grow
-        // while nothing is sampling it, and there is no scheduler to get wrong.
-        dao.deleteOlderThan(atMs - HEALTH_WINDOW_MS)
-        dao.trimToCap(profileId, MAX_SAMPLES_PER_NODE)
     }
 
     override suspend fun forget(profileId: Long) = dao.deleteForProfile(profileId)
