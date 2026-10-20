@@ -6,30 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
-## [0.7.4] — 2026-10-20
-
-### Changed
-
-- **Update channel**: releases are read from this repository
-  (`justnpcx/Starveil`) instead of the artifact-only mirror, which no longer
-  exists. The source is public now, so `releases/latest` answers without a
-  token. Only 0.7.2 and 0.7.3 point at the deleted mirror and will report
-  "no published release" until installed by hand; 0.7.0 and 0.7.1 named
-  `justnpcx/Starveil`, which is this repository today, so they can see it.
-- **Node page**: group chips are one fixed 16dp shape instead of a circle for
-  a short label and a capsule for a long one, an idle node card no longer
-  draws an outline, and the chip row sits against the list it filters. The
-  card and the chip are now shared components (`StarveilCard`,
-  `StarveilChip`) rather than one screen's private drawing.
-
-### Fixed
-
-- **Unreadable latency badge in dark mode**: "untested" and "timeout" were
-  drawn in a fixed slate meant for light surfaces, which on a dark raised card
-  measured 1.2:1 — invisible, and worse with a wallpaper-derived palette. The
-  dimming now follows the scheme (5.5:1 dark, 7.2:1 light, measured on device).
-
 ## [Unreleased]
+
+## [0.7.5] — 2026-10-21
 
 ### Added
 
@@ -89,6 +68,29 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   IPv6 works. Node addresses now resolve `prefer_ipv4` (A first, AAAA when
   there is no A) while app-facing answers stay IPv4-only, and the DoH resolver
   behind the latency probe and the flags asks the second question too.
+
+## [0.7.4] — 2026-10-20
+
+### Changed
+
+- **Update channel**: releases are read from this repository
+  (`justnpcx/Starveil`) instead of the artifact-only mirror, which no longer
+  exists. The source is public now, so `releases/latest` answers without a
+  token. Only 0.7.2 and 0.7.3 point at the deleted mirror and will report
+  "no published release" until installed by hand; 0.7.0 and 0.7.1 named
+  `justnpcx/Starveil`, which is this repository today, so they can see it.
+- **Node page**: group chips are one fixed 16dp shape instead of a circle for
+  a short label and a capsule for a long one, an idle node card no longer
+  draws an outline, and the chip row sits against the list it filters. The
+  card and the chip are now shared components (`StarveilCard`,
+  `StarveilChip`) rather than one screen's private drawing.
+
+### Fixed
+
+- **Unreadable latency badge in dark mode**: "untested" and "timeout" were
+  drawn in a fixed slate meant for light surfaces, which on a dark raised card
+  measured 1.2:1 — invisible, and worse with a wallpaper-derived palette. The
+  dimming now follows the scheme (5.5:1 dark, 7.2:1 light, measured on device).
 
 ## [0.7.3] — 2026-10-19
 
