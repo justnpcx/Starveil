@@ -44,6 +44,33 @@ GH_TOKEN=<token> scripts/set-signing-secrets.sh
 `gh secret list` 可见。以后轮换密钥时重跑这条命令即可；`SENTRY_DSN` 是可选项，
 没有它发布包不上报崩溃。
 
+## main 的保护规则
+
+`main` 开了分支保护（2026-10-20 配置），**对管理员同样生效**：
+
+| 规则 | 状态 |
+|---|---|
+| 要求 `build` 检查通过 | 是（`strict: false`，不要求分支先同步到最新） |
+| 对管理员生效 | 是 |
+| 强制推送 | 禁止 |
+| 删除分支 | 禁止 |
+| 要求 PR 评审 | 否 |
+
+它拦的是**推送**，不只是合并。推一个还没有 `build` 结果的提交会被远端拒绝：
+
+```
+remote: - Required status check "build" is expected.
+ ! [remote rejected] HEAD -> main (protected branch hook declined)
+```
+
+`build` 记在提交上，不在分支上，所以落 main 的顺序是「先让这个提交在 CI 里绿，再推」：
+推到临时分支 → 等 `build` 通过 → 把同一个 SHA 推到 `main`。
+
+改写历史（rebase、压缩提交）会被挡。真要改写，只能临时摘掉 required check、
+推完立刻恢复，然后回读 `branches/main/protection` 确认三项都在：
+`contexts=['build']`、`enforce_admins=true`、`allow_force_pushes=false`。
+这一步容易忘，别省。
+
 ## 发一个版本
 
 1. **改版本号**：`app/build.gradle.kts` 的 `appVersionName`（里程碑 N → `0.N.0`；`versionCode` 自动派生）
