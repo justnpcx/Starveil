@@ -1,193 +1,214 @@
 package com.justnpcx.starveil.core.ui.theme
 
-import android.os.Build
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
 /**
- * Starveil HUD design system — "deep space black + cyan-blue glow".
+ * The palette in force, as a CompositionLocal.
  *
- * Dark-first: the dark scheme is the primary identity. Light is a fallback,
- * not the design target.
+ * A local rather than a global object because there are two palettes and the
+ * theme decides which. Screens read `StarveilColors.ink`, which resolves through
+ * here — so a screen never asks which theme it is in, and a page cannot end up
+ * with one design for light and another for dark.
+ */
+val LocalStarveilPalette = staticCompositionLocalOf { LightPalette }
+
+/**
+ * Every colour the app is allowed to use.
+ *
+ * Names are roles: `ink` is "primary text", not "the colour #1A1815". The
+ * values come from [LocalStarveilPalette], so the same call means the light
+ * value on a light page and the dark value on a dark one.
+ *
+ * There is no `Border`, `Glow`, or `Chart1..5` any more. Those existed to give
+ * the HUD its cyan edges and its five-series sparkline; this design has one
+ * divider, one accent, and three status colours, and a token nobody should use
+ * is a token somebody will.
  */
 object StarveilColors {
-    /** Deep-space black background. */
-    val Void = Color(0xFF050810)
+    /** Page background. */
+    val bg: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.bg
 
-    /** Panel surface, one step above Void. */
-    val Panel = Color(0xFF0B101D)
+    /** A surface that floats over the page: sheets, dialogs. */
+    val surface: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.surface
 
-    /** Raised surface (cards, sheets). */
-    val Raised = Color(0xFF121A2E)
+    /** Primary text. */
+    val ink: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ink
 
-    /**
-     * Snackbar surface: one step above [Raised].
-     *
-     * The bar floats over cards, so it cannot share their fill — at [Raised]
-     * it read as the bottom of the health card it covered.
-     */
-    val Snackbar = Color(0xFF1A2438)
+    /** Secondary text: labels, descriptions. */
+    val ink2: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ink2
 
-    /** Primary glow: cyan-blue. */
-    val GlowPrimary = Color(0xFF38BDF8)
+    /** Tertiary: placeholders, timestamps, disabled values. */
+    val ink3: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ink3
 
-    /** Secondary glow: indigo. */
-    val GlowSecondary = Color(0xFF818CF8)
+    /** The one divider colour. */
+    val hairline: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hairline
 
-    /** Connected / healthy. */
-    val Connected = Color(0xFF34D399)
+    /** Champagne gold. Lines and dots only — never a fill. */
+    val gold: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.gold
 
-    /** Connecting / working. */
-    val Connecting = Color(0xFF38BDF8)
+    /** Gold at text weight. */
+    val goldDeep: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.goldDeep
 
-    /** Blocked / alert. */
-    val Blocked = Color(0xFFF87171)
+    /** The only permitted wash: a selected row. */
+    val goldWash: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.goldWash
 
-    /**
-     * Warning: degraded, but not blocked — the tunnel is up and traffic is
-     * flowing, yet something about it is not trustworthy (a leak the
-     * self-check found, a subscription that stopped refreshing).
-     *
-     * Amber sits deliberately between [Connected] and [Blocked]: it has to
-     * read as "look at this" without reading as "you are cut off".
-     */
-    val Warning = Color(0xFFFBBF24)
+    /** Healthy. */
+    val ok: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ok
 
-    /**
-     * Disconnected: dimmed, but deliberately not the disabled colour — a
-     * disconnected tunnel is a normal state, not an unavailable control.
-     */
-    val Disconnected = Color(0xFF64748B)
+    /** Attention. */
+    val warn: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.warn
 
-    /** Muted text on dark. */
-    val TextDim = Color(0xFF94A3B8)
+    /** Failure, blocking. */
+    val err: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.err
+    // --- Temporary bridge, removed once every screen is migrated ------------
+    //
+    // The old names are still referenced by the screens that have not been
+    // reskinned yet. They map onto the new roles so an intermediate commit
+    // builds; each one disappears with the screen that used it, and the block
+    // goes with the last.
 
-    /** Disabled text — dimmer than [TextDim], for a value that is not a value. */
-    val TextDisabled = Color(0xFF475569)
+    /** @deprecated the page background. */
+    val Void: Color @Composable @ReadOnlyComposable get() = bg
 
-    /** Default border (§2.1). */
-    val Border = Color(0xFF1E293B)
+    /** @deprecated the page background. */
+    val Panel: Color @Composable @ReadOnlyComposable get() = bg
 
-    /**
-     * Glow border for a selected card (§2.1): [GlowPrimary] at 40%.
-     *
-     * The selection cue is the border, not a fill — the card's fill says
-     * whether it is a surface, and painting it differently for selection would
-     * give one property two meanings.
-     */
-    val BorderGlow = GlowPrimary.copy(alpha = 0.40f)
+    /** @deprecated a floating surface. */
+    val Raised: Color @Composable @ReadOnlyComposable get() = surface
 
-    /** Halo layer (§2.1): [GlowPrimary] at 16%, stacked under a glow border. */
-    val GlowPrimaryDim = GlowPrimary.copy(alpha = 0.16f)
+    /** @deprecated a floating surface. */
+    val Snackbar: Color @Composable @ReadOnlyComposable get() = surface
 
-    // --- Chart series (design system §2.1) -------------------------------
-    // The sparkline had been borrowing the glow colours, which happen to be
-    // the same values today but mean something different: a chart series is
-    // not a glow, and changing one must not silently change the other.
+    /** @deprecated the accent. */
+    val GlowPrimary: Color @Composable @ReadOnlyComposable get() = gold
 
-    /** Chart line 1 — downlink. */
-    val Chart1 = Color(0xFF38BDF8)
+    /** @deprecated the accent. */
+    val GlowSecondary: Color @Composable @ReadOnlyComposable get() = goldDeep
 
-    /** Chart line 2 — uplink. */
-    val Chart2 = Color(0xFF818CF8)
+    /** @deprecated healthy. */
+    val Connected: Color @Composable @ReadOnlyComposable get() = ok
 
-    /** Chart line 3 — latency / health. */
-    val Chart3 = Color(0xFF34D399)
+    /** @deprecated the accent. */
+    val Connecting: Color @Composable @ReadOnlyComposable get() = gold
 
-    /** Chart line 4 — warning threshold. */
-    val Chart4 = Color(0xFFFBBF24)
+    /** @deprecated failure. */
+    val Blocked: Color @Composable @ReadOnlyComposable get() = err
 
-    /** Chart line 5 — errors / packet loss. */
-    val Chart5 = Color(0xFFF87171)
+    /** @deprecated attention. */
+    val Warning: Color @Composable @ReadOnlyComposable get() = warn
 
-    /** Chart grid line. */
-    val ChartGrid = Color(0xFF1E293B)
+    /** @deprecated an idle value. */
+    val Disconnected: Color @Composable @ReadOnlyComposable get() = ink3
+
+    /** @deprecated secondary text. */
+    val TextDim: Color @Composable @ReadOnlyComposable get() = ink2
+
+    /** @deprecated tertiary text. */
+    val TextDisabled: Color @Composable @ReadOnlyComposable get() = ink3
+
+    /** @deprecated the divider. */
+    val Border: Color @Composable @ReadOnlyComposable get() = hairline
+
+    /** @deprecated the accent. */
+    val BorderGlow: Color @Composable @ReadOnlyComposable get() = gold
+
+    /** @deprecated the selected wash. */
+    val GlowPrimaryDim: Color @Composable @ReadOnlyComposable get() = goldWash
+
+    /** @deprecated one series. */
+    val Chart1: Color @Composable @ReadOnlyComposable get() = gold
+
+    /** @deprecated one series. */
+    val Chart2: Color @Composable @ReadOnlyComposable get() = ink2
+
+    /** @deprecated one series. */
+    val Chart3: Color @Composable @ReadOnlyComposable get() = ok
+
+    /** @deprecated one series. */
+    val Chart4: Color @Composable @ReadOnlyComposable get() = warn
+
+    /** @deprecated one series. */
+    val Chart5: Color @Composable @ReadOnlyComposable get() = err
+
+    /** @deprecated the divider. */
+    val ChartGrid: Color @Composable @ReadOnlyComposable get() = hairline
 }
 
 /**
- * Snackbars draw on the inverse pair.
+ * Material's scheme, derived from a palette.
  *
- * M3's default is a near-white bar in a dark scheme, which in a dark-first
- * theme becomes the brightest thing on screen — a flash, not a footnote.
- * [StarveilColors.Snackbar] keeps the bar floating above the panel — and a
- * step above the cards it covers — while staying in the HUD palette; the
- * action colour is the glow the rest of the app uses for anything tappable.
- *
- * Applied to the hand-built dark scheme *and* to the wallpaper-derived one:
- * turning on dynamic colour may change the palette, but it must not turn the
- * snackbar back into a white block.
+ * Only what Material components actually read is set: a dialog's container, a
+ * menu's surface, a text field's cursor. `surfaceVariant` is deliberately the
+ * page background rather than a raised tone — nothing in this design is a
+ * filled block, so a component that reaches for it should disappear into the
+ * page instead of drawing a card.
  */
-private fun ColorScheme.withHudSnackbar(): ColorScheme = copy(
-    inverseSurface = StarveilColors.Snackbar,
-    inverseOnSurface = Color(0xFFE2E8F0),
-    inversePrimary = StarveilColors.GlowPrimary,
+private fun ColorScheme.withPalette(p: StarveilPalette): ColorScheme = copy(
+    primary = p.ink,
+    onPrimary = p.bg,
+    secondary = p.goldDeep,
+    onSecondary = p.bg,
+    tertiary = p.ok,
+    background = p.bg,
+    onBackground = p.ink,
+    surface = p.bg,
+    onSurface = p.ink,
+    surfaceVariant = p.bg,
+    onSurfaceVariant = p.ink2,
+    surfaceContainer = p.surface,
+    surfaceContainerHigh = p.surface,
+    surfaceContainerHighest = p.surface,
+    outline = p.hairline,
+    outlineVariant = p.hairline,
+    error = p.err,
+    onError = p.bg,
+    // Snackbars float over the page, so they are the one place a surface is a
+    // different colour from the page — otherwise the bar reads as a hole.
+    inverseSurface = p.ink,
+    inverseOnSurface = p.bg,
+    inversePrimary = p.gold,
 )
 
-internal val DarkScheme = darkColorScheme(
-    primary = StarveilColors.GlowPrimary,
-    secondary = StarveilColors.GlowSecondary,
-    tertiary = StarveilColors.Connected,
-    background = StarveilColors.Void,
-    surface = StarveilColors.Panel,
-    surfaceVariant = StarveilColors.Raised,
-    onBackground = Color(0xFFE2E8F0),
-    onSurface = Color(0xFFE2E8F0),
-    onSurfaceVariant = StarveilColors.TextDim,
-    error = StarveilColors.Blocked,
-).withHudSnackbar()
+internal val DarkScheme = darkColorScheme().withPalette(DarkPalette)
 
-internal val LightScheme = lightColorScheme(
-    primary = Color(0xFF0369A1),
-    secondary = Color(0xFF4F46E5),
-    tertiary = Color(0xFF047857),
-    background = Color(0xFFF8FAFC),
-    surface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFFE2E8F0),
-    onBackground = Color(0xFF0F172A),
-    onSurface = Color(0xFF0F172A),
-    // Darker than the dark theme's TextDim on purpose: on a light raised
-    // surface the slate-500 value measured 3.86:1, below AA for body text.
-    onSurfaceVariant = Color(0xFF475569),
-    error = Color(0xFFDC2626),
-)
+internal val LightScheme = lightColorScheme().withPalette(LightPalette)
 
 /**
- * @param darkTheme dark-first: defaults to dark regardless of the system. The
- *   caller derives this from the stored theme mode.
- * @param dynamicColor when true and the platform supports it (API 31+), take
- *   the palette from the wallpaper instead of the Starveil HUD scheme. Off by
- *   default — the HUD identity is the design target, dynamic colour is an
- *   opt-in that deliberately overrides it.
+ * @param darkTheme which palette. The caller derives it from the stored theme
+ *   mode; this composable does not read the system setting itself, because
+ *   "follow the system" is a stored choice and not the same thing as "dark".
  */
 @Composable
 fun StarveilTheme(
-    darkTheme: Boolean = true,
-    dynamicColor: Boolean = false,
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) {
-                dynamicDarkColorScheme(context).withHudSnackbar()
-            } else {
-                dynamicLightColorScheme(context)
-            }
-        }
-
-        darkTheme -> DarkScheme
-        else -> LightScheme
+    val palette = if (darkTheme) DarkPalette else LightPalette
+    CompositionLocalProvider(LocalStarveilPalette provides palette) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            typography = StarveilTypography,
+            content = content,
+        )
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = StarveilTypography,
-        content = content,
-    )
 }

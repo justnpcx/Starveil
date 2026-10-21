@@ -22,12 +22,38 @@ object StarveilSpacing {
     /** 12dp — between sub-groups. */
     val md = 12.dp
 
-    /** 16dp — screen padding, the default. */
+    /** 16dp — inside a block. */
     val lg = 16.dp
 
-    /** 24dp — between sections. */
+    /**
+     * 24dp — the page margin, and the gap between sections.
+     *
+     * Two roles, one value on purpose: the text column starts 24dp in, and a
+     * section starts 24dp below the one above it, so the page's vertical and
+     * horizontal rhythm are the same number. A different value for each is how
+     * a layout starts looking "nearly aligned".
+     */
     val xl = 24.dp
 
-    /** 32dp — page-level breathing room. */
+    /** 32dp — between a section and the one after it, when it needs air. */
     val xxl = 32.dp
+
+    /**
+     * 48dp — the gap above a page's first section, and the clearance a floating
+     * button needs at the bottom of a list.
+     */
+    val xxxl = 48.dp
+
+    /** The page's left and right margin. Named so screens stop writing 24.dp. */
+    val pageMargin = xl
+
+    /**
+     * Bottom padding for a scrolling list that has a floating button over it.
+     *
+     * 96dp is not a rhythm value: it is the button's own height plus the gap
+     * that keeps it off the last row. A list that uses [xl] here lets the
+     * button cover its own final line, which is the defect this constant
+     * exists to stop repeating.
+     */
+    val fabClearance = 96.dp
 }

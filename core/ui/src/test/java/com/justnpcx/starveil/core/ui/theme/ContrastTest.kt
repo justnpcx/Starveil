@@ -1,6 +1,5 @@
 package com.justnpcx.starveil.core.ui.theme
 
-import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import kotlin.math.pow
@@ -10,95 +9,104 @@ import org.junit.Test
 /**
  * WCAG contrast, measured rather than eyeballed.
  *
- * "Looks fine on my screen" is how a HUD palette ends up with dim grey text on
- * a near-black panel that is unreadable outdoors. The numbers here are the
- * standard ones: 4.5:1 for body text (AA), 3:1 for large text and for the
- * non-text indicators a status colour is used as.
+ * "Looks fine on my screen" is how a palette ends up with dim grey text on a
+ * warm white page that disappears outdoors — and this design is built out of
+ * text, hairlines and one accent, so text contrast is not a detail of it, it is
+ * most of the interface.
  *
- * The dark scheme is the design target (the app is dark-first), so it is held
- * to the stricter reading; light is a fallback and gets the same floor.
+ * The numbers are the standard ones: 4.5:1 for body text (AA), 3:1 for large
+ * text and for a status colour used as an indicator rather than as a word.
+ *
+ * Both palettes are held to the same floor. The light one is not a fallback any
+ * more — it is the primary version — and the dark one is the same design lit
+ * from the other side, so a value that only works in one of them is a value
+ * that is wrong.
  */
 class ContrastTest {
 
-    private val darkSurfaces = listOf(
-        "background" to DarkScheme.background,
-        "surface" to DarkScheme.surface,
-        "surfaceVariant" to DarkScheme.surfaceVariant,
-    )
-
-    private val lightSurfaces = listOf(
-        "background" to LightScheme.background,
-        "surface" to LightScheme.surface,
-        "surfaceVariant" to LightScheme.surfaceVariant,
-    )
+    private val palettes = listOf("light" to LightPalette, "dark" to DarkPalette)
 
     @Test
-    fun `body text meets AA on every dark surface`() {
-        darkSurfaces.forEach { (name, surface) ->
-            assertAtLeast(4.5, DarkScheme.onBackground, surface, "onBackground on $name")
-            assertAtLeast(4.5, DarkScheme.onSurface, surface, "onSurface on $name")
-            // onSurfaceVariant is the secondary text colour — the one used for
-            // every description line in the app, so it is body text, not a
-            // large-text exemption.
-            assertAtLeast(4.5, DarkScheme.onSurfaceVariant, surface, "onSurfaceVariant on $name")
+    fun `body text meets AA on the page`() {
+        palettes.forEach { (name, p) ->
+            assertAtLeast(4.5, p.ink, p.bg, "$name ink on bg")
+            // ink2 is every description line in the app, so it is body text and
+            // gets no large-text exemption.
+            assertAtLeast(4.5, p.ink2, p.bg, "$name ink2 on bg")
         }
     }
 
     @Test
-    fun `body text meets AA on every light surface`() {
-        lightSurfaces.forEach { (name, surface) ->
-            assertAtLeast(4.5, LightScheme.onBackground, surface, "onBackground on $name")
-            assertAtLeast(4.5, LightScheme.onSurface, surface, "onSurface on $name")
-            assertAtLeast(4.5, LightScheme.onSurfaceVariant, surface, "onSurfaceVariant on $name")
+    fun `body text meets AA on a floating surface`() {
+        // Sheets and dialogs are the only places a surface is not the page, and
+        // they carry the same text.
+        palettes.forEach { (name, p) ->
+            assertAtLeast(4.5, p.ink, p.surface, "$name ink on surface")
+            assertAtLeast(4.5, p.ink2, p.surface, "$name ink2 on surface")
+        }
+    }
+
+    @Test
+    fun `gold used as text meets AA`() {
+        // goldDeep is the token for exactly this: a badge label or a value that
+        // has to be readable. `gold` itself is a line colour and is not held to
+        // the text floor — see the next test.
+        palettes.forEach { (name, p) ->
+            assertAtLeast(4.5, p.goldDeep, p.bg, "$name goldDeep on bg")
+        }
+    }
+
+    @Test
+    fun `gold used as a line clears the non-text threshold`() {
+        // WCAG 1.4.11: a graphic that carries meaning needs 3:1 against what is
+        // behind it. The ring and the selection dot are graphics.
+        palettes.forEach { (name, p) ->
+            assertAtLeast(3.0, p.gold, p.bg, "$name gold on bg")
         }
     }
 
     @Test
     fun `status colours are readable as text`() {
-        // The availability percentage is drawn in the band's colour, and the
-        // notice banners use these as text. They are small labels, so 4.5:1.
-        //
-        // Dark only: the app is dark-first and these literal colours are the
-        // dark palette. They are NOT readable on the light surfaces — that is
-        // a known gap, and fixing it means a theme-aware status palette rather
-        // than a lighter shade here. Recorded rather than silently exempted.
-        listOf(
-            "connected" to StarveilColors.Connected,
-            "warning" to StarveilColors.Warning,
-            "blocked" to StarveilColors.Blocked,
-        ).forEach { (name, colour) ->
-            darkSurfaces.forEach { (surfaceName, surface) ->
-                assertAtLeast(4.5, colour, surface, "$name on $surfaceName")
-            }
+        // The availability percentage is drawn in its band's colour, and the
+        // notice line uses these as text. Small labels, so 4.5:1.
+        palettes.forEach { (name, p) ->
+            assertAtLeast(4.5, p.ok, p.bg, "$name ok on bg")
+            assertAtLeast(4.5, p.err, p.bg, "$name err on bg")
         }
     }
 
     @Test
-    fun `the disconnected ring clears the non-text threshold`() {
-        // This one is a ring on the connection core, not text, so the standard
-        // is 3:1 (WCAG 1.4.11) — and it measures 4.21:1, which is why it is not
-        // held to the body-text floor.
-        darkSurfaces.forEach { (name, surface) ->
-            assertAtLeast(3.0, StarveilColors.Disconnected, surface, "disconnected on $name")
+    fun `amber is readable as text`() {
+        // Held apart from the other two because amber is the one that is easy to
+        // get wrong: a bright amber reads as "healthy" and a dark one as brown.
+        // Both palettes must clear AA with it.
+        palettes.forEach { (name, p) ->
+            assertAtLeast(4.5, p.warn, p.bg, "$name warn on bg")
         }
     }
 
     @Test
-    fun `the primary accent is readable as text`() {
-        // The per-app target label is drawn in primary.
-        darkSurfaces.forEach { (name, surface) ->
-            assertAtLeast(4.5, DarkScheme.primary, surface, "primary on $name")
+    fun `a selected row's text stays readable on its wash`() {
+        // The wash is the one fill in the design, so it has to keep the row's
+        // own text above AA — otherwise selecting a node would make it harder
+        // to read, which is the opposite of what selection means.
+        palettes.forEach { (name, p) ->
+            assertAtLeast(4.5, p.ink, p.goldWash, "$name ink on goldWash")
+            assertAtLeast(4.5, p.ink2, p.goldWash, "$name ink2 on goldWash")
         }
     }
 
     @Test
-    fun `the disabled colour is allowed to be low contrast`() {
-        // Recorded, not asserted: WCAG exempts inactive components, and
-        // raising this would make "disabled" look enabled. The number is here
-        // so a future change to it is a deliberate one.
-        val ratio = contrast(StarveilColors.TextDisabled, StarveilColors.Void)
-        println("CONTRAST_DISABLED_TEXT=${"%.2f".format(ratio)}")
-        assertTrue("disabled text should still be visible at all", ratio > 1.5)
+    fun `ink3 is allowed to be low contrast`() {
+        // Recorded, not asserted: ink3 is placeholders and timestamps, which
+        // WCAG treats leniently and which would stop reading as secondary if
+        // they were darkened to AA. The number is here so a future change to it
+        // is a deliberate one.
+        palettes.forEach { (name, p) ->
+            val ratio = contrast(p.ink3, p.bg)
+            println("CONTRAST_INK3_${name.uppercase()}=${"%.2f".format(ratio)}")
+            assertTrue("$name ink3 should still be visible at all", ratio > 1.8)
+        }
     }
 
     private fun assertAtLeast(minimum: Double, foreground: Color, background: Color, what: String) {
@@ -128,8 +136,4 @@ class ContrastTest {
         val c = value.toDouble()
         return if (c <= 0.03928) c / 12.92 else ((c + 0.055) / 1.055).pow(2.4)
     }
-
-    /** Keeps the compiler honest about the scheme type. */
-    @Suppress("unused")
-    private fun ColorScheme.identity(): ColorScheme = this
 }

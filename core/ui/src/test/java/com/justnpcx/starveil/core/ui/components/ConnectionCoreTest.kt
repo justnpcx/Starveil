@@ -4,9 +4,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,67 +12,47 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * §5.3's state-change rule, and the two ways a state can be wrong without the
- * compiler noticing: a warning that pulses like a healthy tunnel, and an
- * ambient loop that keeps running when it should be still.
+ * The ring's contract, as something a test can hold on to.
+ *
+ * The old core pulsed, and the pulse carried the state: a warning beat slower
+ * than a healthy tunnel, an idle one slower still. That whole dimension is gone
+ * — the ring holds still in every state — so what is left to protect is the
+ * thing the pulse used to break: the ring must never change size, because
+ * everything below it is positioned from its box.
+ *
+ * [ConnectionCoreGeometry] is the part worth testing: it is the one piece of the
+ * drawing other blocks depend on, and it is a pure function.
  */
-class ConnectionCoreMotionTest {
+class ConnectionCoreGeometryTest {
 
     @Test
-    fun `a warning breathes slower and shallower than a healthy tunnel`() {
-        val healthy = breathFor(ConnectionState.CONNECTED, active = true)!!
-        val warning = breathFor(ConnectionState.WARNING, active = true)!!
-
-        // Colour alone is not enough: at the healthy rate and amplitude an
-        // amber ring still reads as "all good, in the wrong colour".
-        assertTrue(
-            "a warning must not pulse at the healthy rate (${warning.periodMs} vs ${healthy.periodMs})",
-            warning.periodMs > healthy.periodMs,
-        )
-        assertTrue(
-            "a warning must not pulse as hard as a healthy tunnel (${warning.peak} vs ${healthy.peak})",
-            warning.peak < healthy.peak,
+    fun `the ring is the same size in every state`() {
+        // This is the whole point of dropping the pulse. The rates, the node row
+        // and the health line are all measured from this box; a state change
+        // that resized it would move every one of them.
+        val sizes = ConnectionState.entries.map { ConnectionCoreGeometry.sizeFor(it) }
+        assertEquals(
+            "the ring's box must not depend on the state",
+            1,
+            sizes.distinct().size,
         )
     }
 
     @Test
-    fun `the idle core breathes, more slowly and less than a live one`() {
-        val healthy = breathFor(ConnectionState.CONNECTED, active = true)!!
-        val idle = breathFor(ConnectionState.DISCONNECTED, active = true)!!
-
-        // A static grey circle says "this is off". Idle is "ready when you
-        // are", and it has to be visible as something other than a dead ring —
-        // but it must not compete with the state that means traffic flows.
-        assertTrue(
-            "idle must breathe slower (${idle.periodMs} vs ${healthy.periodMs})",
-            idle.periodMs > healthy.periodMs,
-        )
-        assertTrue(
-            "idle must breathe shallower (${idle.peak} vs ${healthy.peak})",
-            idle.peak < healthy.peak,
-        )
+    fun `the ring's stroke is a line, not a band`() {
+        // 3dp at any diameter: the design calls the ring a hairline-plus, and a
+        // stroke that scaled with the diameter would make the short-screen
+        // variant a different weight of ring.
+        assertEquals(3f, ConnectionCoreGeometry.strokeDp)
     }
 
     @Test
-    fun `connecting and blocked hold still`() {
-        // Connecting rotates instead, and a block is a hard stop: neither
-        // should look like something is ticking along.
-        assertNull(breathFor(ConnectionState.CONNECTING, active = true))
-        assertNull(breathFor(ConnectionState.BLOCKED, active = true))
-    }
-
-    @Test
-    fun `nothing breathes while the screen is paused or motion is reduced`() {
-        // §5.5: an ambient loop is decoration, and decoration must not burn
-        // frames behind a paused screen — nor when the system asked for less
-        // motion, where an infinite repeat collapses to a zero-length period
-        // and becomes a busy loop.
-        for (state in ConnectionState.entries) {
-            assertNull(
-                "expected $state to hold still when inactive",
-                breathFor(state, active = false),
-            )
-        }
+    fun `a short screen gets the smaller ring, and nothing in between`() {
+        // Two sizes, chosen by available height, not a continuous scale: a ring
+        // that grows with the viewport makes the layout different on every
+        // device, and the design is measured from this box.
+        assertEquals(260f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 900f))
+        assertEquals(220f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 700f))
     }
 }
 

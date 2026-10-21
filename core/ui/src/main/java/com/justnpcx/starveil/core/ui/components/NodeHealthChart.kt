@@ -56,9 +56,12 @@ fun LatencySparkline(
     height: Dp = 20.dp,
 ) {
     val trace = if (health.collecting) emptyList() else emaSeries(health.samples)
+    // Read before the Canvas: a colour token is a composable read, and DrawScope
+    // is not a composable scope.
+    val line = StarveilColors.ok
     Box(modifier = modifier.height(height)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawLatencyTrace(trace, StarveilColors.Chart3, strokeWidth = 1.5f)
+            drawLatencyTrace(trace, line, strokeWidth = 1.5f)
         }
     }
 }
@@ -68,11 +71,15 @@ fun LatencySparkline(
  *
  * Three things share one x-axis, which is the point of drawing them together:
  *
- * - the latency EMA trace, in [StarveilColors.Chart3];
- * - availability as a background bar, coloured by the window's band — green
- *   above 99%, amber 95–99%, red below 95%;
- * - packet loss as red dots below the curve, so "slow" and "dropped" are
+ * - the latency EMA trace, 1.5dp in the healthy colour;
+ * - availability as a background bar, coloured by the window's band — jade
+ *   above 99%, amber 95–99%, brick below 95%;
+ * - packet loss as dots below the curve, so "slow" and "dropped" are
  *   distinguishable rather than both reading as a dip in one line.
+ *
+ * The fill under the curve is 8% of the line's own colour. The old chart faded
+ * a saturated green across the whole area, which on a light page is a coloured
+ * block — the one thing this design does not allow.
  *
  * Below [NodeHealth.MIN_SAMPLES] it says so instead of drawing. A curve through
  * three points is a claim about a shape that has not happened yet.
@@ -98,24 +105,28 @@ fun NodeHealthChart(
     }
 
     val trace = emaSeries(health.samples)
+    // Read before the Canvas: colour tokens are composable reads, and DrawScope
+    // is not a composable scope.
+    val line = StarveilColors.ok
+    val loss = StarveilColors.err
 
     Box(
         modifier = (if (height != null) modifier.height(height) else modifier)
             .semantics { this.contentDescription = contentDescription },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // No background plate and no band strip: the card is the only
-            // background (G2). The curve carries its own gradient, which fades
-            // into the card at the bottom.
-            drawLatencyFill(trace, StarveilColors.Chart3)
+            // No background plate and no band strip: the page is the only
+            // background. The fill under the curve is the line's own colour at
+            // 8%, which reads as shading rather than as a coloured block.
+            drawLatencyFill(trace, line)
 
             // Loss first, so the trace sits over the dots rather than under
             // them — a dot the line crosses is still a dot you can see.
-            drawLossDots(health.samples, StarveilColors.Chart5)
+            drawLossDots(health.samples, loss)
             drawLatencyTrace(
                 values = trace,
-                color = StarveilColors.Chart3,
-                strokeWidth = 2f,
+                color = line,
+                strokeWidth = 1.5f,
             )
         }
     }
@@ -138,7 +149,7 @@ private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color) {
     drawPath(
         path = fill,
         brush = Brush.verticalGradient(
-            colors = listOf(color.copy(alpha = 0.30f), Color.Transparent),
+            colors = listOf(color.copy(alpha = 0.08f), Color.Transparent),
             startY = 0f,
             endY = size.height,
         ),
@@ -189,11 +200,12 @@ private fun CollectingState(modifier: Modifier, height: Dp?) {
     }
 }
 
-/** The band's colour (§7.2): green, amber, red. */
+/** The band's colour (§7.2): jade, amber, brick. Composable — tokens are reads. */
+@Composable
 private fun AvailabilityBand.color(): Color = when (this) {
-    AvailabilityBand.GOOD -> StarveilColors.Connected
-    AvailabilityBand.FAIR -> StarveilColors.Warning
-    AvailabilityBand.POOR -> StarveilColors.Blocked
+    AvailabilityBand.GOOD -> StarveilColors.ok
+    AvailabilityBand.FAIR -> StarveilColors.warn
+    AvailabilityBand.POOR -> StarveilColors.err
 }
 
 /**

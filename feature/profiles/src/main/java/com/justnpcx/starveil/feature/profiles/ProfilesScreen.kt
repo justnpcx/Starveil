@@ -16,7 +16,6 @@ import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
-import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
@@ -41,6 +40,12 @@ import com.justnpcx.starveil.core.model.GroupMode
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import com.justnpcx.starveil.core.ui.theme.StarveilType
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.verticalScroll
@@ -53,6 +58,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -66,12 +72,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.OutlinedTextField
-import com.justnpcx.starveil.core.ui.components.StarveilCardCorner
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Text
@@ -1068,11 +1071,32 @@ private fun NodeRow(
     onTestClick: () -> Unit,
 ) {
     val reading = latencyReading(profile, health)
-    StarveilCard(
-        // Long-press moves the node between groups; a tap stays the selection.
+    val wash = StarveilColors.goldWash
+    val gold = StarveilColors.gold
+    val line = StarveilColors.hairline
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = NODE_CARD_MIN_HEIGHT)
+            .drawBehind {
+                // The selected row is marked twice: a gold rule on its leading
+                // edge and a wash behind it. One cue alone is not enough on a
+                // list where the row above is also a row, and a wash alone
+                // disappears on a bright screen.
+                if (selected) {
+                    drawRect(color = wash)
+                    drawRect(
+                        color = gold,
+                        topLeft = Offset.Zero,
+                        size = androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height),
+                    )
+                }
+                drawLine(
+                    color = line,
+                    start = Offset(StarveilSpacing.pageMargin.toPx(), size.height),
+                    end = Offset(size.width - StarveilSpacing.pageMargin.toPx(), size.height),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -1080,14 +1104,20 @@ private fun NodeRow(
                 // Long-press is invisible to a screen reader unless it is
                 // named; without this the action simply does not exist there.
                 onLongClickLabel = stringResource(R.string.profiles_node_long_press),
+            )
+            .heightIn(min = NODE_ROW_MIN_HEIGHT)
+            .padding(
+                start = StarveilSpacing.pageMargin + StarveilSpacing.sm,
+                end = StarveilSpacing.pageMargin,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
             ),
-        selected = selected,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(StarveilSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            // The two columns are aligned on their first line, so the name and
+            // the number share a baseline across the gap between them.
+            verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1095,7 +1125,8 @@ private fun NodeRow(
                     Spacer(modifier = Modifier.width(StarveilSpacing.sm))
                     Text(
                         text = profile.displayName(),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = StarveilType.headline,
+                        color = StarveilColors.ink,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1103,32 +1134,23 @@ private fun NodeRow(
                 Spacer(modifier = Modifier.height(StarveilSpacing.xs))
                 Text(
                     // Group first: it is what the user filed the node under. The
-                    // host is the detail they read second.
+                    // host is the detail they read second, in the technical face
+                    // because an address is an annotation, not prose.
                     text = "$groupLabel · ${profile.type.name.lowercase()} " +
                         "· ${profile.server}:${profile.port}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink2,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Spacer(modifier = Modifier.width(StarveilSpacing.md))
             Column(horizontalAlignment = Alignment.End) {
-                // Only once there is a shape to draw: the sparkline and the
-                // chart agree on the threshold, so the card cannot imply a
-                // curve the chart would refuse to draw.
-                if (health != null && !health.collecting) {
-                    LatencySparkline(
-                        health = health,
-                        modifier = Modifier.width(SPARKLINE_WIDTH),
-                        height = SPARKLINE_HEIGHT,
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                }
+                // The number first, so its baseline matches the name's; the
+                // sparkline hangs under it.
                 Text(
                     text = when (reading) {
-                        is LatencyReading.Value ->
-                            stringResource(R.string.profiles_latency_ms, reading.ms)
+                        is LatencyReading.Value -> "${reading.ms}"
                         LatencyReading.Timeout ->
                             stringResource(R.string.profiles_latency_timeout)
                         LatencyReading.Untested ->
@@ -1142,23 +1164,27 @@ private fun NodeRow(
                         .clip(RoundedCornerShape(LATENCY_TOUCH_CORNER))
                         .clickable(role = Role.Button, onClick = onTestClick)
                         .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = if (reading is LatencyReading.Value) {
+                        StarveilType.numInline
+                    } else {
+                        StarveilType.tech
+                    },
                     // Dimmed, not red, when there is no reading: the status dot
                     // already says "down", and colouring the number too would be
-                    // the same signal twice (§6.3).
-                    //
-                    // The dimming is a step down the scheme, not a fixed slate:
-                    // TextDisabled (#475569) is a light-theme value and on a
-                    // dark raised card — especially a wallpaper-derived one —
-                    // it measured 1.2:1, i.e. invisible. onSurface carries the
-                    // reading, onSurfaceVariant the absence of one; both are
-                    // theme-aware and both clear AA on every surface.
-                    color = when (reading) {
-                        is LatencyReading.Value -> MaterialTheme.colorScheme.onSurface
-                        LatencyReading.Timeout, LatencyReading.Untested ->
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                    // the same signal twice.
+                    color = if (reading is LatencyReading.Value) {
+                        StarveilColors.ink
+                    } else {
+                        StarveilColors.ink3
                     },
                 )
+                if (health != null && !health.collecting) {
+                    LatencySparkline(
+                        health = health,
+                        modifier = Modifier.width(SPARKLINE_WIDTH),
+                        height = SPARKLINE_HEIGHT,
+                    )
+                }
             }
         }
     }
@@ -1173,9 +1199,9 @@ private fun NodeRow(
 @Composable
 private fun StatusDot(status: NodeStatus) {
     val color = when (status) {
-        NodeStatus.UP -> StarveilColors.Connected
-        NodeStatus.DOWN -> StarveilColors.Blocked
-        NodeStatus.UNTESTED -> StarveilColors.Disconnected
+        NodeStatus.UP -> StarveilColors.ok
+        NodeStatus.DOWN -> StarveilColors.err
+        NodeStatus.UNTESTED -> StarveilColors.ink3
     }
     val description = when (status) {
         NodeStatus.UP -> stringResource(R.string.profiles_status_up)
@@ -1228,7 +1254,7 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
 }
 
 /** §6.3 card metrics. */
-private val NODE_CARD_MIN_HEIGHT = 72.dp
+private val NODE_ROW_MIN_HEIGHT = 64.dp
 private val SELECTED_BORDER_WIDTH = 2.dp
 private val STATUS_DOT_SIZE = 8.dp
 private val SPARKLINE_WIDTH = 64.dp
@@ -1261,46 +1287,62 @@ private fun SearchField(
     onQueryChange: (String) -> Unit,
     onClear: () -> Unit,
 ) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        singleLine = true,
+    val hairline = StarveilColors.hairline
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = StarveilSpacing.lg,
+                start = StarveilSpacing.pageMargin,
+                end = StarveilSpacing.pageMargin,
                 top = StarveilSpacing.sm,
-                end = StarveilSpacing.lg,
-            ),
-        placeholder = { Text(stringResource(R.string.profiles_search_hint)) },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        },
-        trailingIcon = {
-            // Only when there is something to clear: an always-present X reads
-            // as a control that does nothing.
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.profiles_search_clear),
-                    )
-                }
+            .heightIn(min = 48.dp)
+            .drawBehind {
+                drawLine(
+                    color = hairline,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = StarveilIcons.Search,
+            contentDescription = null,
+            tint = StarveilColors.ink3,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+        Box(modifier = Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.profiles_search_hint),
+                    style = StarveilType.body,
+                    color = StarveilColors.ink3,
+                )
             }
-        },
-        shape = RoundedCornerShape(StarveilCardCorner),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedBorderColor = Color.Transparent,
-            focusedBorderColor = StarveilColors.BorderGlow,
-        ),
-    )
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = StarveilType.body.copy(color = StarveilColors.ink),
+                cursorBrush = SolidColor(StarveilColors.gold),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (query.isNotEmpty()) {
+            IconButton(onClick = onClear) {
+                Icon(
+                    imageVector = StarveilIcons.Close,
+                    contentDescription = stringResource(R.string.profiles_search_clear),
+                    tint = StarveilColors.ink3,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

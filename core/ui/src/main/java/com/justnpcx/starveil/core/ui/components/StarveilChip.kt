@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -28,14 +26,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
-
-/**
- * Selected chip fill: how far the surface moves toward primary.
- *
- * The spec says "GlowPrimary 20%", which was written for a dark page; 24% is
- * where the same idea survives on a light one.
- */
-private const val SELECTED_MIX = 0.24f
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /** The "in use" marker on a chip. */
 private val IN_USE_DOT = 6.dp
@@ -44,11 +35,12 @@ private val IN_USE_DOT = 6.dp
 private val MIN_TOUCH_TARGET = 48.dp
 
 /**
- * A filter chip: 16dp corners, tonal when idle, primary mix when selected.
+ * A filter chip: a capsule, outlined when idle, ink-filled when selected.
  *
- * The radius is a fixed dp, not a percentage. A percent radius follows the
- * chip's own size, so a two-glyph label came out a circle and a long one a
- * capsule — the same component with two shapes in one row.
+ * Inverted rather than tinted. A selected chip is the darkest thing in the row
+ * — ink fill, page-coloured label — which is the only selection cue in this
+ * design that cannot be confused with a status colour. A tinted fill would put
+ * a second colour into a row whose job is to be quiet.
  *
  * [stateDescription] is passed in because the meaning of "selected" belongs to
  * the screen: a filtered group and a group the tunnel runs through look alike
@@ -84,29 +76,11 @@ fun StarveilChip(
                 this.selected = isSelected
                 if (description != null) this.stateDescription = description
             },
-        shape = RoundedCornerShape(StarveilCardCorner),
-        // Theme colours, not the HUD's dark constants: in dark mode primary is
-        // the glow and surfaceVariant is Raised, so this is the spec's "20%"
-        // exactly; in light mode the same two tokens keep the row on the page.
-        // Mixed rather than alpha-composited, because a 20% wash of a dark
-        // primary over a light page moved the fill by nine levels out of 255.
-        color = if (selected) {
-            lerp(
-                MaterialTheme.colorScheme.surfaceVariant,
-                MaterialTheme.colorScheme.primary,
-                SELECTED_MIX,
-            )
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-        // The accent lives on the border, not the label: primary text on a 24%
-        // primary fill measured 3.55:1 in the light scheme, and a 12sp label
-        // has to clear 4.5.
-        border = if (selected) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-        } else {
-            null
-        },
+        shape = CircleShape,
+        color = if (selected) StarveilColors.ink else StarveilColors.bg,
+        // The outline is what makes an idle chip a chip rather than a word; a
+        // selected one has no outline because its fill already says so.
+        border = if (selected) null else BorderStroke(1.dp, StarveilColors.hairline),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -123,18 +97,14 @@ fun StarveilChip(
                     modifier = Modifier
                         .size(IN_USE_DOT)
                         .clip(CircleShape)
-                        .background(StarveilColors.Connected),
+                        .background(if (selected) StarveilColors.bg else StarveilColors.ok),
                 )
                 Spacer(modifier = Modifier.width(StarveilSpacing.xs))
             }
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                style = StarveilType.label,
+                color = if (selected) StarveilColors.bg else StarveilColors.ink2,
             )
         }
     }

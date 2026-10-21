@@ -64,23 +64,22 @@ enum class ConnectionState {
 }
 
 /**
- * ConnectionCore — the heart of the Dashboard.
+ * ConnectionCore — the ring, and the one control on the dashboard.
  *
- * - [ConnectionState.CONNECTED]: cyan glow, slow breathing pulse.
- * - [ConnectionState.WARNING]: amber, and a *slower, shallower* pulse — a
- *   warning that breathes at the healthy rate reads as "all good" in the
- *   wrong colour.
- * - [ConnectionState.CONNECTING]: rotating charge arc.
- * - [ConnectionState.DISCONNECTED]: dim ring with the slowest, shallowest
- *   breath — alive, but idle. A completely static grey circle read as "this
- *   thing is off", which is not the same as "ready when you are".
- * - [ConnectionState.BLOCKED]: red alert ring.
+ * The ring is a line, not a filled shape: 3dp, gold when the tunnel is
+ * carrying, hairline when it is idle, amber when it is up but silent, brick
+ * when it is blocked. Nothing moves except the arc that turns while a connect
+ * is in flight.
  *
- * A state change moves four things at once — colour, breathing, core size and
- * glow — over 220ms, which is the design system's hard rule (§5.3): changing
- * only the colour reads as a glitch rather than a state change. The breathing
- * is therefore *eased* back to rest rather than snapped; an instant jump is
- * the "瞬变" the same rule forbids.
+ * **The size never changes.** Not on a state change, not while connecting, not
+ * for a warning. The ring is the anchor the whole page is measured from — the
+ * rates below it, the node row, the health line — and a ring that grows by 6%
+ * moves every one of them. Earlier versions pulsed to look alive; the pulse was
+ * the loudest thing on the screen, and it competed with the numbers.
+ *
+ * So a state change moves exactly one thing: the colour. That is deliberate and
+ * it is enough — colour is what the eye catches first, and the word in the
+ * middle says the rest.
  */
 @Composable
 fun ConnectionCore(
@@ -132,31 +131,14 @@ fun ConnectionCore(
     }
 
     val animationsEnabled = rememberAnimationsEnabled()
-    val breathSpec = breathFor(state, active = resumed && animationsEnabled)
+    // No breathing. The old core pulsed to show it was alive; this design shows
+    // the same thing with a gold ring and a status word, and a 220–260dp circle
+    // that changes size is the one movement the eye cannot ignore — it competes
+    // with the numbers underneath, which are the thing being read.
+    //
+    // What is left is the rotation while connecting, which is information: the
+    // ring is being drawn, not sitting there.
     val spinning = resumed && animationsEnabled && (state == ConnectionState.CONNECTING || busy)
-
-    // Driven by Animatable + a keyed LaunchedEffect rather than an
-    // InfiniteTransition: a transition only accepts repeatable specs, so it
-    // cannot be stopped, while cancelling the effect genuinely halts the loop
-    // when the screen is not resumed (§5.5).
-    val breath = remember { Animatable(REST_SCALE) }
-    LaunchedEffect(breathSpec) {
-        val spec = breathSpec
-        if (spec == null) {
-            // Ease back to rest rather than snapping. The scale is on screen
-            // the whole time, so an instant jump to 1f is exactly the "瞬变"
-            // §5.3 forbids.
-            breath.animateTo(REST_SCALE, StarveilMotion.stateTransition())
-            return@LaunchedEffect
-        }
-        breath.animateTo(
-            targetValue = spec.peak,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = spec.periodMs / 2),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        )
-    }
 
     val spin = remember { Animatable(0f) }
     LaunchedEffect(spinning) {
@@ -176,15 +158,18 @@ fun ConnectionCore(
         )
     }
 
+    // Gold is the connected state, and only the connected state. An idle ring
+    // is the hairline colour — a line, not a dimmed version of the accent —
+    // because a gold ring on an idle app would make the accent mean "this
+    // exists" rather than "this is working". Warning and blocked keep their own
+    // colours: a status that shares the accent is a status nobody reads.
     val ringColor by animateColorAsState(
         targetValue = when (state) {
-            ConnectionState.CONNECTED -> StarveilColors.GlowPrimary
-            ConnectionState.CONNECTING -> StarveilColors.Connecting
-            // Disconnected is its own colour, not the disabled-text one: an
-            // idle tunnel is a normal state, not an unavailable control.
-            ConnectionState.DISCONNECTED -> StarveilColors.Disconnected
-            ConnectionState.WARNING -> StarveilColors.Warning
-            ConnectionState.BLOCKED -> StarveilColors.Blocked
+            ConnectionState.CONNECTED -> StarveilColors.gold
+            ConnectionState.CONNECTING -> StarveilColors.gold
+            ConnectionState.DISCONNECTED -> StarveilColors.hairline
+            ConnectionState.WARNING -> StarveilColors.warn
+            ConnectionState.BLOCKED -> StarveilColors.err
         },
         animationSpec = StarveilMotion.stateTransition(),
         label = "ring-color",
@@ -212,11 +197,6 @@ fun ConnectionCore(
         }
     }
 
-    // Always the animated value, never a `if (state == …) 1f` guard: the guard
-    // would throw the scale back to 1f the instant the state changed, which is
-    // the snap this is supposed to avoid. When the core stops breathing the
-    // effect above eases this to REST_SCALE instead.
-    val breathScale = breath.value
     val rotation = if (state == ConnectionState.CONNECTING) spin.value else 0f
 
     Box(
@@ -231,14 +211,10 @@ fun ConnectionCore(
             ) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        // The breath lives on the drawing, not on the Box: scaling the whole
-        // core scaled the state word with it, and text that breathes reads as
-        // a rendering fault.
         Canvas(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .size(diameter)
-                .scale(breathScale),
+                .size(diameter),
         ) {
             val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
             val outer = size.minDimension / 2
@@ -308,52 +284,19 @@ fun ConnectionCore(
 }
 
 private val CORE_SIZE = 220.dp
-private val RING_STROKE = 6.dp
+private val RING_STROKE = 3.dp
 private val RING_INSET = 22.dp
 
 /** How far the ring's glow reaches either side of it. */
-private val GLOW_SPREAD = 20.dp
-
-/** Scale at rest: the core's size when nothing is pulsing it. */
-private const val REST_SCALE = 1f
-
-private const val BREATH_MAX_SCALE = 1.06f
-
-/** Shallower than [BREATH_MAX_SCALE] on purpose — see [StarveilMotion.WARNING_BREATH_PERIOD_MS]. */
-private const val WARNING_BREATH_MAX_SCALE = 1.03f
+private val GLOW_SPREAD = 14.dp
 
 /**
- * Standby breathing: the smallest of the three amplitudes.
- *
- * A waiting device should be visible without looking alive — at the healthy
- * amplitude the idle core competes with the one that means "traffic is
- * flowing".
+ * The glow's peak. Barely there on purpose: at 0.5 the ring read as lit from
+ * within, which is the old HUD. This design wants a halo you feel rather than
+ * one you can point at.
  */
-private const val STANDBY_BREATH_MAX_SCALE = 1.018f
-
-private const val GLOW_PEAK_ALPHA = 0.5f
+private const val GLOW_PEAK_ALPHA = 0.16f
 private const val ARC_BRIGHTEN = 0.55f
-
-/**
- * How the core breathes in a given state, or null for a ring that holds still.
- *
- * A pair rather than one amplitude with two speeds: how *hard* it pulses is
- * part of the signal, and a warning pulsing as strongly as a healthy tunnel
- * would read as healthy.
- */
-internal data class Breath(val peak: Float, val periodMs: Int)
-
-internal fun breathFor(state: ConnectionState, active: Boolean): Breath? = when {
-    // Paused screen (§5.5) or reduced motion: decoration stops, the glow stays.
-    !active -> null
-    state == ConnectionState.CONNECTED -> Breath(BREATH_MAX_SCALE, StarveilMotion.BREATH_PERIOD_MS)
-    state == ConnectionState.WARNING ->
-        Breath(WARNING_BREATH_MAX_SCALE, StarveilMotion.WARNING_BREATH_PERIOD_MS)
-    // Idle still breathes: "off" and "ready" must not look the same.
-    state == ConnectionState.DISCONNECTED ->
-        Breath(STANDBY_BREATH_MAX_SCALE, StarveilMotion.STANDBY_BREATH_PERIOD_MS)
-    else -> null
-}
 
 /**
  * Whether the system is animating at all.
@@ -377,4 +320,43 @@ private fun rememberAnimationsEnabled(): Boolean {
             1f,
         ) != 0f
     }
+}
+
+/**
+ * The ring's geometry, as a function rather than a constant buried in a
+ * composable.
+ *
+ * Two facts live here and both are contracts the rest of the dashboard depends
+ * on: the size never varies with state, and there are exactly two sizes, picked
+ * by how much height the screen has. A third fact — that the ring is drawn, not
+ * filled — is the stroke width.
+ */
+internal object ConnectionCoreGeometry {
+
+    /** The stroke, in dp. */
+    const val strokeDp = 3f
+
+    /** The two diameters. */
+    private const val LARGE_DP = 260f
+    private const val SMALL_DP = 220f
+
+    /**
+     * Below this height the large ring leaves no room for the blocks under it,
+     * so the small one is used. 720dp is the line the dashboard has always
+     * drawn.
+     */
+    private const val SHORT_SCREEN_DP = 720f
+
+    /** The diameter for a given available height. */
+    fun diameterFor(availableHeightDp: Float): Float =
+        if (availableHeightDp < SHORT_SCREEN_DP) SMALL_DP else LARGE_DP
+
+    /**
+     * The size in a given state — the same number every time.
+     *
+     * Takes the state so the signature says "this is a question you might ask
+     * per state", and returns one value so the answer is on the record.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun sizeFor(state: ConnectionState): Float = LARGE_DP
 }

@@ -3,9 +3,6 @@ package com.justnpcx.starveil.ui
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +22,7 @@ import androidx.navigation.compose.composable
 import com.justnpcx.starveil.BuildConfig
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen
@@ -55,10 +53,10 @@ enum class Destination(
     // word wrapped to two lines on device (the trailing "d" dropped onto its
     // own row). The screen itself is still the dashboard.
     DASHBOARD("dashboard", R.string.nav_home, StarveilIcons.Dashboard),
-    PROFILES("profiles", R.string.nav_nodes, Icons.AutoMirrored.Filled.List),
+    PROFILES("profiles", R.string.nav_nodes, StarveilIcons.Nodes),
     RULES("rules", R.string.nav_rules, StarveilIcons.Route),
     LOGS("logs", R.string.nav_logs, StarveilIcons.Terminal),
-    SETTINGS("settings", R.string.nav_settings, Icons.Filled.Settings),
+    SETTINGS("settings", R.string.nav_settings, StarveilIcons.Settings),
 }
 
 /** Not a tab: reached from Settings, which is where the exception list lives. */

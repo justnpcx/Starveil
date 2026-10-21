@@ -11,8 +11,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import com.justnpcx.starveil.core.ui.theme.StarveilType
+import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -133,10 +153,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
-            StarveilTheme(
-                darkTheme = dark,
-                dynamicColor = dynamicColor,
-            ) {
+            StarveilTheme(darkTheme = dark) {
                 when (onboardingDone) {
                     null -> Box(modifier = Modifier.fillMaxSize())
                     false -> OnboardingScreen()
@@ -202,32 +219,78 @@ class MainActivity : ComponentActivity() {
 private fun StarveilBottomBar(navController: androidx.navigation.NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    NavigationBar {
-        Destination.entries.forEach { destination ->
-            val selected = currentDestination?.hierarchy?.any { it.route == destination.route } == true
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+    val hairline = StarveilColors.hairline
+    val gold = StarveilColors.gold
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(StarveilColors.bg)
+            .drawBehind {
+                // The bar's only separation from the page is this line. A
+                // shadow would be the one soft edge in an app that has none.
+                drawLine(
+                    color = hairline,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            },
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Destination.entries.forEach { destination ->
+                val selected =
+                    currentDestination?.hierarchy?.any { it.route == destination.route } == true
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        // The platform's minimum, so a tab is a target rather
+                        // than a label.
+                        .heightIn(min = 56.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            role = Role.Tab,
+                        ) {
+                            navController.navigate(destination.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                icon = { Icon(destination.icon, contentDescription = stringResource(destination.labelRes)) },
-                // One line, always: a tab label that wraps (as "Dashboard" did)
-                // drops its last letter onto a second row and grows the whole bar.
-                label = {
+                        .padding(vertical = StarveilSpacing.sm),
+                ) {
+                    Icon(
+                        imageVector = destination.icon,
+                        contentDescription = null,
+                        tint = if (selected) StarveilColors.ink else StarveilColors.ink3,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
                     Text(
                         text = stringResource(destination.labelRes),
+                        style = StarveilType.tech,
+                        color = if (selected) StarveilColors.ink else StarveilColors.ink3,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,
                     )
-                },
-            )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                    // The dot is the selection cue, and it is gold: the one
+                    // place the accent appears in the chrome. It holds its slot
+                    // when unselected so the label does not move.
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) gold else Color.Transparent),
+                    )
+                }
+            }
         }
     }
 }
