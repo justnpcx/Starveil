@@ -1086,7 +1086,7 @@ private fun NodeRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(NODE_CARD_PADDING),
+                .padding(StarveilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1229,8 +1229,6 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
 
 /** §6.3 card metrics. */
 private val NODE_CARD_MIN_HEIGHT = 72.dp
-private val NODE_CARD_CORNER = 16.dp
-private val NODE_CARD_PADDING = 16.dp
 private val SELECTED_BORDER_WIDTH = 2.dp
 private val STATUS_DOT_SIZE = 8.dp
 private val SPARKLINE_WIDTH = 64.dp

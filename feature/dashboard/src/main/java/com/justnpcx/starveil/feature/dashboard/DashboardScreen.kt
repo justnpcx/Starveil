@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -56,6 +54,7 @@ import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
+import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -201,7 +200,7 @@ fun DashboardScreen(
             // node — a group has no single curve — and the chart says
             // "collecting" in words until there is a shape worth drawing.
             state.health?.let { health ->
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
                 NodeHealthSection(
                     health = health,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -209,7 +208,7 @@ fun DashboardScreen(
                 )
             }
             // H1: the card must not touch the navigation bar.
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
         }
 
         SnackbarHost(
@@ -281,17 +280,14 @@ private fun NodeHealthSection(
     // The same card as the node above: same container colour, same rounded
     // shape. The chart used to sit on the bare page, which made the two blocks
     // look like different kinds of thing.
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
+    StarveilCard(modifier = modifier) {
         Column(
             modifier = Modifier.padding(
                 start = StarveilSpacing.lg,
                 top = StarveilSpacing.sm,
                 end = StarveilSpacing.lg,
                 // H1: 12 dp between the curve and the card's bottom edge.
-                bottom = 12.dp,
+                bottom = StarveilSpacing.md,
             ),
         ) {
         Row(
@@ -541,10 +537,7 @@ private fun CurrentNodeCard(
     health: NodeHealth?,
     onAutoSelect: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
+    StarveilCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
             Text(
                 text = stringResource(R.string.dashboard_current_node),
@@ -625,7 +618,7 @@ private fun AutoSelectChip(onClick: () -> Unit) {
                 .height(32.dp)
                 .clip(RoundedCornerShape(50))
                 .background(container)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = StarveilSpacing.lg),
             contentAlignment = Alignment.Center,
         ) {
             Text(

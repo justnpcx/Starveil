@@ -8,6 +8,20 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Changed
+
+- **Every card is the same card**: the last five screens still drew their own,
+  and `Card`'s default corner is 12dp against `StarveilCard`'s 16 — so the
+  dashboard and the keep-alive page were 4dp sharper than the rules and node
+  pages. Same screen, two shapes, and no way to say which was wrong. All five
+  now use `StarveilCard`, and the per-screen corner constants are gone.
+
+- **Spacing that is spacing comes from the scale**: the dashboard's 12dp and
+  16dp gaps and the node card's padding were the only values on the 4dp grid
+  that bypassed `StarveilSpacing`. Element sizes, the 48dp touch target and the
+  2–6dp optical nudges stay literal — the grid cannot express them, and forcing
+  them onto it would misalign text against icons.
+
 ## [0.7.14] — 2026-10-21
 
 ### Added

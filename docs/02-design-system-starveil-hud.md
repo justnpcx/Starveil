@@ -321,16 +321,32 @@
 - **Chip**：固定 16dp 圆角（**不要 percent**，percent 会随文本长度变成圆/胶囊两种
   形状）；选中为 24% primary 混合 + 1dp 55% primary 边框。
 
-新代码必须使用这两个组件。存量替换清单：
+新代码必须使用这两个组件。**存量已全部迁移（2026-10-21）**：
 
-| 页面 | 位置 | 现状 | 替换为 |
+| 页面 | 位置 | 迁移前 | 现在 |
 |---|---|---|---|
-| Dashboard | `DashboardScreen.kt:210` 节点健康区 | `Card` | `StarveilCard` |
-| Dashboard | `DashboardScreen.kt:468` 当前节点卡 | `Card` | `StarveilCard` |
-| Rules | `RulesScreen.kt:883` 路由预设卡 | `Card` | `StarveilCard` |
-| Rules | `RulesScreen.kt:399/572` 规则行 | `Surface` | 行可保留；若成卡用 `StarveilCard` |
-| Logs | 无卡片 | — | 新增卡片用 `StarveilCard` |
-| Settings | 无卡片 | — | 新增卡片用 `StarveilCard` |
-| Profiles | 已完成迁移 | — | — |
+| Dashboard | 节点健康区 | `Card`（Material3 默认 12dp 圆角） | `StarveilCard` |
+| Dashboard | 当前节点卡 | `Card`（12dp） | `StarveilCard` |
+| Rules | 路由预设卡 | `Card` + 本地 `CARD_CORNER = 16.dp` | `StarveilCard` |
+| Rules | 场景页说明卡 / 场景行 | `Card` + 裸 `RoundedCornerShape(16)` | `StarveilCard` |
+| Settings | 保活页卡片 | `Card`（12dp） | `StarveilCard` |
+| Rules | 规则行 | `Surface` | 保留：它是列表行，不是卡片 |
+| Profiles | 节点卡 | 已迁移（K4） | `StarveilCard` |
+
+**迁移实际修掉的问题**：`Card` 的默认圆角是 12dp，而 `StarveilCard` 是 16dp。所以
+Dashboard 和 Settings 的卡片此前比 Rules/Profiles 的**少 4dp 圆角**——同屏不同形状，
+肉眼可见但说不清哪里不对。这不是纯重构。
+
+### 间距
+
+`StarveilSpacing` 的台阶是 4 / 8 / 12 / 16 / 24 / 32。落在台阶上的间距必须用 Token。
+
+**不在此列、保持裸值的三类**，都有明确理由：
+
+1. **尺寸**：圆环直径（220/260dp）、图表高度、`CONTEXT_SLOT_HEIGHT`——它们是元素
+   大小，不是间距；
+2. **触摸目标**：48dp 是平台最小可点尺寸，写成 Token 反而会让人以为可以调；
+3. **发丝级光学修正**：2dp / 3dp / 6dp。4dp 网格表达不了它们，强行吸附会让文字
+   与图标对不齐——这类值调的是「看起来居中」，不是「间隔多少」。
 
 空状态统一用现有 `EmptyState`（Profiles 已用）。

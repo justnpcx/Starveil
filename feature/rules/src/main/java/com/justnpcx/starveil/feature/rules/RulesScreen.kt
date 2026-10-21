@@ -15,14 +15,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -74,6 +71,7 @@ import com.justnpcx.starveil.core.model.RulePack
 import com.justnpcx.starveil.core.model.RulePackAction
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
+import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -817,8 +815,6 @@ private const val FLOW_HEADER_KEY = "flow-header"
 private const val PRESET_KEY = "mainland-preset"
 
 /** Matches the node card on the Nodes screen; the two are the same kind of thing. */
-private val CARD_CORNER = 16.dp
-
 /**
  * How many groups the summary shows before "show all".
  *
@@ -880,13 +876,7 @@ private fun RoutePresetCard(
     onOpenScenes: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(CARD_CORNER),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
+    StarveilCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
             PresetRow(
                 title = stringResource(R.string.rules_preset_title),

@@ -16,15 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -58,6 +55,7 @@ import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.SceneTarget
 import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
+import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -120,11 +118,8 @@ fun ScenesScreen(
                 // The rationale, in the place the feature lives: what the
                 // permission is for, what happens without it, and no claim that
                 // anything leaves the phone.
-                Card(
+                StarveilCard(
                     modifier = Modifier.fillMaxWidth().padding(StarveilSpacing.lg),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
                 ) {
                     Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
                         Text(
@@ -204,13 +199,7 @@ private fun SceneCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(16),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
+    StarveilCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.padding(StarveilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
