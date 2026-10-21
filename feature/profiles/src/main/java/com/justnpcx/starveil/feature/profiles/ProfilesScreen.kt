@@ -128,10 +128,29 @@ fun ProfilesScreen(
     onEditNode: (ProfileType, Long) -> Unit = { _, _ -> },
     /** Measures one node by id, and reports what happened. */
     onTestNode: (Long, (String) -> Unit) -> Unit = { _, _ -> },
+    /**
+     * A link that arrived from outside the app, to import on arrival.
+     *
+     * Passed in rather than read here: the inbox lives in :app, and this screen
+     * must stay usable without one. [onLinkHandled] is called once it has been
+     * taken, so the same link cannot be imported again when the screen is
+     * recomposed or revisited.
+     */
+    incomingLink: String? = null,
+    onLinkHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showImport by remember { mutableStateOf(false) }
+
+    // A share link handed to the app. Keyed on the link so a second one while
+    // this screen is open is imported too, and reported through the same
+    // message channel as a pasted one — there is no second code path.
+    LaunchedEffect(incomingLink) {
+        val link = incomingLink ?: return@LaunchedEffect
+        viewModel.import(link)
+        onLinkHandled()
+    }
     // Group management sits behind a long-press on a chip, because a tap has to
     // stay the filter. Three stages, like the node delete: menu, then the
     // rename or the confirmation.

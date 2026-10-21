@@ -15,8 +15,12 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   node can be handed to the app instead of copied, switched over and pasted.
   `http`/`https` are deliberately not registered — a subscription URL is one of
   those, and claiming them would put the app in the chooser for every link
-  tapped in a browser. This half lands the door (scheme registration plus the
-  inbox the link waits in); wiring it to the import path is next.
+  tapped in a browser.
+
+  The link is imported on arrival and the app switches to the Nodes tab, where
+  the result is shown. It goes through the same import path as a pasted link,
+  so the outcome reads the same and there is no second copy of the behaviour to
+  drift.
 
   `singleTask` comes with it: without it, tapping a link while the app is open
   starts a second copy whose tunnel belongs to the first.

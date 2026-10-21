@@ -154,6 +154,7 @@ class MainActivity : ComponentActivity() {
                                 navController = navController,
                                 latencyTester = latencyTester,
                                 leakCheckRunner = leakCheckRunner,
+                                deepLinks = deepLinks,
                                 modifier = Modifier.padding(innerPadding),
                             )
                         }

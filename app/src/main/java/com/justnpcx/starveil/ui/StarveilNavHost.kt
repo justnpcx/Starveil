@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -16,6 +17,8 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,6 +36,7 @@ import androidx.navigation.navArgument
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.probe.LeakCheckRunner
 import com.justnpcx.starveil.core.probe.NodeLatencyTester
+import com.justnpcx.starveil.deeplink.DeepLinkInbox
 import com.justnpcx.starveil.di.ProtocolRegistryEntryPoint
 import com.justnpcx.starveil.feature.editor.ProfileEditorScreen
 import com.justnpcx.starveil.feature.rules.ScenesScreen
@@ -70,6 +74,7 @@ fun StarveilNavHost(
     navController: NavHostController,
     latencyTester: NodeLatencyTester,
     leakCheckRunner: LeakCheckRunner,
+    deepLinks: DeepLinkInbox,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -125,6 +130,22 @@ fun StarveilNavHost(
         }
     }
 
+    // A link that arrived before there was a screen — a cold launch from a
+    // share sheet, or onboarding still to get through. It waits in the inbox
+    // until this composition exists, then the Nodes tab is where it belongs:
+    // that is the screen that can show what the import did.
+    val pendingLink by deepLinks.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingLink) {
+        if (pendingLink == null) return@LaunchedEffect
+        navController.navigate(Destination.PROFILES.route) {
+            // The tab bar's own rule: one entry per tab, state restored. A
+            // link tapped while on Settings must not stack a second Nodes.
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Destination.DASHBOARD.route,
@@ -139,6 +160,8 @@ fun StarveilNavHost(
                 onTestNode = onTestNode,
                 onNewNode = { type -> navController.navigate(editorRouteFor(type)) },
                 onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
+                incomingLink = pendingLink,
+                onLinkHandled = { deepLinks.consume() },
             )
         }
         composable(Destination.RULES.route) {
