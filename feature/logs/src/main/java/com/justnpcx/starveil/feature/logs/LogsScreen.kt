@@ -1,27 +1,19 @@
 package com.justnpcx.starveil.feature.logs
 
-import android.content.Context
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,17 +23,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.AppLogLevel
 import com.justnpcx.starveil.core.model.AppLogLine
 import com.justnpcx.starveil.core.ui.components.EmptyState
+import com.justnpcx.starveil.core.ui.components.StarveilChip
+import com.justnpcx.starveil.core.ui.components.StarveilChipRow
+import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
+import com.justnpcx.starveil.core.ui.components.StarveilSearchField
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.util.writeClipboard
 import java.time.Instant
 import java.time.ZoneId
@@ -57,10 +57,9 @@ private const val COPIED_FEEDBACK_MS = 2_000L
  * Logs — the kernel's log lines, newest first, with a level filter, a text
  * search and a redacted export.
  *
- * This exists because on some ROMs (the vivo test device among them) `adb
- * logcat` is unreliable or filtered, which leaves the app unable to say why a
- * connection failed. The lines arrive already redacted, so exporting them
- * cannot leak credentials.
+ * The lines are bare on the page: no card, no row rules. A log is a column of
+ * text, and boxing it would put an edge between the reader and the only thing
+ * on the screen.
  */
 @Composable
 fun LogsScreen(
@@ -81,66 +80,46 @@ fun LogsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = StarveilSpacing.lg, top = StarveilSpacing.lg, end = StarveilSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        StarveilPageHeader(title = stringResource(R.string.logs_title)) {
             Text(
-                text = stringResource(R.string.logs_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
+                text = stringResource(if (showCopied) R.string.logs_copied else R.string.logs_copy),
+                style = StarveilType.label,
+                color = if (state.lines.isEmpty()) StarveilColors.ink3 else StarveilColors.accentA,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(StarveilSpacing.xs))
+                    .clickable(
+                        enabled = state.lines.isNotEmpty(),
+                        role = Role.Button,
+                    ) {
+                        writeClipboard(context, exportText(state.lines), "Starveil logs")
+                        copySignal++
+                    }
+                    .padding(horizontal = StarveilSpacing.md, vertical = StarveilSpacing.sm),
             )
-            TextButton(
-                onClick = {
-                    writeClipboard(context, exportText(state.lines), "Starveil logs")
-                    copySignal++
-                },
-                enabled = state.lines.isNotEmpty(),
-            ) {
-                Text(stringResource(if (showCopied) R.string.logs_copied else R.string.logs_copy))
-            }
         }
 
-        OutlinedTextField(
+        StarveilSearchField(
             value = state.query,
             onValueChange = viewModel::setQuery,
-            singleLine = true,
-            label = { Text(stringResource(R.string.logs_search_hint)) },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-            trailingIcon = {
-                if (state.query.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.setQuery("") }) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.logs_search_clear),
-                        )
-                    }
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
+            placeholder = stringResource(R.string.logs_search_hint),
+            modifier = Modifier.padding(
+                start = StarveilSpacing.pageMargin,
+                end = StarveilSpacing.pageMargin,
+                bottom = StarveilSpacing.sm,
+            ),
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-        ) {
-            FilterChip(
+        StarveilChipRow {
+            StarveilChip(
+                label = stringResource(R.string.logs_filter_all),
                 selected = state.levelFilter == null,
                 onClick = { state.levelFilter?.let(viewModel::toggleLevel) },
-                label = { Text(stringResource(R.string.logs_filter_all)) },
             )
             AppLogLevel.entries.forEach { level ->
-                FilterChip(
+                StarveilChip(
+                    label = level.name,
                     selected = state.levelFilter == level,
                     onClick = { viewModel.toggleLevel(level) },
-                    label = { Text(level.name) },
                 )
             }
         }
@@ -160,11 +139,14 @@ fun LogsScreen(
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                // No row rules and no spacing between lines: the line height is
+                // the rhythm, and a divider every 19dp would be a stripe.
                 contentPadding = PaddingValues(
-                    horizontal = StarveilSpacing.lg,
-                    vertical = StarveilSpacing.sm,
+                    start = StarveilSpacing.pageMargin,
+                    end = StarveilSpacing.pageMargin,
+                    top = StarveilSpacing.sm,
+                    bottom = StarveilSpacing.xxl,
                 ),
-                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
             ) {
                 // Keyed on the line's own id. A key built from the timestamp and
                 // the text is not unique — sing-box can log the same line twice
@@ -182,24 +164,26 @@ private fun LogRow(line: AppLogLine) {
     Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
         Text(
             text = TIME_FORMAT.format(Instant.ofEpochMilli(line.timestampMs).atZone(ZoneId.systemDefault())),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.log,
+            color = StarveilColors.ink3,
         )
         Text(
+            // The level is a letter, not a badge: a coloured block behind a
+            // one-character label is a stripe of colour down the page.
             text = line.level.name.take(1),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
+            style = StarveilType.log,
             color = line.level.colour(),
         )
+        Spacer(modifier = Modifier.width(StarveilSpacing.xs))
         Text(
             text = line.message,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
+            style = StarveilType.log,
+            color = StarveilColors.ink2,
             // The reason a connection failed is at the END of the line, so a
             // tight cap hides exactly the part being looked for.
             maxLines = 6,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -218,10 +202,11 @@ private fun exportText(lines: List<AppLogLine>): String =
         "$time ${line.level.name.take(1)} ${line.message}"
     }
 
-/** Warn and error carry the theme's error colour; the rest stay neutral. */
+/** The level as a word colour: DEBUG dim, INFO secondary, WARN amber, ERROR red. */
 @Composable
 private fun AppLogLevel.colour(): Color = when (this) {
-    AppLogLevel.WARN -> MaterialTheme.colorScheme.tertiary
-    AppLogLevel.ERROR -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
+    AppLogLevel.DEBUG -> StarveilColors.ink3
+    AppLogLevel.INFO -> StarveilColors.ink2
+    AppLogLevel.WARN -> StarveilColors.warn
+    AppLogLevel.ERROR -> StarveilColors.err
 }
