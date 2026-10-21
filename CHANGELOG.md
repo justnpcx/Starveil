@@ -8,6 +8,8 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.7] — 2026-10-21
+
 ### Changed
 
 - **Only the network you are on is kept direct.** The routing rule used to keep
