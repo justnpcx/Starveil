@@ -16,7 +16,14 @@ import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
+import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
+import com.justnpcx.starveil.core.ui.components.StarveilChipRow
+import com.justnpcx.starveil.core.ui.components.StarveilDivider
+import com.justnpcx.starveil.core.ui.components.StarveilFab
+import com.justnpcx.starveil.core.ui.components.StarveilIconAction
+import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
+import com.justnpcx.starveil.core.ui.components.StarveilSearchField
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
@@ -43,7 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawBehind
+import com.justnpcx.starveil.core.ui.theme.MonoFamily
+import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import androidx.compose.foundation.lazy.LazyColumn
@@ -193,7 +203,12 @@ fun ProfilesScreen(
     }
 
     if (showAddSheet) {
-        ModalBottomSheet(onDismissRequest = { showAddSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddSheet = false },
+            containerColor = StarveilColors.surfaceGlass,
+            shape = StarveilShapes.sheet,
+            dragHandle = null,
+        ) {
             Column(modifier = Modifier.navigationBarsPadding()) {
                 AddSheetRow(stringResource(R.string.profiles_add_manual)) {
                     showAddSheet = false
@@ -243,26 +258,22 @@ fun ProfilesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.profiles_title)) },
-                actions = {
+            StarveilPageHeader(title = stringResource(R.string.profiles_title)) {
                     // Whole-list test, as an icon: the text button cost a row
                     // above the list for something used occasionally.
-                    IconButton(onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } }) {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.profiles_test_all),
-                        )
-                    }
+                    StarveilIconAction(
+                        icon = StarveilIcons.Refresh,
+                        contentDescription = stringResource(R.string.profiles_test_all),
+                        onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } },
+                    )
                     // Group actions are not filters, so they do not belong in
                     // the filter row: that row is now only "which nodes".
                     Box {
-                        IconButton(onClick = { showGroupMenu = true }) {
-                            Icon(
-                                Icons.Filled.MoreVert,
-                                contentDescription = stringResource(R.string.profiles_group_actions),
-                            )
-                        }
+                        StarveilIconAction(
+                            icon = StarveilIcons.More,
+                            contentDescription = stringResource(R.string.profiles_group_actions),
+                            onClick = { showGroupMenu = true },
+                        )
                         DropdownMenu(
                             expanded = showGroupMenu,
                             onDismissRequest = { showGroupMenu = false },
@@ -283,14 +294,15 @@ fun ProfilesScreen(
                             )
                         }
                     }
-                },
-            )
+            }
         },
+        containerColor = StarveilColors.bg,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddSheet = true }) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.profiles_add))
-            }
+            StarveilFab(
+                contentDescription = stringResource(R.string.profiles_add),
+                onClick = { showAddSheet = true },
+            )
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -324,13 +336,7 @@ fun ProfilesScreen(
             }
             // Always shown, even with no groups: creating the first one has to
             // have somewhere to live.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
+            StarveilChipRow {
                 GroupChip(
                     label = stringResource(R.string.profiles_group_all),
                     selected = state.groupFilter == null,
@@ -366,19 +372,18 @@ fun ProfilesScreen(
                     body = stringResource(R.string.profiles_no_search_body, state.query),
                 )
 
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    // 8dp from the chip row's own bottom padding plus 4dp here
-                    // is the 12dp the row needs; 16dp on both sides left a
-                    // 24dp hole that read as a missing element.
-                    contentPadding = PaddingValues(
-                        start = StarveilSpacing.lg,
-                        top = StarveilSpacing.xs,
-                        end = StarveilSpacing.lg,
-                        bottom = StarveilSpacing.lg,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                // One card holds the whole list: a column of separate cards
+                // reads as a stack of unrelated things, and the rows are one
+                // list. The FAB clears the last row by its own height.
+                else -> StarveilCard(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = StarveilSpacing.pageMargin),
                 ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = StarveilSpacing.fabClearance),
+                    ) {
                     itemsIndexed(state.profiles, key = { _, profile -> profile.id }) { index, profile ->
                         // §5.2: rows settle in top-down instead of snapping in
                         // as a block. `appeared` lives out here so a row that
@@ -391,6 +396,7 @@ fun ProfilesScreen(
                                     groupLabel = groupNames[profile.groupId]
                                         ?: stringResource(R.string.profiles_group_none),
                                     selected = profile.id == state.selectedId,
+                                    showDivider = index != state.profiles.lastIndex,
                                     onClick = { viewModel.select(profile.id) },
                                     onLongClick = { rowMenu = profile },
                                     onTestClick = {
@@ -399,6 +405,7 @@ fun ProfilesScreen(
                                 )
                             }
                         }
+                    }
                     }
                 }
             }
@@ -436,7 +443,7 @@ fun ProfilesScreen(
 
                     Text(
                         text = stringResource(R.string.profiles_group_mode_title),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = StarveilType.label,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
                         GroupMode.entries.forEach { mode ->
@@ -508,7 +515,7 @@ fun ProfilesScreen(
                     ) {
                         Text(
                             text = stringResource(R.string.profiles_group_delete),
-                            color = MaterialTheme.colorScheme.error,
+                            color = StarveilColors.err,
                         )
                     }
                 }
@@ -521,55 +528,51 @@ fun ProfilesScreen(
         )
     }
 
+    // The row's actions, as a sheet rather than a dialog: a dialog puts four
+    // text buttons in the middle of the screen, and the sheet is where the rest
+    // of this page's menus live. Edit is first because it is what a long-press
+    // is usually for.
     rowMenu?.let { profile ->
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = { rowMenu = null },
-            title = { Text(stringResource(R.string.profiles_row_menu_title, profile.name)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    TextButton(
-                        onClick = {
-                            rowMenu = null
-                            onEditNode(profile.type, profile.id)
-                        },
-                    ) {
-                        Text(stringResource(R.string.profiles_row_edit))
-                    }
-                    TextButton(
-                        onClick = {
-                            rowMenu = null
-                            viewModel.shareNode(profile)
-                        },
-                    ) {
-                        Text(stringResource(R.string.profiles_row_share))
-                    }
-                    TextButton(
-                        onClick = {
-                            rowMenu = null
-                            movingProfile = profile
-                        },
-                    ) {
-                        Text(stringResource(R.string.profiles_row_move))
-                    }
-                    TextButton(
-                        onClick = {
-                            rowMenu = null
-                            nodeToDelete = profile
-                        },
-                    ) {
-                        Text(
-                            text = stringResource(R.string.profiles_delete, profile.name),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
+            containerColor = StarveilColors.surfaceGlass,
+            dragHandle = null,
+        ) {
+            Column(modifier = Modifier.navigationBarsPadding()) {
+                Text(
+                    text = stringResource(R.string.profiles_row_menu_title, profile.name),
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        top = StarveilSpacing.xl,
+                        bottom = StarveilSpacing.sm,
+                    ),
+                )
+                StarveilSheetRow(stringResource(R.string.profiles_row_edit)) {
+                    rowMenu = null
+                    onEditNode(profile.type, profile.id)
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { rowMenu = null }) {
-                    Text(stringResource(R.string.profiles_group_cancel))
+                StarveilSheetRow(stringResource(R.string.profiles_row_share)) {
+                    rowMenu = null
+                    viewModel.shareNode(profile)
                 }
-            },
-        )
+                StarveilSheetRow(stringResource(R.string.profiles_row_move)) {
+                    rowMenu = null
+                    movingProfile = profile
+                }
+                StarveilSheetRow(
+                    text = stringResource(R.string.profiles_delete, profile.name),
+                    destructive = true,
+                ) {
+                    rowMenu = null
+                    nodeToDelete = profile
+                }
+            }
+        }
     }
 
     nodeToDelete?.let { profile ->
@@ -586,7 +589,7 @@ fun ProfilesScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.profiles_delete, profile.name),
-                        color = MaterialTheme.colorScheme.error,
+                        color = StarveilColors.err,
                     )
                 }
             },
@@ -667,7 +670,7 @@ fun ProfilesScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.profiles_group_delete),
-                        color = MaterialTheme.colorScheme.error,
+                        color = StarveilColors.err,
                     )
                 }
             },
@@ -799,8 +802,8 @@ private fun ImportDialog(
                 hint?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = StarveilType.label,
+                        color = StarveilColors.err,
                     )
                 }
                 // Paste only. The scan entry lives in the add sheet, one level
@@ -863,8 +866,8 @@ private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
                 if (link == null) {
                     Text(
                         text = stringResource(R.string.profiles_share_unavailable),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
                     )
                     return@Column
                 }
@@ -872,8 +875,8 @@ private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
                 QrCode(content = link, modifier = Modifier.size(QR_SIZE))
                 Text(
                     text = link,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
                 TextButton(
                     onClick = {
@@ -911,8 +914,8 @@ private fun QrCode(content: String, modifier: Modifier = Modifier) {
         // screen to copy, so say what happened rather than showing a blank box.
         Text(
             text = stringResource(R.string.profiles_share_no_qr),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
         )
         return
     }
@@ -1034,8 +1037,8 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = StarveilSpacing.lg)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.errorContainer),
+                    .clip(StarveilShapes.card)
+                    .background(StarveilColors.err.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
@@ -1043,7 +1046,7 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
                     // Decorative: the row already announces itself, and a
                     // second "Delete <node>" would read it out twice.
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    tint = StarveilColors.err,
                 )
             }
         },
@@ -1066,36 +1069,38 @@ private fun NodeRow(
     health: NodeHealth?,
     groupLabel: String,
     selected: Boolean,
+    showDivider: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onTestClick: () -> Unit,
 ) {
     val reading = latencyReading(profile, health)
-    val wash = StarveilColors.goldWash
-    val gold = StarveilColors.gold
+    val wash = StarveilColors.accentWash
+    val accent = StarveilColors.accentA
     val line = StarveilColors.hairline
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .drawBehind {
-                // The selected row is marked twice: a gold rule on its leading
-                // edge and a wash behind it. One cue alone is not enough on a
-                // list where the row above is also a row, and a wash alone
-                // disappears on a bright screen.
+                // The selected row is marked twice: a cyan rule on its leading
+                // edge and a 12% wash behind it. One cue alone is not enough on
+                // a list where the row above is also a row.
                 if (selected) {
                     drawRect(color = wash)
                     drawRect(
-                        color = gold,
+                        color = accent,
                         topLeft = Offset.Zero,
-                        size = androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height),
+                        size = Size(2.dp.toPx(), size.height),
                     )
                 }
-                drawLine(
-                    color = line,
-                    start = Offset(StarveilSpacing.pageMargin.toPx(), size.height),
-                    end = Offset(size.width - StarveilSpacing.pageMargin.toPx(), size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
+                if (showDivider) {
+                    drawLine(
+                        color = line,
+                        start = Offset(StarveilSpacing.lg.toPx(), size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                }
             }
             .combinedClickable(
                 onClick = onClick,
@@ -1106,64 +1111,48 @@ private fun NodeRow(
                 onLongClickLabel = stringResource(R.string.profiles_node_long_press),
             )
             .heightIn(min = NODE_ROW_MIN_HEIGHT)
-            .padding(
-                start = StarveilSpacing.pageMargin + StarveilSpacing.sm,
-                end = StarveilSpacing.pageMargin,
-                top = StarveilSpacing.md,
-                bottom = StarveilSpacing.md,
-            ),
+            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            // The two columns are aligned on their first line, so the name and
-            // the number share a baseline across the gap between them.
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusDot(status = health?.status ?: NodeStatus.UNTESTED)
-                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-                    Text(
-                        text = profile.displayName(),
-                        style = StarveilType.headline,
-                        color = StarveilColors.ink,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // The name and the number share a baseline: they are the row's two
+            // readings, and a number that floats at the top-right of the row is
+            // the thing this replaces.
+            Row(modifier = Modifier.fillMaxWidth()) {
+                StatusDot(
+                    status = health?.status ?: NodeStatus.UNTESTED,
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.sm))
                 Text(
-                    // Group first: it is what the user filed the node under. The
-                    // host is the detail they read second, in the technical face
-                    // because an address is an annotation, not prose.
-                    text = "$groupLabel · ${profile.type.name.lowercase()} " +
-                        "· ${profile.server}:${profile.port}",
-                    style = StarveilType.tech,
-                    color = StarveilColors.ink2,
+                    // The flag is part of the display name and sits on the same
+                    // baseline as the rest of it.
+                    text = profile.displayName(),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .alignByBaseline(),
                 )
-            }
-            Spacer(modifier = Modifier.width(StarveilSpacing.md))
-            Column(horizontalAlignment = Alignment.End) {
-                // The number first, so its baseline matches the name's; the
-                // sparkline hangs under it.
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                // The number is the node's own measurement, so tapping it
+                // measures *this* node — testing the selected one from here
+                // would quietly measure a different node than the one under the
+                // finger.
                 Text(
                     text = when (reading) {
-                        is LatencyReading.Value -> "${reading.ms}"
+                        is LatencyReading.Value -> reading.ms.toString()
                         LatencyReading.Timeout ->
                             stringResource(R.string.profiles_latency_timeout)
                         LatencyReading.Untested ->
                             stringResource(R.string.profiles_latency_untested)
                     },
-                    // The badge is the node's own measurement, so tapping it
-                    // measures *this* node — testing the selected one from here
-                    // would quietly measure a different node than the one under
-                    // the finger.
                     modifier = Modifier
+                        .alignByBaseline()
                         .clip(RoundedCornerShape(LATENCY_TOUCH_CORNER))
                         .clickable(role = Role.Button, onClick = onTestClick)
-                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                        .padding(horizontal = StarveilSpacing.xs),
                     style = if (reading is LatencyReading.Value) {
                         StarveilType.numInline
                     } else {
@@ -1178,13 +1167,49 @@ private fun NodeRow(
                         StarveilColors.ink3
                     },
                 )
-                if (health != null && !health.collecting) {
-                    LatencySparkline(
-                        health = health,
-                        modifier = Modifier.width(SPARKLINE_WIDTH),
-                        height = SPARKLINE_HEIGHT,
+                if (reading is LatencyReading.Value) {
+                    Text(
+                        text = " ms",
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink2,
+                        modifier = Modifier.alignByBaseline(),
                     )
                 }
+            }
+            Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+            Row(modifier = Modifier.padding(start = 16.dp)) {
+                // Group first: it is what the user filed the node under. The
+                // protocol is the mono face because it is a name, not prose,
+                // and the address is the detail read last.
+                Text(
+                    text = groupLabel,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                )
+                Text(
+                    text = " · ",
+                    style = StarveilType.label,
+                    color = StarveilColors.ink3,
+                )
+                Text(
+                    text = profile.type.name.lowercase(),
+                    style = StarveilType.label.copy(fontFamily = MonoFamily),
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                )
+                Text(
+                    text = " · ",
+                    style = StarveilType.label,
+                    color = StarveilColors.ink3,
+                )
+                Text(
+                    text = profile.server + ":" + profile.port,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -1197,7 +1222,7 @@ private fun NodeRow(
  * screen reader — the dot is the only place the window's verdict appears.
  */
 @Composable
-private fun StatusDot(status: NodeStatus) {
+private fun StatusDot(status: NodeStatus, modifier: Modifier = Modifier) {
     val color = when (status) {
         NodeStatus.UP -> StarveilColors.ok
         NodeStatus.DOWN -> StarveilColors.err
@@ -1209,7 +1234,7 @@ private fun StatusDot(status: NodeStatus) {
         NodeStatus.UNTESTED -> stringResource(R.string.profiles_status_untested)
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(STATUS_DOT_SIZE)
             .clip(CircleShape)
             .background(color)
@@ -1287,62 +1312,16 @@ private fun SearchField(
     onQueryChange: (String) -> Unit,
     onClear: () -> Unit,
 ) {
-    val hairline = StarveilColors.hairline
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                start = StarveilSpacing.pageMargin,
-                end = StarveilSpacing.pageMargin,
-                top = StarveilSpacing.sm,
-            )
-            .heightIn(min = 48.dp)
-            .drawBehind {
-                drawLine(
-                    color = hairline,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = StarveilIcons.Search,
-            contentDescription = null,
-            tint = StarveilColors.ink3,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-        Box(modifier = Modifier.weight(1f)) {
-            if (query.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.profiles_search_hint),
-                    style = StarveilType.body,
-                    color = StarveilColors.ink3,
-                )
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = StarveilType.body.copy(color = StarveilColors.ink),
-                cursorBrush = SolidColor(StarveilColors.gold),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        if (query.isNotEmpty()) {
-            IconButton(onClick = onClear) {
-                Icon(
-                    imageVector = StarveilIcons.Close,
-                    contentDescription = stringResource(R.string.profiles_search_clear),
-                    tint = StarveilColors.ink3,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
+    StarveilSearchField(
+        value = query,
+        onValueChange = { next -> if (next.isEmpty()) onClear() else onQueryChange(next) },
+        placeholder = stringResource(R.string.profiles_search_hint),
+        modifier = Modifier.padding(
+            start = StarveilSpacing.pageMargin,
+            end = StarveilSpacing.pageMargin,
+            top = StarveilSpacing.sm,
+        ),
+    )
 }
 
 @Composable
@@ -1376,8 +1355,8 @@ private val LATENCY_TOUCH_CORNER = 8.dp
 private fun Hint(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = StarveilType.label,
+        color = StarveilColors.ink2,
     )
 }
 
@@ -1398,17 +1377,41 @@ private fun ProfileType.editorLabel(): String = when (this) {
     ProfileType.OTHER -> "Node"
 }
 
-/** One line in the add sheet: a title, and a tap. */
+/**
+ * One line in a sheet: a title, a tap, and a hairline above it.
+ *
+ * 56dp tall with the label at headline weight — a menu item is a sentence you
+ * read, not a paragraph you parse, and the previous text buttons were neither.
+ */
+@Composable
+private fun StarveilSheetRow(
+    text: String,
+    destructive: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Column {
+        StarveilDivider(startInset = StarveilSpacing.pageMargin, endInset = StarveilSpacing.pageMargin)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clickable(role = Role.Button, onClick = onClick)
+                .padding(horizontal = StarveilSpacing.pageMargin),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                text = text,
+                style = StarveilType.headline,
+                color = if (destructive) StarveilColors.err else StarveilColors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** One line in the add sheet. */
 @Composable
 private fun AddSheetRow(title: String, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = StarveilSpacing.sm),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.fillMaxWidth().padding(vertical = StarveilSpacing.sm),
-        )
-    }
+    StarveilSheetRow(text = title, onClick = onClick)
 }
