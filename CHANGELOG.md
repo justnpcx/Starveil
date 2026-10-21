@@ -8,6 +8,19 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Added
+
+- **Share links open the app**: `ss://`, `vless://`, `vmess://`, `trojan://`,
+  `hysteria2://`/`hy2://`, `tuic://` and `wireguard://` are registered, so a
+  node can be handed to the app instead of copied, switched over and pasted.
+  `http`/`https` are deliberately not registered — a subscription URL is one of
+  those, and claiming them would put the app in the chooser for every link
+  tapped in a browser. This half lands the door (scheme registration plus the
+  inbox the link waits in); wiring it to the import path is next.
+
+  `singleTask` comes with it: without it, tapping a link while the app is open
+  starts a second copy whose tunnel belongs to the first.
+
 ## [0.7.13] — 2026-10-21
 
 ### Added

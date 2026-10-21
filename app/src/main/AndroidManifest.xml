@@ -76,10 +76,43 @@
             android:name=".MainActivity"
             android:configChanges="uiMode|orientation|screenSize|screenLayout|density|keyboardHidden"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Share links, so a node can be handed to the app instead of
+                pasted into it.
+
+                Only the schemes this app can parse. `http` and `https` are
+                deliberately absent: a subscription URL is one of those, and
+                registering them would put this app in the chooser every time
+                someone taps a link in a browser. A subscription is pasted.
+
+                `singleTask` above is part of this: without it, tapping a link
+                while the app is open starts a second copy, and the tunnel it
+                is connected to belongs to the first.
+
+                These schemes are also claimed by other proxy clients, so the
+                system shows a chooser. That is the correct outcome — the user
+                decides which app they meant.
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="ss" />
+                <data android:scheme="vless" />
+                <data android:scheme="vmess" />
+                <data android:scheme="trojan" />
+                <data android:scheme="hysteria2" />
+                <data android:scheme="hy2" />
+                <data android:scheme="tuic" />
+                <data android:scheme="wireguard" />
             </intent-filter>
         </activity>
 
