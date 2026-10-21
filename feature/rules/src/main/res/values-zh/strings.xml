@@ -20,6 +20,7 @@
     <string name="rules_match_label">匹配</string>
     <string name="rules_value_label">值</string>
     <string name="rules_action_label">动作</string>
+    <string name="rules_effective_count_title">生效规则</string>
     <string name="rules_flow_title">最近流向</string>
     <string name="rules_flow_empty">还没有流量经过。内核做出判定后会显示在这里。</string>
     <string name="rules_flow_view_all">查看全部（%1$d）</string>

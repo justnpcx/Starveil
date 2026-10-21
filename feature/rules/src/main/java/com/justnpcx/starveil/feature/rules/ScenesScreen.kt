@@ -57,7 +57,9 @@ import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.EmptyState
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * Scenes: the network decides which policy is in force.
@@ -124,12 +126,12 @@ fun ScenesScreen(
                     Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
                         Text(
                             text = stringResource(R.string.scenes_permission_title),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = StarveilType.headline,
                         )
                         Text(
                             text = stringResource(R.string.scenes_permission_body),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = StarveilType.label,
+                            color = StarveilColors.ink2,
                             modifier = Modifier.padding(top = StarveilSpacing.xs),
                         )
                         TextButton(
@@ -205,11 +207,11 @@ private fun SceneCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = scene.name, style = MaterialTheme.typography.titleSmall)
+                Text(text = scene.name, style = StarveilType.headline)
                 Text(
                     text = sceneSummary(scene, profiles, groups),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = StarveilSpacing.xs),
@@ -310,8 +312,8 @@ private fun SceneDialog(
                 if (!ssidReadable) {
                     Text(
                         text = stringResource(R.string.scenes_ssid_unavailable),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = StarveilType.label,
+                        color = StarveilColors.err,
                     )
                 }
                 if (!mobile) {
@@ -327,7 +329,7 @@ private fun SceneDialog(
 
                 Text(
                     text = stringResource(R.string.scenes_preset),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = StarveilType.label,
                 )
                 listOf(
                     RoutePreset.BYPASS_MAINLAND,
@@ -343,7 +345,7 @@ private fun SceneDialog(
 
                 Text(
                     text = stringResource(R.string.scenes_target),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = StarveilType.label,
                 )
                 Column(modifier = Modifier.heightIn(max = 220.dp)) {
                     RadioRow(
@@ -409,6 +411,6 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onClick)
-        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Text(text = label, style = StarveilType.label)
     }
 }

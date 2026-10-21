@@ -73,6 +73,22 @@ import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.EmptyState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.justnpcx.starveil.core.ui.components.StarveilDivider
+import com.justnpcx.starveil.core.ui.components.StarveilFab
+import com.justnpcx.starveil.core.ui.components.StarveilIconAction
+import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
+import com.justnpcx.starveil.core.ui.components.StarveilSwitch
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
+import com.justnpcx.starveil.core.ui.theme.MonoFamily
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import java.time.Instant
@@ -129,27 +145,19 @@ fun RulesScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = stringResource(R.string.rules_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    top = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                ),
-            )
+            StarveilPageHeader(title = stringResource(R.string.rules_title))
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // Room for the FAB: without it the last line of the empty state
                 // sat under the button, which is how "全部走代理）" got covered.
                 contentPadding = PaddingValues(
-                    start = StarveilSpacing.lg,
-                    top = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    bottom = 96.dp,
+                    start = StarveilSpacing.pageMargin,
+                    top = StarveilSpacing.xs,
+                    end = StarveilSpacing.pageMargin,
+                    bottom = StarveilSpacing.fabClearance,
                 ),
-                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
             ) {
                 // The preset is a switch, not a rule: it is a whole routing
                 // policy, and it belongs above both the decisions it produces
@@ -194,34 +202,38 @@ fun RulesScreen(
                         )
                     }
                 } else {
-                    itemsIndexed(state.rules, key = { _, rule -> rule.id }) { index, rule ->
-                        // §5.2: rows settle in top-down. The index also replaces
-                        // the per-row indexOfFirst lookup this used to do.
-                        AppearOnFirstShow(key = rule.id, index = index, seen = appeared) {
-                            RuleRow(
-                                rule = rule,
-                                canMoveUp = index > 0,
-                                canMoveDown = index in 0 until state.rules.lastIndex,
-                                onToggle = { viewModel.setEnabled(rule, it) },
-                                onEdit = { editing = rule },
-                                onDelete = { pendingDelete = rule },
-                                onMoveUp = { viewModel.move(rule, up = true) },
-                                onMoveDown = { viewModel.move(rule, up = false) },
-                            )
+                    // The user's own rules are one list, so they are one card.
+                    // A card per rule was a stack of boxes with a box inside.
+                    item(key = "rules") {
+                        StarveilCard {
+                            state.rules.forEachIndexed { index, rule ->
+                                if (index > 0) {
+                                    StarveilDivider(startInset = StarveilSpacing.lg)
+                                }
+                                RuleRow(
+                                    rule = rule,
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < state.rules.lastIndex,
+                                    onToggle = { viewModel.setEnabled(rule, it) },
+                                    onEdit = { editing = rule },
+                                    onDelete = { pendingDelete = rule },
+                                    onMoveUp = { viewModel.move(rule, up = true) },
+                                    onMoveDown = { viewModel.move(rule, up = false) },
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        FloatingActionButton(
+        StarveilFab(
+            contentDescription = stringResource(R.string.rules_add),
             onClick = { showAdd = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(StarveilSpacing.lg),
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.rules_add))
-        }
+        )
 
         SnackbarHost(
             hostState = snackbar,
@@ -316,8 +328,8 @@ private fun RuleMarketDialog(
             ) {
                 Text(
                     text = stringResource(R.string.rules_market_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
                 if (failure != null) {
                     Text(
@@ -325,8 +337,8 @@ private fun RuleMarketDialog(
                             R.string.rules_market_failed,
                             packTitle(LocalContext.current, failure.id),
                         ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = StarveilType.label,
+                        color = StarveilColors.err,
                     )
                 }
                 packs.forEach { pack ->
@@ -334,12 +346,12 @@ private fun RuleMarketDialog(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = packTitle(LocalContext.current, pack.id),
-                                style = MaterialTheme.typography.titleSmall,
+                                style = StarveilType.headline,
                             )
                             Text(
                                 text = packDescription(LocalContext.current, pack.id),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = StarveilType.label,
+                                color = StarveilColors.ink2,
                             )
                         }
                         Switch(
@@ -394,49 +406,73 @@ private fun RuleRow(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "${kindLabel(rule.matcher.kind)}: ${rule.matcher.value}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = actionLabel(rule.action),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = rule.enabled,
-                    onCheckedChange = onToggle,
+    Column {
+        Row(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.xs,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = kindLabel(rule.matcher.kind) + ": " + rule.matcher.value,
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = actionLabel(rule.action),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
             }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onEdit) { Text(stringResource(R.string.rules_edit)) }
-                TextButton(onClick = onDelete) { Text(stringResource(R.string.rules_delete)) }
-                Box(modifier = Modifier.weight(1f))
-                IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowUp,
-                        contentDescription = stringResource(R.string.rules_move_up),
-                    )
-                }
-                IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.rules_move_down),
-                    )
-                }
-            }
+            StarveilSwitch(checked = rule.enabled, onCheckedChange = onToggle)
+        }
+        Row(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.sm,
+                bottom = StarveilSpacing.sm,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.rules_edit),
+                style = StarveilType.label,
+                color = StarveilColors.accentA,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(StarveilSpacing.xs))
+                    .clickable(role = Role.Button, onClick = onEdit)
+                    .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+            )
+            Text(
+                text = stringResource(R.string.rules_delete),
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(StarveilSpacing.xs))
+                    .clickable(role = Role.Button, onClick = onDelete)
+                    .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            StarveilIconAction(
+                icon = StarveilIcons.Up,
+                contentDescription = stringResource(R.string.rules_move_up),
+                onClick = onMoveUp,
+                enabled = canMoveUp,
+                tint = if (canMoveUp) StarveilColors.ink2 else StarveilColors.ink3.copy(alpha = 0.4f),
+            )
+            StarveilIconAction(
+                icon = StarveilIcons.Down,
+                contentDescription = stringResource(R.string.rules_move_down),
+                onClick = onMoveDown,
+                enabled = canMoveDown,
+                tint = if (canMoveDown) StarveilColors.ink2 else StarveilColors.ink3.copy(alpha = 0.4f),
+            )
         }
     }
 }
@@ -460,7 +496,7 @@ private fun RuleDialog(
             Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
                 Text(
                     text = stringResource(R.string.rules_match_label),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = StarveilType.label,
                 )
                 Row(
                     modifier = Modifier
@@ -485,7 +521,7 @@ private fun RuleDialog(
                 )
                 Text(
                     text = stringResource(R.string.rules_action_label),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = StarveilType.label,
                 )
                 Row(
                     modifier = Modifier
@@ -535,68 +571,64 @@ private fun FlowSection(
     val groups = remember(records) { groupFlow(records) }
     val shown = if (expanded) groups else groups.take(GROUP_ROWS)
 
-    Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+    StarveilCard {
         Row(
-            // Inset like the preset card's content, so the section header and
-            // the card's first line share a left edge.
-            modifier = Modifier.padding(start = StarveilSpacing.lg),
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.sm,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.rules_flow_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(top = StarveilSpacing.sm),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+                modifier = Modifier.weight(1f),
             )
             if (records.isNotEmpty()) {
-                TextButton(
-                    onClick = onOpenAll,
-                    contentPadding = PaddingValues(horizontal = 0.dp),
-                ) {
-                    Text(stringResource(R.string.rules_flow_view_all, records.size))
-                }
+                Text(
+                    text = stringResource(R.string.rules_flow_view_all, records.size),
+                    style = StarveilType.label,
+                    color = StarveilColors.accentA,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(StarveilSpacing.xs))
+                        .clickable(role = Role.Button, onClick = onOpenAll)
+                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                )
             }
         }
-
         if (records.isEmpty()) {
             Text(
                 text = stringResource(R.string.rules_flow_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = StarveilSpacing.lg),
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    bottom = StarveilSpacing.lg,
+                ),
             )
         } else {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
-                Column(
-                    modifier = Modifier.padding(
-                        horizontal = StarveilSpacing.lg,
-                        vertical = StarveilSpacing.sm,
+            shown.forEachIndexed { index, group ->
+                if (index > 0) StarveilDivider(startInset = StarveilSpacing.lg)
+                FlowGroupRow(group)
+            }
+            if (groups.size > GROUP_ROWS) {
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                Text(
+                    text = stringResource(
+                        if (expanded) R.string.rules_flow_collapse else R.string.rules_flow_expand,
+                        groups.size,
                     ),
-                ) {
-                    shown.forEach { group -> FlowGroupRow(group) }
-                    if (groups.size > GROUP_ROWS) {
-                        TextButton(
-                            onClick = onToggleExpanded,
-                            contentPadding = PaddingValues(horizontal = 0.dp),
-                        ) {
-                            Text(
-                                stringResource(
-                                    if (expanded) {
-                                        R.string.rules_flow_collapse
-                                    } else {
-                                        R.string.rules_flow_expand
-                                    },
-                                    groups.size,
-                                ),
-                            )
-                        }
-                    }
-                }
+                    style = StarveilType.label,
+                    color = StarveilColors.accentA,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(StarveilSpacing.xs))
+                        .clickable(role = Role.Button, onClick = onToggleExpanded)
+                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
+                )
             }
         }
     }
@@ -608,23 +640,34 @@ private fun FlowGroupRow(group: FlowGroup) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = StarveilSpacing.xs),
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // The rule's own name, in the mono face: it is an identifier the user
+        // typed, not prose.
         Text(
             text = group.rule.ifBlank { stringResource(R.string.rules_flow_default_rule) },
-            style = MaterialTheme.typography.bodyMedium,
+            style = StarveilType.label.copy(fontFamily = MonoFamily),
+            color = StarveilColors.ink2,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        Spacer(modifier = Modifier.width(StarveilSpacing.md))
         Text(
-            text = stringResource(
-                R.string.rules_flow_group,
-                stringResource(group.outcome.labelRes()),
-                group.count,
-            ),
-            style = MaterialTheme.typography.labelLarge,
+            text = group.count.toString(),
+            style = StarveilType.numInline,
+            color = StarveilColors.ink,
+        )
+        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+        Text(
+            text = stringResource(group.outcome.labelRes()),
+            style = StarveilType.label,
             color = group.outcome.colour(),
         )
     }
@@ -699,14 +742,14 @@ private fun AllFlowDialog(
                 ) {
                     Text(
                         text = stringResource(R.string.rules_flow_title),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = StarveilType.title,
                         modifier = Modifier.weight(1f),
                     )
                     if (paused) {
                         Text(
                             text = stringResource(R.string.rules_flow_paused),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = StarveilType.tech,
+                            color = StarveilColors.ink2,
                         )
                     }
                     TextButton(onClick = onDismiss) {
@@ -767,28 +810,28 @@ private fun DenseFlowRow(record: FlowRecord, onClick: () -> Unit) {
             text = FLOW_TIME.format(
                 Instant.ofEpochMilli(record.createdAtMs).atZone(ZoneId.systemDefault()),
             ),
-            style = MaterialTheme.typography.labelSmall,
+            style = StarveilType.tech,
             fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = StarveilColors.ink2,
         )
         Text(
             text = record.label,
-            style = MaterialTheme.typography.bodySmall,
+            style = StarveilType.label,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1.2f),
         )
         Text(
             text = record.rule.ifBlank { stringResource(R.string.rules_flow_default_rule) },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.tech,
+            color = StarveilColors.ink2,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1.3f),
         )
         Text(
             text = stringResource(record.outcome.labelRes()),
-            style = MaterialTheme.typography.labelSmall,
+            style = StarveilType.tech,
             color = record.outcome.colour(),
         )
     }
@@ -805,9 +848,9 @@ private fun FlowOutcome.labelRes(): Int = when (this) {
 
 @Composable
 private fun FlowOutcome.colour(): Color = when (this) {
-    FlowOutcome.PROXY -> StarveilColors.GlowPrimary
-    FlowOutcome.DIRECT -> StarveilColors.Connected
-    FlowOutcome.BLOCK -> StarveilColors.Blocked
+    FlowOutcome.PROXY -> StarveilColors.accentA
+    FlowOutcome.DIRECT -> StarveilColors.ok
+    FlowOutcome.BLOCK -> StarveilColors.err
 }
 
 /** Keys and counts for the flow section. */
@@ -876,240 +919,215 @@ private fun RoutePresetCard(
     onOpenScenes: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    StarveilCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
-            PresetRow(
-                title = stringResource(R.string.rules_preset_title),
-                description = stringResource(R.string.rules_preset_desc),
-                selected = preset == RoutePreset.BYPASS_MAINLAND,
-                onSelect = { onSelect(RoutePreset.BYPASS_MAINLAND) },
-            )
-            PresetRow(
-                title = stringResource(R.string.rules_preset_proxy_title),
-                description = stringResource(R.string.rules_preset_proxy_desc),
-                selected = preset == RoutePreset.GLOBAL_PROXY,
-                onSelect = { onSelect(RoutePreset.GLOBAL_PROXY) },
-            )
-            PresetRow(
-                title = stringResource(R.string.rules_preset_direct_title),
-                description = stringResource(R.string.rules_preset_direct_desc),
-                selected = preset == RoutePreset.GLOBAL_DIRECT,
-                onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
-            )
-
-            // One line, always: the one rule the user cannot turn off is also
-            // the one they would otherwise wonder about.
+    StarveilCard {
+        // The policy: three choices, one of them in force.
+        PresetRow(
+            title = stringResource(R.string.rules_preset_title),
+            description = stringResource(R.string.rules_preset_desc),
+            selected = preset == RoutePreset.BYPASS_MAINLAND,
+            onSelect = { onSelect(RoutePreset.BYPASS_MAINLAND) },
+        )
+        StarveilDivider(startInset = TEXT_COLUMN_INSET)
+        PresetRow(
+            title = stringResource(R.string.rules_preset_proxy_title),
+            description = stringResource(R.string.rules_preset_proxy_desc),
+            selected = preset == RoutePreset.GLOBAL_PROXY,
+            onSelect = { onSelect(RoutePreset.GLOBAL_PROXY) },
+        )
+        StarveilDivider(startInset = TEXT_COLUMN_INSET)
+        PresetRow(
+            title = stringResource(R.string.rules_preset_direct_title),
+            description = stringResource(R.string.rules_preset_direct_desc),
+            selected = preset == RoutePreset.GLOBAL_DIRECT,
+            onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
+        )
+        // One line, always: the one rule the user cannot turn off is also the
+        // one they would otherwise wonder about.
+        Text(
+            text = stringResource(R.string.rules_lan_note),
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
+            modifier = Modifier.padding(
+                start = TEXT_COLUMN_INSET,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.xs,
+                bottom = StarveilSpacing.lg,
+            ),
+        )
+        // Persistent, not only the Snackbar: the condition lasts until a
+        // verified download succeeds, and the counts below would otherwise go
+        // on claiming rules that are not in the config.
+        if (failed) {
             Text(
-                text = stringResource(R.string.rules_lan_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = StarveilSpacing.xs),
+                text = stringResource(R.string.rules_ruleset_failed),
+                style = StarveilType.label,
+                color = StarveilColors.err,
+                modifier = Modifier.padding(
+                    start = TEXT_COLUMN_INSET,
+                    end = StarveilSpacing.lg,
+                    bottom = StarveilSpacing.md,
+                ),
             )
+        }
 
-            // Persistent, not only the Snackbar: the condition lasts until a
-            // verified download succeeds, and the counts below would otherwise
-            // go on claiming rules that are not in the config.
-            if (failed) {
+        StarveilDivider(startInset = StarveilSpacing.lg)
+
+        // The ad switch, in the same card: it is part of the policy, not a
+        // separate setting that happens to live nearby.
+        Row(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.rules_ruleset_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = StarveilSpacing.sm),
+                    text = stringResource(R.string.rules_block_ads_title),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.rules_block_ads_desc),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
             }
+            StarveilSwitch(checked = blockAds, onCheckedChange = onToggleAds)
+        }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
+        StarveilDivider(startInset = StarveilSpacing.lg)
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
+        // The entries: one card, one column, the value on the right.
+        EntryRow(
+            title = stringResource(R.string.rules_market_title),
+            description = stringResource(R.string.rules_market_desc),
+            value = stringResource(R.string.rules_market_subscribed, subscribedPacks.size),
+            onClick = onOpenMarket,
+        )
+        StarveilDivider(startInset = StarveilSpacing.lg)
+        EntryRow(
+            title = stringResource(R.string.rules_per_app_title),
+            description = stringResource(R.string.rules_per_app_desc),
+            onClick = onOpenPerApp,
+        )
+        StarveilDivider(startInset = StarveilSpacing.lg)
+        EntryRow(
+            title = stringResource(R.string.rules_scenes_title),
+            description = stringResource(R.string.rules_scenes_desc),
+            onClick = onOpenScenes,
+        )
+        StarveilDivider(startInset = StarveilSpacing.lg)
+        // What the kernel will actually be told, not what the switches look
+        // like: a preset that could not download its files degrades at connect
+        // time, and this is where the user would notice.
+        val systemRules = presetRules.size + subscribedPacks.size
+        EntryRow(
+            title = stringResource(R.string.rules_effective_count_title),
+            description = if (userRuleCount == 0) {
+                stringResource(R.string.rules_effective_count_system, systemRules)
+            } else {
+                stringResource(
+                    R.string.rules_effective_count,
+                    systemRules + userRuleCount,
+                    systemRules,
+                    userRuleCount,
+                )
+            },
+            onClick = { expanded = !expanded },
+        )
+        if (expanded) {
+            Column(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    bottom = StarveilSpacing.md,
+                ),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
+            ) {
+                presetRules.forEach { rule ->
                     Text(
-                        text = stringResource(R.string.rules_block_ads_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        // The card's content colour is onSurfaceVariant, which
-                        // reads as disabled on a toggle that is actually on.
-                        // The title is onSurface; the description stays dim.
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.rules_block_ads_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = stringResource(
+                            when (rule) {
+                                PresetRule.ADS -> R.string.rules_effective_ads
+                                PresetRule.LAN_DIRECT -> R.string.rules_effective_lan
+                                PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
+                                PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
+                            },
+                        ),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
                     )
                 }
-                Switch(checked = blockAds, onCheckedChange = onToggleAds)
-            }
-
-            // The market sits beside the ad switch, not above the presets: it
-            // is a way to extend the policy, not a third policy.
-            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenMarket),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+                // Named, not counted: "3 rules in force" answers how many, and
+                // the next question is which pack is doing it.
+                availablePacks.filter { it.id in subscribedPacks }.forEach { pack ->
                     Text(
-                        text = stringResource(R.string.rules_market_title),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        text = stringResource(R.string.rules_market_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.rules_market_subscribed, subscribedPacks.size),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
-
-            // What the kernel will actually be told, not what the switches
-            // look like: a preset that could not download its files degrades
-            // at connect time, and this is where the user would notice.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // One definition, used by both branches: a pack is one
-                // rule_set match, the preset contributes the rules it emits
-                // (LAN always, ads when on, the two mainland ones), and only
-                // enabled user rules count. Ads and LAN are therefore system
-                // rules, not user ones — the expanded list names them.
-                val systemRules = presetRules.size + subscribedPacks.size
-                Text(
-                    text = if (userRuleCount == 0) {
-                        stringResource(R.string.rules_effective_count_system, systemRules)
-                    } else {
-                        stringResource(
-                            R.string.rules_effective_count,
-                            systemRules + userRuleCount,
-                            systemRules,
-                            userRuleCount,
-                        )
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(
-                        if (expanded) R.string.rules_effective_collapse else R.string.rules_effective_expand,
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            if (expanded) {
-                Column(
-                    modifier = Modifier.padding(top = StarveilSpacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
-                ) {
-                    presetRules.forEach { rule ->
-                        Text(
-                            text = stringResource(
-                                when (rule) {
-                                    PresetRule.ADS -> R.string.rules_effective_ads
-                                    PresetRule.LAN_DIRECT -> R.string.rules_effective_lan
-                                    PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
-                                    PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
+                        text = stringResource(
+                            R.string.rules_effective_pack,
+                            packTitle(LocalContext.current, pack.id),
+                            stringResource(
+                                if (pack.action == RulePackAction.REJECT) {
+                                    R.string.rules_action_block
+                                } else {
+                                    R.string.rules_action_proxy
                                 },
                             ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    // Named, not counted: "3 rules in force" answers how many,
-                    // and the next question is which pack is doing it.
-                    availablePacks.filter { it.id in subscribedPacks }.forEach { pack ->
-                        Text(
-                            text = stringResource(
-                                R.string.rules_effective_pack,
-                                packTitle(LocalContext.current, pack.id),
-                                stringResource(
-                                    if (pack.action == RulePackAction.REJECT) {
-                                        R.string.rules_action_block
-                                    } else {
-                                        R.string.rules_action_proxy
-                                    },
-                                ),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (userRuleCount > 0) {
-                        Text(
-                            text = stringResource(R.string.rules_effective_user, userRuleCount),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.sm))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenPerApp)
-                    .padding(vertical = StarveilSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.rules_per_app_title),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        text = stringResource(R.string.rules_per_app_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
                     )
                 }
-                Text(
-                    text = "›",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = StarveilSpacing.xs))
-
-            // Same place as per-app routing: both answer "what decides where
-            // traffic goes", and splitting them across tabs would be a quiz.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenScenes)
-                    .padding(vertical = StarveilSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+                if (userRuleCount > 0) {
                     Text(
-                        text = stringResource(R.string.rules_scenes_title),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        text = stringResource(R.string.rules_scenes_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = stringResource(R.string.rules_effective_user, userRuleCount),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
                     )
                 }
-                Text(
-                    text = "›",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
+    }
+}
+
+/** A row that opens something, with its value and a chevron on the right. */
+@Composable
+private fun EntryRow(
+    title: String,
+    description: String? = null,
+    value: String? = null,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
+            if (description != null) {
+                Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
+            }
+        }
+        if (value != null) {
+            Text(text = value, style = StarveilType.label, color = StarveilColors.accentA)
+            Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+        }
+        Icon(
+            imageVector = StarveilIcons.Chevron,
+            contentDescription = null,
+            tint = StarveilColors.ink3,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -1124,17 +1142,43 @@ private fun PresetRow(
         modifier = Modifier
             .fillMaxWidth()
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .padding(vertical = StarveilSpacing.xs),
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = null)
-        Column(modifier = Modifier.padding(start = StarveilSpacing.sm)) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // The mark is a cyan ring with a white dot, or an empty ring: a
+        // Material radio button would bring its own tint and its own size.
+        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .border(
+                        1.5.dp,
+                        if (selected) StarveilColors.accentA else StarveilColors.ink3,
+                        CircleShape,
+                    ),
             )
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(StarveilColors.ink),
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(StarveilSpacing.md))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
+            Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
         }
     }
 }
+
+/** Where a preset row's text starts: the card's padding, the mark, the gap. */
+private val TEXT_COLUMN_INSET = 48.dp
