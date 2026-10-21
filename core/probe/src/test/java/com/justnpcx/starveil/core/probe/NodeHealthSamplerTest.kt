@@ -16,6 +16,7 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.ProfileType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -194,6 +195,12 @@ private class FakeHealth : NodeHealthRepository {
 
 /** Only the selection matters to the sampler. */
 private class FakePreferences(selectedId: Long) : PreferencesRepository {
+
+    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
+
+    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
+        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
+    }
     override val selectedProfileId: Flow<Long> = flowOf(selectedId)
 
     override val themeMode: Flow<ThemeMode> get() = samplerNotUsed()

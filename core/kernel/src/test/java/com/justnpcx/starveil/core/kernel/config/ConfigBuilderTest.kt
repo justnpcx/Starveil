@@ -228,6 +228,31 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `private addresses are direct unless the switch says otherwise`() {
+        val off = builder.build(vlessProfile())
+        assertTrue(off.contains("\"ip_cidr\":[\"10.0.0.0/8\",\"172.16.0.0/12\",\"192.168.0.0/16\""))
+
+        // On: the private ranges leave the direct rule, so they fall through to
+        // the proxy — the way a phone away from home reaches 192.168.x.x on the
+        // network the node sits on. Loopback and multicast stay direct, because
+        // a proxy cannot carry either.
+        val on = builder.build(vlessProfile(), proxyLan = true)
+        assertTrue(on.contains("\"ip_cidr\":[\"127.0.0.0/8\",\"::1/128\",\"fe80::/10\",\"224.0.0.0/4\"]"))
+        assertFalse("a private range is still being kept direct", on.contains("192.168.0.0/16"))
+        assertFalse(on.contains("10.0.0.0/8"))
+    }
+
+    @Test
+    fun `the group config honours the same switch`() {
+        val profiles = listOf(vlessProfile(), vlessProfile(uuid = "22222222-3333-4444-5555-666666666666"))
+
+        val on = builder.build(profiles, mode = GroupMode.URL_TEST, proxyLan = true)
+
+        assertTrue(on.contains("\"ip_cidr\":[\"127.0.0.0/8\",\"::1/128\",\"fe80::/10\",\"224.0.0.0/4\"]"))
+        assertFalse(on.contains("192.168.0.0/16"))
+    }
+
+    @Test
     fun `VMess config carries uuid, security and alter_id`() {
         val profile = Profile(
             name = "vm",

@@ -8,6 +8,16 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Added
+
+- **Reach a private network through the node**: the routing page gained a
+  switch for private addresses. Off, the default, keeps 10/8, 172.16/12,
+  192.168/16 and fc00::/7 direct — right when the phone is on the same network
+  as those devices. On, they take the tunnel, which is how a phone away from
+  home reaches a NAS or a router that sits behind the node. Loopback and
+  multicast stay direct either way, since a proxy cannot carry either, and the
+  tunnel rebuilds when the switch changes.
+
 ## [0.7.5] — 2026-10-21
 
 ### Added

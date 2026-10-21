@@ -40,6 +40,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         adsPath: String? = null,
         rulePacks: List<InstalledRulePack> = emptyList(),
         localApi: LocalApiConfig? = null,
+        proxyLan: Boolean = false,
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
@@ -67,6 +68,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             rulePacks = rulePacks,
             proxyTag = PROXY_TAG,
             localApi = localApi,
+            proxyLan = proxyLan,
         )
     }
 
@@ -94,6 +96,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         adsPath: String? = null,
         rulePacks: List<InstalledRulePack> = emptyList(),
         localApi: LocalApiConfig? = null,
+        proxyLan: Boolean = false,
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -155,6 +158,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             rulePacks = rulePacks,
             proxyTag = AUTO_TAG,
             localApi = localApi,
+            proxyLan = proxyLan,
         )
     }
 
@@ -203,6 +207,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         preset: RoutePreset,
         adsPath: String?,
         rulePacks: List<InstalledRulePack>,
+        proxyLan: Boolean,
     ): List<Map<String, Any?>> {
         // Per-app first, and that is a deliberate precedence: someone who says
         // "this app goes this way" means it more specifically than any domain
@@ -255,19 +260,26 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 )
             }
         }
-        // The local network, in every preset. A private address is not a
-        // destination anyone wants proxied: the router, the NAS, a printer, and
-        // SSDP/DLNA discovery all live there, and `final: proxy` would send
-        // them to a server that cannot reach them. Not a switch, not a preset:
-        // the handful of people who *do* want a private range tunnelled are not
-        // worth a setting that everyone else can get wrong.
+        // The local network. A private address is normally not a destination
+        // anyone wants proxied: the router, the NAS, a printer, and SSDP/DLNA
+        // discovery all live there, and `final: proxy` would send them to a
+        // server that cannot reach them.
+        //
+        // Unless the server *is* behind that network. A phone away from home
+        // reaching 192.168.x.x through a node that sits in that house is the
+        // same private range, and the only difference is where the user is
+        // standing — so this is the one switch, and it is off by default.
+        //
+        // Loopback and multicast stay direct either way: neither can be
+        // carried by a proxy, and proxying them would break discovery without
+        // making anything reachable.
         //
         // After per-app, before the user's rules: an app-level exception is
         // more specific than an address, and everything below this line is
         // about reaching the internet.
         val lan = listOf(
             linkedMapOf<String, Any?>(
-                "ip_cidr" to LAN_CIDRS,
+                "ip_cidr" to if (proxyLan) ALWAYS_DIRECT_CIDRS else LAN_CIDRS,
                 "action" to "route",
                 "outbound" to DIRECT_TAG,
             ),
@@ -577,6 +589,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         proxyTag: String = finalTag,
         localApi: LocalApiConfig? = null,
         cacheFileName: String = "cache.db",
+        proxyLan: Boolean = false,
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
@@ -591,7 +604,17 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             config["endpoints"] = endpoints
         }
         config["route"] = linkedMapOf<String, Any?>(
-            "rules" to routeRules(rules, finalTag, proxyTag, mainland, perAppRules, preset, adsPath, rulePacks),
+            "rules" to routeRules(
+                rules,
+                finalTag,
+                proxyTag,
+                mainland,
+                perAppRules,
+                preset,
+                adsPath,
+                rulePacks,
+                proxyLan,
+            ),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
             // The dialer installs the bind/protect control, which reaches
@@ -716,6 +739,20 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
          * over multicast, and a proxied multicast packet is a device nobody
          * finds.
          */
+        /**
+         * What stays direct even when private ranges are tunnelled.
+         *
+         * Loopback is not a network, multicast is not carried by a proxy, and
+         * link-local IPv6 is per-link. Everything else — 10/8, 172.16/12,
+         * 192.168/16, fc00::/7 — follows the switch.
+         */
+        val ALWAYS_DIRECT_CIDRS = listOf(
+            "127.0.0.0/8",
+            "::1/128",
+            "fe80::/10",
+            "224.0.0.0/4",
+        )
+
         val LAN_CIDRS = listOf(
             "10.0.0.0/8",
             "172.16.0.0/12",

@@ -749,6 +749,12 @@ private class FakePreferences(
     switchOnDrop: Boolean = true,
 ) : PreferencesRepository {
 
+    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
+
+    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
+        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
+    }
+
     private val killSwitch = MutableStateFlow(initialKillSwitch)
     private val autoReconnectFlow = MutableStateFlow(autoReconnect)
     private val leak = MutableStateFlow(LeakCheckRecord())

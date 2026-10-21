@@ -191,6 +191,12 @@ private object NoHealth : NodeHealthRepository {
 
 /** Only the selection and the flag matter to onboarding. */
 private class FakePreferences : PreferencesRepository {
+
+    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
+
+    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
+        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
+    }
     var selected = 0L
         private set
     var done = false

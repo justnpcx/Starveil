@@ -56,7 +56,11 @@
     <string name="rules_effective_domestic_names">国内域名（geosite-cn）→ 直连</string>
     <string name="rules_effective_domestic_addresses">国内地址（geoip-cn）→ 直连</string>
     <string name="rules_effective_lan">局域网（私网地址）→ 直连 · 系统内置</string>
-    <string name="rules_lan_note">局域网流量始终直连。</string>
+    <string name="rules_effective_lan_proxied">内网地址 → 节点</string>
+    <string name="rules_lan_note">局域网流量直连。</string>
+    <string name="rules_lan_note_proxied">内网地址改为走节点。</string>
+    <string name="rules_proxy_lan_title">通过节点访问内网</string>
+    <string name="rules_proxy_lan_desc">把 10.x、172.16–31.x、192.168.x、fc00::/7 改为走节点，用于访问节点所在的那张局域网。开启后，你当前所在网络的本地设备会变得不可达。</string>
     <string name="rules_effective_user">你自己的 %1$d 条规则</string>
 
     <!-- 规则市场 -->
