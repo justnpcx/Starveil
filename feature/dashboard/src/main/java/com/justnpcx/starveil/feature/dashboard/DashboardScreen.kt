@@ -57,6 +57,15 @@ import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
+import android.content.ClipData
+import android.content.ClipboardManager
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
@@ -76,6 +85,9 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    // The notice whose details are open, if any. Held here rather than in the
+    // view model: it is whether a dialog is showing, not what the app knows.
+    var details by remember { mutableStateOf<DashboardNotice?>(null) }
 
     // A persistent notice is a condition that lasts until something changes —
     // it gets the fixed slot. Everything else is a one-off confirmation and
@@ -146,6 +158,11 @@ fun DashboardScreen(
             // F3: the context line sits under the group it explains, not
             // between the ring and its numbers. 28 dp, always there, so a
             // state change cannot move anything below it.
+            //
+            // A failure that names a reason is tappable: the slot shows one
+            // line, and the line is the only place the kernel's own words
+            // appear. A Snackbar would have vanished before anyone could read
+            // past "failed", and there is nowhere else to look them up.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -153,6 +170,7 @@ fun DashboardScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 if (persistent && noticeText != null) {
+                    val expandable = notice is DashboardNotice.KernelRefused
                     Text(
                         text = noticeText,
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
@@ -162,6 +180,14 @@ fun DashboardScreen(
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = if (expandable) {
+                            Modifier
+                                .clip(RoundedCornerShape(StarveilSpacing.xs))
+                                .clickable { details = notice }
+                                .padding(horizontal = StarveilSpacing.xs)
+                        } else {
+                            Modifier
+                        },
                     )
                 }
             }
@@ -190,7 +216,55 @@ fun DashboardScreen(
             hostState = snackbar,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+
+        details?.let { notice ->
+            FailureDetailsDialog(notice = notice, onDismiss = { details = null })
+        }
     }
+}
+
+/**
+ * The whole failure, and a way to keep it.
+ *
+ * One line in the context slot is enough to notice something went wrong; it is
+ * not enough to act on, and the reason is the part a bug report needs. Copying
+ * is the point of this dialog — the alternative is retyping a message that is
+ * already hard to read.
+ */
+@Composable
+private fun FailureDetailsDialog(notice: DashboardNotice, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val text = notice.text()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dashboard_failure_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                Text(text, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = stringResource(R.string.dashboard_failure_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("Starveil", text))
+                    onDismiss()
+                },
+            ) {
+                Text(stringResource(R.string.dashboard_failure_copy))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dashboard_failure_close))
+            }
+        },
+    )
 }
 
 /**
@@ -580,8 +654,26 @@ private val HEALTH_HEADER_HEIGHT = 32.dp
  * forces this decision instead of defaulting to "show it inline".
  */
 private fun DashboardNotice.isPersistent(): Boolean = when (this) {
-    DashboardNotice.KillSwitchBlocking, DashboardNotice.KillSwitchFailed -> true
-    else -> false
+    // Conditions that last until something changes. A refused start is one:
+    // the reason stays true until the next attempt, and it is the only place
+    // the kernel's own words appear — a Snackbar kept it on screen for three
+    // seconds and then it was gone, which is why every failure had to be
+    // retyped from memory.
+    DashboardNotice.KillSwitchBlocking,
+    DashboardNotice.KillSwitchFailed,
+    DashboardNotice.NoTarget,
+    DashboardNotice.ConfigUnbuildable,
+    is DashboardNotice.KernelRefused,
+    -> true
+
+    // One-off: it describes something that is happening, and the state change
+    // that ends it clears the notice.
+    DashboardNotice.TunnelDropped,
+    DashboardNotice.TunnelReconnecting,
+    DashboardNotice.TunnelKeepsDropping,
+    DashboardNotice.SwitchingNode,
+    is DashboardNotice.AutoSelected,
+    -> false
 }
 
 private val RATE_UNITS = listOf("B/s", "KB/s", "MB/s", "GB/s")

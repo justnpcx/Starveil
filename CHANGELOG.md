@@ -8,6 +8,19 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.11] — 2026-10-21
+
+### Changed
+
+- **A failed start stays on screen**: the reason used to arrive as a Snackbar,
+  which was gone in three seconds and truncated to one line — so the one piece
+  of information a bug report needs had to be retyped from memory. It now holds
+  the context slot until the next attempt, and tapping it opens the whole
+  message with a Copy button. The same treatment for "pick a node first" and
+  "cannot build the config": those are conditions, not confirmations. Notices
+  that describe something happening — dropping, reconnecting, auto-selected —
+  stay one-off Snackbars, so a transient event cannot push the layout around.
+
 ## [0.7.10] — 2026-10-21
 
 ### Fixed

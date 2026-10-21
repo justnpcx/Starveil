@@ -52,5 +52,9 @@
     <string name="dashboard_reason_tied_region">%1$s (tied, %2$s preferred)</string>
     <string name="dashboard_reason_cooling_down">every node is cooling down, %1$d min left</string>
     <string name="dashboard_reason_unmeasured">nothing measured yet</string>
+    <string name="dashboard_failure_title">What went wrong</string>
+    <string name="dashboard_failure_hint">This is the message the kernel returned, with anything sensitive removed. Copying it is the fastest way to report the problem.</string>
+    <string name="dashboard_failure_close">Close</string>
+    <string name="dashboard_failure_copy">Copy</string>
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
 </resources>

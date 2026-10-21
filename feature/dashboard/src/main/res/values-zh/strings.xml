@@ -46,5 +46,9 @@
     <string name="dashboard_reason_tied_region">%1$s（同分，优先 %2$s）</string>
     <string name="dashboard_reason_cooling_down">所有节点都在冷却，还剩 %1$d 分钟</string>
     <string name="dashboard_reason_unmeasured">尚无测量数据</string>
+    <string name="dashboard_failure_title">失败原因</string>
+    <string name="dashboard_failure_hint">这是内核返回的原始信息，敏感内容已脱敏。复制它是最快的反馈方式。</string>
+    <string name="dashboard_failure_close">关闭</string>
+    <string name="dashboard_failure_copy">复制</string>
     <string name="dashboard_notice_kernel_refused_reason">内核启动失败：%1$s</string>
 </resources>
