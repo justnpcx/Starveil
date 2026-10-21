@@ -1,5 +1,6 @@
 package com.justnpcx.starveil
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -34,9 +35,11 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.probe.LeakCheckRunner
 import com.justnpcx.starveil.core.probe.NodeHealthSampler
 import com.justnpcx.starveil.core.probe.NodeLatencyTester
+import com.justnpcx.starveil.deeplink.DeepLinkInbox
 import com.justnpcx.starveil.onboarding.OnboardingScreen
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.Destination
@@ -81,9 +84,20 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var leakCheckRunner: LeakCheckRunner
 
+    /** Holds a share link until a screen can import it. */
+    @Inject
+    lateinit var deepLinks: DeepLinkInbox
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // A share link that launched the app. `savedInstanceState == null` is
+        // the difference between a fresh launch and a recreation: on a
+        // recreation the intent is the same one, and the inbox is what stops it
+        // being imported twice, but not re-offering it here keeps the intent
+        // from being re-read at all.
+        if (savedInstanceState == null) offerDeepLink(intent)
 
         // Sampling stops when the app is not visible and resumes when it is.
         // The sampler loops until its coroutine is cancelled, so there is no
@@ -146,6 +160,39 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * The app was already running when the link arrived.
+     *
+     * `singleTask` in the manifest is what makes this happen instead of a second
+     * copy of the app being started; without it the tap would open a second
+     * Activity whose tunnel belongs to the first.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Replaces the Activity's intent, so a recreation sees this one rather
+        // than the launch intent from before the tap.
+        setIntent(intent)
+        offerDeepLink(intent)
+    }
+
+    /**
+     * Hand a `VIEW` intent's link to the inbox.
+     *
+     * `dataString` rather than `data.toString()`: the latter normalises the
+     * URI, and a `vmess://` body is base64 that a normalising round trip can
+     * alter — the parser would then fail on a link that was fine.
+     *
+     * The link itself is never logged. It carries the node's credentials, and
+     * the whole point of the redaction rule is that those do not reach a log.
+     */
+    private fun offerDeepLink(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val accepted = deepLinks.offer(intent.dataString)
+        if (!accepted && intent.dataString != null) {
+            KernelDiagnostics.log("ignored a link this app cannot parse")
         }
     }
 }
