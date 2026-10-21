@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.scene.SceneApplyState
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
@@ -60,6 +61,16 @@ data class DashboardUiState(
      * the tunnel is up and carrying traffic, it just is not trustworthy.
      */
     val leakDetected: Boolean = false,
+    /**
+     * The tunnel came up but nothing has gone through it.
+     *
+     * The kernel's state cannot say this: "running" means the config was
+     * accepted, not that a packet reached the node. A wrong credential, a dead
+     * node or a route into nowhere all look identical from the state machine,
+     * and all of them leave the phone with no internet while the icon says
+     * connected. See [TrafficWatch].
+     */
+    val tunnelSilent: Boolean = false,
 ) {
     /**
      * What the core draws.
@@ -71,7 +82,9 @@ data class DashboardUiState(
      * instead of in every reader.
      */
     val coreState: ConnectionState
-        get() = if (connectionState == ConnectionState.CONNECTED && leakDetected) {
+        get() = if (
+            connectionState == ConnectionState.CONNECTED && (leakDetected || tunnelSilent)
+        ) {
             ConnectionState.WARNING
         } else {
             connectionState
@@ -124,6 +137,15 @@ sealed interface DashboardNotice {
 
     /** The tunnel died and a different node is being tried instead. */
     data object SwitchingNode : DashboardNotice
+
+    /**
+     * The tunnel is up and nothing has gone through it.
+     *
+     * A warning rather than a failure: the tunnel exists, and something may yet
+     * arrive. What it must not do is stay silent — a connected-looking app with
+     * no internet is the state users cannot diagnose on their own.
+     */
+    data object TunnelSilent : DashboardNotice
 }
 
 @HiltViewModel
@@ -154,6 +176,16 @@ class DashboardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    /**
+     * Whether anything has gone through the tunnel since this connect.
+     *
+     * Armed by [connect], settled by the first proxied connection the kernel
+     * reports, and closed by [trafficWatchJob] after the window. Reset on
+     * disconnect: a silent tunnel is a fact about *this* connection.
+     */
+    private val trafficWatch = TrafficWatch()
+    private var trafficWatchJob: Job? = null
 
     init {
         // The kernel pushes its lifecycle, so an unexpected death arrives here
@@ -258,6 +290,19 @@ class DashboardViewModel @Inject constructor(
                 nodeHealthOf(byNode[id].orEmpty())
             }.collect { health ->
                 _uiState.update { it.copy(health = health) }
+            }
+        }
+        // The one signal the kernel's state cannot give: a packet actually
+        // left through the node. Armed by connect(), settled here.
+        scope.launch {
+            kernel.connections.collect { connection ->
+                if (!connection.isProxied()) return@collect
+                if (trafficWatch.onProxied(System.currentTimeMillis()) ==
+                    TrafficWatch.Verdict.Carrying
+                ) {
+                    trafficWatchJob?.cancel()
+                    _uiState.update { it.copy(tunnelSilent = false) }
+                }
             }
         }
         // A leak the self-check found is what turns a healthy-looking tunnel
@@ -393,8 +438,17 @@ class DashboardViewModel @Inject constructor(
     ) {
         if (userInitiated) recovery.rearm()
         _uiState.update {
-            it.copy(isBusy = true, connectionState = ConnectionState.CONNECTING, notice = notice)
+            it.copy(
+                isBusy = true,
+                connectionState = ConnectionState.CONNECTING,
+                notice = notice,
+                // A new attempt is a new question; the last answer does not
+                // carry over.
+                tunnelSilent = false,
+            )
         }
+        trafficWatchJob?.cancel()
+        trafficWatch.reset()
 
         // The whole decision — kill switch, target, rules, preset files,
         // per-app exceptions — belongs to ConnectionController, because the
@@ -415,6 +469,9 @@ class DashboardViewModel @Inject constructor(
                     )
                 }
                 startStatsLoop()
+                // The tunnel exists; whether it carries anything is a separate
+                // question, and the one the user finds out about the hard way.
+                startTrafficWatch()
             }
 
             is ConnectionOutcome.Blocked -> {
@@ -478,6 +535,8 @@ class DashboardViewModel @Inject constructor(
     private suspend fun disconnect() {
         _uiState.update { it.copy(isBusy = true) }
         statsJob?.cancel()
+        trafficWatchJob?.cancel()
+        trafficWatch.reset()
 
         // Same controller the tile uses. The Kill Switch decides whether the
         // tunnel stays up, so the two entry points cannot disagree about it.
@@ -507,6 +566,37 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Start the countdown that decides whether this tunnel carries anything.
+     *
+     * Polled rather than scheduled: the deadline is ten seconds away, the app
+     * is in the foreground with a screen on, and a job that cancels itself is
+     * simpler to reason about than a timer that has to be cancelled from three
+     * other places.
+     */
+    private fun startTrafficWatch() {
+        trafficWatchJob?.cancel()
+        trafficWatch.arm(System.currentTimeMillis())
+        trafficWatchJob = scope.launch {
+            while (isActive && trafficWatch.isArmed) {
+                delay(TRAFFIC_WATCH_TICK_MS)
+                if (trafficWatch.check(System.currentTimeMillis()) == TrafficWatch.Verdict.Silent) {
+                    _uiState.update {
+                        it.copy(tunnelSilent = true, notice = DashboardNotice.TunnelSilent)
+                    }
+                    // Logged as well as shown: the Logs screen is what a bug
+                    // report gets, and "connected, nothing through" is the
+                    // line that explains a report saying "it says connected
+                    // but nothing loads".
+                    KernelDiagnostics.log(
+                        "tunnel up but nothing proxied within ${TrafficWatch.WINDOW_MS} ms",
+                    )
+                    return@launch
+                }
+            }
+        }
+    }
+
     private fun startStatsLoop() {
         statsJob?.cancel()
         statsJob = scope.launch {
@@ -526,6 +616,7 @@ class DashboardViewModel @Inject constructor(
 
     override fun onCleared() {
         statsJob?.cancel()
+        trafficWatchJob?.cancel()
         scope.cancel()
         super.onCleared()
     }
@@ -622,3 +713,16 @@ class DashboardViewModel @Inject constructor(
         const val NO_TARGET = "none"
     }
 }
+
+/**
+ * Whether the kernel sent this connection through the proxy.
+ *
+ * `direct` and `block` are not the tunnel doing its job: one is traffic that
+ * never entered it, the other is traffic it refused. Everything else — a
+ * protocol name — is the node carrying it.
+ */
+private fun KernelConnection.isProxied(): Boolean =
+    outboundType.isNotBlank() && outboundType != "direct" && outboundType != "block"
+
+/** How often the traffic watch re-checks its deadline. */
+private const val TRAFFIC_WATCH_TICK_MS = 1_000L

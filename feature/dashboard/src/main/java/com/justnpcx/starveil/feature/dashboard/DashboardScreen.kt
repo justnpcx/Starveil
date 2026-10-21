@@ -380,6 +380,8 @@ private fun DashboardNotice.text(): String = when (this) {
         stringResource(R.string.dashboard_notice_auto_selected, nodeName, reason.text())
     DashboardNotice.SwitchingNode ->
         stringResource(R.string.dashboard_notice_switching_node)
+    DashboardNotice.TunnelSilent ->
+        stringResource(R.string.dashboard_notice_tunnel_silent)
 }
 
 /**
@@ -663,6 +665,9 @@ private fun DashboardNotice.isPersistent(): Boolean = when (this) {
     DashboardNotice.KillSwitchFailed,
     DashboardNotice.NoTarget,
     DashboardNotice.ConfigUnbuildable,
+    // Up but carrying nothing: true until traffic arrives or the tunnel goes
+    // down, and the whole point is that it must not scroll past.
+    DashboardNotice.TunnelSilent,
     is DashboardNotice.KernelRefused,
     -> true
 

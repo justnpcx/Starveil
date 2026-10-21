@@ -46,6 +46,7 @@
     <string name="dashboard_auto_select">Auto select</string>
     <string name="dashboard_notice_auto_selected">Auto-selected %1$s — %2$s.</string>
     <string name="dashboard_notice_switching_node">Connection dropped; trying another node.</string>
+    <string name="dashboard_notice_tunnel_silent">Connected, but nothing has gone through. The node may be down or misconfigured.</string>
     <string name="dashboard_reason_health">online %1$d%% · %2$d ms</string>
     <string name="dashboard_reason_health_no_latency">online %1$d%%</string>
     <string name="dashboard_reason_tied">%1$s (tied)</string>

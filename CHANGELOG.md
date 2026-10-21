@@ -8,6 +8,19 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.12] — 2026-10-21
+
+### Added
+
+- **A tunnel that is up but carries nothing is called out**: "connected" only
+  means the kernel accepted the config — a dead node, a wrong credential and a
+  route into nowhere all look identical from there, and all three leave the
+  phone with no internet while the icon says connected. Ten seconds after a
+  connect, if the kernel has not reported a single proxied connection, the ring
+  turns amber and says so, with a line in the Logs screen for the bug report.
+  The signal is the kernel's own routing decisions, so it costs nothing and
+  measures the node rather than the tunnel.
+
 ## [0.7.11] — 2026-10-21
 
 ### Changed
