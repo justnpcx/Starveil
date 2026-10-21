@@ -11,6 +11,8 @@ import android.provider.Settings
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +26,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
@@ -62,7 +70,15 @@ import java.util.Date
 import java.util.Locale
 import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInstaller
+import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.components.StarveilDivider
+import com.justnpcx.starveil.core.ui.components.StarveilGroupHeader
+import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
+import com.justnpcx.starveil.core.ui.components.StarveilSwitch
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * Settings — theme, the Kill Switch three-way choice, and the leak self-check.
@@ -140,202 +156,250 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             // Without this the screen clips: on a 1080x2400 display the leak
-            // self-check and the kernel version sit below the fold with no way
-            // to reach them. Found on device — the version row simply was not
-            // there, and the fix is not in the version code.
-            .verticalScroll(rememberScrollState())
-            .padding(StarveilSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            // self-check and the version sit below the fold with no way to
+            // reach them.
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            text = stringResource(R.string.settings_title),
-            style = MaterialTheme.typography.titleLarge,
-        )
+        StarveilPageHeader(title = stringResource(R.string.settings_title))
 
-        SectionTitle(stringResource(R.string.kill_switch_title))
-        KillSwitchMode.entries.forEach { mode ->
-            RadioOption(
-                label = stringResource(mode.labelRes()),
-                description = stringResource(mode.descriptionRes()),
-                selected = mode == state.killSwitchMode,
-                onSelect = { viewModel.setKillSwitchMode(mode) },
+        // ---- Connection ----------------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_connection))
+        SettingsCard {
+            KillSwitchMode.entries.forEach { mode ->
+                RadioOption(
+                    label = stringResource(mode.labelRes()),
+                    description = stringResource(mode.descriptionRes()),
+                    selected = mode == state.killSwitchMode,
+                    onSelect = { viewModel.setKillSwitchMode(mode) },
+                )
+            }
+            // Two locks, and they are not the same lock. The modes above are a
+            // config this app enforces, so they end when the process does; the
+            // system's always-on VPN survives a crash and a swipe-away. Linking
+            // rather than duplicating the switch is deliberate — only the
+            // system can turn its own lock on, and pretending otherwise would
+            // be a lie.
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.md,
+                    bottom = StarveilSpacing.sm,
+                ),
+            ) {
+                Text(
+                    text = stringResource(R.string.kill_switch_system_desc),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                LinkText(
+                    text = stringResource(R.string.kill_switch_system_link),
+                    onClick = { openSystemVpnSettings(context) },
+                )
+            }
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            SwitchRow(
+                title = stringResource(R.string.auto_reconnect_title),
+                description = stringResource(R.string.auto_reconnect_desc),
+                checked = state.autoReconnect,
+                onCheckedChange = viewModel::setAutoReconnect,
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            SwitchRow(
+                title = stringResource(R.string.auto_switch_title),
+                description = stringResource(R.string.auto_switch_desc),
+                checked = state.autoSwitchOnDrop,
+                onCheckedChange = viewModel::setAutoSwitchOnDrop,
             )
         }
-        // Two locks, and they are not the same lock. The modes above are a
-        // config this app enforces, so they end when the process does; the
-        // system's always-on VPN survives a crash and a swipe-away. Linking
-        // rather than duplicating the switch is deliberate — only the system
-        // can turn its own lock on, and pretending otherwise would be a lie.
-        LinkButton(
-            text = stringResource(R.string.kill_switch_system_link),
-            onClick = { openSystemVpnSettings(context) },
-        )
-        Text(
-            text = stringResource(R.string.kill_switch_system_desc),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        SwitchRow(
-            title = stringResource(R.string.auto_reconnect_title),
-            description = stringResource(R.string.auto_reconnect_desc),
-            checked = state.autoReconnect,
-            onCheckedChange = viewModel::setAutoReconnect,
-        )
-        SwitchRow(
-            title = stringResource(R.string.auto_switch_title),
-            description = stringResource(R.string.auto_switch_desc),
-            checked = state.autoSwitchOnDrop,
-            onCheckedChange = viewModel::setAutoSwitchOnDrop,
-        )
 
-        SectionTitle(stringResource(R.string.per_app_entry_title))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (state.perAppDirectCount == 0) {
+        // ---- Per-app routing -----------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_per_app))
+        SettingsCard {
+            EntryRow(
+                title = stringResource(R.string.per_app_entry_title),
+                description = if (state.perAppDirectCount == 0) {
                     stringResource(R.string.per_app_entry_desc)
                 } else {
                     stringResource(R.string.per_app_entry_count, state.perAppDirectCount)
                 },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onOpenPerApp) {
-                Text(stringResource(R.string.per_app_manage))
-            }
-        }
-
-        SectionTitle(stringResource(R.string.keepalive_entry_title))
-        Text(
-            text = stringResource(R.string.keepalive_entry_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        // Under the description, not at its right: every action on this page
-        // starts at the same left edge, and a button floating at the end of a
-        // line was the one that did not.
-        LinkButton(
-            text = stringResource(R.string.keepalive_action_open),
-            onClick = onOpenKeepAlive,
-        )
-
-        SectionTitle(stringResource(R.string.backup_title))
-        Text(
-            text = stringResource(R.string.backup_explainer),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-            LinkButton(
-                text = stringResource(R.string.backup_export),
-                onClick = { askingForExport = true },
-            )
-            LinkButton(
-                text = stringResource(R.string.backup_restore),
-                onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
+                onClick = onOpenPerApp,
             )
         }
 
-        SectionTitle(stringResource(R.string.leak_check_title))
-        Text(
-            text = leakCheckSummary(state.lastLeakCheck),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        LinkButton(
-            text = stringResource(R.string.leak_check_run),
-            onClick = onRunLeakCheck,
-        )
-
-        SectionTitle(stringResource(R.string.settings_kernel_title))
-        Text(
-            // The core names itself as `1.14.3-<commit>`; the commit is a build
-            // detail that changes on every rebuild, and this row is a version,
-            // not a build fingerprint. The full string stays in the state for
-            // anything that needs to correlate a build.
-            text = state.kernelVersion.takeIf { it.isNotBlank() }
-                ?.let { stringResource(R.string.settings_kernel_version, it.substringBefore('-')) }
-                ?: stringResource(R.string.settings_kernel_unknown),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        if (crashReportingAvailable) {
-            SectionTitle(stringResource(R.string.diagnostics_title))
-            SwitchRow(
-                title = stringResource(R.string.crash_reports_title),
-                description = stringResource(R.string.crash_reports_desc),
-                checked = state.crashReports,
-                onCheckedChange = viewModel::setCrashReports,
+        // ---- Keep-alive -----------------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_keepalive))
+        SettingsCard {
+            EntryRow(
+                title = stringResource(R.string.keepalive_entry_title),
+                description = stringResource(R.string.keepalive_entry_desc),
+                onClick = onOpenKeepAlive,
             )
         }
 
-        // Developer options. Not hidden behind a secret gesture: the switch is
-        // off by default, and the person who wants it is the person who needs
-        // to find it.
-        SectionTitle(stringResource(R.string.settings_developer_title))
-        SwitchRow(
-            title = stringResource(R.string.settings_local_api_title),
-            description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
-            checked = state.localApiEnabled,
-            onCheckedChange = viewModel::setLocalApiEnabled,
-        )
-        if (state.localApiEnabled) {
-            Text(
-                text = stringResource(R.string.settings_local_api_address, LocalApi.address),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = state.apiToken,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                TextButton(
-                    enabled = state.apiToken.isNotEmpty(),
-                    onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                            as ClipboardManager
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText("Starveil local API token", state.apiToken),
-                        )
-                    },
-                ) {
-                    Text(stringResource(R.string.settings_local_api_copy))
-                }
-                TextButton(
-                    enabled = state.apiToken.isNotEmpty(),
-                    onClick = { confirmingTokenReset = true },
-                ) {
-                    Text(stringResource(R.string.settings_local_api_reset))
-                }
-            }
-        }
-
-        SectionTitle(stringResource(R.string.settings_about_title))
-        Text(
-            text = stringResource(R.string.settings_app_version, appVersion ?: "—"),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-            LinkButton(
-                text = stringResource(
-                    if (updateState is UpdateUiState.Checking) {
-                        R.string.update_checking
-                    } else {
-                        R.string.update_check
-                    },
+        // ---- Backup ---------------------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_backup))
+        SettingsCard {
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.md,
+                    bottom = StarveilSpacing.xs,
                 ),
-                onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
-                enabled = updateState !is UpdateUiState.Checking &&
-                    updateState !is UpdateUiState.Downloading,
+            ) {
+                Text(
+                    text = stringResource(R.string.backup_explainer),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                )
+            }
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.xs,
+                    bottom = StarveilSpacing.md,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+            ) {
+                LinkText(
+                    text = stringResource(R.string.backup_export),
+                    onClick = { askingForExport = true },
+                )
+                LinkText(
+                    text = stringResource(R.string.backup_restore),
+                    onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
+                )
+            }
+        }
+
+        // ---- Leak self-check ------------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_leak_check))
+        SettingsCard {
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.md,
+                    bottom = StarveilSpacing.xs,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = leakCheckSummary(state.lastLeakCheck),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                LinkText(
+                    text = stringResource(R.string.leak_check_run),
+                    onClick = onRunLeakCheck,
+                )
+            }
+            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+        }
+
+        // ---- Developer options ---------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_developer))
+        SettingsCard {
+            SwitchRow(
+                title = stringResource(R.string.settings_local_api_title),
+                description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
+                checked = state.localApiEnabled,
+                onCheckedChange = viewModel::setLocalApiEnabled,
             )
-            LinkButton(
-                text = stringResource(R.string.settings_privacy),
-                onClick = onOpenPrivacy,
+            if (state.localApiEnabled) {
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                Column(
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        top = StarveilSpacing.md,
+                        bottom = StarveilSpacing.sm,
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_local_api_address, LocalApi.address),
+                        style = StarveilType.log,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                    Text(
+                        text = state.apiToken,
+                        style = StarveilType.log,
+                        color = StarveilColors.ink2,
+                    )
+                }
+                Row(
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.md,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
+                ) {
+                    LinkText(
+                        text = stringResource(R.string.settings_local_api_copy),
+                        enabled = state.apiToken.isNotEmpty(),
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                as ClipboardManager
+                            clipboard.setPrimaryClip(
+                                ClipData.newPlainText("Starveil local API token", state.apiToken),
+                            )
+                        },
+                    )
+                    LinkText(
+                        text = stringResource(R.string.settings_local_api_reset),
+                        enabled = state.apiToken.isNotEmpty(),
+                        onClick = { confirmingTokenReset = true },
+                    )
+                }
+            }
+        }
+
+        // ---- About ----------------------------------------------------------
+        StarveilGroupHeader(stringResource(R.string.settings_group_about))
+        SettingsCard {
+            ValueRow(
+                title = stringResource(R.string.settings_version_title),
+                value = appVersion.orEmpty(),
             )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            ValueRow(
+                title = stringResource(R.string.settings_kernel_title),
+                // The core names itself as \`1.14.3-<commit>\`; the commit is a
+                // build detail, and this row is a version.
+                value = state.kernelVersion.takeIf { it.isNotBlank() }
+                    ?.substringBefore('-')
+                    ?: stringResource(R.string.settings_kernel_unknown),
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.md,
+                    bottom = StarveilSpacing.md,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
+            ) {
+                LinkText(
+                    text = stringResource(R.string.update_check),
+                    enabled = updateState !is UpdateUiState.Checking &&
+                        updateState !is UpdateUiState.Downloading,
+                    onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
+                )
+                LinkText(
+                    text = stringResource(R.string.settings_privacy),
+                    onClick = onOpenPrivacy,
+                )
+            }
         }
 
         if (askingForExport) {
@@ -561,8 +625,8 @@ private fun PassphraseDialog(
             Column {
                 Text(
                     text = stringResource(R.string.backup_passphrase_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
                 OutlinedTextField(
                     value = value,
@@ -609,45 +673,99 @@ private fun defaultBackupFileName(): String {
     return "starveil-$stamp.svb"
 }
 
+/** A glass card with the page's own side margin. */
+@Composable
+private fun SettingsCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    StarveilCard(
+        modifier = Modifier.padding(horizontal = StarveilSpacing.pageMargin),
+        content = content,
+    )
+}
+
 /**
- * A text action that starts on the page's left edge.
- *
- * Not a TextButton: that carries 12 dp of content padding and a 58 dp minimum
- * width, both of which centre a short label and leave it indented from the copy
- * above it. A Box with the same 48 dp touch height does exactly what is wanted
- * and nothing else.
+ * A text action: accent, on the baseline of the thing it acts on.
  */
 @Composable
-private fun LinkButton(
+private fun LinkText(
     text: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
     Box(
         modifier = Modifier
-            .heightIn(min = 48.dp)
-            .clickable(enabled = enabled, onClick = onClick),
+            .heightIn(min = 40.dp)
+            .clip(RoundedCornerShape(StarveilSpacing.xs))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.CenterStart,
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            },
+            style = StarveilType.label,
+            color = if (enabled) StarveilColors.accentA else StarveilColors.ink3,
         )
     }
 }
 
+/** A row that opens something, with a chevron on the right. */
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(top = StarveilSpacing.sm),
-    )
+private fun EntryRow(
+    title: String,
+    description: String? = null,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
+            if (description != null) {
+                Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
+            }
+        }
+        Icon(
+            imageVector = StarveilIcons.Chevron,
+            contentDescription = null,
+            tint = StarveilColors.ink3,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/** A read-only value: a version, a build, a count. */
+@Composable
+private fun ValueRow(title: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = StarveilType.headline,
+            color = StarveilColors.ink,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value,
+            style = StarveilType.log,
+            color = StarveilColors.ink2,
+        )
+    }
 }
 
 @Composable
@@ -661,25 +779,49 @@ private fun RadioOption(
         modifier = Modifier
             .fillMaxWidth()
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .padding(vertical = StarveilSpacing.xs),
-        // Top, not centre: the circle belongs to the title's first line, and
-        // centring it over a two-line description is what made the three
-        // Kill Switch options look like they had three different baselines.
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
         verticalAlignment = Alignment.Top,
     ) {
-        // The row is the touch target, so the control does not need its own
-        // 48 dp box — which would push the circle down by 14 dp.
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            RadioButton(selected = selected, onClick = null)
+        // The mark is a cyan ring with an ink dot, or an empty ring: a Material
+        // radio button would bring its own tint and its own size.
+        Box(
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .border(
+                        1.5.dp,
+                        if (selected) StarveilColors.accentA else StarveilColors.ink3,
+                        CircleShape,
+                    ),
+            )
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(StarveilColors.ink),
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+        Spacer(modifier = Modifier.width(StarveilSpacing.md))
         Column {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            Text(text = label, style = StarveilType.headline, color = StarveilColors.ink)
             if (description != null) {
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
             }
         }
@@ -697,24 +839,27 @@ private fun SwitchRow(
         modifier = Modifier
             .fillMaxWidth()
             .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
-            .padding(vertical = StarveilSpacing.xs),
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
         // The switch sits on the title's line, not halfway down the description.
         verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
             )
         }
-        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-        // onCheckedChange = null: the whole row is the target, so the switch
-        // must not also be one (it would toggle twice).
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            Switch(checked = checked, onCheckedChange = null)
-        }
+        Spacer(modifier = Modifier.width(StarveilSpacing.md))
+        // The whole row is the target, so the switch itself is not one: it
+        // would toggle twice.
+        StarveilSwitch(checked = checked, onCheckedChange = null)
     }
 }
 

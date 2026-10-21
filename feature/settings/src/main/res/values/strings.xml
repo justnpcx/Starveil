@@ -149,4 +149,12 @@
     <string name="keepalive_details_title">App settings</string>
     <string name="keepalive_details_body">Where most ROMs keep the background and power switches for one app.</string>
     <string name="keepalive_action_open">Open</string>
+    <string name="settings_group_connection">Connection</string>
+    <string name="settings_group_per_app">Per-app routing</string>
+    <string name="settings_group_keepalive">Background</string>
+    <string name="settings_group_backup">Backup</string>
+    <string name="settings_group_leak_check">Leak self-check</string>
+    <string name="settings_group_developer">Developer options</string>
+    <string name="settings_group_about">About</string>
+    <string name="settings_version_title">Starveil</string>
 </resources>

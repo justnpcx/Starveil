@@ -34,7 +34,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * Choose where each app's traffic goes.
@@ -70,8 +72,8 @@ fun PerAppScreen(
         ) {
             Text(
                 text = stringResource(R.string.per_app_explainer),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
                 modifier = Modifier.padding(
                     start = StarveilSpacing.lg,
                     end = StarveilSpacing.lg,
@@ -99,8 +101,8 @@ fun PerAppScreen(
 
                 state.visible.isEmpty() -> Text(
                     text = stringResource(R.string.per_app_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                     modifier = Modifier.padding(StarveilSpacing.lg),
                 )
 
@@ -145,22 +147,22 @@ private fun AppRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = app.label,
-                style = MaterialTheme.typography.bodyLarge,
+                style = StarveilType.body,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         Text(
             text = target,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            style = StarveilType.label,
+            color = StarveilColors.accentA,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -230,7 +232,7 @@ private fun TargetOption(
         RadioButton(selected = selected, onClick = null)
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge,
+            style = StarveilType.body,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

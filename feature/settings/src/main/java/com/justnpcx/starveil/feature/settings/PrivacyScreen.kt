@@ -15,7 +15,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * What the app does with data, stated in the app rather than only in a file.
@@ -53,7 +55,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
         ) {
             Text(
                 text = stringResource(R.string.privacy_intro),
-                style = MaterialTheme.typography.bodyLarge,
+                style = StarveilType.body,
             )
             PolicySection(R.string.privacy_data_title, R.string.privacy_data_body)
             PolicySection(R.string.privacy_crash_title, R.string.privacy_crash_body)
@@ -72,12 +74,12 @@ private fun PolicySection(title: Int, body: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs)) {
         Text(
             text = stringResource(title),
-            style = MaterialTheme.typography.titleMedium,
+            style = StarveilType.headline,
         )
         Text(
             text = stringResource(body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
         )
     }
 }

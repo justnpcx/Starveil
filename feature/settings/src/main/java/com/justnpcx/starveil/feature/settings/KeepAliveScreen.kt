@@ -32,7 +32,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * The three switches a Chinese ROM needs before it will let a VPN live.
@@ -88,8 +90,8 @@ fun KeepAliveScreen(onBack: () -> Unit) {
         ) {
             Text(
                 text = stringResource(R.string.keepalive_intro),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
             )
 
             KeepAliveRow(
@@ -156,25 +158,25 @@ private fun KeepAliveRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = StarveilType.headline,
                     modifier = Modifier.weight(1f),
                 )
                 if (status != null) {
                     Text(
                         text = status,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = StarveilType.label,
                         color = if (statusIsWarning) {
-                            MaterialTheme.colorScheme.error
+                            StarveilColors.err
                         } else {
-                            MaterialTheme.colorScheme.primary
+                            StarveilColors.accentA
                         },
                     )
                 }
             }
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
                 modifier = Modifier.padding(top = StarveilSpacing.xs),
             )
             TextButton(onClick = onAction, modifier = Modifier.padding(top = StarveilSpacing.xs)) {

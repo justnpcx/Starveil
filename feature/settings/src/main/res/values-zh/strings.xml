@@ -138,4 +138,12 @@
     <string name="keepalive_details_title">应用详情</string>
     <string name="keepalive_details_body">多数 ROM 把单个应用的后台与耗电开关放在这里。</string>
     <string name="keepalive_action_open">去设置</string>
+    <string name="settings_group_connection">连接</string>
+    <string name="settings_group_per_app">按应用分流</string>
+    <string name="settings_group_keepalive">后台保活</string>
+    <string name="settings_group_backup">备份</string>
+    <string name="settings_group_leak_check">泄漏自检</string>
+    <string name="settings_group_developer">开发者选项</string>
+    <string name="settings_group_about">关于</string>
+    <string name="settings_version_title">Starveil</string>
 </resources>
