@@ -228,7 +228,10 @@ class RealKernelBridge(
         withContext(Dispatchers.IO) {
             lastConfig = config
             restarted = false
-            val current = server ?: return@withContext doStart(config, blocking)
+            // The retry path matters here too: a connect after a failed start
+            // finds no server, but the daemon from that attempt can still hold
+            // the cache database.
+            val current = server ?: return@withContext startWithRetries(config, blocking)
 
             _state.value = KernelState.Starting
             log(LogLevel.INFO, "kernel restarting; tunnel goes down for the swap")
@@ -243,19 +246,62 @@ class RealKernelBridge(
             // still dying is what produced the `initialize cache-file: timeout`
             // failures; waiting for it to be gone makes the halves sequential.
             awaitVpnDown()
-            val first = doStart(config, blocking)
-            if (first.isSuccess) return@withContext first
-            // The Go daemon can outlive its VpnService: the cache database
-            // stays locked for a few seconds after the service is gone, and
-            // the new kernel dies with `initialize cache-file: timeout`
-            // (measured on the vivo: the old daemon took ~9 s to exit after a
-            // block-on-disconnect). One retry, after the daemon has had time
-            // to leave, is the difference between a real block and a UI that
-            // says "blocked" while traffic flows.
-            log(LogLevel.WARN, "start failed; retrying once after the old daemon exits")
-            kotlinx.coroutines.delay(START_RETRY_DELAY_MS)
-            doStart(config, blocking)
+            startWithRetries(config, blocking)
         }
+
+    /**
+     * Start, and if the cache database is still held, take it out of the way.
+     *
+     * The Go daemon can outlive its VpnService: after a teardown the old
+     * instance keeps the cache database open for seconds (measured on the
+     * vivo: ~9 s after a block-on-disconnect), and a new instance dies with
+     * `initialize cache-file: timeout` until it lets go. Waiting is one answer
+     * and it is a slow one.
+     *
+     * Unlinking is the other, and it is safe: on Android the open file keeps
+     * its inode, so the old holder goes on writing to a file nobody will open
+     * again, and the new instance creates a fresh one and starts immediately.
+     * The only cost is the rule-set cache, which is a download.
+     */
+    private suspend fun startWithRetries(config: String, blocking: Boolean): Result<Unit> {
+        var attempt = 0
+        var result = doStart(config, blocking)
+        while (result.isFailure && attempt < START_RETRIES) {
+            val message = result.exceptionOrNull()?.message.orEmpty()
+            if (message.contains("cache-file", ignoreCase = true)) {
+                val removed = clearCacheFiles()
+                log(
+                    LogLevel.WARN,
+                    "cache database was still held; cleared $removed file(s) and retrying",
+                )
+            } else {
+                log(LogLevel.WARN, "start failed; retrying")
+            }
+            attempt++
+            kotlinx.coroutines.delay(START_RETRY_DELAY_MS * attempt)
+            result = doStart(config, blocking)
+        }
+        return result
+    }
+
+    /**
+     * Removes the kernel's cache databases, including their journals.
+     *
+     * Names come from [com.justnpcx.starveil.core.kernel.config.ConfigBuilder]:
+     * one file per policy, so a block config and a proxy config never contend.
+     */
+    private fun clearCacheFiles(): Int {
+        val names = listOf("cache.db", "cache-block.db")
+        val suffixes = listOf("", "-journal", "-wal", "-shm")
+        var removed = 0
+        for (name in names) {
+            for (suffix in suffixes) {
+                val file = java.io.File(paths.workingPath, name + suffix)
+                if (file.exists() && file.delete()) removed++
+            }
+        }
+        return removed
+    }
 
     /** Waits until no VpnService instance is left, up to a bounded time. */
     private suspend fun awaitVpnDown() {
@@ -456,6 +502,15 @@ class RealKernelBridge(
 
         /** How long to let a failed start's predecessor finish dying. */
         const val START_RETRY_DELAY_MS = 1_500L
+
+        /**
+         * Extra attempts after a failed start.
+         *
+         * Three, with a growing pause, covers the ~9 s a dying daemon was
+         * measured to hold the cache database — and once the file is unlinked
+         * the retry usually succeeds on the first one.
+         */
+        const val START_RETRIES = 3
 
         /**
          * `CommandClient` only subscribes to the streams named in its options

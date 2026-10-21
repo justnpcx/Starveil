@@ -8,6 +8,18 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.9] — 2026-10-21
+
+### Fixed
+
+- **`initialize cache-file: timeout`**: after a failed start the previous
+  daemon can keep the cache database open for seconds, and every retry — the
+  next tap on connect included — died the same way. A start that fails on the
+  cache database now unlinks it and retries: the old holder keeps its inode and
+  writes to a file nobody opens again, the new instance creates a fresh one.
+  Up to three attempts, and the first connect after a failed one gets the same
+  treatment instead of failing outright.
+
 ## [0.7.8] — 2026-10-21
 
 ### Fixed
