@@ -354,7 +354,7 @@ private fun RuleMarketDialog(
                                 color = StarveilColors.ink2,
                             )
                         }
-                        Switch(
+                        StarveilSwitch(
                             checked = pack.id in subscribed,
                             onCheckedChange = { onToggle(pack.id, it) },
                         )
@@ -591,7 +591,7 @@ private fun FlowSection(
                 Text(
                     text = stringResource(R.string.rules_flow_view_all, records.size),
                     style = StarveilType.label,
-                    color = StarveilColors.accentA,
+                    color = StarveilColors.ink2,
                     modifier = Modifier
                         .clip(RoundedCornerShape(StarveilSpacing.xs))
                         .clickable(role = Role.Button, onClick = onOpenAll)
@@ -623,7 +623,7 @@ private fun FlowSection(
                         groups.size,
                     ),
                     style = StarveilType.label,
-                    color = StarveilColors.accentA,
+                    color = StarveilColors.ink2,
                     modifier = Modifier
                         .clip(RoundedCornerShape(StarveilSpacing.xs))
                         .clickable(role = Role.Button, onClick = onToggleExpanded)

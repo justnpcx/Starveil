@@ -76,12 +76,14 @@ class StarveilWidget : GlanceAppWidget() {
 
 @Composable
 private fun WidgetContent(connected: Boolean, stateText: String, actionText: String) {
-    // The HUD palette, spelled out: Glance has its own theming, and inheriting
+    // The 曜 palette, spelled out: Glance has its own theming, and inheriting
     // the Material default here would put a light card on a dark home screen.
-    val surface = ColorProvider(Color(0xFF0B101D))
-    val dot = ColorProvider(if (connected) Color(0xFF34D399) else Color(0xFF64748B))
-    val strong = ColorProvider(Color(0xFFE2E8F0))
-    val dim = ColorProvider(Color(0xFF94A3B8))
+    // These are the token values from core/ui/theme/Palette.kt — a widget is a
+    // RemoteViews tree and cannot read a CompositionLocal.
+    val surface = ColorProvider(Color(0xFF0B0D10)) // surfaceGlass
+    val dot = ColorProvider(if (connected) Color(0xFF2FBF9B) else Color(0xFF5B6577)) // ok / ink3
+    val strong = ColorProvider(Color(0xFFF5F7FA)) // ink
+    val dim = ColorProvider(Color(0xFF8A94A6)) // ink2
 
     Column(
         modifier = GlanceModifier

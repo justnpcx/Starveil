@@ -515,3 +515,55 @@ adb logcat -d | grep -c 'network callback released'
 adb logcat -d | grep -c 'initialize cache-file'
 adb logcat -d | grep -E 'StarveilDoh|falling back'
 ```
+
+
+## 2026-10-22 · 曜 深空曜黑单主题换肤验收
+
+任务书：《Starveil UI 设计规范任务书 ——「曜」深空曜黑 · 单主题（v3，定稿）》。
+开工基线：`83e9d80`（v1 浅色奢华令牌层），非任务书写于的 `ba1ffbd`——仓库有 force-push 史，以开工时实查为准。
+
+### 落地
+
+| 提交 | 内容 |
+|---|---|
+| `9fb1f7d` | 令牌层 + 通用组件 + 单主题（删除 ThemeMode/dynamicColor 与其设置 UI、字符串） |
+| `d3c864d` | 首页 |
+| `633ce92` | 节点 |
+| `8e0d979` | 规则 |
+| `4a65f84` | 日志 |
+| `93eaa79` | 设置 |
+| 走查提交 | 旧令牌桥接删除、二级页面（onboarding/编辑器/按应用/保活/隐私/场景）Token 化、小组件配色、docs/02 重写 |
+
+### 走查结果
+
+- **旧灰紫色值**（HUD 时代 `#050810`/`#0B101D`/`#121A2E`/`#1E293B`/`#38BDF8`/`#818CF8`/`#34D399`/`#64748B`/`#94A3B8`/`#475569`/`#E2E8F0`/`#F87171`/`#FBBF24` 等）在 `*.kt`/`*.xml` 中：**0 处**。
+- **纱主题色值**（暖白 `#FAF9F6`、香槟金 `#B08D57`/`#AA8A50`、暖灰 `#6E675C` 等）：**0 处**。
+- **裸色值**：仅 `core/ui/theme/Palette.kt`（令牌定义）与 `widget/StarveilWidget.kt`（Glance RemoteViews 读不到 CompositionLocal，按令牌值逐字写出并注释）。
+- **MaterialTheme.typography / colorScheme**：0 处（全部改为 `StarveilType` / `StarveilColors`）。
+- **主题切换/外观 UI**：0 处（`ThemeMode`、`dynamicColor` 及其字符串已删除）。
+
+### 每屏强调色计数（默认状态）
+
+| 屏 | 处数 | 明细 |
+|---|---|---|
+| 首页 | 3 | 圆环渐变、自动选择徽标、健康曲线 |
+| 节点 | 2 | FAB 描边、选中行标记（芯片选中描边为状态相关，不计入默认态） |
+| 规则 | 2（开去广告时 3） | 预设单选环、规则市场右值；去广告开关开启时 +1 |
+| 日志 | 2 | 复制按钮、选中筛选芯片描边 |
+| 设置 | 3 | Kill Switch 选中环、自动重连、断开切换（均为默认开启） |
+
+### 几何与可访问性
+
+- 首页两列速率：标签/数字/累计三行分别共基线，单位以 `alignByBaseline` 贴数字基线（单测外的真机项，见下）。
+- 圆环 240dp / 4dp 全状态零位移：`ConnectionCoreTest` 断言 `sizeFor` 与 `diameterFor` 恒为 240、描边 4dp。
+- 对比度：`ContrastTest` 7 条全绿（ink/ink2 ≥4.5、accent ≥3、状态色 ≥4.5、选中行 wash ≥4.5）。
+- 列表底部 FAB 留白：节点 96dp、规则 96dp；日志/设置无 FAB。
+
+### 构建
+
+- `:app:assembleDebug` 通过；`testDebugUnitTest` 全绿；`:app:lintDebug` **0 errors**（37 warnings，均为既有资源类告警）。
+- 字体：未外置字体文件，增量 0KB（预算 200KB）。
+
+### 未完成（阻塞）
+
+- **真机截图（改前/改后）未取**：验收开始时 vivo V2238A 的无线调试可用并已抓取首页「改前」图；随后设备从 mDNS 掉线（`adb devices` 只剩 Fire TV，后者 SDK 25 装不了本应用），`adb connect <ip>:5555` 全部 refused。需要重新打开手机的「无线调试」后补拍五页改后图，并核对：圆环零位移、两列共基线、FAB 不压字。

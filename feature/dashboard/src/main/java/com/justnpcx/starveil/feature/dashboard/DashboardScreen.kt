@@ -626,8 +626,8 @@ private fun AutoSelectBadge(onClick: () -> Unit) {
 /** One line of state explanation, occupied or not. */
 private val CONTEXT_SLOT_HEIGHT = 24.dp
 
-/** The telemetry block's height, with or without numbers. */
-private val TELEMETRY_HEIGHT = 96.dp
+/** The telemetry block's height, with or without numbers: 16+8+58+4+19, rounded up. */
+private val TELEMETRY_HEIGHT = 112.dp
 
 /** The health chart never gets smaller than this. */
 private val HEALTH_MIN_HEIGHT = 96.dp
@@ -675,6 +675,12 @@ private fun roundTo(value: Double, decimals: Int): Double {
     var factor = 1.0
     repeat(decimals) { factor *= 10 }
     return round(value * factor) / factor
+}
+
+/** A rate with its unit, for copy and for tests. */
+internal fun formatRate(bytesPerSecond: Long): String {
+    val parts = formatRateParts(bytesPerSecond)
+    return parts.value + " " + parts.unit
 }
 
 internal fun formatBytes(bytes: Long): String {

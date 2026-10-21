@@ -217,7 +217,6 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val subscriptionLastFailureAt: Flow<Long> get() = samplerNotUsed()
     override val subscriptionLastError: Flow<String?> get() = samplerNotUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = samplerNotUsed()
-    override suspend fun setDynamicColor(enabled: Boolean) = samplerNotUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = samplerNotUsed()
     override suspend fun setRoutePreset(preset: RoutePreset) { samplerNotUsed() }
     override suspend fun setBlockAds(enabled: Boolean) { samplerNotUsed() }

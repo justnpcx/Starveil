@@ -241,7 +241,6 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
     override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
-    override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }

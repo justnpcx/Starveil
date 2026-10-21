@@ -206,7 +206,8 @@ fun StarveilGroupHeader(text: String, modifier: Modifier = Modifier) {
         modifier = modifier.padding(
             start = StarveilSpacing.pageMargin,
             end = StarveilSpacing.pageMargin,
-            top = StarveilSpacing.xl,
+            // 32dp between a group and the one before it, per the spec.
+            top = StarveilSpacing.xxl,
             bottom = StarveilSpacing.sm,
         ),
     )

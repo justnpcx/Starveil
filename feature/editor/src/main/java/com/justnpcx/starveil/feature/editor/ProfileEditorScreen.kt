@@ -13,8 +13,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import com.justnpcx.starveil.core.ui.components.StarveilSwitch
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -32,7 +32,9 @@ import com.justnpcx.starveil.core.model.TransportType
 import com.justnpcx.starveil.core.model.TuicCongestionControl
 import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.XhttpMode
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * The node editor, shared by all seven protocols.
@@ -336,7 +338,7 @@ private fun ProtocolFields(
 
         ProfileType.OTHER -> Text(
             text = stringResource(R.string.editor_missing),
-            style = MaterialTheme.typography.bodyMedium,
+            style = StarveilType.label,
         )
     }
 }
@@ -352,8 +354,8 @@ private fun WireGuardFields(
     // question when reading the generated config.
     Text(
         text = stringResource(R.string.editor_hint_wireguard),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = StarveilType.label,
+        color = StarveilColors.ink2,
     )
     Field(
         label = R.string.editor_field_wg_private_key,
@@ -432,7 +434,7 @@ private fun PasswordField(
 private fun Section(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
+        style = StarveilType.headline,
         modifier = Modifier.padding(top = StarveilSpacing.md),
     )
 }
@@ -463,10 +465,10 @@ private fun Toggle(label: Int, checked: Boolean, onCheckedChange: (Boolean) -> U
     ) {
         Text(
             text = stringResource(label),
-            style = MaterialTheme.typography.bodyMedium,
+            style = StarveilType.label,
             modifier = Modifier.weight(1f),
         )
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        StarveilSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

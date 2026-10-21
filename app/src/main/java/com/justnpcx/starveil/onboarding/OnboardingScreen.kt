@@ -52,7 +52,9 @@ import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
+import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * The first-run flow, three steps, skippable at every one.
@@ -106,7 +108,7 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(StarveilColors.bg)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(StarveilSpacing.lg),
     ) {
@@ -193,9 +195,9 @@ private fun StepDots(step: Int) {
                     .clip(CircleShape)
                     .background(
                         if (active) {
-                            MaterialTheme.colorScheme.primary
+                            StarveilColors.accentA
                         } else {
-                            MaterialTheme.colorScheme.surfaceVariant
+                            StarveilColors.surfaceGlass
                         },
                     ),
             )
@@ -219,14 +221,14 @@ private fun WelcomeStep(onNext: () -> Unit) {
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            StarveilColors.accentA.copy(alpha = 0.85f),
+                            StarveilColors.accentA.copy(alpha = 0.05f),
                         ),
                     ),
                 )
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    color = StarveilColors.accentA.copy(alpha = 0.35f),
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
@@ -235,20 +237,20 @@ private fun WelcomeStep(onNext: () -> Unit) {
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(StarveilColors.bg),
             )
         }
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         Text(
             text = stringResource(R.string.onboarding_welcome_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = StarveilType.headline,
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.sm))
         Text(
             text = stringResource(R.string.onboarding_welcome_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
@@ -273,12 +275,12 @@ private fun ImportStep(
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         Text(
             text = stringResource(R.string.onboarding_import_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = StarveilType.headline,
         )
         Text(
             text = stringResource(R.string.onboarding_import_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
         )
 
         // The clipboard offer is the Shadowrocket-grade shortcut: if the link
@@ -326,14 +328,14 @@ private fun ImportStep(
                 } else {
                     stringResource(R.string.onboarding_imported, result.nodes)
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = StarveilType.label,
+                color = StarveilColors.accentA,
             )
 
             is ImportResult.Failed -> Text(
                 text = stringResource(R.string.onboarding_import_failed, result.failure.text()),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                style = StarveilType.label,
+                color = StarveilColors.err,
             )
 
             null -> Unit
@@ -356,12 +358,12 @@ private fun ConnectStep(
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         Text(
             text = stringResource(R.string.onboarding_connect_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = StarveilType.headline,
         )
         Text(
             text = stringResource(R.string.onboarding_connect_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
         )
 
         Spacer(modifier = Modifier.height(StarveilSpacing.lg))
@@ -369,8 +371,8 @@ private fun ConnectStep(
         if (consentDenied) {
             Text(
                 text = stringResource(R.string.onboarding_consent_denied),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
+                style = StarveilType.label,
+                color = StarveilColors.err,
             )
         }
 
@@ -380,8 +382,8 @@ private fun ConnectStep(
                     text = result.name?.let {
                         stringResource(R.string.onboarding_connected, it)
                     } ?: stringResource(R.string.onboarding_connected_unknown),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = StarveilType.headline,
+                    color = StarveilColors.accentA,
                 )
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
                 Button(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
@@ -392,8 +394,8 @@ private fun ConnectStep(
             ConnectResult.NoNodes -> {
                 Text(
                     text = stringResource(R.string.onboarding_no_nodes),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    style = StarveilType.label,
+                    color = StarveilColors.err,
                 )
                 Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.onboarding_back))
@@ -405,8 +407,8 @@ private fun ConnectStep(
                     text = result.reason?.let {
                         stringResource(R.string.onboarding_connect_failed, it)
                     } ?: stringResource(R.string.onboarding_connect_failed_unknown),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    style = StarveilType.label,
+                    color = StarveilColors.err,
                 )
                 Button(
                     onClick = onConnect,
@@ -457,14 +459,14 @@ private fun BigAction(
                 .padding(vertical = StarveilSpacing.sm),
             horizontalAlignment = Alignment.Start,
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
+            Text(text = title, style = StarveilType.headline)
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                style = StarveilType.label,
                 maxLines = 1,
                 // A filled button's subtitle stays on the button's own
                 // foreground; onSurfaceVariant would be invisible here.
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                color = StarveilColors.bg.copy(alpha = 0.8f),
             )
         }
     }

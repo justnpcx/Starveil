@@ -156,7 +156,6 @@ private class DropFakePrefs : PreferencesRepository {
     override val subscriptionLastError: Flow<String?> get() = dropNotUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = dropNotUsed()
 
-    override suspend fun setDynamicColor(enabled: Boolean) = dropNotUsed()
     override suspend fun setAutoReconnect(enabled: Boolean) = dropNotUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = dropNotUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = dropNotUsed()

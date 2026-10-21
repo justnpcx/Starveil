@@ -225,7 +225,6 @@ private class FakePreferences : PreferencesRepository {
     override val subscriptionLastError: Flow<String?> get() = notUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
 
-    override suspend fun setDynamicColor(enabled: Boolean) = notUsed()
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = notUsed()

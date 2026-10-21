@@ -169,7 +169,6 @@ private class LeakFakePreferences(private val mode: KillSwitchMode) : Preference
     override val subscriptionLastFailureAt: Flow<Long> get() = leakNotUsed()
     override val subscriptionLastError: Flow<String?> get() = leakNotUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = leakNotUsed()
-    override suspend fun setDynamicColor(enabled: Boolean) { leakNotUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { leakNotUsed() }
     override suspend fun setRoutePreset(preset: RoutePreset) { leakNotUsed() }
     override suspend fun setBlockAds(enabled: Boolean) { leakNotUsed() }
