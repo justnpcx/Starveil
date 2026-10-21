@@ -91,6 +91,31 @@ interface KernelBridge {
      */
     val blocking: StateFlow<Boolean>
 
+    /**
+     * Whether a tun device exists right now.
+     *
+     * Separate from [state] on purpose: the tunnel outlives the kernel. A block
+     * keeps it up deliberately, and a process death can leave one behind with
+     * nothing attached to it — in both cases `state` says `Stopped` while the
+     * VPN interface is still installed and every app is still routed into it.
+     */
+    suspend fun tunnelPresent(): Boolean = false
+
+    /**
+     * Take down a tunnel that no kernel is attached to, and say whether there
+     * was one.
+     *
+     * Called at start-up: the process can be killed and the VpnService brought
+     * back by the system, which leaves a fresh process that believes it is
+     * disconnected while the interface from the old one is still up. Nothing
+     * reads that tun, so every app on the phone is offline — and the UI, which
+     * reads [state], says "not connected" and offers to connect.
+     *
+     * A tunnel with a kernel behind it is never touched: that is a connection,
+     * whatever this process remembers.
+     */
+    suspend fun releaseOrphanTunnel(): Boolean = false
+
     /** Current traffic snapshot. Returns zeroed stats when not running. */
     suspend fun queryStats(): TrafficStats
 

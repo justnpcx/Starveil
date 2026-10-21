@@ -8,6 +8,22 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.10] — 2026-10-21
+
+### Fixed
+
+- **A tunnel that outlived its process**: the kernel's state lives in memory,
+  so a new process starts believing nothing is connected — but the tun does
+  not. The system keeps the VpnService across a process death (`START_STICKY`,
+  and always-on VPN restarts it at boot), and while it is up every app is
+  routed into a tunnel nothing is reading. The app said "not connected" and
+  offered to connect, and connecting then failed on the cache database the dead
+  daemon still held. Start-up now reconciles the two: a tunnel with no kernel is
+  released, a kernel with no tunnel is stopped, and a tunnel with a kernel is
+  left alone. When the release dropped a connection the user had asked to keep,
+  it is restored through the ordinary connect path — a reboot with always-on VPN
+  now looks like a reconnect instead of a phone with no network.
+
 ## [0.7.9] — 2026-10-21
 
 ### Fixed

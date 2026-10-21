@@ -2,10 +2,13 @@ package com.justnpcx.starveil
 
 import android.app.Application
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.crash.CrashReporting
 import com.justnpcx.starveil.core.probe.NodeHealthProbeScheduler
 import com.justnpcx.starveil.rules.RuleSetFailureReporter
+import com.justnpcx.starveil.feature.dashboard.ConnectionController
 import com.justnpcx.starveil.scene.SceneController
 import com.justnpcx.starveil.timing.ConnectionTiming
 import com.justnpcx.starveil.widget.StarveilWidget
@@ -15,6 +18,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -45,6 +49,17 @@ class StarveilApp : Application() {
     @Inject
     lateinit var connectionTiming: ConnectionTiming
 
+    /** Makes this process's idea of the connection agree with the phone's. */
+    @Inject
+    lateinit var connectionReconciler: ConnectionReconciler
+
+    /** The connect path, used only to restore a connection this process lost. */
+    @Inject
+    lateinit var connection: ConnectionController
+
+    @Inject
+    lateinit var preferences: PreferencesRepository
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -73,6 +88,24 @@ class StarveilApp : Application() {
         // app quietly ignoring a setting; it belongs in the log the user can
         // actually read.
         ruleSetFailures.start(scope)
+
+        // Before scenes: they evaluate the network, and a tunnel left over from
+        // a previous process would be read as a live connection.
+        //
+        // The process can die while the system keeps the VpnService, which
+        // leaves a tunnel nobody reads: every app offline, and the UI — which
+        // reads the kernel's in-memory state — saying "not connected". Release
+        // it, then bring the connection back if that is what the user asked
+        // for, so a reboot with always-on VPN looks like a reconnect rather
+        // than like a phone with no network.
+        scope.launch {
+            val outcome = connectionReconciler.run()
+            val autoReconnect = preferences.autoReconnect.first()
+            val hasTarget = preferences.connectionTarget.first() != ConnectionTarget.None
+            if (connectionReconciler.shouldRestore(outcome, autoReconnect, hasTarget)) {
+                connection.connect()
+            }
+        }
 
         // Scenes are evaluated while the process lives, which is exactly while
         // the tunnel is up: the VpnService keeps it alive. With no process

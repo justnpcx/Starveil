@@ -474,6 +474,36 @@ class RealKernelBridge(
         server = null
     }
 
+    override suspend fun tunnelPresent(): Boolean =
+        com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService.current?.hasTun == true
+
+    /**
+     * Closes a tunnel that has no kernel behind it.
+     *
+     * Under the lifecycle gate, because it is a teardown like any other: a
+     * connect that starts at the same instant must not race it, and a tunnel
+     * that does have a kernel must not be taken down — that would disconnect a
+     * user whose connection is fine, just because this process is new.
+     */
+    override suspend fun releaseOrphanTunnel(): Boolean =
+        lifecycle.exclusive {
+            val service = com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService.current
+            val present = service?.hasTun == true
+            if (!present) return@exclusive false
+            if (server != null) {
+                log(LogLevel.DEBUG, "tunnel present with a running kernel; leaving it alone")
+                return@exclusive false
+            }
+            // Close the tun before asking the system to stop the service: the
+            // interface is what keeps the VPN framework bound to it, and while
+            // it is bound stopService never reaches onDestroy.
+            log(LogLevel.WARN, "tunnel present with no kernel; releasing it")
+            runCatching { service?.closeTun() }
+            runCatching { stopVpn() }
+            _state.value = KernelState.Stopped
+            true
+        }
+
     override suspend fun queryStats(): TrafficStats =
         if (server == null) TrafficStats() else clientHandler?.stats?.value ?: TrafficStats()
 
