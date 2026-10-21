@@ -8,6 +8,8 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.14] — 2026-10-21
+
 ### Added
 
 - **Share links open the app**: `ss://`, `vless://`, `vmess://`, `trojan://`,
