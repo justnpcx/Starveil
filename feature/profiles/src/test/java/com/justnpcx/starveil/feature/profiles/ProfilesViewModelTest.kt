@@ -708,12 +708,6 @@ private class FakeProfiles(private val all: MutableList<Profile>) : ProfileRepos
 
 private class FakePreferences(initialId: Long) : PreferencesRepository {
 
-    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
-    }
-
     private val target = MutableStateFlow<ConnectionTarget>(
         if (initialId != 0L) ConnectionTarget.Node(initialId) else ConnectionTarget.None,
     )

@@ -169,12 +169,6 @@ private class FakeKernel(private val reportedVersion: String) : KernelBridge {
 /** Only the members the settings state actually reads are real. */
 private class FakePreferences : PreferencesRepository {
 
-    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
-    }
-
     override val themeMode: Flow<ThemeMode> = flowOf(ThemeMode.DARK)
     override val dynamicColor: Flow<Boolean> = flowOf(false)
     override val autoReconnect: Flow<Boolean> = flowOf(true)

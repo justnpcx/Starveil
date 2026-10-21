@@ -138,12 +138,6 @@ private class LeakFakeKernel(initial: KernelState, blockingNow: Boolean = false)
 
 private class LeakFakePreferences(private val mode: KillSwitchMode) : PreferencesRepository {
 
-    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
-    }
-
     var lastRecord: LeakCheckRecord? = null
         private set
 

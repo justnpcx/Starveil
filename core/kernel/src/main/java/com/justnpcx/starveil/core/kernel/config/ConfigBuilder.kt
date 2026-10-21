@@ -40,7 +40,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         adsPath: String? = null,
         rulePacks: List<InstalledRulePack> = emptyList(),
         localApi: LocalApiConfig? = null,
-        proxyLan: Boolean = false,
+        localSubnets: List<String> = emptyList(),
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
@@ -68,7 +68,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             rulePacks = rulePacks,
             proxyTag = PROXY_TAG,
             localApi = localApi,
-            proxyLan = proxyLan,
+            localSubnets = localSubnets,
         )
     }
 
@@ -96,7 +96,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         adsPath: String? = null,
         rulePacks: List<InstalledRulePack> = emptyList(),
         localApi: LocalApiConfig? = null,
-        proxyLan: Boolean = false,
+        localSubnets: List<String> = emptyList(),
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -158,7 +158,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             rulePacks = rulePacks,
             proxyTag = AUTO_TAG,
             localApi = localApi,
-            proxyLan = proxyLan,
+            localSubnets = localSubnets,
         )
     }
 
@@ -207,7 +207,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         preset: RoutePreset,
         adsPath: String?,
         rulePacks: List<InstalledRulePack>,
-        proxyLan: Boolean,
+        localSubnets: List<String>,
     ): List<Map<String, Any?>> {
         // Per-app first, and that is a deliberate precedence: someone who says
         // "this app goes this way" means it more specifically than any domain
@@ -260,26 +260,27 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 )
             }
         }
-        // The local network. A private address is normally not a destination
-        // anyone wants proxied: the router, the NAS, a printer, and SSDP/DLNA
-        // discovery all live there, and `final: proxy` would send them to a
-        // server that cannot reach them.
+        // What is on the same link as this phone goes direct, and nothing else
+        // does. That distinction is the whole point: a private address is not
+        // one thing. `192.168.50.10` is the NAS one hop away when the phone is
+        // at home, and the same address is unreachable from a hotel — where
+        // the right answer is the node, because the node is the one standing
+        // in that house.
         //
-        // Unless the server *is* behind that network. A phone away from home
-        // reaching 192.168.x.x through a node that sits in that house is the
-        // same private range, and the only difference is where the user is
-        // standing — so this is the one switch, and it is off by default.
+        // So the rule is built from the interface's own addresses rather than
+        // from a list of private ranges. A network change rebuilds the tunnel,
+        // which is the only way a static config can follow the phone.
         //
-        // Loopback and multicast stay direct either way: neither can be
-        // carried by a proxy, and proxying them would break discovery without
-        // making anything reachable.
+        // Loopback, multicast and link-local are direct regardless: no proxy
+        // carries them, and putting them in the tunnel breaks discovery
+        // without making anything reachable.
         //
         // After per-app, before the user's rules: an app-level exception is
         // more specific than an address, and everything below this line is
         // about reaching the internet.
         val lan = listOf(
             linkedMapOf<String, Any?>(
-                "ip_cidr" to if (proxyLan) ALWAYS_DIRECT_CIDRS else LAN_CIDRS,
+                "ip_cidr" to (ALWAYS_DIRECT_CIDRS + localSubnets).distinct(),
                 "action" to "route",
                 "outbound" to DIRECT_TAG,
             ),
@@ -589,7 +590,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         proxyTag: String = finalTag,
         localApi: LocalApiConfig? = null,
         cacheFileName: String = "cache.db",
-        proxyLan: Boolean = false,
+        localSubnets: List<String> = emptyList(),
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
@@ -613,7 +614,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 preset,
                 adsPath,
                 rulePacks,
-                proxyLan,
+                localSubnets,
             ),
             "final" to finalTag,
             // On: this is the platform path, and it is the one we want.
@@ -733,33 +734,17 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val ADS_TAG = "ads"
 
         /**
-         * Private, loopback, link-local and multicast destinations.
+         * Destinations that are never proxied, whatever network this is.
          *
-         * `224.0.0.0/4` is in the list for discovery: SSDP and mDNS advertise
-         * over multicast, and a proxied multicast packet is a device nobody
-         * finds.
-         */
-        /**
-         * What stays direct even when private ranges are tunnelled.
-         *
-         * Loopback is not a network, multicast is not carried by a proxy, and
-         * link-local IPv6 is per-link. Everything else — 10/8, 172.16/12,
-         * 192.168/16, fc00::/7 — follows the switch.
+         * `224.0.0.0/4` is here for discovery: SSDP and mDNS advertise over
+         * multicast, and a proxied multicast packet is a device nobody finds.
+         * The private ranges are deliberately absent — they are added from the
+         * phone's own interface, so that only the network it is standing in is
+         * kept direct.
          */
         val ALWAYS_DIRECT_CIDRS = listOf(
             "127.0.0.0/8",
             "::1/128",
-            "fe80::/10",
-            "224.0.0.0/4",
-        )
-
-        val LAN_CIDRS = listOf(
-            "10.0.0.0/8",
-            "172.16.0.0/12",
-            "192.168.0.0/16",
-            "127.0.0.0/8",
-            "::1/128",
-            "fc00::/7",
             "fe80::/10",
             "224.0.0.0/4",
         )

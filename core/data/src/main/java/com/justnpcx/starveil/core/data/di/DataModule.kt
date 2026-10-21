@@ -18,6 +18,8 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.backup.RestoreTransaction
 import com.justnpcx.starveil.core.data.backup.RoomRestoreTransaction
 import com.justnpcx.starveil.core.data.geo.DohResolver
+import com.justnpcx.starveil.core.data.network.AndroidLocalSubnets
+import com.justnpcx.starveil.core.data.network.LocalSubnets
 import com.justnpcx.starveil.core.data.ruleset.FileMainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.FileRulePackStore
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
@@ -161,4 +163,10 @@ object DataModule {
     @Singleton
     fun provideRestoreTransaction(database: StarveilDatabase): RestoreTransaction =
         RoomRestoreTransaction(database)
+
+    /** Reads the current link's subnets; the config's direct rule is built from it. */
+    @Provides
+    @Singleton
+    fun provideLocalSubnets(@ApplicationContext context: Context): LocalSubnets =
+        AndroidLocalSubnets(context)
 }

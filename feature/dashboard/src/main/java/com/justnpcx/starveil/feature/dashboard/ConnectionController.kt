@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.dashboard
 
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
+import com.justnpcx.starveil.core.data.network.LocalSubnets
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -84,6 +85,7 @@ class ConnectionController @Inject constructor(
     private val rulePackStore: RulePackStore,
     private val localApiToken: LocalApiTokenStore,
     private val timing: ConnectClock,
+    private val localSubnets: LocalSubnets,
 ) {
 
     /**
@@ -130,10 +132,6 @@ class ConnectionController @Inject constructor(
         // Stacked on top of any preset, and independent of it: a failed
         // download leaves ads unblocked rather than taking the routing with it.
         val ads = if (preferences.blockAds.first()) mainlandRuleSets.ensureAds() else null
-        // Whether a private address means "the network I am on" or "the network
-        // the node is on". Read here, like the preset, because the kernel runs
-        // the config it was given at connect time.
-        val proxyLan = preferences.proxyPrivateNetworks.first()
         // Subscribed packs, on the same terms: one that cannot be verified is
         // left out of this config and reported, and the tunnel still comes up.
         val packs = rulePackStore.ensure(preferences.subscribedRulePacks.first())
@@ -147,6 +145,10 @@ class ConnectionController @Inject constructor(
 
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
+            // Which addresses are one hop away right now. Read at build time,
+            // not cached: the config describes this network, and the tunnel is
+            // rebuilt when the network changes.
+            val subnets = localSubnets.current()
             // Off the caller's dispatcher: a subscription of a thousand nodes
             // is 5 ms here and an order of magnitude more on a low-end phone,
             // and this is called from the main thread's scope. The builder
@@ -163,7 +165,7 @@ class ConnectionController @Inject constructor(
                         adsPath = ads,
                         rulePacks = packs,
                         localApi = localApi,
-                        proxyLan = proxyLan,
+                        localSubnets = subnets,
                     )
 
                     is Target.Group -> configBuilder.build(
@@ -176,7 +178,7 @@ class ConnectionController @Inject constructor(
                         adsPath = ads,
                         rulePacks = packs,
                         localApi = localApi,
-                        proxyLan = proxyLan,
+                        localSubnets = subnets,
                     )
 
                     Target.None -> null

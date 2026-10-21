@@ -102,16 +102,6 @@ interface PreferencesRepository {
     val blockAds: Flow<Boolean>
 
     /**
-     * Whether private addresses take the tunnel instead of going direct.
-     *
-     * Off by default. On a phone at home, the router, the NAS and a printer are
-     * all private addresses, and proxying them would send them to a server that
-     * cannot reach them. On, it is how a phone away from home reaches those
-     * same devices through a node that sits behind that network.
-     */
-    val proxyPrivateNetworks: Flow<Boolean>
-
-    /**
      * Rule packs the user subscribed to, by [com.justnpcx.starveil.core.data.ruleset.RulePack.id].
      *
      * Ids rather than a list of definitions: the pack's URL and hash live in
@@ -203,9 +193,6 @@ interface PreferencesRepository {
 
     suspend fun setBlockAds(enabled: Boolean)
 
-    /** See [proxyPrivateNetworks]. */
-    suspend fun setProxyPrivateNetworks(enabled: Boolean)
-
     /**
      * Subscribe to or leave one pack.
      *
@@ -265,7 +252,6 @@ class DataStorePreferencesRepository @Inject constructor(
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
         val ROUTE_PRESET = stringPreferencesKey("route_preset")
         val BLOCK_ADS = booleanPreferencesKey("block_ads")
-        val PROXY_PRIVATE_NETWORKS = booleanPreferencesKey("proxy_private_networks")
         val RULE_PACKS = stringPreferencesKey("subscribed_rule_packs")
         val LOCAL_API = booleanPreferencesKey("local_api_enabled")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
@@ -364,10 +350,6 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.BLOCK_ADS] ?: false }
 
-    override val proxyPrivateNetworks: Flow<Boolean> = dataStore.data
-        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.PROXY_PRIVATE_NETWORKS] ?: false }
-
     override val subscribedRulePacks: Flow<Set<String>> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs ->
@@ -394,10 +376,6 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setBlockAds(enabled: Boolean) {
         dataStore.edit { it[Keys.BLOCK_ADS] = enabled }
-    }
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        dataStore.edit { it[Keys.PROXY_PRIVATE_NETWORKS] = enabled }
     }
 
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) {

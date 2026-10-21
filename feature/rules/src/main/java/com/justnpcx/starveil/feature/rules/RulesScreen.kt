@@ -160,7 +160,6 @@ fun RulesScreen(
                     RoutePresetCard(
                         preset = state.preset,
                         blockAds = state.blockAds,
-                        proxyPrivateNetworks = state.proxyPrivateNetworks,
                         failed = state.ruleSetFailure != null,
                         presetRules = state.presetRules,
                         userRuleCount = state.enabledUserRules,
@@ -168,7 +167,6 @@ fun RulesScreen(
                         availablePacks = state.availablePacks,
                         onSelect = viewModel::setPreset,
                         onToggleAds = viewModel::setBlockAds,
-                        onToggleProxyLan = viewModel::setProxyPrivateNetworks,
                         onOpenMarket = { showMarket = true },
                         onOpenPerApp = onOpenPerApp,
                         onOpenScenes = onOpenScenes,
@@ -869,7 +867,6 @@ private fun actionLabel(action: RuleAction): String = stringResource(
 private fun RoutePresetCard(
     preset: RoutePreset,
     blockAds: Boolean,
-    proxyPrivateNetworks: Boolean,
     /** A rule set was rejected, so the preset below is not what the kernel gets. */
     failed: Boolean,
     presetRules: List<PresetRule>,
@@ -878,7 +875,6 @@ private fun RoutePresetCard(
     availablePacks: List<RulePack>,
     onSelect: (RoutePreset) -> Unit,
     onToggleAds: (Boolean) -> Unit,
-    onToggleProxyLan: (Boolean) -> Unit,
     onOpenMarket: () -> Unit,
     onOpenPerApp: () -> Unit,
     onOpenScenes: () -> Unit,
@@ -911,43 +907,14 @@ private fun RoutePresetCard(
                 onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
             )
 
-            // The one routing question whose answer depends on where the
-            // phone is: at home a private address is the local network, away
-            // from home it is the network the node sits on. Stated, then
-            // switchable, because the wrong answer is silent either way.
+            // One line, always: the one rule the user cannot turn off is also
+            // the one they would otherwise wonder about.
             Text(
-                text = stringResource(
-                    if (proxyPrivateNetworks) {
-                        R.string.rules_lan_note_proxied
-                    } else {
-                        R.string.rules_lan_note
-                    },
-                ),
+                text = stringResource(R.string.rules_lan_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = StarveilSpacing.xs),
             )
-
-            Row(
-                modifier = Modifier.padding(top = StarveilSpacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.rules_proxy_lan_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        // Same reason as the ads switch: the card's content
-                        // colour reads as disabled on a toggle that is on.
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.rules_proxy_lan_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = proxyPrivateNetworks, onCheckedChange = onToggleProxyLan)
-            }
 
             // Persistent, not only the Snackbar: the condition lasts until a
             // verified download succeeds, and the counts below would otherwise
@@ -1060,7 +1027,6 @@ private fun RoutePresetCard(
                                 when (rule) {
                                     PresetRule.ADS -> R.string.rules_effective_ads
                                     PresetRule.LAN_DIRECT -> R.string.rules_effective_lan
-                                    PresetRule.LAN_PROXIED -> R.string.rules_effective_lan_proxied
                                     PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
                                     PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
                                 },

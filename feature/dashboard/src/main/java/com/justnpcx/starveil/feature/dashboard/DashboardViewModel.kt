@@ -218,8 +218,7 @@ class DashboardViewModel @Inject constructor(
                 preferences.blockAds,
                 preferences.subscribedRulePacks,
                 preferences.localApiEnabled,
-                preferences.proxyPrivateNetworks,
-            ) { preset, ads, packs, api, lan -> Policy(preset, ads, packs, api, lan) }
+            ) { preset, ads, packs, api -> Policy(preset, ads, packs, api) }
                 .collect { policy ->
                     val previous = lastPolicy
                     lastPolicy = policy
@@ -279,7 +278,6 @@ class DashboardViewModel @Inject constructor(
         val blockAds: Boolean,
         val packs: Set<String>,
         val localApi: Boolean,
-        val proxyPrivateNetworks: Boolean,
     )
 
     /**

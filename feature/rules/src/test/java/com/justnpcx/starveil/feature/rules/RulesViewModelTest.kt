@@ -205,12 +205,6 @@ private fun notUsed(): Nothing = throw NotImplementedError("not used by this tes
  * plausible-looking default that nothing checks.
  */
 private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRepository {
-
-    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
-    }
     private val bypass = MutableStateFlow(initiallyBypass)
 
     override val bypassMainland: Flow<Boolean> = bypass

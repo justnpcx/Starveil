@@ -680,6 +680,7 @@ class DashboardViewModelTest {
             rulePackStore = NoRulePacks,
             localApiToken = FakeTokens,
             timing = ConnectClock { },
+            localSubnets = NoLocalSubnets,
         ).apply {
             // Config building hops threads in production; in a test that
             // asserts immediately after connect(), that hop is a suspension it
@@ -748,12 +749,6 @@ private class FakePreferences(
     autoReconnect: Boolean = true,
     switchOnDrop: Boolean = true,
 ) : PreferencesRepository {
-
-    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
-    }
 
     private val killSwitch = MutableStateFlow(initialKillSwitch)
     private val autoReconnectFlow = MutableStateFlow(autoReconnect)
@@ -993,3 +988,8 @@ private class FakeNodeHealth(
 }
 
 private fun notUsed(): Nothing = throw NotImplementedError("not used by this test")
+
+/** No network in a unit test; the rule then carries only the always-direct list. */
+private object NoLocalSubnets : com.justnpcx.starveil.core.data.network.LocalSubnets {
+    override fun current(): List<String> = emptyList()
+}

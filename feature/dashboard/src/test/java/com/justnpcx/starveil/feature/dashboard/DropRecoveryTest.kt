@@ -14,7 +14,6 @@ import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Scene
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -132,12 +131,6 @@ private object DropNoHealth : NodeHealthRepository {
 
 /** Only the four signals the policy reads. */
 private class DropFakePrefs : PreferencesRepository {
-
-    override val proxyPrivateNetworks: Flow<Boolean> = MutableStateFlow(false)
-
-    override suspend fun setProxyPrivateNetworks(enabled: Boolean) {
-        (proxyPrivateNetworks as MutableStateFlow<Boolean>).value = enabled
-    }
     var reconnect = true
     var switchOnDrop = true
     var current: ConnectionTarget = ConnectionTarget.Node(1)

@@ -8,6 +8,21 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Changed
+
+- **Only the network you are on is kept direct.** The routing rule used to keep
+  every private range — 10/8, 172.16/12, 192.168/16, fc00::/7 — out of the
+  tunnel, which is right at home and wrong everywhere else: `192.168.50.10` is
+  the NAS when the phone is in that house, and only reachable through the node
+  when it is not. The rule is now built from the phone's own interface
+  addresses, so the network it is standing in goes direct and every other
+  private range goes through the node. No setting: moving networks rebuilds the
+  tunnel once, which is the only way a static config can follow the phone.
+  Loopback, multicast and link-local stay direct in every case.
+
+  The switch added in 0.7.6 is gone. It asked the user to answer a question the
+  phone can answer itself, and the wrong answer fails silently.
+
 ## [0.7.6] — 2026-10-21
 
 ### Added

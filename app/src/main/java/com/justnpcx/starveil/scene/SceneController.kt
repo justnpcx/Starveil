@@ -8,6 +8,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiInfo
 import androidx.core.content.ContextCompat
+import com.justnpcx.starveil.core.data.network.LocalSubnets
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.scene.SceneApplyState
 import com.justnpcx.starveil.core.kernel.KernelBridge
@@ -47,11 +48,21 @@ class SceneController @Inject constructor(
     private val connection: ConnectionController,
     private val kernel: KernelBridge,
     private val applyState: SceneApplyState,
+    private val localSubnets: LocalSubnets,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val debouncer = Debouncer(scope, SceneTiming.DEBOUNCE_MS)
     private var callback: ConnectivityManager.NetworkCallback? = null
+
+    /**
+     * The subnets the running config was built for.
+     *
+     * Null until the first evaluation, so the first network callback after a
+     * cold start does not rebuild a tunnel that was just built from the same
+     * answer.
+     */
+    private var lastSubnets: List<String>? = null
 
     /** Registers the network callback. Idempotent. */
     fun start() {
@@ -137,17 +148,51 @@ class SceneController @Inject constructor(
      */
     internal suspend fun evaluate(nowMs: Long) {
         val state = currentState() ?: return
+        // The direct rule lists the subnets of the network this phone is on, so
+        // moving to another network makes the running config wrong: the new
+        // LAN would be proxied and the old one kept direct. That is a rebuild
+        // reason on its own, before any scene is considered.
+        val subnets = localSubnets.current()
+        val subnetsChanged = lastSubnets != null && lastSubnets != subnets
+        lastSubnets = subnets
         if (!SceneTiming.allowsAutomatic(nowMs, preferences.manualPresetAt.first())) {
             // The user chose a preset by hand recently; that outranks a scene.
+            // It does not outrank a stale address rule, which is not a policy.
+            if (subnetsChanged) rebuildForSubnets(nowMs)
             return
         }
         val scenes = preferences.scenes.first()
-        if (scenes.isEmpty()) return
-        val scene = SceneMatcher.match(scenes, state, ssidReadable()) ?: return
-        apply(scene, state, nowMs)
+        val scene = if (scenes.isEmpty()) {
+            null
+        } else {
+            SceneMatcher.match(scenes, state, ssidReadable())
+        }
+        if (scene == null) {
+            if (subnetsChanged) rebuildForSubnets(nowMs)
+            return
+        }
+        apply(scene, state, nowMs, subnetsChanged)
     }
 
-    private suspend fun apply(scene: Scene, state: NetworkState, nowMs: Long) {
+    /**
+     * Rebuild because the phone changed networks, not because of a policy.
+     *
+     * Deliberately does not touch the scene timestamp: this is not a scene
+     * applying, and the dashboard's policy watcher should not treat it as one.
+     */
+    private suspend fun rebuildForSubnets(nowMs: Long) {
+        if (kernel.state.value != KernelState.Running) return
+        KernelDiagnostics.log("network changed: rebuilding for ${localSubnets.current().size} local subnet(s)")
+        connection.reapply()
+        applyState.lastAppliedAtMs = nowMs
+    }
+
+    private suspend fun apply(
+        scene: Scene,
+        state: NetworkState,
+        nowMs: Long,
+        subnetsChanged: Boolean = false,
+    ) {
         val presetChanged = preferences.routePreset.first() != scene.preset
         // A scene that is already in force has nothing to do. Without this the
         // callback at app start re-applies the same policy five seconds later
@@ -155,7 +200,7 @@ class SceneController @Inject constructor(
         // still settling — which is how a working connect turned into a failed
         // restart on device.
         val targetChanged = scene.target != null && scene.target != currentTarget()
-        if (!presetChanged && !targetChanged) return
+        if (!presetChanged && !targetChanged && !subnetsChanged) return
 
         preferences.setRoutePreset(scene.preset)
         scene.target?.let { target ->

@@ -61,11 +61,7 @@
     <string name="rules_effective_domestic_names">Domestic names (geosite-cn) → direct</string>
     <string name="rules_effective_domestic_addresses">Domestic addresses (geoip-cn) → direct</string>
     <string name="rules_effective_lan">Local network (private addresses) → direct · built in</string>
-    <string name="rules_effective_lan_proxied">Private addresses → node</string>
-    <string name="rules_lan_note">Local network traffic goes direct.</string>
-    <string name="rules_lan_note_proxied">Private addresses now go through the node.</string>
-    <string name="rules_proxy_lan_title">Reach a private network through the node</string>
-    <string name="rules_proxy_lan_desc">Send 10.x, 172.16–31.x, 192.168.x and fc00::/7 through the node instead of direct. For reaching the network the node sits on; devices on the network you are on now become unreachable while this is on.</string>
+    <string name="rules_lan_note">Local network traffic always goes direct.</string>
     <string name="rules_effective_user">%1$d of your own rules</string>
 
     <!-- The rule market. The entry sits beside the ad switch; the packs are a

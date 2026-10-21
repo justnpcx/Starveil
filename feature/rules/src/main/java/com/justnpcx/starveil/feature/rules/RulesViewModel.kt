@@ -47,13 +47,6 @@ data class RulesUiState(
     /** Whether advertising domains are rejected, on top of any preset. */
     val blockAds: Boolean = false,
     /**
-     * Whether private addresses take the tunnel.
-     *
-     * The one routing decision whose right answer depends on where the phone
-     * is standing, which is why it is a switch rather than a rule.
-     */
-    val proxyPrivateNetworks: Boolean = false,
-    /**
      * A rule set that failed verification, if any.
      *
      * Shown because the preset is then quietly not in force: without this the
@@ -78,7 +71,7 @@ data class RulesUiState(
     val presetRules: List<PresetRule>
         get() = buildList {
             if (blockAds) add(PresetRule.ADS)
-            add(if (proxyPrivateNetworks) PresetRule.LAN_PROXIED else PresetRule.LAN_DIRECT)
+            add(PresetRule.LAN_DIRECT)
             if (preset == RoutePreset.BYPASS_MAINLAND) {
                 add(PresetRule.DOMESTIC_NAMES)
                 add(PresetRule.DOMESTIC_ADDRESSES)
@@ -98,14 +91,11 @@ enum class PresetRule {
     /**
      * Private and multicast addresses → direct.
      *
-     * In force in every preset unless [LAN_PROXIED] replaces it. Listed
-     * anyway, because "why is my NAS not going through the tunnel" is a
+     * Always in force, in every preset: it is infrastructure, not a preference.
+     * Listed anyway, because "why is my NAS not going through the tunnel" is a
      * question the page should answer without a debugger.
      */
     LAN_DIRECT,
-
-    /** Private addresses → the node, for reaching a network the node sits on. */
-    LAN_PROXIED,
 
     DOMESTIC_NAMES,
     DOMESTIC_ADDRESSES,
@@ -125,33 +115,26 @@ class RulesViewModel @Inject constructor(
     private val packStore: RulePackStore,
 ) : ViewModel() {
 
-    /** The market's two signals, paired so the outer combine stays at four. */
+    /** The market's two signals, paired so the outer combine stays at five. */
     private val packs = combine(
         preferences.subscribedRulePacks,
         packStore.failure,
     ) { subscribed, failure -> subscribed to failure }
 
-    /** The three routing switches, paired for the same reason. */
-    private val routing = combine(
-        preferences.routePreset,
-        preferences.blockAds,
-        preferences.proxyPrivateNetworks,
-    ) { preset, ads, lan -> Triple(preset, ads, lan) }
-
     val uiState: StateFlow<RulesUiState> =
         combine(
             repository.observeAllOrdered(),
             flowLog.records,
-            routing,
+            preferences.routePreset,
+            preferences.blockAds,
             ruleSets.failure,
-        ) { rules, flow, (preset, ads, lan), failure ->
+        ) { rules, flow, preset, ads, failure ->
             RulesUiState(
                 rules = rules,
                 loading = false,
                 recentFlow = flow,
                 preset = preset,
                 blockAds = ads,
-                proxyPrivateNetworks = lan,
                 ruleSetFailure = failure,
             )
         }.combine(packs) { state, (subscribed, packFailure) ->
@@ -177,10 +160,6 @@ class RulesViewModel @Inject constructor(
 
     fun setBlockAds(enabled: Boolean) {
         viewModelScope.launch { preferences.setBlockAds(enabled) }
-    }
-
-    fun setProxyPrivateNetworks(enabled: Boolean) {
-        viewModelScope.launch { preferences.setProxyPrivateNetworks(enabled) }
     }
 
     /**
