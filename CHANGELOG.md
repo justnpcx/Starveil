@@ -27,6 +27,15 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   `singleTask` comes with it: without it, tapping a link while the app is open
   starts a second copy whose tunnel belongs to the first.
 
+### Fixed
+
+- **Build**: `:core:data` declared the `ACCESS_NETWORK_STATE` permission it uses.
+  The permission was already in `:app`'s manifest, so nothing was broken on a
+  device — but lint checks the module that makes the call, and the module that
+  reads the current link's addresses was new in 0.7.10 and had never been
+  linted on its own. Declared rather than suppressed: a module's manifest is
+  what tells its consumer what it needs.
+
 ## [0.7.13] — 2026-10-21
 
 ### Added
