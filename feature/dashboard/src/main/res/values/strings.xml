@@ -36,6 +36,7 @@
     <string name="dashboard_notice_kernel_refused">Kernel failed to start</string>
 
     <!-- §7.2 node health history. -->
+    <string name="dashboard_latency_label">Latency</string>
     <string name="dashboard_health_title">Node health · last 30 min</string>
     <string name="dashboard_node_health_line">%1$d ms</string>
     <string name="dashboard_health_availability">%1$d%% up</string>

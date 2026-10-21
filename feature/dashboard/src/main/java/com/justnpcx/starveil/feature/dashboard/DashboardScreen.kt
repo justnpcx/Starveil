@@ -1,27 +1,25 @@
 package com.justnpcx.starveil.feature.dashboard
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.res.Configuration
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -30,18 +28,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import java.util.Locale
-import kotlin.math.round
-import kotlin.math.roundToInt
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,24 +50,24 @@ import com.justnpcx.starveil.core.model.AvailabilityBand
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
+import com.justnpcx.starveil.core.ui.components.ConnectionCoreGeometry
 import com.justnpcx.starveil.core.ui.components.ConnectionState
-import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
-import android.content.ClipData
-import android.content.ClipboardManager
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import com.justnpcx.starveil.core.ui.components.StarveilBadge
+import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilType
+import java.util.Locale
+import kotlin.math.round
+import kotlin.math.roundToInt
 
 /**
  * Dashboard — the cockpit. Tap the core to connect/disconnect.
- * Node selector lives HERE (not on a separate page) by design.
+ *
+ * The page is a ring, two rates, and two glass cards. Nothing is boxed that
+ * does not need an edge: the rates are the page's own type, and the cards hold
+ * the things that are objects — the node, and the node's health.
  */
 @Composable
 fun DashboardScreen(
@@ -90,7 +87,7 @@ fun DashboardScreen(
 
     // A persistent notice is a condition that lasts until something changes —
     // it gets the fixed slot. Everything else is a one-off confirmation and
-    // goes to a Snackbar, so it can never push the layout around (D3).
+    // goes to a Snackbar, so it can never push the layout around.
     val notice = state.notice
     val noticeText = notice?.text()
     val persistent = notice?.isPersistent() == true
@@ -100,30 +97,28 @@ fun DashboardScreen(
         }
     }
 
-    // Landscape cannot hold the column, so it scrolls. Portrait must not (E1).
+    // Landscape cannot hold the column, so it scrolls. Portrait must not.
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // The hero is the one elastic element besides the chart: 260 dp when
-        // there is room, 220 dp on a short screen, so the fixed blocks below
-        // always fit.
-        val heroSize = if (maxHeight < 720.dp) 220.dp else 260.dp
         val scroll = if (landscape) Modifier.verticalScroll(rememberScrollState()) else Modifier
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .then(scroll)
-                .padding(horizontal = StarveilSpacing.lg),
+                .padding(horizontal = StarveilSpacing.pageMargin),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // H2: 40 dp of air, so the ring starts ~48 dp below the status bar
-            // instead of floating in the middle of an empty top third.
-            Spacer(modifier = Modifier.height(40.dp))
+            // 32dp of air on the grid: the ring starts below the status bar
+            // rather than floating in the middle of an empty top third.
+            Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
             ConnectionCore(
                 state = state.coreState,
                 busy = state.isBusy,
-                diameter = heroSize,
+                // Fixed in every state: everything below is measured from this
+                // box, so a state change must not move any of it.
+                diameter = ConnectionCoreGeometry.diameterDp.dp,
                 // 18 dp of the ring's inset is empty; the numbers move into it.
                 bottomTrim = 18.dp,
                 label = stringResource(
@@ -149,19 +144,12 @@ fun DashboardScreen(
                 ),
             )
 
-            // F2 (revised): the hero's box is trimmed so the numbers sit 8 dp
-            // under the visible ring, and the block's own height is honest —
-            // no offset, no leftover air to inflate the gap below.
             SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
 
-            // F3: the context line sits under the group it explains, not
-            // between the ring and its numbers. 28 dp, always there, so a
-            // state change cannot move anything below it.
-            //
-            // A failure that names a reason is tappable: the slot shows one
-            // line, and the line is the only place the kernel's own words
-            // appear. A Snackbar would have vanished before anyone could read
-            // past "failed", and there is nowhere else to look them up.
+            // The context line sits under the group it explains, in a fixed
+            // slot, so a state change cannot move anything below it. A failure
+            // that names a reason is tappable: the slot shows one line, and the
+            // line is the only place the kernel's own words appear.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -172,10 +160,10 @@ fun DashboardScreen(
                     val expandable = notice is DashboardNotice.KernelRefused
                     Text(
                         text = noticeText,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        style = StarveilType.label,
                         color = when (notice) {
-                            DashboardNotice.KillSwitchBlocking -> StarveilColors.Blocked
-                            else -> StarveilColors.Warning
+                            DashboardNotice.KillSwitchBlocking -> StarveilColors.err
+                            else -> StarveilColors.warn
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -190,12 +178,15 @@ fun DashboardScreen(
                     )
                 }
             }
-            // G1/H2: no rule, and the slot itself is the section gap.
+
+            Spacer(modifier = Modifier.height(StarveilSpacing.xl))
+
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
                 health = state.health,
                 onAutoSelect = viewModel::autoSelect,
             )
+
             // §7.2: the selected node's health over the window. Only for a
             // node — a group has no single curve — and the chart says
             // "collecting" in words until there is a shape worth drawing.
@@ -203,12 +194,13 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
                 NodeHealthSection(
                     health = health,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier.weight(1f, fill = false).fillMaxWidth(),
                     chartHeight = if (landscape) 160.dp else null,
                 )
             }
-            // H1: the card must not touch the navigation bar.
-            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+
+            // The last card must not touch the navigation bar.
+            Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
         }
 
         SnackbarHost(
@@ -227,8 +219,7 @@ fun DashboardScreen(
  *
  * One line in the context slot is enough to notice something went wrong; it is
  * not enough to act on, and the reason is the part a bug report needs. Copying
- * is the point of this dialog — the alternative is retyping a message that is
- * already hard to read.
+ * is the point of this dialog.
  */
 @Composable
 private fun FailureDetailsDialog(notice: DashboardNotice, onDismiss: () -> Unit) {
@@ -239,11 +230,11 @@ private fun FailureDetailsDialog(notice: DashboardNotice, onDismiss: () -> Unit)
         title = { Text(stringResource(R.string.dashboard_failure_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                Text(text, style = MaterialTheme.typography.bodyMedium)
+                Text(text, style = StarveilType.body)
                 Text(
                     text = stringResource(R.string.dashboard_failure_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
                 )
             }
         },
@@ -267,8 +258,8 @@ private fun FailureDetailsDialog(notice: DashboardNotice, onDismiss: () -> Unit)
 }
 
 /**
- * §7.2's health history: the curve, its availability bar and its loss dots,
- * under a line that says what the area is.
+ * §7.2's health history, in a glass card: the curve, its availability, and the
+ * line that says what the area is.
  */
 @Composable
 private fun NodeHealthSection(
@@ -277,76 +268,62 @@ private fun NodeHealthSection(
     /** Non-null only in landscape, where weight() has no bounded height. */
     chartHeight: Dp? = null,
 ) {
-    // The same card as the node above: same container colour, same rounded
-    // shape. The chart used to sit on the bare page, which made the two blocks
-    // look like different kinds of thing.
     StarveilCard(modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(
-                start = StarveilSpacing.lg,
-                top = StarveilSpacing.sm,
-                end = StarveilSpacing.lg,
-                // H1: 12 dp between the curve and the card's bottom edge.
-                bottom = StarveilSpacing.md,
-            ),
-        ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(HEALTH_HEADER_HEIGHT),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.dashboard_health_title),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 12.sp,
-                    letterSpacing = 0.5.sp,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            // The bar's colour is the band; the number makes it readable
-            // without having to judge a shade — and colour alone is not a
-            // signal for everyone.
-            if (!health.collecting) {
+        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(HEALTH_HEADER_HEIGHT),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = stringResource(
-                        R.string.dashboard_health_availability,
-                        health.availabilityPct.roundToInt(),
-                    ),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = when (health.band) {
-                        AvailabilityBand.GOOD -> StarveilColors.Connected
-                        AvailabilityBand.FAIR -> StarveilColors.Warning
-                        AvailabilityBand.POOR -> StarveilColors.Blocked
-                    },
+                    text = stringResource(R.string.dashboard_health_title),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                if (!health.collecting) {
+                    // The bar's colour is the band; the number makes it readable
+                    // without having to judge a shade — and colour alone is not
+                    // a signal for everyone.
+                    Text(
+                        text = stringResource(
+                            R.string.dashboard_health_availability,
+                            health.availabilityPct.roundToInt(),
+                        ),
+                        style = StarveilType.label,
+                        color = when (health.band) {
+                            AvailabilityBand.GOOD -> StarveilColors.ok
+                            AvailabilityBand.FAIR -> StarveilColors.warn
+                            AvailabilityBand.POOR -> StarveilColors.err
+                        },
+                    )
+                }
             }
-        }
-        val reachable = health.samples.filter { it.reachable }
-        NodeHealthChart(
-            health = health,
-            height = chartHeight,
-            contentDescription = if (reachable.isEmpty()) {
-                stringResource(R.string.dashboard_health_chart_empty)
-            } else {
-                stringResource(
-                    R.string.dashboard_health_chart_desc,
-                    reachable.size,
-                    reachable.minOf { it.latencyMs },
-                    reachable.maxOf { it.latencyMs },
-                )
-            },
-            modifier = if (chartHeight == null) {
-                // The chart absorbs whatever the fixed blocks left (D4/E1).
-                Modifier.weight(1f).fillMaxWidth().heightIn(min = HEALTH_MIN_HEIGHT)
-            } else {
-                Modifier.fillMaxWidth()
-            },
-        )
+            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+            val reachable = health.samples.filter { it.reachable }
+            NodeHealthChart(
+                health = health,
+                height = chartHeight,
+                contentDescription = if (reachable.isEmpty()) {
+                    stringResource(R.string.dashboard_health_chart_empty)
+                } else {
+                    stringResource(
+                        R.string.dashboard_health_chart_desc,
+                        reachable.size,
+                        reachable.minOf { it.latencyMs },
+                        reachable.maxOf { it.latencyMs },
+                    )
+                },
+                modifier = if (chartHeight == null) {
+                    // The chart absorbs whatever the fixed blocks left.
+                    Modifier.fillMaxWidth().heightIn(min = HEALTH_MIN_HEIGHT)
+                } else {
+                    Modifier.fillMaxWidth()
+                },
+            )
         }
     }
 }
@@ -401,10 +378,9 @@ private fun RecommendationReason.text(): String = when (this) {
 /**
  * What the picker saw, in the units the user measures in.
  *
- * The score is a 0–10099 internal number (availability in the high digits,
- * latency in the low ones). It is deliberately not shown: "score 10099" is
- * precise about the wrong thing, and the two numbers it is made of are the
- * ones a person can check against the health chart above.
+ * The score is a 0–10099 internal number. It is deliberately not shown:
+ * "score 10099" is precise about the wrong thing, and the two numbers it is
+ * made of are the ones a person can check against the health chart above.
  */
 @Composable
 private fun healthClause(availabilityPct: Int, latencyMs: Long?): String =
@@ -412,31 +388,38 @@ private fun healthClause(availabilityPct: Int, latencyMs: Long?): String =
         ?: stringResource(R.string.dashboard_reason_health_no_latency, availabilityPct)
 
 /**
- * The telemetry block: two columns, each a label, a number, a unit and a
- * ribbon.
+ * The telemetry block: two columns, mirrored about the screen's centre.
  *
- * Dimmed as a whole when there is no tunnel. Three zeros say "no traffic";
- * 35% opacity says "nothing is connected", which is the actual state and the
- * one a glance should read.
+ * Each column is label / number / total, top to bottom, and the three rows line
+ * up across the gap: both labels on one baseline, both numbers on the next, both
+ * totals on the third. That is what makes the pair read as one instrument
+ * rather than as two stacks that happen to be side by side.
+ *
+ * The unit sits on the number's baseline, not above it.
+ *
+ * Dimmed as a whole when there is no tunnel: three zeros say "no traffic", a
+ * third of the ink says "nothing is connected", and the second is the truth.
  */
 @Composable
 private fun SpeedSection(state: DashboardUiState, modifier: Modifier = Modifier) {
     val dim = state.coreState == ConnectionState.DISCONNECTED
+    val down = formatRateParts(state.stats.downlinkRate)
+    val up = formatRateParts(state.stats.uplinkRate)
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .alpha(if (dim) 0.35f else 1f),
-        verticalAlignment = Alignment.CenterVertically,
+            .alpha(if (dim) 0.38f else 1f),
+        verticalAlignment = Alignment.Top,
     ) {
-        SpeedCell(
+        SpeedColumn(
             label = stringResource(R.string.dashboard_speed_down),
-            rate = state.stats.downlinkRate,
+            parts = down,
             total = state.stats.downlinkBytes,
             modifier = Modifier.weight(1f),
         )
-        SpeedCell(
+        SpeedColumn(
             label = stringResource(R.string.dashboard_speed_up),
-            rate = state.stats.uplinkRate,
+            parts = up,
             total = state.stats.uplinkBytes,
             modifier = Modifier.weight(1f),
         )
@@ -444,50 +427,48 @@ private fun SpeedSection(state: DashboardUiState, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun SpeedCell(
+private fun SpeedColumn(
     label: String,
-    rate: Long,
+    parts: RateParts,
     total: Long,
     modifier: Modifier = Modifier,
 ) {
-    val parts = formatRateParts(rate)
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.tech,
+            color = StarveilColors.ink2,
         )
-        Row(modifier = Modifier.padding(top = 2.dp)) {
+        Row(
+            // alignByBaseline on both children, so the unit sits on the digits'
+            // baseline whatever size either of them is.
+            modifier = Modifier.padding(top = StarveilSpacing.sm),
+        ) {
             Text(
                 text = parts.value,
                 // Tabular figures: a rate that ticks every second must not
                 // change width, or the whole row twitches with it.
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontFeatureSettings = "tnum",
-                    fontWeight = FontWeight.SemiBold,
-                ),
+                style = StarveilType.display.copy(fontFeatureSettings = "tnum"),
+                color = StarveilColors.ink,
+                modifier = Modifier.alignByBaseline(),
             )
             Text(
                 text = parts.unit,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = 22.sp,
-                    fontFeatureSettings = "tnum",
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = StarveilType.tech.copy(fontSize = 13.sp),
+                color = StarveilColors.ink2,
                 modifier = Modifier
                     .alignByBaseline()
-                    .padding(start = 3.dp),
+                    .padding(start = 6.dp),
             )
         }
         Text(
             text = stringResource(R.string.dashboard_speed_total, formatBytes(total)),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp),
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
+            modifier = Modifier.padding(top = StarveilSpacing.xs),
         )
     }
 }
@@ -526,10 +507,9 @@ private fun formatScaledParts(value: Double, units: List<String>): RateParts {
 /**
  * The node the next connect will use, with the one-tap pick beside it.
  *
- * Three tiers, the same hierarchy the telemetry uses: an overline label, the
- * value, and a supporting line. The button sits in the value's row, not the
- * card's centre — it modifies the node, so it belongs to that line, and
- * centring it over three lines is what made it look like it was floating.
+ * A glass card, because the node is an object and the page needs one thing with
+ * an edge above the health curve. The badge sits in the name's row — it
+ * modifies the node, so it belongs to that line.
  */
 @Composable
 private fun CurrentNodeCard(
@@ -537,106 +517,119 @@ private fun CurrentNodeCard(
     health: NodeHealth?,
     onAutoSelect: () -> Unit,
 ) {
-    StarveilCard(modifier = Modifier.fillMaxWidth()) {
+    StarveilCard {
         Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
-            Text(
-                text = stringResource(R.string.dashboard_current_node),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 12.sp,
-                    letterSpacing = 0.5.sp,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                // Still a control, so it keeps a touch target — but the fill
-                // is a whisper of the card's own ink, not a saturated pill.
-                // It is metadata about the node, not the screen's second
-                // action; the name is the anchor (I1).
-                AutoSelectChip(onClick = onAutoSelect)
+                // The name carries its country's flag as a leading emoji; set it
+                // at 22sp and the rest at the row's own size, so the flag is an
+                // element rather than the first glyph of a word.
+                NodeName(name = name, modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                AutoSelectBadge(onClick = onAutoSelect)
             }
-            // Latency only: availability is 100% for the node you are
-            // connected to, so repeating it here says nothing (C4). The health
-            // card keeps it, where it is the window's summary.
+            // Latency only: availability is 100% for the node you are connected
+            // to, so repeating it here says nothing. The health card keeps it,
+            // where it is the window's summary.
             health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.dashboard_node_health_line, latency),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = stringResource(R.string.dashboard_latency_label),
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                    Text(
+                        text = latency.toString(),
+                        style = StarveilType.numInline,
+                        color = StarveilColors.ink,
+                    )
+                    Text(
+                        text = " ms",
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink2,
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * The one-tap pick, as a quiet pill.
+ * A node's name, with a leading flag at 22sp.
  *
- * Hand-rolled rather than an [androidx.compose.material3.AssistChip] because
- * the stock chip only offers its ripple, and over a 6% container that ripple
- * measured 3–4/255 on device — at the edge of what the eye registers. A fill
- * of 16% while held is unmistakable without making the pill the screen's
- * second action (I1). The outer box keeps the 48 dp touch target; the inner
- * box is the 32 dp pill the chip used to draw.
+ * `Profile.displayName()` puts the flag in the string, and a flag at 17sp reads
+ * as punctuation. Splitting it out is a display rule, not a data one: nothing
+ * outside this function knows the flag was ever separate.
  */
 @Composable
-private fun AutoSelectChip(onClick: () -> Unit) {
-    val interactions = remember { MutableInteractionSource() }
-    val pressed by interactions.collectIsPressedAsState()
-    val container by animateColorAsState(
-        targetValue = MaterialTheme.colorScheme.onSurface.copy(
-            alpha = if (pressed) 0.16f else 0.06f,
-        ),
-        animationSpec = tween(durationMillis = if (pressed) 70 else 180),
-        label = "autoSelectChip",
-    )
-    Box(
-        modifier = Modifier
-            .height(48.dp)
-            .clickable(
-                interactionSource = interactions,
-                indication = null,
-                role = Role.Button,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .height(32.dp)
-                .clip(RoundedCornerShape(50))
-                .background(container)
-                .padding(horizontal = StarveilSpacing.lg),
-            contentAlignment = Alignment.Center,
-        ) {
+private fun NodeName(name: String, modifier: Modifier = Modifier) {
+    val (flag, rest) = splitLeadingFlag(name)
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        if (flag != null) {
             Text(
-                text = stringResource(R.string.dashboard_auto_select),
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = flag,
+                fontSize = 22.sp,
+                color = StarveilColors.ink,
             )
+            Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         }
+        Text(
+            text = rest,
+            style = StarveilType.headline,
+            color = StarveilColors.ink,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
-/** F3: one line of state explanation, occupied or not. */
+/**
+ * Splits a leading pair of regional-indicator symbols off a name.
+ *
+ * Returns (flag, rest), or (null, name) when the name does not start with one.
+ * The pair is two code points; a name that begins with a single one is not a
+ * flag and is left alone.
+ */
+internal fun splitLeadingFlag(name: String): Pair<String?, String> {
+    val points = name.codePoints().toArray()
+    if (points.size < 3) return null to name
+    val first = points[0]
+    val second = points[1]
+    val isIndicator = { cp: Int -> cp in 0x1F1E6..0x1F1FF }
+    if (!isIndicator(first) || !isIndicator(second)) return null to name
+    val flag = String(points, 0, 2)
+    val rest = String(points, 2, points.size - 2).trim()
+    return flag to rest
+}
+
+/**
+ * The one-tap pick, as an outlined badge.
+ *
+ * Outline only, in the accent: one of the three places this screen may spend
+ * it, and it is a line plus a word rather than a filled pill. The 48dp touch
+ * target is the outer box; the badge itself is what the eye reads as the
+ * control.
+ */
+@Composable
+private fun AutoSelectBadge(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(48.dp)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        StarveilBadge(text = stringResource(R.string.dashboard_auto_select))
+    }
+}
+
+/** One line of state explanation, occupied or not. */
 private val CONTEXT_SLOT_HEIGHT = 24.dp
 
-/** D1: the telemetry block's height, with or without numbers. */
+/** The telemetry block's height, with or without numbers. */
 private val TELEMETRY_HEIGHT = 96.dp
 
-/** D4: the health chart never gets smaller than this. */
+/** The health chart never gets smaller than this. */
 private val HEALTH_MIN_HEIGHT = 96.dp
 
 /** The health header is a fixed 32 dp so the chart's share is predictable. */
@@ -645,15 +638,12 @@ private val HEALTH_HEADER_HEIGHT = 32.dp
 /**
  * A condition that lasts, as opposed to a one-off confirmation.
  *
- * Only these get the slot; everything else is a Snackbar. Adding a new notice
- * forces this decision instead of defaulting to "show it inline".
+ * Only these get the slot; everything else is a Snackbar.
  */
 private fun DashboardNotice.isPersistent(): Boolean = when (this) {
     // Conditions that last until something changes. A refused start is one:
     // the reason stays true until the next attempt, and it is the only place
-    // the kernel's own words appear — a Snackbar kept it on screen for three
-    // seconds and then it was gone, which is why every failure had to be
-    // retyped from memory.
+    // the kernel's own words appear.
     DashboardNotice.KillSwitchBlocking,
     DashboardNotice.KillSwitchFailed,
     DashboardNotice.NoTarget,
@@ -680,47 +670,14 @@ private val BYTE_UNITS = listOf("B", "KB", "MB", "GB")
 /** One kibibyte, the step between every pair of units above. */
 private const val SCALE = 1024.0
 
-internal fun formatRate(bytesPerSecond: Long): String =
-    formatRateParts(bytesPerSecond).let { "${it.value} ${it.unit}" }
-
-internal fun formatBytes(bytes: Long): String =
-    formatScaled(bytes.toDouble(), BYTE_UNITS)
-
-/**
- * [value] in the largest unit that keeps it readable.
- *
- * The unit is chosen from the **rounded** value, not the raw one, and that is
- * the whole point: rounding inside a unit is how "1023.6 KB" is shown as
- * "1023 KB/s" when it is really 1.0 MB/s, and §6.2 names that string as
- * forbidden. (A value that genuinely is 1023.0–1023.4 KB still reads
- * "1023 KB/s", because that is what it is.)
- *
- * Whole bytes and kilobytes — a fractional byte is noise — and one decimal
- * from megabytes up. `Locale.US` so the decimal point is a point: the default
- * locale renders "1,0 MB/s" in half of Europe, and the design is explicit about
- * the shape of the number.
- *
- * Zero reads "0 B/s", never "--": zero is a measurement.
- */
-private fun formatScaled(value: Double, units: List<String>): String {
-    var scaled = value
-    for (index in units.indices) {
-        val decimals = if (index <= 1) 0 else 1
-        val rounded = roundTo(scaled, decimals)
-        if (index == units.lastIndex || rounded < SCALE) {
-            return if (decimals == 0) {
-                "${rounded.toLong()} ${units[index]}"
-            } else {
-                String.format(Locale.US, "%.1f %s", rounded, units[index])
-            }
-        }
-        scaled /= SCALE
-    }
-    // The loop returns on the last unit; this is here to satisfy the compiler.
-    return "${value.toLong()} ${units.first()}"
+/** [value] rounded to [decimals] places. */
+private fun roundTo(value: Double, decimals: Int): Double {
+    var factor = 1.0
+    repeat(decimals) { factor *= 10 }
+    return round(value * factor) / factor
 }
 
-private fun roundTo(value: Double, decimals: Int): Double {
-    val factor = if (decimals == 0) 1.0 else 10.0
-    return round(value * factor) / factor
+internal fun formatBytes(bytes: Long): String {
+    val parts = formatScaledParts(bytes.toDouble(), BYTE_UNITS)
+    return "${parts.value} ${parts.unit}"
 }
