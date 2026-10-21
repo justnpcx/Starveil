@@ -1,2 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Read by LocalSubnets, which asks the platform which addresses are on
+        this link. Declared here as well as in :app because lint checks the
+        module that calls the API, and a module that uses a permission it does
+        not declare fails the build.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+</manifest>
