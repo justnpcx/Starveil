@@ -80,12 +80,21 @@ class RealKernelBridge(
     )
     override val connections = _connections.asSharedFlow()
 
-    private val clientHandler = StarveilCommandClientHandler(
-        onConnected = { log(LogLevel.INFO, "kernel connected") },
-        onDisconnected = { onCommandChannelDropped() },
-        onLog = { line -> _logs.tryEmit(line) },
-        onConnection = { connection -> _connections.tryEmit(connection) },
-    )
+    /**
+     * The handler of the client that is current, and the generation that
+     * identifies it.
+     *
+     * A handler is created per start rather than once: every deliberate
+     * restart disconnects the old client before closing its server, and that
+     * callback is indistinguishable from a crash. Told apart by generation,
+     * the restart's own drop is ignored — without this the restart is read as
+     * an unexpected drop, which schedules a second teardown and start on top
+     * of the first. That pair then fails with `initialize cache-file: timeout`
+     * while the tunnel from the first half is still up: the UI reports "kernel
+     * failed to start" and the VPN is still connected.
+     */
+    private var clientHandler: StarveilCommandClientHandler? = null
+    private var clientGeneration = 0
 
     private var server: CommandServer? = null
     private var client: CommandClient? = null
@@ -286,7 +295,15 @@ class RealKernelBridge(
             started.startOrReloadService(config, OverrideOptions())
             server = started
 
-            startedClient = Libbox.newCommandClient(clientHandler, clientOptions())
+            val generation = ++clientGeneration
+            val handler = StarveilCommandClientHandler(
+                onConnected = { log(LogLevel.INFO, "kernel connected") },
+                onDisconnected = { message -> onCommandChannelDropped(generation, message) },
+                onLog = { line -> _logs.tryEmit(line) },
+                onConnection = { connection -> _connections.tryEmit(connection) },
+            )
+            clientHandler = handler
+            startedClient = Libbox.newCommandClient(handler, clientOptions())
             startedClient.connect()
             client = startedClient
 
@@ -371,7 +388,7 @@ class RealKernelBridge(
         }
 
     /** The command channel dropped without us asking it to. */
-    private fun onCommandChannelDropped() {
+    private fun onCommandChannelDropped(generation: Int, message: String) {
         // Scheduled, not run inline: this arrives on a libbox callback thread,
         // and the transition it wants is the same one a user action may be
         // running right now. The gate decides the order; the guards are read
@@ -379,6 +396,13 @@ class RealKernelBridge(
         // `stopping` after that stop has set it.
         scope.launch {
             lifecycle.exclusive {
+                // A client we already replaced. Every restart closes one on
+                // purpose, and reading that as a crash is what produced a
+                // second start racing the first.
+                if (generation != clientGeneration) {
+                    log(LogLevel.DEBUG, "old command client closed; not a crash")
+                    return@exclusive
+                }
                 if (stopping || server == null) return@exclusive
                 if (!restarted) {
                     restarted = true
@@ -390,7 +414,7 @@ class RealKernelBridge(
                     server = null
                     client = null
                     _state.value = KernelState.Error(KernelError.Crashed("kernel stopped unexpectedly"))
-                    log(LogLevel.ERROR, "kernel crashed; not restarting again")
+                    log(LogLevel.ERROR, "kernel crashed; not restarting again: $message")
                 }
             }
         }
@@ -405,7 +429,7 @@ class RealKernelBridge(
     }
 
     override suspend fun queryStats(): TrafficStats =
-        if (server == null) TrafficStats() else clientHandler.stats.value
+        if (server == null) TrafficStats() else clientHandler?.stats?.value ?: TrafficStats()
 
     override suspend fun version(): String = Libbox.version()
 

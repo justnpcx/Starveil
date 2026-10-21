@@ -39,6 +39,12 @@ class AndroidLocalSubnets @Inject constructor(
             // local naming detail, not part of the CIDR.
             val host = address.hostAddress?.substringBefore('%') ?: return@mapNotNull null
             "$host/${link.prefixLength}"
-        }.distinct()
+        }
+            // Sorted, because the caller compares two readings to decide
+            // whether the network changed. LinkProperties makes no promise
+            // about order, and an order-only difference would rebuild the
+            // tunnel for nothing.
+            .distinct()
+            .sorted()
     }
 }

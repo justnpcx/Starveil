@@ -8,6 +8,17 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A restart mistaken for a crash**: every in-place restart closes the command
+  client on purpose, and that callback was indistinguishable from the kernel
+  dying. It was read as an unexpected drop, which scheduled a second teardown
+  and start on top of the first — the pair then failed with
+  `initialize cache-file: timeout` while the tunnel from the first half was
+  still up, so the app said "kernel failed to start" and the VPN was still
+  connected. Each client now carries a generation, and a replaced client's
+  disconnect is ignored.
+
 ## [0.7.7] — 2026-10-21
 
 ### Changed
