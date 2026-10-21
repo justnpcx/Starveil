@@ -13,7 +13,6 @@ import com.justnpcx.starveil.core.data.update.UpdateCheck
 import com.justnpcx.starveil.core.data.update.UpdateChecker
 import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInfo
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
@@ -33,8 +32,6 @@ import kotlinx.coroutines.launch
 /** Everything the Settings screen renders. */
 data class SettingsUiState(
     val killSwitchMode: KillSwitchMode = KillSwitchMode.OFF,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = false,
     val autoReconnect: Boolean = true,
     val autoSwitchOnDrop: Boolean = true,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
@@ -208,19 +205,15 @@ class SettingsViewModel @Inject constructor(
 
     private val preferencesState = combine(
         preferences.killSwitchMode,
-        preferences.themeMode,
-        preferences.dynamicColor,
-        // Paired so the typed five-argument combine stays available; the two
+        // Paired so the typed three-argument combine stays available; the two
         // reconnect switches are read together and always shown together.
         combine(preferences.autoReconnect, preferences.autoSwitchOnDrop) { reconnect, switch ->
             reconnect to switch
         },
         preferences.lastLeakCheck,
-    ) { mode, theme, dynamic, reconnect, leak ->
+    ) { mode, reconnect, leak ->
         SettingsUiState(
             killSwitchMode = mode,
-            themeMode = theme,
-            dynamicColor = dynamic,
             autoReconnect = reconnect.first,
             autoSwitchOnDrop = reconnect.second,
             lastLeakCheck = leak,
@@ -267,14 +260,6 @@ class SettingsViewModel @Inject constructor(
     /** Revoke the current token; every dashboard must be reconfigured. */
     fun resetApiToken() {
         viewModelScope.launch(Dispatchers.IO) { apiToken.value = localApiToken.reset() }
-    }
-
-    fun setThemeMode(mode: ThemeMode) {
-        viewModelScope.launch { preferences.setThemeMode(mode) }
-    }
-
-    fun setDynamicColor(enabled: Boolean) {
-        viewModelScope.launch { preferences.setDynamicColor(enabled) }
     }
 
     fun setAutoReconnect(enabled: Boolean) {

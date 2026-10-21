@@ -2,7 +2,6 @@ package com.justnpcx.starveil.feature.profiles
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.geo.CountryResolver
@@ -854,8 +853,6 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     }
 
     // The rest of the preferences are not what this test is about.
-    override val themeMode: Flow<ThemeMode> get() = notUsed()
-    override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
     override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
     override val bypassMainland: Flow<Boolean> get() = notUsed()
@@ -876,7 +873,6 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
-    override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }

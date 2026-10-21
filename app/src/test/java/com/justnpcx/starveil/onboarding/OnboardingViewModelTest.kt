@@ -2,7 +2,6 @@ package com.justnpcx.starveil.onboarding
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.AppRoute
@@ -207,8 +206,6 @@ private class FakePreferences : PreferencesRepository {
         this.done = done
     }
 
-    override val themeMode: Flow<ThemeMode> get() = notUsed()
-    override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
     override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
     override val bypassMainland: Flow<Boolean> get() = notUsed()
@@ -228,7 +225,6 @@ private class FakePreferences : PreferencesRepository {
     override val subscriptionLastError: Flow<String?> get() = notUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = notUsed()
 
-    override suspend fun setThemeMode(mode: ThemeMode) = notUsed()
     override suspend fun setDynamicColor(enabled: Boolean) = notUsed()
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()

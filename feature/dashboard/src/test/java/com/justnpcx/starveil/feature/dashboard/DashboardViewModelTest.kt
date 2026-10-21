@@ -8,7 +8,6 @@ import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
 import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
 import com.justnpcx.starveil.core.model.InstalledRulePack
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -822,8 +821,6 @@ private class FakePreferences(
     }
 
     // The rest of the preferences are not what this test is about.
-    override val themeMode: Flow<ThemeMode> get() = notUsed()
-    override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val scenes: Flow<List<Scene>> = flowOf(emptyList())
     override suspend fun setScenes(scenes: List<Scene>) = notUsed()
     override val manualPresetAt: Flow<Long> = flowOf(0L)
@@ -833,7 +830,6 @@ private class FakePreferences(
     override val subscriptionLastSuccessAt: Flow<Long> get() = notUsed()
     override val subscriptionLastFailureAt: Flow<Long> get() = notUsed()
     override val subscriptionLastError: Flow<String?> get() = notUsed()
-    override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { notUsed() }
     override suspend fun setRoutePreset(value: RoutePreset) {

@@ -1,7 +1,7 @@
 package com.justnpcx.starveil.core.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.justnpcx.starveil.core.ui.theme.StarveilAccent
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilMotion
 
@@ -31,38 +33,43 @@ private val THUMB_SIZE = 22.dp
 /**
  * A switch, drawn rather than borrowed.
  *
- * Material's switch is tinted from `primary`, and in this palette primary is
- * ink — so the platform widget would have come out black-on-black with a grey
- * thumb, and its 2dp outline is a shape nothing else in the app uses.
+ * On is the accent: the gradient at 35%, with an ink thumb. Off is a ghost: a
+ * 40% ink3 track and an ink2 thumb. The two states differ in colour and in the
+ * thumb's position, which is what lets the control be read at a glance without
+ * the platform's blue (or green, on some ROMs) arriving with it.
  *
- * The two states are told apart by more than colour: on is a solid ink track
- * with a white thumb inside a gold ring; off is a translucent track with a
- * plain white thumb at the other end. That survives being read in bright sun,
- * and it survives a colour-blind eye — which a tint change alone does not.
+ * The gradient is the accent's second permitted appearance on a screen, so it
+ * is deliberately faint — a track you notice before the row's label is a switch
+ * that has stopped being a control and become decoration.
  */
 @Composable
 fun StarveilSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    /** Null when the whole row is the target: the switch must not also be one. */
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val trackColor by animateColorAsStateSafe(
-        target = when {
-            !enabled -> StarveilColors.ink3.copy(alpha = 0.24f)
-            checked -> StarveilColors.ink
-            else -> StarveilColors.ink3.copy(alpha = 0.40f)
-        },
-    )
+    val accentStops = StarveilAccent.colors
+    val pageBg = StarveilColors.bg
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) TRACK_WIDTH - THUMB_SIZE - 3.dp else 3.dp,
         animationSpec = StarveilMotion.stateTransition(),
         label = "switch-thumb",
     )
-    val ringAlpha by animateFloatAsState(
-        targetValue = if (checked) 1f else 0f,
+    val thumbColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> StarveilColors.ink3
+            checked -> StarveilColors.ink
+            else -> StarveilColors.ink2
+        },
         animationSpec = StarveilMotion.stateTransition(),
-        label = "switch-ring",
+        label = "switch-thumb-color",
+    )
+    val offTrack by animateColorAsState(
+        targetValue = StarveilColors.ink3.copy(alpha = if (enabled) 0.40f else 0.20f),
+        animationSpec = StarveilMotion.stateTransition(),
+        label = "switch-track-off",
     )
 
     Box(
@@ -70,11 +77,17 @@ fun StarveilSwitch(
             // The switch is 28dp tall; the touch target is the platform's 48.
             .height(48.dp)
             .width(TRACK_WIDTH + 8.dp)
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Switch,
-                onValueChange = onCheckedChange,
+            .then(
+                if (onCheckedChange != null) {
+                    Modifier.toggleable(
+                        value = checked,
+                        enabled = enabled,
+                        role = Role.Switch,
+                        onValueChange = onCheckedChange,
+                    )
+                } else {
+                    Modifier
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -83,45 +96,38 @@ fun StarveilSwitch(
                 .width(TRACK_WIDTH)
                 .height(TRACK_HEIGHT)
                 .clip(CircleShape)
-                .background(trackColor),
+                .drawBehind {
+                    if (checked) {
+                        drawRect(
+                            brush = Brush.linearGradient(
+                                colors = accentStops.map { it.copy(alpha = if (enabled) 0.35f else 0.15f) },
+                                start = Offset.Zero,
+                                end = Offset(size.width, size.height),
+                            ),
+                        )
+                    } else {
+                        drawRect(color = offTrack)
+                    }
+                },
         ) {
-            val gold = StarveilColors.gold
-            val surface = StarveilColors.surface
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .offset(x = thumbOffset)
                     .size(THUMB_SIZE)
                     .clip(CircleShape)
-                    .background(surface)
+                    .background(thumbColor)
                     .drawBehind {
-                        // The ring fades in rather than appearing: a thumb that
-                        // gains an outline in one frame reads as a glitch.
-                        if (ringAlpha <= 0f) return@drawBehind
+                        // A hairline ring keeps the thumb off the track's edge
+                        // when the track is nearly the same value as the page.
                         drawCircle(
-                            color = gold.copy(alpha = ringAlpha),
+                            color = pageBg.copy(alpha = 0.35f),
                             radius = size.minDimension / 2 - 0.5.dp.toPx(),
                             center = Offset(size.width / 2, size.height / 2),
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                width = 1.dp.toPx(),
-                            ),
+                            style = Stroke(width = 1.dp.toPx()),
                         )
                     },
             )
         }
     }
 }
-
-/**
- * `animateColorAsState`, with a colour that is already resolved.
- *
- * The token getters are composable reads, so they cannot be called inside the
- * lambda `animateColorAsState` takes — the value has to exist before this call.
- * Wrapping it keeps the call sites from each inventing their own workaround.
- */
-@Composable
-private fun animateColorAsStateSafe(target: Color) = androidx.compose.animation.animateColorAsState(
-    targetValue = target,
-    animationSpec = StarveilMotion.stateTransition(),
-    label = "switch-track",
-)

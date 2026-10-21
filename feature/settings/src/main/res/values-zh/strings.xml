@@ -2,12 +2,6 @@
 <resources>
     <string name="settings_title">设置</string>
 
-    <string name="theme_title">主题</string>
-    <string name="theme_system">跟随系统</string>
-    <string name="theme_dark">深色</string>
-    <string name="theme_light">浅色</string>
-    <string name="dynamic_color_title">动态取色</string>
-    <string name="dynamic_color_desc">从壁纸提取配色（Android 12+）。会覆盖 Starveil HUD 配色。</string>
 
     <string name="kill_switch_title">Kill Switch</string>
     <string name="kill_switch_off">关闭</string>

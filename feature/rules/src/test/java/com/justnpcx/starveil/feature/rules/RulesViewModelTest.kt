@@ -33,7 +33,6 @@ import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
 import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.data.ruleset.RuleSetFailure
 import com.justnpcx.starveil.core.model.InstalledRulePack
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import kotlinx.coroutines.flow.StateFlow
 import com.justnpcx.starveil.core.model.RoutePreset
@@ -216,8 +215,6 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
     override val onboardingDone: Flow<Boolean> = flowOf(true)
 
-    override val themeMode: Flow<ThemeMode> get() = notUsed()
-    override val dynamicColor: Flow<Boolean> get() = notUsed()
     override val autoReconnect: Flow<Boolean> get() = notUsed()
     override val autoSwitchOnDrop: Flow<Boolean> get() = notUsed()
     override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
@@ -244,7 +241,6 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
     override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
-    override suspend fun setThemeMode(mode: ThemeMode) { notUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }

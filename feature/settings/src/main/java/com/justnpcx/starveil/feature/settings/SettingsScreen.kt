@@ -53,7 +53,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.LocalApi
@@ -151,22 +150,6 @@ fun SettingsScreen(
         Text(
             text = stringResource(R.string.settings_title),
             style = MaterialTheme.typography.titleLarge,
-        )
-
-        SectionTitle(stringResource(R.string.theme_title))
-        ThemeMode.entries.forEach { mode ->
-            RadioOption(
-                label = stringResource(mode.labelRes()),
-                description = null,
-                selected = mode == state.themeMode,
-                onSelect = { viewModel.setThemeMode(mode) },
-            )
-        }
-        SwitchRow(
-            title = stringResource(R.string.dynamic_color_title),
-            description = stringResource(R.string.dynamic_color_desc),
-            checked = state.dynamicColor,
-            onCheckedChange = viewModel::setDynamicColor,
         )
 
         SectionTitle(stringResource(R.string.kill_switch_title))
@@ -747,12 +730,6 @@ private fun leakCheckSummary(record: LeakCheckRecord): String =
             when_,
         )
     }
-
-private fun ThemeMode.labelRes(): Int = when (this) {
-    ThemeMode.SYSTEM -> R.string.theme_system
-    ThemeMode.DARK -> R.string.theme_dark
-    ThemeMode.LIGHT -> R.string.theme_light
-}
 
 private fun KillSwitchMode.labelRes(): Int = when (this) {
     KillSwitchMode.OFF -> R.string.kill_switch_off

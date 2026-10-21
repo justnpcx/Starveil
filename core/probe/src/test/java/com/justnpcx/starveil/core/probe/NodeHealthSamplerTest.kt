@@ -2,7 +2,6 @@ package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.AppRoute
@@ -196,8 +195,6 @@ private class FakeHealth : NodeHealthRepository {
 private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val selectedProfileId: Flow<Long> = flowOf(selectedId)
 
-    override val themeMode: Flow<ThemeMode> get() = samplerNotUsed()
-    override val dynamicColor: Flow<Boolean> get() = samplerNotUsed()
     override val autoReconnect: Flow<Boolean> get() = samplerNotUsed()
     override val autoSwitchOnDrop: Flow<Boolean> get() = samplerNotUsed()
     override val bypassMainland: Flow<Boolean> get() = samplerNotUsed()
@@ -220,7 +217,6 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val subscriptionLastFailureAt: Flow<Long> get() = samplerNotUsed()
     override val subscriptionLastError: Flow<String?> get() = samplerNotUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = samplerNotUsed()
-    override suspend fun setThemeMode(mode: ThemeMode) = samplerNotUsed()
     override suspend fun setDynamicColor(enabled: Boolean) = samplerNotUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = samplerNotUsed()
     override suspend fun setRoutePreset(preset: RoutePreset) { samplerNotUsed() }

@@ -58,7 +58,7 @@ fun LatencySparkline(
     val trace = if (health.collecting) emptyList() else emaSeries(health.samples)
     // Read before the Canvas: a colour token is a composable read, and DrawScope
     // is not a composable scope.
-    val line = StarveilColors.ok
+    val line = StarveilColors.accentA
     Box(modifier = modifier.height(height)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawLatencyTrace(trace, line, strokeWidth = 1.5f)
@@ -107,8 +107,9 @@ fun NodeHealthChart(
     val trace = emaSeries(health.samples)
     // Read before the Canvas: colour tokens are composable reads, and DrawScope
     // is not a composable scope.
-    val line = StarveilColors.ok
+    val line = StarveilColors.accentA
     val loss = StarveilColors.err
+    val baseline = StarveilColors.hairline
 
     Box(
         modifier = (if (height != null) modifier.height(height) else modifier)
@@ -116,8 +117,8 @@ fun NodeHealthChart(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             // No background plate and no band strip: the page is the only
-            // background. The fill under the curve is the line's own colour at
-            // 8%, which reads as shading rather than as a coloured block.
+            // background. The fill under the curve is the accent at 18%,
+            // fading to nothing — shading, not a coloured block.
             drawLatencyFill(trace, line)
 
             // Loss first, so the trace sits over the dots rather than under
@@ -127,6 +128,15 @@ fun NodeHealthChart(
                 values = trace,
                 color = line,
                 strokeWidth = 1.5f,
+            )
+
+            // The baseline: the curve sits on a hairline, not in a box. It is
+            // the only rule in the card and it stops the fill from floating.
+            drawLine(
+                color = baseline,
+                start = Offset(0f, size.height),
+                end = Offset(size.width, size.height),
+                strokeWidth = 1.dp.toPx(),
             )
         }
     }
@@ -149,7 +159,7 @@ private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color) {
     drawPath(
         path = fill,
         brush = Brush.verticalGradient(
-            colors = listOf(color.copy(alpha = 0.08f), Color.Transparent),
+            colors = listOf(color.copy(alpha = 0.18f), Color.Transparent),
             startY = 0f,
             endY = size.height,
         ),

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,12 +34,10 @@ private val IN_USE_DOT = 6.dp
 private val MIN_TOUCH_TARGET = 48.dp
 
 /**
- * A filter chip: a capsule, outlined when idle, ink-filled when selected.
+ * A filter chip: a glass capsule, its edge cyan when selected.
  *
- * Inverted rather than tinted. A selected chip is the darkest thing in the row
- * — ink fill, page-coloured label — which is the only selection cue in this
- * design that cannot be confused with a status colour. A tinted fill would put
- * a second colour into a row whose job is to be quiet.
+ * Selection is the edge, not a fill. A filled chip would be a second solid
+ * block in a row of outlines, and the accent is only allowed to be a line here.
  *
  * [stateDescription] is passed in because the meaning of "selected" belongs to
  * the screen: a filtered group and a group the tunnel runs through look alike
@@ -77,15 +74,16 @@ fun StarveilChip(
                 if (description != null) this.stateDescription = description
             },
         shape = CircleShape,
-        color = if (selected) StarveilColors.ink else StarveilColors.bg,
-        // The outline is what makes an idle chip a chip rather than a word; a
-        // selected one has no outline because its fill already says so.
-        border = if (selected) null else BorderStroke(1.dp, StarveilColors.hairline),
+        color = StarveilColors.surfaceGlass,
+        border = BorderStroke(
+            1.dp,
+            if (selected) StarveilColors.accentA else StarveilColors.glassBorder,
+        ),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(
-                horizontal = StarveilSpacing.md,
+                horizontal = StarveilSpacing.lg,
                 vertical = StarveilSpacing.sm,
             ),
         ) {
@@ -97,14 +95,14 @@ fun StarveilChip(
                     modifier = Modifier
                         .size(IN_USE_DOT)
                         .clip(CircleShape)
-                        .background(if (selected) StarveilColors.bg else StarveilColors.ok),
+                        .background(StarveilColors.ok),
                 )
                 Spacer(modifier = Modifier.width(StarveilSpacing.xs))
             }
             Text(
                 text = label,
                 style = StarveilType.label,
-                color = if (selected) StarveilColors.bg else StarveilColors.ink2,
+                color = if (selected) StarveilColors.ink else StarveilColors.ink2,
             )
         }
     }

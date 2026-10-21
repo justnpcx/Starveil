@@ -202,6 +202,28 @@ object StarveilIcons {
         }
     }
 
+    /** Up: the move-up chevron. */
+    val Up: ImageVector by lazy {
+        strokeIcon("Line.Up") {
+            iconPath {
+                moveTo(6f, 15f)
+                lineTo(12f, 9f)
+                lineTo(18f, 15f)
+            }
+        }
+    }
+
+    /** Down: the move-down chevron. */
+    val Down: ImageVector by lazy {
+        strokeIcon("Line.Down") {
+            iconPath {
+                moveTo(6f, 9f)
+                lineTo(12f, 15f)
+                lineTo(18f, 9f)
+            }
+        }
+    }
+
     /** Chevron: the disclosure marker on a row that opens something. */
     val Chevron: ImageVector by lazy {
         strokeIcon("Line.Chevron") {

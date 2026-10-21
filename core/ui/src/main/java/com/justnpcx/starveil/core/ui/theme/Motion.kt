@@ -1,59 +1,37 @@
 package com.justnpcx.starveil.core.ui.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.TweenSpec
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 
 /**
  * Motion spec — one source of truth for animation feel.
  *
  * Rules:
- * - State changes (connect/disconnect) use [stateTransition]: fast, decisive.
- * - Continuous ambience (breathing, pulsing) uses [AmbientLoop].
- * - Never animate layout size for state changes; animate alpha/scale/rotation.
+ * - A state change is 240–300ms, ease-out. Nothing bounces: an overshoot on a
+ *   switch or a ring reads as a toy, and this design is not playful.
+ * - The ring's sweep on a successful connect runs once. It is the only
+ *   decorative motion in the app.
+ * - Never animate layout size for a state change; animate colour, alpha and
+ *   rotation.
  */
 object StarveilMotion {
-    /** The state-transition curve: 220ms, expressive ease. */
-    private val STATE_EASING = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 
-    /**
-     * A state transition, for whatever is being animated. Generic because one
-     * state change moves several things at once — a colour, a radius, a scale
-     * — and they have to move together on the same curve (design system §5.3).
-     */
-    fun <T> stateTransition(): TweenSpec<T> = tween(durationMillis = 220, easing = STATE_EASING)
+    /** 260ms, ease-out: decisive without a snap. */
+    private val STATE_EASING = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
-    /** Spring for press / toggle feedback. */
-    fun <T> pressSpring() = spring<T>(
-        dampingRatio = Spring.DampingRatioMediumBouncy,
-        stiffness = Spring.StiffnessMediumLow,
-    )
+    /** A state transition, for whatever is being animated. */
+    fun <T> stateTransition(): TweenSpec<T> = tween(durationMillis = 260, easing = STATE_EASING)
 
-    /** Ambient breathing loop period (ms). */
-    const val BREATH_PERIOD_MS = 2600
-
-    /**
-     * Warning breathing period (ms) — slower than [BREATH_PERIOD_MS] on
-     * purpose. A warning that pulses at the healthy rate reads as "all good"
-     * with the wrong colour; the slower, shallower pulse is what makes it
-     * read as attention rather than life.
-     */
-    const val WARNING_BREATH_PERIOD_MS = 3600
-
-    /**
-     * Standby breathing period (ms) — the slowest of the three.
-     *
-     * An idle core is a device waiting, not a tunnel working: the same motion
-     * at the healthy rate would say "something is happening" about a state
-     * where nothing is.
-     */
-    const val STANDBY_BREATH_PERIOD_MS = 4800
+    /** Press feedback: fast, and no spring. */
+    fun <T> press(): TweenSpec<T> = tween(durationMillis = 120, easing = STATE_EASING)
 
     /** Connecting rotation period (ms). */
-    const val SPIN_PERIOD_MS = 1100
+    const val SPIN_PERIOD_MS = 1400
+
+    /** How long the one-shot sweep after a successful connect takes. */
+    const val CONNECT_SWEEP_MS = 720
 
     /** Scale while a control is pressed. */
-    const val PRESSED_SCALE = 0.96f
+    const val PRESSED_SCALE = 0.98f
 }

@@ -2,7 +2,6 @@ package com.justnpcx.starveil.core.probe
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
@@ -151,8 +150,6 @@ private class LeakFakePreferences(private val mode: KillSwitchMode) : Preference
     override val selectedProfileId: Flow<Long> get() = leakNotUsed()
     override val selectedGroupId: Flow<Long> get() = leakNotUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = leakNotUsed()
-    override val themeMode: Flow<ThemeMode> get() = leakNotUsed()
-    override val dynamicColor: Flow<Boolean> get() = leakNotUsed()
     override val autoReconnect: Flow<Boolean> get() = leakNotUsed()
     override val autoSwitchOnDrop: Flow<Boolean> get() = leakNotUsed()
     override val bypassMainland: Flow<Boolean> get() = leakNotUsed()
@@ -172,7 +169,6 @@ private class LeakFakePreferences(private val mode: KillSwitchMode) : Preference
     override val subscriptionLastFailureAt: Flow<Long> get() = leakNotUsed()
     override val subscriptionLastError: Flow<String?> get() = leakNotUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = leakNotUsed()
-    override suspend fun setThemeMode(mode: ThemeMode) { leakNotUsed() }
     override suspend fun setDynamicColor(enabled: Boolean) { leakNotUsed() }
     override suspend fun setBypassMainland(enabled: Boolean) { leakNotUsed() }
     override suspend fun setRoutePreset(preset: RoutePreset) { leakNotUsed() }

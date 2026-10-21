@@ -1,119 +1,74 @@
 package com.justnpcx.starveil.core.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
+import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 
 /**
- * The app has no cards.
+ * A glass card: the app's only grouping device.
  *
- * A section is a run of content separated from its neighbours by a hairline and
- * by air — not by a filled rectangle. That is the whole visual change: the old
- * screen was a stack of tinted blocks, and a stack of tinted blocks reads as a
- * form, not as a page. Removing the fill is what lets the type carry the
- * hierarchy instead of the boxes.
+ * One step off black, a 1dp edge, 20dp corners, and no shadow. The edge is what
+ * gives it a shape; a shadow on a black page is invisible work, and a heavier
+ * fill would read as a grey block — which is exactly the look this replaces.
  *
- * This type is kept as the one place that knowledge lives, so "how do I group
- * these rows" has an answer that is not "draw a Card".
- *
- * @param divider which edge carries the hairline. A section that follows
- *   another gets a top rule; the first section on a page gets none, because the
- *   page's own margin already separates it from the title.
- * @param inset the rule starts where the text does, not at the screen edge.
- *   A full-bleed line under a 24dp margin reads as a table border.
+ * Cards do not nest. A card inside a card is two edges for one grouping, and
+ * the inner one always looks like a mistake.
  */
 @Composable
-fun StarveilSection(
+fun StarveilCard(
     modifier: Modifier = Modifier,
-    divider: SectionDivider = SectionDivider.Top,
-    inset: Dp = StarveilSpacing.pageMargin,
-    content: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(StarveilShapes.card)
+            .background(StarveilColors.surfaceGlass)
+            .border(1.dp, StarveilColors.glassBorder, StarveilShapes.card),
+        content = content,
+    )
+}
+
+/**
+ * A hairline inside a card, inset to the text column.
+ *
+ * [startInset] is the text's own left edge, so the rule starts where the words
+ * do rather than at the card's border — a full-bleed line inside a rounded card
+ * reads as a table.
+ */
+@Composable
+fun StarveilDivider(
+    modifier: Modifier = Modifier,
+    startInset: Dp = StarveilSpacing.lg,
+    endInset: Dp = 0.dp,
 ) {
     val line = StarveilColors.hairline
     Box(
         modifier = modifier
             .fillMaxWidth()
             .drawBehind {
-                if (divider == SectionDivider.None) return@drawBehind
-                val stroke = 1.dp.toPx()
-                if (divider == SectionDivider.Top) {
-                    drawLine(
-                        color = line,
-                        start = Offset(inset.toPx(), 0f),
-                        end = Offset(size.width - inset.toPx(), 0f),
-                        strokeWidth = stroke,
-                    )
-                } else {
-                    drawLine(
-                        color = line,
-                        start = Offset(inset.toPx(), size.height - stroke / 2),
-                        end = Offset(size.width - inset.toPx(), size.height - stroke / 2),
-                        strokeWidth = stroke,
-                    )
-                }
-            },
-    ) {
-        content()
-    }
-}
-
-/** Which edge of a section carries its rule. */
-enum class SectionDivider { None, Top, Bottom }
-
-/**
- * A row inside a section: full width, its own hairline, page margin as padding.
- *
- * Rows are what a list of settings or nodes is made of. The rule sits on the
- * bottom edge and the caller decides whether the last row keeps it — a section
- * that ends the page usually does not need one, because the page ends.
- */
-@Composable
-fun StarveilRow(
-    modifier: Modifier = Modifier,
-    showDivider: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    StarveilSection(
-        modifier = modifier,
-        divider = if (showDivider) SectionDivider.Bottom else SectionDivider.None,
-        inset = StarveilSpacing.pageMargin,
-    ) {
-        Box(modifier = Modifier.padding(vertical = StarveilSpacing.md)) {
-            content()
-        }
-    }
-}
-
-/**
- * A 1dp rule, inset to the text column.
- *
- * For the places that are not a whole section: under a search field, between a
- * heading and its list.
- */
-@Composable
-fun StarveilRule(
-    modifier: Modifier = Modifier,
-    color: Color = StarveilColors.hairline,
-    inset: Dp = StarveilSpacing.pageMargin,
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .drawBehind {
                 val stroke = 1.dp.toPx()
                 drawLine(
-                    color = color,
-                    start = Offset(inset.toPx(), stroke / 2),
-                    end = Offset(size.width - inset.toPx(), stroke / 2),
+                    color = line,
+                    start = Offset(startInset.toPx(), stroke / 2),
+                    end = Offset(size.width - endInset.toPx(), stroke / 2),
                     strokeWidth = stroke,
                 )
             },
@@ -121,21 +76,21 @@ fun StarveilRule(
 }
 
 /**
- * The old name for a section, kept until the last screen is migrated.
+ * A row inside a card: 16dp of side padding, 14dp above and below.
  *
- * @deprecated use [StarveilSection]. It draws no fill and no border; a caller
- *   that relied on `selected` should draw its own selection cue, because the
- *   only permitted one is a wash and a leading rule on a list row.
+ * 14 rather than 16 so a two-line row (a title and its description) comes out
+ * at 72dp — the height a list row needs to breathe without turning into a gap.
  */
 @Composable
-@Deprecated("Use StarveilSection", ReplaceWith("StarveilSection"))
-fun StarveilCard(
+fun StarveilRow(
     modifier: Modifier = Modifier,
-    @Suppress("UNUSED_PARAMETER") selected: Boolean = false,
-    content: @Composable () -> Unit,
+    content: @Composable RowScope.() -> Unit,
 ) {
-    StarveilSection(modifier = modifier, divider = SectionDivider.None, content = content)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
 }
-
-/** The old card radius; only the dialogs use a radius now. */
-val StarveilCardCorner = 16.dp

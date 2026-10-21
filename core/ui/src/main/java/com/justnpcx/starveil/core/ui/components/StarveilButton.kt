@@ -14,14 +14,14 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
- * A button: ink fill, page-coloured label.
+ * A button: a glass capsule with an ink label.
  *
- * Gold is never a button. An accent that fills a control stops being an accent
- * the moment there are two buttons on a screen — and this design spends its
- * gold on the ring and on one badge, which is the whole budget.
+ * The accent never fills a button. It is spent on the ring and on one marker
+ * per screen, and a gradient button would spend the whole budget on the thing
+ * that is easiest to draw.
  *
- * [secondary] is the same capsule outlined instead of filled, for the action
- * beside a primary one.
+ * [secondary] is the same capsule with no fill, for the action beside a primary
+ * one.
  */
 @Composable
 fun StarveilButton(
@@ -36,17 +36,12 @@ fun StarveilButton(
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
         shape = CircleShape,
-        color = when {
-            !enabled -> StarveilColors.hairline
-            secondary -> StarveilColors.bg
-            else -> StarveilColors.ink
-        },
-        contentColor = when {
-            !enabled -> StarveilColors.ink3
-            secondary -> StarveilColors.ink
-            else -> StarveilColors.bg
-        },
-        border = if (secondary) BorderStroke(1.dp, StarveilColors.ink) else null,
+        color = if (!enabled) StarveilColors.surfaceGlass else if (secondary) StarveilColors.bg else StarveilColors.surfaceGlass,
+        contentColor = if (enabled) StarveilColors.ink else StarveilColors.ink3,
+        border = BorderStroke(
+            1.dp,
+            if (enabled) StarveilColors.glassBorder else StarveilColors.hairline,
+        ),
     ) {
         Text(
             text = text,

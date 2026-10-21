@@ -2,7 +2,6 @@ package com.justnpcx.starveil.feature.dashboard
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.AppRoute
@@ -140,8 +139,6 @@ private class DropFakePrefs : PreferencesRepository {
     override val connectionTarget: Flow<ConnectionTarget> get() = flowOf(current)
     override val selectedProfileId: Flow<Long> = flowOf(1L)
 
-    override val themeMode: Flow<ThemeMode> get() = dropNotUsed()
-    override val dynamicColor: Flow<Boolean> get() = dropNotUsed()
     override val bypassMainland: Flow<Boolean> get() = dropNotUsed()
     override val routePreset: Flow<RoutePreset> get() = dropNotUsed()
     override val blockAds: Flow<Boolean> get() = dropNotUsed()
@@ -159,7 +156,6 @@ private class DropFakePrefs : PreferencesRepository {
     override val subscriptionLastError: Flow<String?> get() = dropNotUsed()
     override val perAppRoutes: Flow<Map<String, AppRoute>> get() = dropNotUsed()
 
-    override suspend fun setThemeMode(mode: ThemeMode) = dropNotUsed()
     override suspend fun setDynamicColor(enabled: Boolean) = dropNotUsed()
     override suspend fun setAutoReconnect(enabled: Boolean) = dropNotUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = dropNotUsed()

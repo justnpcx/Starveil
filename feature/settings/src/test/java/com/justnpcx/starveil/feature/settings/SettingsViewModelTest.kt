@@ -9,7 +9,6 @@ import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
@@ -123,7 +122,7 @@ class SettingsViewModelTest {
 
         assertEquals("", viewModel.uiState.value.kernelVersion)
         // The preferences still made it through.
-        assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
+        assertEquals(KillSwitchMode.OFF, viewModel.uiState.value.killSwitchMode)
         job.cancel()
     }
 
@@ -169,8 +168,6 @@ private class FakeKernel(private val reportedVersion: String) : KernelBridge {
 /** Only the members the settings state actually reads are real. */
 private class FakePreferences : PreferencesRepository {
 
-    override val themeMode: Flow<ThemeMode> = flowOf(ThemeMode.DARK)
-    override val dynamicColor: Flow<Boolean> = flowOf(false)
     override val autoReconnect: Flow<Boolean> = flowOf(true)
     override val autoSwitchOnDrop: Flow<Boolean> = flowOf(true)
     override val bypassMainland: Flow<Boolean> = flowOf(false)
@@ -183,8 +180,6 @@ private class FakePreferences : PreferencesRepository {
     override val killSwitchMode: Flow<KillSwitchMode> = flowOf(KillSwitchMode.OFF)
     override val lastLeakCheck: Flow<LeakCheckRecord> = flowOf(LeakCheckRecord())
 
-    override suspend fun setThemeMode(mode: ThemeMode) = notUsed()
-    override suspend fun setDynamicColor(enabled: Boolean) = notUsed()
     override suspend fun setBypassMainland(enabled: Boolean) = notUsed()
     override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
     override suspend fun setBlockAds(enabled: Boolean) { notUsed() }

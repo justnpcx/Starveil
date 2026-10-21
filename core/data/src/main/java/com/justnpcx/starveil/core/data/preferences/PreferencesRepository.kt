@@ -37,21 +37,6 @@ sealed interface ConnectionTarget {
     data class Group(val id: Long) : ConnectionTarget
 }
 
-/** Theme selection. Stored as a String; unknown stored values fall back to SYSTEM. */
-enum class ThemeMode { SYSTEM, DARK, LIGHT }
-
-/**
- * Whether [this] mode means "dark", given whether the system is dark.
- *
- * SYSTEM follows the system; DARK and LIGHT are explicit overrides. Pure, so
- * the mapping is unit-testable without a Compose runtime.
- */
-fun ThemeMode.isDark(systemDark: Boolean): Boolean = when (this) {
-    ThemeMode.SYSTEM -> systemDark
-    ThemeMode.DARK -> true
-    ThemeMode.LIGHT -> false
-}
-
 private val Context.starveilDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "starveil_preferences",
 )
@@ -64,8 +49,6 @@ private val Context.starveilDataStore: DataStore<Preferences> by preferencesData
  * literals scattered across the app.
  */
 interface PreferencesRepository {
-    val themeMode: Flow<ThemeMode>
-    val dynamicColor: Flow<Boolean>
     val autoReconnect: Flow<Boolean>
 
     /**
@@ -182,8 +165,6 @@ interface PreferencesRepository {
     /** Redacted reason for the last failure; null when the last run succeeded. */
     val subscriptionLastError: Flow<String?>
 
-    suspend fun setThemeMode(mode: ThemeMode)
-    suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setAutoReconnect(enabled: Boolean)
 
     suspend fun setAutoSwitchOnDrop(enabled: Boolean)
@@ -245,8 +226,6 @@ class DataStorePreferencesRepository @Inject constructor(
     private val dataStore = context.starveilDataStore
 
     private object Keys {
-        val THEME_MODE = stringPreferencesKey("theme_mode")
-        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         val AUTO_SWITCH_ON_DROP = booleanPreferencesKey("auto_switch_on_drop")
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
@@ -268,17 +247,6 @@ class DataStorePreferencesRepository @Inject constructor(
         val SCENES = stringPreferencesKey("scenes")
         val MANUAL_PRESET_AT = longPreferencesKey("manual_preset_at")
     }
-
-    override val themeMode: Flow<ThemeMode> = dataStore.data
-        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs ->
-            runCatching { ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name) }
-                .getOrDefault(ThemeMode.SYSTEM)
-        }
-
-    override val dynamicColor: Flow<Boolean> = dataStore.data
-        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.DYNAMIC_COLOR] ?: true }
 
     override val autoReconnect: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
@@ -310,14 +278,6 @@ class DataStorePreferencesRepository @Inject constructor(
                 leaking = prefs[Keys.LEAK_CHECK_LEAKING] ?: false,
             )
         }
-
-    override suspend fun setThemeMode(mode: ThemeMode) {
-        dataStore.edit { it[Keys.THEME_MODE] = mode.name }
-    }
-
-    override suspend fun setDynamicColor(enabled: Boolean) {
-        dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
-    }
 
     override suspend fun setBypassMainland(enabled: Boolean) {
         dataStore.edit { it[Keys.BYPASS_MAINLAND] = enabled }

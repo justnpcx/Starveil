@@ -52,8 +52,6 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
-import com.justnpcx.starveil.core.data.preferences.ThemeMode
-import com.justnpcx.starveil.core.data.preferences.isDark
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.probe.LeakCheckRunner
@@ -129,31 +127,20 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val themeMode by preferences.themeMode
-                .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
-            val dynamicColor by preferences.dynamicColor
-                .collectAsStateWithLifecycle(initialValue = false)
             // null until the flag is read: showing the tabs first and then
             // replacing them with onboarding would flash the wrong screen.
             val onboardingDone by preferences.onboardingDone
                 .collectAsStateWithLifecycle(initialValue = null)
 
-            val dark = themeMode.isDark(systemDark = isSystemInDarkTheme())
-
-            // The system bars follow the *app's* theme, not the system's.
-            // `enableEdgeToEdge()` with no arguments decides the scrim from the
-            // resource configuration, so forcing dark inside a light system left
-            // a white navigation bar under a black app — the one thing in the
-            // dark walkthrough that was plainly wrong rather than a taste call.
-            LaunchedEffect(dark) {
-                val style = SystemBarStyle.auto(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT,
-                ) { dark }
+            // One theme, and it is black: both system bars are transparent over
+            // the page, with light icons. `auto` would follow the system and
+            // leave a white navigation bar under a black app.
+            LaunchedEffect(Unit) {
+                val style = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
-            StarveilTheme(darkTheme = dark) {
+            StarveilTheme {
                 when (onboardingDone) {
                     null -> Box(modifier = Modifier.fillMaxSize())
                     false -> OnboardingScreen()
@@ -220,7 +207,7 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val hairline = StarveilColors.hairline
-    val gold = StarveilColors.gold
+    val accent = StarveilColors.accentA
 
     Column(
         modifier = Modifier
@@ -264,6 +251,17 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
                         }
                         .padding(vertical = StarveilSpacing.sm),
                 ) {
+                    // The dot is the selection cue, and it is cyan: the one
+                    // place the accent appears in the chrome. It sits above the
+                    // glyph and holds its slot when unselected, so neither the
+                    // icon nor the label moves between tabs.
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) accent else Color.Transparent),
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
                     Icon(
                         imageVector = destination.icon,
                         contentDescription = null,
@@ -278,16 +276,6 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                    // The dot is the selection cue, and it is gold: the one
-                    // place the accent appears in the chrome. It holds its slot
-                    // when unselected so the label does not move.
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(if (selected) gold else Color.Transparent),
                     )
                 }
             }

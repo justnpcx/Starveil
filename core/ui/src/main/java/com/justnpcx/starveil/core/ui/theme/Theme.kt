@@ -1,45 +1,46 @@
 package com.justnpcx.starveil.core.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 /**
  * The palette in force, as a CompositionLocal.
  *
- * A local rather than a global object because there are two palettes and the
- * theme decides which. Screens read `StarveilColors.ink`, which resolves through
- * here — so a screen never asks which theme it is in, and a page cannot end up
- * with one design for light and another for dark.
+ * A local rather than a global object so Material's own components resolve the
+ * same values as ours. There is exactly one palette; a screen never asks which
+ * theme it is in, because there is no question to ask.
  */
-val LocalStarveilPalette = staticCompositionLocalOf { LightPalette }
+val LocalStarveilPalette = staticCompositionLocalOf { ObsidianPalette }
 
 /**
  * Every colour the app is allowed to use.
  *
- * Names are roles: `ink` is "primary text", not "the colour #1A1815". The
- * values come from [LocalStarveilPalette], so the same call means the light
- * value on a light page and the dark value on a dark one.
- *
- * There is no `Border`, `Glow`, or `Chart1..5` any more. Those existed to give
- * the HUD its cyan edges and its five-series sparkline; this design has one
- * divider, one accent, and three status colours, and a token nobody should use
- * is a token somebody will.
+ * Names are roles: `ink` is "primary text", not "the colour #F5F7FA".
  */
 object StarveilColors {
-    /** Page background. */
+    /** Page background. Pure black. */
     val bg: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.bg
 
-    /** A surface that floats over the page: sheets, dialogs. */
-    val surface: Color
-        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.surface
+    /** A glass card, a sheet. */
+    val surfaceGlass: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.surfaceGlass
+
+    /** The 1dp edge of a glass card. */
+    val glassBorder: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.glassBorder
+
+    /** Dividers inside a card, and the line above the navigation bar. */
+    val hairline: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hairline
 
     /** Primary text. */
     val ink: Color
@@ -49,27 +50,19 @@ object StarveilColors {
     val ink2: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ink2
 
-    /** Tertiary: placeholders, timestamps, disabled values. */
+    /** Tertiary: placeholders, timestamps, unselected icons. */
     val ink3: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ink3
 
-    /** The one divider colour. */
-    val hairline: Color
-        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hairline
+    /** The gradient's start: electric cyan. */
+    val accentA: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.accentA
 
-    /** Champagne gold. Lines and dots only — never a fill. */
-    val gold: Color
-        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.gold
+    /** The gradient's end: violet. */
+    val accentB: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.accentB
 
-    /** Gold at text weight. */
-    val goldDeep: Color
-        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.goldDeep
-
-    /** The only permitted wash: a selected row. */
-    val goldWash: Color
-        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.goldWash
-
-    /** Healthy. */
+    /** Online, healthy. */
     val ok: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ok
 
@@ -80,12 +73,20 @@ object StarveilColors {
     /** Failure, blocking. */
     val err: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.err
-    // --- Temporary bridge, removed once every screen is migrated ------------
+
+    /** The ring at rest. */
+    val ringIdle: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ringIdle
+
+    /** A selected row's wash: the accent at 12%, the only tinted fill allowed. */
+    val accentWash: Color
+        @Composable @ReadOnlyComposable get() = accentA.copy(alpha = 0.12f)
+
+    // --- Temporary bridge, removed by the walkthrough commit -----------------
     //
-    // The old names are still referenced by the screens that have not been
-    // reskinned yet. They map onto the new roles so an intermediate commit
-    // builds; each one disappears with the screen that used it, and the block
-    // goes with the last.
+    // The screens that have not been reskinned yet still name the old roles.
+    // Each alias points at the role that replaced it, so an intermediate commit
+    // builds and looks like one app; the block disappears with the last screen.
 
     /** @deprecated the page background. */
     val Void: Color @Composable @ReadOnlyComposable get() = bg
@@ -94,22 +95,31 @@ object StarveilColors {
     val Panel: Color @Composable @ReadOnlyComposable get() = bg
 
     /** @deprecated a floating surface. */
-    val Raised: Color @Composable @ReadOnlyComposable get() = surface
+    val Raised: Color @Composable @ReadOnlyComposable get() = surfaceGlass
 
     /** @deprecated a floating surface. */
-    val Snackbar: Color @Composable @ReadOnlyComposable get() = surface
+    val Snackbar: Color @Composable @ReadOnlyComposable get() = surfaceGlass
 
     /** @deprecated the accent. */
-    val GlowPrimary: Color @Composable @ReadOnlyComposable get() = gold
+    val gold: Color @Composable @ReadOnlyComposable get() = accentA
 
     /** @deprecated the accent. */
-    val GlowSecondary: Color @Composable @ReadOnlyComposable get() = goldDeep
+    val goldDeep: Color @Composable @ReadOnlyComposable get() = accentA
+
+    /** @deprecated the selected wash. */
+    val goldWash: Color @Composable @ReadOnlyComposable get() = accentWash
+
+    /** @deprecated the accent. */
+    val GlowPrimary: Color @Composable @ReadOnlyComposable get() = accentA
+
+    /** @deprecated the accent. */
+    val GlowSecondary: Color @Composable @ReadOnlyComposable get() = accentB
 
     /** @deprecated healthy. */
     val Connected: Color @Composable @ReadOnlyComposable get() = ok
 
     /** @deprecated the accent. */
-    val Connecting: Color @Composable @ReadOnlyComposable get() = gold
+    val Connecting: Color @Composable @ReadOnlyComposable get() = accentA
 
     /** @deprecated failure. */
     val Blocked: Color @Composable @ReadOnlyComposable get() = err
@@ -130,13 +140,13 @@ object StarveilColors {
     val Border: Color @Composable @ReadOnlyComposable get() = hairline
 
     /** @deprecated the accent. */
-    val BorderGlow: Color @Composable @ReadOnlyComposable get() = gold
+    val BorderGlow: Color @Composable @ReadOnlyComposable get() = accentA
 
     /** @deprecated the selected wash. */
-    val GlowPrimaryDim: Color @Composable @ReadOnlyComposable get() = goldWash
+    val GlowPrimaryDim: Color @Composable @ReadOnlyComposable get() = accentWash
 
     /** @deprecated one series. */
-    val Chart1: Color @Composable @ReadOnlyComposable get() = gold
+    val Chart1: Color @Composable @ReadOnlyComposable get() = accentA
 
     /** @deprecated one series. */
     val Chart2: Color @Composable @ReadOnlyComposable get() = ink2
@@ -155,7 +165,7 @@ object StarveilColors {
 }
 
 /**
- * Material's scheme, derived from a palette.
+ * Material's scheme, derived from the palette.
  *
  * Only what Material components actually read is set: a dialog's container, a
  * menu's surface, a text field's cursor. `surfaceVariant` is deliberately the
@@ -164,9 +174,9 @@ object StarveilColors {
  * page instead of drawing a card.
  */
 private fun ColorScheme.withPalette(p: StarveilPalette): ColorScheme = copy(
-    primary = p.ink,
+    primary = p.accentA,
     onPrimary = p.bg,
-    secondary = p.goldDeep,
+    secondary = p.accentB,
     onSecondary = p.bg,
     tertiary = p.ok,
     background = p.bg,
@@ -175,10 +185,11 @@ private fun ColorScheme.withPalette(p: StarveilPalette): ColorScheme = copy(
     onSurface = p.ink,
     surfaceVariant = p.bg,
     onSurfaceVariant = p.ink2,
-    surfaceContainer = p.surface,
-    surfaceContainerHigh = p.surface,
-    surfaceContainerHighest = p.surface,
-    outline = p.hairline,
+    surfaceContainer = p.surfaceGlass,
+    surfaceContainerHigh = p.surfaceGlass,
+    surfaceContainerHighest = p.surfaceGlass,
+    surfaceContainerLow = p.surfaceGlass,
+    outline = p.glassBorder,
     outlineVariant = p.hairline,
     error = p.err,
     onError = p.bg,
@@ -186,29 +197,52 @@ private fun ColorScheme.withPalette(p: StarveilPalette): ColorScheme = copy(
     // different colour from the page — otherwise the bar reads as a hole.
     inverseSurface = p.ink,
     inverseOnSurface = p.bg,
-    inversePrimary = p.gold,
+    inversePrimary = p.accentA,
 )
 
-internal val DarkScheme = darkColorScheme().withPalette(DarkPalette)
-
-internal val LightScheme = lightColorScheme().withPalette(LightPalette)
+internal val ObsidianScheme = darkColorScheme().withPalette(ObsidianPalette)
 
 /**
- * @param darkTheme which palette. The caller derives it from the stored theme
- *   mode; this composable does not read the system setting itself, because
- *   "follow the system" is a stored choice and not the same thing as "dark".
+ * The app's theme. There are no arguments: one palette, one scheme.
+ *
+ * The absence is deliberate. A `darkTheme` parameter is the hook a second
+ * theme hangs from, and this design has one.
  */
 @Composable
-fun StarveilTheme(
-    darkTheme: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    val palette = if (darkTheme) DarkPalette else LightPalette
-    CompositionLocalProvider(LocalStarveilPalette provides palette) {
+fun StarveilTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalStarveilPalette provides ObsidianPalette) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            colorScheme = ObsidianScheme,
             typography = StarveilTypography,
+            shapes = StarveilShapes.material,
             content = content,
         )
     }
+}
+
+/**
+ * The radii the design uses, as tokens.
+ *
+ * A button and a chip are capsules; an input is 12dp; a card and a sheet are
+ * 20dp. Three numbers, not a per-call decision.
+ */
+object StarveilShapes {
+
+    /** A glass card. */
+    val card = RoundedCornerShape(20.dp)
+
+    /** A sheet: rounded at the top, square where it meets the screen edge. */
+    val sheet = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+
+    /** A text field. */
+    val field = RoundedCornerShape(12.dp)
+
+    /** Material's slots, so a stock component lands on the same corners. */
+    val material = androidx.compose.material3.Shapes(
+        extraSmall = RoundedCornerShape(8.dp),
+        small = field,
+        medium = card,
+        large = card,
+        extraLarge = card,
+    )
 }

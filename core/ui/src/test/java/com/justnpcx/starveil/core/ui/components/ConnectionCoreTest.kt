@@ -14,22 +14,19 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * The ring's contract, as something a test can hold on to.
  *
- * The old core pulsed, and the pulse carried the state: a warning beat slower
- * than a healthy tunnel, an idle one slower still. That whole dimension is gone
- * — the ring holds still in every state — so what is left to protect is the
- * thing the pulse used to break: the ring must never change size, because
- * everything below it is positioned from its box.
+ * What the pulse used to break is the thing worth protecting: the ring must
+ * never change size, because everything below it is positioned from its box.
  *
- * [ConnectionCoreGeometry] is the part worth testing: it is the one piece of the
- * drawing other blocks depend on, and it is a pure function.
+ * [ConnectionCoreGeometry] is the part worth testing: it is the one piece of
+ * the drawing other blocks depend on, and it is a pure function.
  */
 class ConnectionCoreGeometryTest {
 
     @Test
     fun `the ring is the same size in every state`() {
-        // This is the whole point of dropping the pulse. The rates, the node row
-        // and the health line are all measured from this box; a state change
-        // that resized it would move every one of them.
+        // This is the whole point of dropping the pulse. The rates, the node
+        // card and the health card are all measured from this box; a state
+        // change that resized it would move every one of them.
         val sizes = ConnectionState.entries.map { ConnectionCoreGeometry.sizeFor(it) }
         assertEquals(
             "the ring's box must not depend on the state",
@@ -39,20 +36,18 @@ class ConnectionCoreGeometryTest {
     }
 
     @Test
-    fun `the ring's stroke is a line, not a band`() {
-        // 3dp at any diameter: the design calls the ring a hairline-plus, and a
-        // stroke that scaled with the diameter would make the short-screen
-        // variant a different weight of ring.
-        assertEquals(3f, ConnectionCoreGeometry.strokeDp)
+    fun `the ring's stroke is 4dp`() {
+        // The spec's weight. A stroke that scaled with the diameter would make
+        // a larger ring a different weight of line.
+        assertEquals(4f, ConnectionCoreGeometry.strokeDp)
     }
 
     @Test
-    fun `a short screen gets the smaller ring, and nothing in between`() {
-        // Two sizes, chosen by available height, not a continuous scale: a ring
-        // that grows with the viewport makes the layout different on every
-        // device, and the design is measured from this box.
-        assertEquals(260f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 900f))
-        assertEquals(220f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 700f))
+    fun `the ring is 240dp on every screen`() {
+        // One size. The design is measured from this box, so a ring that grows
+        // with the viewport makes the layout different on every device.
+        assertEquals(240f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 900f))
+        assertEquals(240f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 700f))
     }
 }
 

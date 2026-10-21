@@ -7,27 +7,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * Type: a serif for the things that are read, a mono for the things that are
- * measured.
+ * Type: one sans family, one mono for measurements.
  *
- * The luxury is in the display face — a high-contrast serif on the numbers that
- * matter — and the precision is in the mono, which keeps digits from jittering
- * as they change and marks anything that is a technical annotation. Body text
- * stays sans: a serif paragraph at 15sp on a phone is a reading problem, not a
- * refinement.
+ * The display numbers are the sans at Light — a large thin numeral on black
+ * reads as engraved rather than printed, and it is the whole reason the rates
+ * look expensive. There is no serif anywhere: a serif on a black page with a
+ * neon accent reads as a wine list, not as an instrument.
  *
- * Fonts live in `res/font` and are subset to latin + digits (see `docs/02`).
- * Chinese falls back to the system serif for headings and the system sans for
- * body, which is what the platform already ships and costs nothing.
+ * The mono is the system's, so it costs nothing and needs no subsetting. It is
+ * used only where a column of digits must not jitter, and for technical
+ * annotations — units, protocol names, group captions.
  */
 
-/** Display serif: Playfair Display, Medium and SemiBold only. */
-val SerifFamily = FontFamily.Serif
-
-/** Technical annotation: system mono. */
+/** Technical annotation and tabular digits: system mono. */
 val MonoFamily = FontFamily.Monospace
 
-/** Body: whatever the platform calls sans. */
+/** Everything that is read as language. */
 val SansFamily = FontFamily.SansSerif
 
 /**
@@ -41,26 +36,29 @@ object StarveilType {
 
     /** The dashboard's rate. The one place the display face is 54sp. */
     val display = TextStyle(
-        fontFamily = SerifFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontFamily = SansFamily,
+        fontWeight = FontWeight.Light,
         fontSize = 54.sp,
-        lineHeight = 60.sp,
+        lineHeight = 58.sp,
+        letterSpacing = (-1).sp,
     )
 
     /** The word inside the ring. */
     val ringWord = TextStyle(
-        fontFamily = SerifFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = SansFamily,
+        fontWeight = FontWeight.Light,
         fontSize = 30.sp,
         lineHeight = 38.sp,
+        letterSpacing = 0.5.sp,
     )
 
     /** A page's own title. */
     val title = TextStyle(
-        fontFamily = SerifFamily,
+        fontFamily = SansFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 26.sp,
         lineHeight = 34.sp,
+        letterSpacing = (-0.3).sp,
     )
 
     /** A section heading, or the main line of a row. */
@@ -105,10 +103,11 @@ object StarveilType {
 
     /** A number inside a list: latency, counts. */
     val numInline = TextStyle(
-        fontFamily = SerifFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = SansFamily,
+        fontWeight = FontWeight.Normal,
         fontSize = 20.sp,
         lineHeight = 26.sp,
+        letterSpacing = (-0.2).sp,
     )
 
     /** A log line: the tech face at reading size. */
@@ -123,9 +122,10 @@ object StarveilType {
 /**
  * Material's scale, mapped onto the tokens above.
  *
- * Kept because Material components (dialogs, menus, snackbars) read it. Screens
- * use [StarveilType] directly — this exists so a component that is not ours
- * still lands on the same scale instead of Material's defaults.
+ * Kept because Material components (dialogs, menus, snackbars, text fields)
+ * read it. Screens use [StarveilType] directly — this exists so a component
+ * that is not ours still lands on the same scale instead of Material's
+ * defaults.
  */
 val StarveilTypography = Typography(
     displayLarge = StarveilType.display,
