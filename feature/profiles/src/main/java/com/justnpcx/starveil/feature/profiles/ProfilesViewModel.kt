@@ -46,6 +46,21 @@ data class ProfilesUiState(
     val hasProfiles: Boolean = false,
     /** Nodes exist, but the current filter hides them all. */
     val hasNoMatches: Boolean = false,
+    /**
+     * What the user typed into the search field.
+     *
+     * Held in the state rather than in the screen: the filter has to survive
+     * the node list re-emitting (a health sample arrives every few seconds),
+     * and a `remember` in the screen would be reset by nothing but would also
+     * be invisible to the ViewModel that does the filtering.
+     */
+    val query: String = "",
+    /**
+     * The search matched nothing, as opposed to a group filter hiding
+     * everything. Two different sentences: "no node matches X" is about the
+     * search, "this group is empty" is about the filter.
+     */
+    val hasNoSearchMatches: Boolean = false,
     val selectedId: Long = 0L,
     /** The group the tunnel goes through, when that is the target instead. */
     val selectedGroupId: Long = 0L,
@@ -125,6 +140,7 @@ class ProfilesViewModel @Inject constructor(
     private val importing = MutableStateFlow(false)
     private val message = MutableStateFlow<ProfilesMessage?>(null)
     private val groupFilter = MutableStateFlow<Long?>(null)
+    private val searchQuery = MutableStateFlow("")
     private val share = MutableStateFlow<ShareTarget?>(null)
 
     init {
@@ -144,6 +160,9 @@ class ProfilesViewModel @Inject constructor(
     /** Paired so the two transient signals count as one flow to [combine]. */
     private val transient = combine(importing, message) { isImporting, msg -> isImporting to msg }
 
+    /** The two things that narrow the list, paired for the same reason. */
+    private val filters = combine(groupFilter, searchQuery) { group, text -> group to text }
+
     /**
      * The list itself. Combined first because `combine` has no overload for six
      * flows, and the share sheet is the one input that is not part of the list.
@@ -155,18 +174,24 @@ class ProfilesViewModel @Inject constructor(
         // reading them separately can catch a half-applied change.
         preferences.connectionTarget,
         transient,
-        groupFilter,
-    ) { list, groupList, target, (isImporting, msg), filter ->
+        filters,
+    ) { list, groupList, target, (isImporting, msg), (filter, query) ->
         val selectedId = (target as? ConnectionTarget.Node)?.id ?: 0L
         // A node imported from a share link has no group, so it only ever
         // shows under "All".
-        val visible = if (filter == null) list else list.filter { it.groupId == filter }
+        val inGroup = if (filter == null) list else list.filter { it.groupId == filter }
+        val visible = inGroup.filterBy(query)
         ProfilesUiState(
             profiles = visible,
             groups = groupList,
             groupFilter = filter,
             hasProfiles = list.isNotEmpty(),
-            hasNoMatches = visible.isEmpty() && list.isNotEmpty(),
+            // Two ways to end up with nothing, and they need different
+            // sentences: a group that is empty, and a search that matched
+            // nothing. Blank query means the group filter did it.
+            hasNoMatches = visible.isEmpty() && list.isNotEmpty() && query.isBlank(),
+            query = query,
+            hasNoSearchMatches = visible.isEmpty() && list.isNotEmpty() && query.isNotBlank(),
             selectedId = selectedId,
             selectedGroupId = (target as? ConnectionTarget.Group)?.id ?: 0L,
             loading = false,
@@ -232,6 +257,22 @@ class ProfilesViewModel @Inject constructor(
     /** [groupId] of null shows every group. */
     fun filterByGroup(groupId: Long?) {
         groupFilter.value = groupId
+    }
+
+    /**
+     * Narrow the list to what matches [query].
+     *
+     * Matches the name and the server, case-insensitively, and treats the
+     * query as a whole substring rather than a set of tokens: someone typing
+     * `hk` means the two characters in that order, and splitting on spaces
+     * would make `HK 01` also match a node called `01 香港`.
+     */
+    fun setQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    fun clearQuery() {
+        searchQuery.value = ""
     }
 
     fun renameGroup(group: ProxyGroup, name: String) {
@@ -443,5 +484,22 @@ class ProfilesViewModel @Inject constructor(
     /** Surfaces a message produced outside this feature (e.g. the latency tester). */
     fun postMessage(text: String) {
         message.value = ProfilesMessage.External(text)
+    }
+}
+
+/**
+ * The nodes whose name or server contains [query], ignoring case.
+ *
+ * [Profile.displayName] is not used: the flag is decoration, and a user
+ * searching for a country types its name, which the display name carries but
+ * so does the stored one. Matching the server as well is what makes `1.2.3`
+ * find a node by its address.
+ */
+private fun List<Profile>.filterBy(query: String): List<Profile> {
+    val needle = query.trim()
+    if (needle.isEmpty()) return this
+    return filter { profile ->
+        profile.name.contains(needle, ignoreCase = true) ||
+            profile.server.contains(needle, ignoreCase = true)
     }
 }

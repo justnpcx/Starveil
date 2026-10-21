@@ -51,6 +51,10 @@
     <string name="profiles_row_move">Move to group</string>
     <string name="profiles_row_menu_title">%1$s</string>
     <string name="profiles_group_all">All</string>
+    <string name="profiles_search_hint">Search name or address</string>
+    <string name="profiles_search_clear">Clear search</string>
+    <string name="profiles_no_search_title">Nothing matches</string>
+    <string name="profiles_no_search_body">No node has “%1$s” in its name or address.</string>
     <string name="profiles_no_matches_title">No nodes in this group</string>
     <string name="profiles_no_matches_body">Pick another group, or import a subscription.</string>
 

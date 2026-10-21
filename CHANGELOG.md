@@ -8,6 +8,17 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.13] — 2026-10-21
+
+### Added
+
+- **Search on the node list**: a subscription of a few hundred nodes could only
+  be narrowed by group, which is useless when the name you half-remember is the
+  only thing you have. The field matches the name and the address, ignoring
+  case, and it narrows within the selected group rather than replacing it. "No
+  node matches X" is its own sentence, separate from "this group is empty" —
+  the two failures need different things from the user.
+
 ## [0.7.12] — 2026-10-21
 
 ### Added

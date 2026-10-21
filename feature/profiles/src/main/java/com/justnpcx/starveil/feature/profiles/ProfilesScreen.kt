@@ -67,6 +67,13 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.OutlinedTextField
+import com.justnpcx.starveil.core.ui.components.StarveilCardCorner
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -283,6 +290,16 @@ fun ProfilesScreen(
                     )
                 }
             }
+            // Above the group chips, and only once there is something to
+            // search: an empty list already says "import something", and a
+            // search field over it would be a control that cannot do anything.
+            if (state.hasProfiles) {
+                SearchField(
+                    query = state.query,
+                    onQueryChange = viewModel::setQuery,
+                    onClear = viewModel::clearQuery,
+                )
+            }
             // Always shown, even with no groups: creating the first one has to
             // have somewhere to live.
             Row(
@@ -318,6 +335,13 @@ fun ProfilesScreen(
                 state.hasNoMatches -> EmptyState(
                     title = stringResource(R.string.profiles_no_matches_title),
                     body = stringResource(R.string.profiles_no_matches_body),
+                )
+
+                // Same, for the search: the sentence has to name what was
+                // searched for, or it reads like the group is empty.
+                state.hasNoSearchMatches -> EmptyState(
+                    title = stringResource(R.string.profiles_no_search_title),
+                    body = stringResource(R.string.profiles_no_search_body, state.query),
                 )
 
                 else -> LazyColumn(
@@ -1206,6 +1230,62 @@ private const val SELECTED_HALO_ALPHA = 0.16f
  * Long-press opens group management. A tap has to stay the filter, so the
  * destructive actions cannot live there.
  */
+/**
+ * The node list's search field.
+ *
+ * Its own row rather than the app bar's title slot: the bar already carries
+ * three actions, and a title that turns into a field makes the two tabs that
+ * are not this one feel like a mode change. `OutlinedTextField` at 48dp is the
+ * same height as the chip row below it, so the two read as one control block.
+ */
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = StarveilSpacing.lg,
+                top = StarveilSpacing.sm,
+                end = StarveilSpacing.lg,
+            ),
+        placeholder = { Text(stringResource(R.string.profiles_search_hint)) },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailingIcon = {
+            // Only when there is something to clear: an always-present X reads
+            // as a control that does nothing.
+            if (query.isNotEmpty()) {
+                IconButton(onClick = onClear) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.profiles_search_clear),
+                    )
+                }
+            }
+        },
+        shape = RoundedCornerShape(StarveilCardCorner),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedBorderColor = Color.Transparent,
+            focusedBorderColor = StarveilColors.BorderGlow,
+        ),
+    )
+}
+
 @Composable
 private fun GroupChip(
     label: String,

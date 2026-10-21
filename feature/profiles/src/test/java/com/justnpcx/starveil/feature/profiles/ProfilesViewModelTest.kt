@@ -122,6 +122,123 @@ class ProfilesViewModelTest {
     }
 
     @Test
+    fun `search narrows the list by name`() = runBlocking {
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "Hong Kong 01"),
+                profile(TWO, "Tokyo 02"),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setQuery("hong")
+        yield()
+
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+        job.cancel()
+    }
+
+    @Test
+    fun `search matches the address too, so an ip finds a node`() = runBlocking {
+        // Names are often opaque (`HY2+Reality`), and the address is the one
+        // thing the user can copy from a subscription.
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "one").copy(server = "10.20.30.40"),
+                profile(TWO, "two").copy(server = "elsewhere.example"),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setQuery("20.30")
+        yield()
+
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+        job.cancel()
+    }
+
+    @Test
+    fun `search ignores case`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "HONGKONG")))
+        val viewModel = viewModel(profiles, FakePreferences(ONE))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setQuery("hong")
+        yield()
+
+        assertEquals(1, viewModel.uiState.value.profiles.size)
+        job.cancel()
+    }
+
+    @Test
+    fun `a search with no matches says so in its own words`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
+        val viewModel = viewModel(profiles, FakePreferences(ONE))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setQuery("nothing-like-this")
+        yield()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.profiles.isEmpty())
+        // The search did it, not the group filter: the two need different
+        // sentences, or the user goes looking at the wrong control.
+        assertTrue(state.hasNoSearchMatches)
+        assertFalse(state.hasNoMatches)
+        assertEquals("nothing-like-this", state.query)
+        job.cancel()
+    }
+
+    @Test
+    fun `clearing the search brings the list back`() = runBlocking {
+        val profiles = FakeProfiles(
+            mutableListOf(profile(ONE, "one"), profile(TWO, "two")),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.setQuery("one")
+        yield()
+        assertEquals(1, viewModel.uiState.value.profiles.size)
+
+        viewModel.clearQuery()
+        yield()
+
+        assertEquals(2, viewModel.uiState.value.profiles.size)
+        assertEquals("", viewModel.uiState.value.query)
+        job.cancel()
+    }
+
+    @Test
+    fun `search and a group filter apply together`() = runBlocking {
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "hk one").copy(groupId = SUB),
+                profile(TWO, "hk two").copy(groupId = 0L),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(SUB)
+        viewModel.setQuery("hk")
+        yield()
+
+        // Both conditions, not either: the group hides TWO, and the search does
+        // not exclude ONE.
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+        job.cancel()
+    }
+
+    @Test
     fun `a filter that matches nothing says so, rather than looking empty`() = runBlocking {
         val profiles = FakeProfiles(mutableListOf(profile(ONE, "one")))
         val viewModel = viewModel(profiles, FakePreferences(ONE), groupsWithSub())
