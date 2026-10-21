@@ -8,6 +8,8 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.7.8] — 2026-10-21
+
 ### Fixed
 
 - **A restart mistaken for a crash**: every in-place restart closes the command
