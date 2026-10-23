@@ -1032,13 +1032,17 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
     )
     SwipeToDismissBox(
         state = dismissState,
+        // Drawn only while the row is actually moving. SwipeToDismissBox keeps
+        // the background composed at rest, so a filled background is a red
+        // rectangle behind every row — it showed at the ends of the card and
+        // tinted the whole list warm.
         backgroundContent = {
+            val progress = dismissState.progress
+            if (progress <= 0f) return@SwipeToDismissBox
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = StarveilSpacing.lg)
-                    .clip(StarveilShapes.card)
-                    .background(StarveilColors.err.copy(alpha = 0.16f)),
+                    .background(StarveilColors.err.copy(alpha = 0.16f * progress)),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
@@ -1047,6 +1051,7 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
                     // second "Delete <node>" would read it out twice.
                     contentDescription = null,
                     tint = StarveilColors.err,
+                    modifier = Modifier.padding(end = StarveilSpacing.lg),
                 )
             }
         },
@@ -1136,44 +1141,53 @@ private fun NodeRow(
                         .alignByBaseline(),
                 )
                 Spacer(modifier = Modifier.width(StarveilSpacing.md))
-                // The number is the node's own measurement, so tapping it
-                // measures *this* node — testing the selected one from here
-                // would quietly measure a different node than the one under the
-                // finger.
-                Text(
-                    text = when (reading) {
-                        is LatencyReading.Value -> reading.ms.toString()
-                        LatencyReading.Timeout ->
-                            stringResource(R.string.profiles_latency_timeout)
-                        LatencyReading.Untested ->
-                            stringResource(R.string.profiles_latency_untested)
-                    },
+                // A fixed column, right-aligned: the unit must never be clipped
+                // by a long node name, and the column must not jump when a
+                // reading changes width. The number is the node's own
+                // measurement, so tapping it measures *this* node — testing the
+                // selected one from here would measure a different node than the
+                // one under the finger.
+                Row(
                     modifier = Modifier
-                        .alignByBaseline()
+                        .width(LATENCY_COLUMN_WIDTH)
                         .clip(RoundedCornerShape(LATENCY_TOUCH_CORNER))
                         .clickable(role = Role.Button, onClick = onTestClick)
                         .padding(horizontal = StarveilSpacing.xs),
-                    style = if (reading is LatencyReading.Value) {
-                        StarveilType.numInline
-                    } else {
-                        StarveilType.tech
-                    },
-                    // Dimmed, not red, when there is no reading: the status dot
-                    // already says "down", and colouring the number too would be
-                    // the same signal twice.
-                    color = if (reading is LatencyReading.Value) {
-                        StarveilColors.ink
-                    } else {
-                        StarveilColors.ink3
-                    },
-                )
-                if (reading is LatencyReading.Value) {
+                    horizontalArrangement = Arrangement.End,
+                ) {
                     Text(
-                        text = " ms",
-                        style = StarveilType.tech,
-                        color = StarveilColors.ink2,
+                        text = when (reading) {
+                            is LatencyReading.Value -> reading.ms.toString()
+                            LatencyReading.Timeout ->
+                                stringResource(R.string.profiles_latency_timeout)
+                            LatencyReading.Untested ->
+                                stringResource(R.string.profiles_latency_untested)
+                        },
                         modifier = Modifier.alignByBaseline(),
+                        style = if (reading is LatencyReading.Value) {
+                            StarveilType.numInline
+                        } else {
+                            StarveilType.tech
+                        },
+                        // Dimmed, not red, when there is no reading: the status
+                        // dot already says "down", and colouring the number too
+                        // would be the same signal twice.
+                        color = if (reading is LatencyReading.Value) {
+                            StarveilColors.ink
+                        } else {
+                            StarveilColors.ink3
+                        },
+                        maxLines = 1,
                     )
+                    if (reading is LatencyReading.Value) {
+                        Text(
+                            text = " ms",
+                            style = StarveilType.tech,
+                            color = StarveilColors.ink2,
+                            modifier = Modifier.alignByBaseline(),
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(StarveilSpacing.xs))
@@ -1350,6 +1364,12 @@ private fun GroupChip(
 
 /** Tap target padding around the latency badge. */
 private val LATENCY_TOUCH_CORNER = 8.dp
+
+/**
+ * The latency column: wide enough for "1023 ms" at the inline size and for
+ * "timeout" in the mono face, so neither the unit nor the word is ever clipped.
+ */
+private val LATENCY_COLUMN_WIDTH = 76.dp
 
 @Composable
 private fun Hint(text: String) {
