@@ -150,7 +150,16 @@ fun StarveilNavHost(
         modifier = modifier,
     ) {
         composable(Destination.DASHBOARD.route) {
-            DashboardScreen(requestVpnConsent = requestVpnConsent)
+            DashboardScreen(
+                requestVpnConsent = requestVpnConsent,
+                onOpenNodes = {
+                    navController.navigate(Destination.PROFILES.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+            )
         }
         composable(Destination.PROFILES.route) {
             ProfilesScreen(

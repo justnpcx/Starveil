@@ -53,4 +53,6 @@
     <string name="dashboard_failure_close">关闭</string>
     <string name="dashboard_failure_copy">复制</string>
     <string name="dashboard_notice_kernel_refused_reason">内核启动失败：%1$s</string>
+    <string name="dashboard_mode_auto">自动</string>
+    <string name="dashboard_mode_manual">手动</string>
 </resources>

@@ -48,6 +48,14 @@ data class DashboardUiState(
     /** The selected node or group's name, or null when nothing is selected. */
     val selectedNodeName: String? = null,
     /**
+     * The node the last auto-pick moved to, or null.
+     *
+     * The card reads it to say whether the current node was chosen for the user
+     * or by them — a mode, not a button. It is not persisted: it describes this
+     * session's pick, and after a restart the honest answer is "manual".
+     */
+    val autoPickedName: String? = null,
+    /**
      * The selected node's health over the sampling window (§7.2), or null when
      * the target is a group — a group has no single curve. A selected node with
      * no samples yet is present but [NodeHealth.collecting].
@@ -133,7 +141,6 @@ sealed interface DashboardNotice {
     data class KernelRefused(val reason: String?) : DashboardNotice
 
     /** Auto-select picked a node; [reason] is what the picker decided on. */
-    data class AutoSelected(val nodeName: String, val reason: RecommendationReason) : DashboardNotice
 
     /** The tunnel died and a different node is being tried instead. */
     data object SwitchingNode : DashboardNotice
@@ -387,6 +394,14 @@ class DashboardViewModel @Inject constructor(
      * arms the next connect. Doing the connect here as well would race that
      * path.
      */
+    /**
+     * Pick the best node now.
+     *
+     * Silent when the pick is the node already selected: a button that reports
+     * "nothing changed" every time it is pressed is noise, and the card already
+     * shows which node is in force. A failure is the one case worth a word,
+     * because then nothing happened and the user cannot see why.
+     */
     fun autoSelect() {
         if (_uiState.value.isBusy) return
         scope.launch {
@@ -394,15 +409,21 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update { it.copy(notice = DashboardNotice.NoTarget) }
                 return@launch
             }
-            val name = profiles.getById(pick.profileId)?.name.orEmpty()
+            // Compare ids, not labels: the card draws displayName() (which can
+            // carry a flag) while the profile row has name, so the strings
+            // differ for the same node and every press looked like a change.
+            if (pick.profileId == preferences.selectedProfileId.first()) return@launch
+            val name = profiles.getById(pick.profileId)?.displayName().orEmpty()
             // The raw score lives here, not on screen: it is a ranking key, and
-            // the notice shows the availability and latency it is made of.
+            // the card shows the node and its latency it is made of.
             KernelDiagnostics.log("auto-select $name: score ${pick.score}")
-            _uiState.update { it.copy(notice = DashboardNotice.AutoSelected(name, pick.reason)) }
             // The target collector does the rest: it reconnects when the tunnel
             // is up, and only arms the selection when it is not. Doing the
             // connect here as well would race that path.
             preferences.setSelectedProfileId(pick.profileId)
+            // The result is the card itself — new name, new latency. This flag
+            // only turns the badge from "manual" to "auto".
+            _uiState.update { it.copy(autoPickedName = name) }
         }
     }
 

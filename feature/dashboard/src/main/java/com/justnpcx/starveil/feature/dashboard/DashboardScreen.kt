@@ -77,6 +77,8 @@ fun DashboardScreen(
      * so previews and tests do not need the port.
      */
     requestVpnConsent: (onGranted: () -> Unit) -> Unit = { it() },
+    /** The node card opens the list the node is chosen from. */
+    onOpenNodes: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -183,6 +185,11 @@ fun DashboardScreen(
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
                 health = state.health,
+                // A mode, not a button: "auto" only while the node in force is
+                // the one the picker chose.
+                autoSelected = state.autoPickedName != null &&
+                    state.autoPickedName == state.selectedNodeName,
+                onOpen = onOpenNodes,
                 onAutoSelect = viewModel::autoSelect,
             )
 
@@ -348,8 +355,6 @@ private fun DashboardNotice.text(): String = when (this) {
     is DashboardNotice.KernelRefused -> reason
         ?.let { stringResource(R.string.dashboard_notice_kernel_refused_reason, it) }
         ?: stringResource(R.string.dashboard_notice_kernel_refused)
-    is DashboardNotice.AutoSelected ->
-        stringResource(R.string.dashboard_notice_auto_selected, nodeName, reason.text())
     DashboardNotice.SwitchingNode ->
         stringResource(R.string.dashboard_notice_switching_node)
     DashboardNotice.TunnelSilent ->
@@ -514,9 +519,11 @@ private fun formatScaledParts(value: Double, units: List<String>): RateParts {
 private fun CurrentNodeCard(
     name: String,
     health: NodeHealth?,
+    autoSelected: Boolean,
+    onOpen: () -> Unit,
     onAutoSelect: () -> Unit,
 ) {
-    StarveilCard {
+    StarveilCard(modifier = Modifier.clickable(role = Role.Button, onClick = onOpen)) {
         Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // The name carries its country's flag as a leading emoji; set it
@@ -524,31 +531,55 @@ private fun CurrentNodeCard(
                 // element rather than the first glyph of a word.
                 NodeName(name = name, modifier = Modifier.weight(1f))
                 Spacer(modifier = Modifier.width(StarveilSpacing.md))
-                AutoSelectBadge(onClick = onAutoSelect)
+                // A status, not a control: it says how the node in force got
+                // here. The pick is a link below, where it reads as an action.
+                StarveilBadge(
+                    text = stringResource(
+                        if (autoSelected) R.string.dashboard_mode_auto else R.string.dashboard_mode_manual,
+                    ),
+                )
             }
-            // Latency only: availability is 100% for the node you are connected
-            // to, so repeating it here says nothing. The health card keeps it,
-            // where it is the window's summary.
-            health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
-                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = stringResource(R.string.dashboard_latency_label),
-                        style = StarveilType.tech,
-                        color = StarveilColors.ink2,
-                    )
-                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-                    Text(
-                        text = latency.toString(),
-                        style = StarveilType.numInline,
-                        color = StarveilColors.ink,
-                    )
-                    Text(
-                        text = " ms",
-                        style = StarveilType.tech,
-                        color = StarveilColors.ink2,
-                    )
+            Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                // Latency only: availability is 100% for the node you are
+                // connected to, so repeating it here says nothing. The health
+                // card keeps it, where it is the window's summary.
+                Column(modifier = Modifier.weight(1f)) {
+                    health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = stringResource(R.string.dashboard_latency_label),
+                                style = StarveilType.tech,
+                                color = StarveilColors.ink2,
+                            )
+                            Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                            Text(
+                                text = latency.toString(),
+                                style = StarveilType.numInline,
+                                color = StarveilColors.ink,
+                            )
+                            Text(
+                                text = " ms",
+                                style = StarveilType.tech,
+                                color = StarveilColors.ink2,
+                            )
+                        }
+                    }
                 }
+                // The one action on the card, as a link: it changes the node,
+                // and the result is the row above it.
+                Text(
+                    text = stringResource(R.string.dashboard_auto_select),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(StarveilSpacing.xs))
+                        .clickable(role = Role.Button, onClick = onAutoSelect)
+                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                )
             }
         }
     }
@@ -602,26 +633,6 @@ internal fun splitLeadingFlag(name: String): Pair<String?, String> {
     return flag to rest
 }
 
-/**
- * The one-tap pick, as an outlined badge.
- *
- * Outline only, in the accent: one of the three places this screen may spend
- * it, and it is a line plus a word rather than a filled pill. The 48dp touch
- * target is the outer box; the badge itself is what the eye reads as the
- * control.
- */
-@Composable
-private fun AutoSelectBadge(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .height(48.dp)
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        StarveilBadge(text = stringResource(R.string.dashboard_auto_select))
-    }
-}
-
 /** One line of state explanation, occupied or not. */
 private val CONTEXT_SLOT_HEIGHT = 24.dp
 
@@ -659,7 +670,6 @@ private fun DashboardNotice.isPersistent(): Boolean = when (this) {
     DashboardNotice.TunnelReconnecting,
     DashboardNotice.TunnelKeepsDropping,
     DashboardNotice.SwitchingNode,
-    is DashboardNotice.AutoSelected,
     -> false
 }
 

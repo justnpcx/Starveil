@@ -59,4 +59,6 @@
     <string name="dashboard_failure_close">Close</string>
     <string name="dashboard_failure_copy">Copy</string>
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
+    <string name="dashboard_mode_auto">Auto</string>
+    <string name="dashboard_mode_manual">Manual</string>
 </resources>
