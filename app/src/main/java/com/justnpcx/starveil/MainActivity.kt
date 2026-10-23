@@ -10,7 +10,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Icon
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -150,6 +154,13 @@ class MainActivity : ComponentActivity() {
                         val snackbarHostState = remember { SnackbarHostState() }
                         Scaffold(
                             modifier = Modifier.fillMaxSize(),
+                            // The bottom bar owns the navigation inset (it pads
+                            // itself), so the content must not also be inset by
+                            // it: Scaffold would add both, and every floating
+                            // button ended up ~40dp higher than its 16dp margin.
+                            contentWindowInsets = WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                            ),
                             bottomBar = { StarveilBottomBar(navController) },
                             snackbarHost = {
                                 UndoSnackbarHost(requests = undoBus, hostState = snackbarHostState)
