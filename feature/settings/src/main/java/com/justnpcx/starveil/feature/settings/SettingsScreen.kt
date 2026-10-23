@@ -180,7 +180,9 @@ fun SettingsScreen(
             // system can turn its own lock on, and pretending otherwise would
             // be a lie.
             StarveilDivider(startInset = StarveilSpacing.lg)
-            Row(
+            // The link sits on its own line: beside the paragraph it stole the
+            // width the sentence needed and broke it in the middle.
+            Column(
                 modifier = Modifier.padding(
                     start = StarveilSpacing.lg,
                     end = StarveilSpacing.lg,
@@ -192,9 +194,8 @@ fun SettingsScreen(
                     text = stringResource(R.string.kill_switch_system_desc),
                     style = StarveilType.label,
                     color = StarveilColors.ink2,
-                    modifier = Modifier.weight(1f),
                 )
-                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
                 LinkText(
                     text = stringResource(R.string.kill_switch_system_link),
                     onClick = { openSystemVpnSettings(context) },

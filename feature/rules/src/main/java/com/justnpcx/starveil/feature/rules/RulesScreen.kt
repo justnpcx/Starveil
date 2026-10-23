@@ -1008,6 +1008,9 @@ private fun RoutePresetCard(
         EntryRow(
             title = stringResource(R.string.rules_market_title),
             description = stringResource(R.string.rules_market_desc),
+            // One line: Chinese wraps between any two characters, so a column
+            // narrower than the sentence split it mid-word ("哈 / 希").
+            descriptionMaxLines = 1,
             value = stringResource(R.string.rules_market_subscribed, subscribedPacks.size),
             onClick = onOpenMarket,
         )
@@ -1101,6 +1104,7 @@ private fun RoutePresetCard(
 private fun EntryRow(
     title: String,
     description: String? = null,
+    descriptionMaxLines: Int = 2,
     value: String? = null,
     onClick: () -> Unit,
 ) {
@@ -1119,7 +1123,13 @@ private fun EntryRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
             if (description != null) {
-                Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
+                Text(
+                    text = description,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = descriptionMaxLines,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
         if (value != null) {
