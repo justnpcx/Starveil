@@ -1037,12 +1037,18 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
         // rectangle behind every row — it showed at the ends of the card and
         // tinted the whole list warm.
         backgroundContent = {
-            val progress = dismissState.progress
-            if (progress <= 0f) return@SwipeToDismissBox
+            // The target value, not progress and not the offset: progress is
+            // non-zero at rest in this version (the row still painted red), and
+            // requireOffset() throws when read during composition — it crashed
+            // the app on the first frame after this screen opened. targetValue
+            // is a plain state read and is Settled until a drag commits.
+            if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) {
+                return@SwipeToDismissBox
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(StarveilColors.err.copy(alpha = 0.16f * progress)),
+                    .background(StarveilColors.err.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
