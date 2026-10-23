@@ -10,7 +10,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +35,7 @@ import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.emaSeries
 import com.justnpcx.starveil.core.ui.R
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
+import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
  * The latency mini-curve on a node card (§6.3).
@@ -175,11 +175,11 @@ private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color) {
  */
 @Composable
 private fun CollectingState(modifier: Modifier, height: Dp?) {
-    // Theme-aware skeleton: the old placeholder was a fixed dark navy, which
-    // read as a hole punched in a light screen. Base and highlight both come
-    // from the scheme, so it belongs to whichever theme is running.
-    val base = MaterialTheme.colorScheme.surfaceVariant
-    val highlight = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+    // A skeleton in the card's own material: the glass face with a highlight
+    // that sweeps across it, so the slot reads as "not yet" rather than as a
+    // hole punched in the card.
+    val base = StarveilColors.surfaceGlass
+    val highlight = StarveilColors.ink.copy(alpha = 0.05f)
     val transition = rememberInfiniteTransition(label = "health-shimmer")
     val shift by transition.animateFloat(
         initialValue = 0f,
@@ -204,8 +204,8 @@ private fun CollectingState(modifier: Modifier, height: Dp?) {
     ) {
         Text(
             text = stringResource(R.string.core_health_collecting),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
         )
     }
 }

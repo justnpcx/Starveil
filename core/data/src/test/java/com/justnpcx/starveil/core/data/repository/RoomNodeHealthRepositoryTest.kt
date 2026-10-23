@@ -207,4 +207,33 @@ class RoomNodeHealthRepositoryTest {
 
         assertEquals(listOf(10L, 20L, 30L), byNode.getValue(1L).map { it.latencyMs })
     }
+
+    @Test
+    fun `a node whose window is empty keeps its last stored curve`() {
+        // The app was closed for longer than the window: the rows are still on
+        // disk, the window hides them, and the card used to say "collecting"
+        // for the seconds it took to refill. The last samples are the last
+        // thing actually measured, so they are what the first frame draws.
+        val now = 1_000_000L
+        val stale = (0 until 6).map {
+            LatencySampleEntity(1L, now - HEALTH_WINDOW_MS - 60_000L + it * 1_000L, 20L + it)
+        }
+        val window = windowSamples(stale, nowMs = now)
+        assertTrue(window.isEmpty())
+
+        val carried = carryForward(stale, window)
+
+        assertEquals((0 until 6).map { 20L + it }, carried.getValue(1L).map { it.latencyMs })
+    }
+
+    @Test
+    fun `a curve that is already current is left alone`() {
+        val now = 1_000_000L
+        val rows = (0 until 6).map { LatencySampleEntity(1L, now - it * 1_000L, 30L + it) }
+        val window = windowSamples(rows, nowMs = now)
+
+        val carried = carryForward(rows, window)
+
+        assertEquals(window.getValue(1L), carried.getValue(1L))
+    }
 }

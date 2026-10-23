@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.entity.LatencySampleEntity
 import com.justnpcx.starveil.core.model.HEALTH_WINDOW_MS
 import com.justnpcx.starveil.core.model.LatencySample
+import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.WEIGHT_FULL
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -55,7 +56,10 @@ class RoomNodeHealthRepository @Inject constructor(
 ) : NodeHealthRepository {
 
     override fun observeAll(): Flow<Map<Long, List<LatencySample>>> =
-        dao.observeAll().map { rows -> windowSamples(rows, nowMs = System.currentTimeMillis()) }
+        dao.observeAll().map { rows ->
+            val now = System.currentTimeMillis()
+            carryForward(rows, windowSamples(rows, nowMs = now))
+        }
 
     override suspend fun record(
         profileId: Long,
@@ -81,17 +85,42 @@ class RoomNodeHealthRepository @Inject constructor(
 
     override suspend fun forget(profileId: Long) = dao.deleteForProfile(profileId)
 
-    private companion object {
-        /**
-         * Twice the window's worth at the 30 s cadence. The cap is a backstop
-         * for a backwards clock jump, which age-pruning alone cannot catch.
-         */
-        const val MAX_SAMPLES_PER_NODE = 120
-    }
 }
 
 internal fun LatencySampleEntity.toDomain(): LatencySample =
     LatencySample(atMs = atMs, latencyMs = latencyMs, weightTenths = weightTenths)
+
+/**
+ * Fill a node whose current window is too thin with its newest stored samples.
+ *
+ * The window is applied at read time, so a node sampled before the app was last
+ * closed has rows on disk that the window hides — and the card then said
+ * "collecting" for the few seconds it took to refill, every single launch. The
+ * last samples are the last thing actually measured, so drawing them is honest;
+ * they are what the score beside the curve was computed from.
+ *
+ * Only nodes below [NodeHealth.MIN_SAMPLES] are touched, and only with their
+ * newest [MAX_SAMPLES] rows, so a curve that is already current is left alone.
+ */
+internal fun carryForward(
+    rows: List<LatencySampleEntity>,
+    window: Map<Long, List<LatencySample>>,
+): Map<Long, List<LatencySample>> {
+    if (rows.isEmpty()) return window
+    val out = window.toMutableMap()
+    rows.groupBy { it.profileId }.forEach { (id, stored) ->
+        if (out[id].orEmpty().size >= NodeHealth.MIN_SAMPLES) return@forEach
+        val recent = stored
+            .sortedBy { it.atMs }
+            .takeLast(MAX_SAMPLES_PER_NODE)
+            .map { it.toDomain() }
+        if (recent.size > out[id].orEmpty().size) out[id] = recent
+    }
+    return out
+}
+
+/** How many stored samples a carried-forward curve may use. */
+internal const val MAX_SAMPLES_PER_NODE = 120
 
 /**
  * The window's samples, grouped by node, oldest first within each node.
