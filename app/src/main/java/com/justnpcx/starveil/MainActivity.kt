@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import com.justnpcx.starveil.core.ui.theme.StarveilType
@@ -212,6 +213,10 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // The bar is drawn edge to edge, so it has to clear the system
+            // navigation inset itself: without this the labels sit under the
+            // gesture handle and a tap in that strip goes to the system.
+            .navigationBarsPadding()
             .background(StarveilColors.bg)
             .drawBehind {
                 // The bar's only separation from the page is this line. A
