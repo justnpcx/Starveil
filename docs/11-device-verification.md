@@ -599,3 +599,22 @@ adb logcat -d | grep -E 'StarveilDoh|falling back'
 - 系统 Android 11（SDK 30），**`ro.product.cpu.abilist` 只有 `armeabi-v7a`，`abilist64` 为空** —— 这台是 32 位用户空间，所以装的是 `app-armeabi-v7a-release.apk`；arm64 包装上去会在加载 libbox 时失败。
 - 1920×1080 / density 320 → 960×540dp，横屏走的是 dashboard 的滚动分支；五页截图在 `docs/recordings/obsidian-2026-10-22/tv-*.jpg`，四角采样均为 `(0,0,0)`。
 - 电视无触屏，用 `input tap` 注入坐标可正常导航；首次安装走了 onboarding，Skip 后进入主界面。
+
+
+## 2026-10-23 · 0.8.0「曜」验收整改（U1–U7）
+
+依据：用户 2026-10-23 真机截图 8 张 + v3 验收清单。设备：Fire TV Stick 4K Max（1920×1080 / density 2 / Android 11），订阅实测节点 2 个 + 1 个测试节点（`example.com`，用于凑满三行）。
+
+| 项 | 提交 | 实测 |
+|---|---|---|
+| U1 自动选择静默 + 徽标改语义 | `cdac44b` | 比较改为按 id（原按 label：卡片用 displayName 带国旗、库里是 name，同一节点永远"变了"）；结果由卡片自身（名称 + 延迟）呈现；徽标显示 自动/手动；动作降级为卡内文字链；点卡片进节点页 |
+| U2 健康曲线缓存先行 | `3eb94b3` | `carryForward()` 用最近 120 条已存样本补首帧；窗口内样本够数时原样透传（2 个单测）；骨架改用玻璃面 + ink 高光 |
+| U3 节点行红色块 / 延迟列 | `a0f13bb` + `5ba1327` | 根因：`SwipeToDismissBox` 静止时也组合 `backgroundContent`。`progress` 静止非零（第一次没修掉）、`requireOffset()` 在组合期读取会崩（"offset was read before being initialized"，已修）；最终以 `targetValue` 门控。三行列表实测：滑动红 **0 px**，行底 `#0B0D10`；延迟 76dp 定宽右对齐，"ms" 完整 |
+| U4 规则空状态卡片化 | `5e86ade` | 空状态进玻璃卡 |
+| U5 设置分组间距 | `45f8ea5` | 组间 32→16dp，标题与卡片 8dp |
+| U6 两处排版 | `d57ef0e` | 规则市场副标题单行省略（中文词内断行消失）；Kill Switch 链接独立成行，段落恢复整行宽 |
+| U7 连接态渐变环 | 本次 | 连接态实测：环上左侧均值 (71,136,170) 青、右侧 (91,117,175) 紫——渐变成立；环心 (959.5, 285.5) 两态一致，状态字 y 269–340 两态一致（连接态外发光使包围盒大 17px/边，属辉光不是位移） |
+
+截图：`docs/recordings/obsidian-fixes-2026-10-23/`。
+
+**未完成**：手机（vivo V2520A）在整改期间掉线（mDNS 无广播、5555 refused），以上为电视端实测；手机端待重新开启无线调试后补拍（尤其中文断行与竖屏零位移）。电视端同时发现一个非整改项：横屏连接后页面会因焦点滚动，圆环整体上移——竖屏无此路径，已记录未修。
