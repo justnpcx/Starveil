@@ -192,14 +192,18 @@ fun RulesScreen(
                 }
 
                 if (state.isEmpty) {
+                    // In a card like every other block on the page: bare text
+                    // between two glass cards read as a hole in the page.
                     item(key = "empty") {
-                        EmptyState(
-                            title = stringResource(R.string.rules_empty_title),
-                            body = stringResource(R.string.rules_empty_body),
-                            // The FAB floats over this corner; the text wraps
-                            // before it rather than under it.
-                            modifier = Modifier.padding(end = 88.dp),
-                        )
+                        StarveilCard {
+                            EmptyState(
+                                title = stringResource(R.string.rules_empty_title),
+                                body = stringResource(R.string.rules_empty_body),
+                                // The FAB floats over this corner; the text
+                                // wraps before it rather than under it.
+                                modifier = Modifier.padding(end = 88.dp),
+                            )
+                        }
                     }
                 } else {
                     // The user's own rules are one list, so they are one card.
