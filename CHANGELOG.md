@@ -8,19 +8,47 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-23
+
 ### Changed
 
-- **Every card is the same card**: the last five screens still drew their own,
-  and `Card`'s default corner is 12dp against `StarveilCard`'s 16 — so the
-  dashboard and the keep-alive page were 4dp sharper than the rules and node
-  pages. Same screen, two shapes, and no way to say which was wrong. All five
-  now use `StarveilCard`, and the per-screen corner constants are gone.
+- **The whole app has one face: 曜.** The light theme is gone, and so is the
+  picker. A pure black page, near-black glass cards with a 1dp edge and a 20dp
+  corner, and one cyan-to-violet accent spent at most three times per screen —
+  the ring, a selected marker, an on switch. Type is one sans family (display
+  numbers at Light 54sp) plus the system mono for units and protocol names; the
+  serif is gone with the second palette.
 
-- **Spacing that is spacing comes from the scale**: the dashboard's 12dp and
-  16dp gaps and the node card's padding were the only values on the 4dp grid
-  that bypassed `StarveilSpacing`. Element sizes, the 48dp touch target and the
-  2–6dp optical nudges stay literal — the grid cannot express them, and forcing
-  them onto it would misalign text against icons.
+- **The dashboard is an instrument.** The ring is 240dp with a 4dp stroke in
+  every state and never moves, so nothing below it shifts when the tunnel
+  changes. The two rate columns share a baseline on each of their three rows,
+  and the unit sits on the digits' baseline instead of hanging at the top
+  right. The node and the health curve each get a glass card; the curve is
+  1.5dp of accent over an 18% fade, not a green block.
+
+- **Lists are one card.** Nodes, rules and the user's own rules group their
+  rows inside a single glass card with hairlines instead of a stack of tinted
+  blocks. A selected node is a 12% cyan wash with a 2dp leading edge.
+
+- **Settings has groups.** Connection, per-app routing, background, backup,
+  leak self-check, developer options and about — each a caption and one card,
+  with the value or the control on the right.
+
+- **The log is bare.** Mono 12.5sp on black, no card and no row rules; a level
+  is a word colour, not a block.
+
+### Fixed
+
+- The bottom navigation clears the system navigation inset, so its labels are no
+  longer under the gesture handle and a tap in that strip is no longer taken by
+  the system.
+- A floating button sits 16dp above the bar again; the content was being inset
+  by the navigation bar twice.
+
+### Removed
+
+- The theme preference (`ThemeMode`, `dynamicColor`) and the appearance group
+  in Settings, along with their strings. There is one theme.
 
 ## [0.7.14] — 2026-10-21
 
