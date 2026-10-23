@@ -584,6 +584,18 @@ adb logcat -d | grep -E 'StarveilDoh|falling back'
 
 **改前图**：只有首页一张（验收开始时抓的），其余四页的「改前」需要回退到 `83e9d80` 重新打包才能复现，未做；以任务书里对旧 UI 的三条问题（灰的发脏 / 布局不整齐 / 没有高贵感）作为对照说明。
 
-### 已知遗留（非阻塞）
+### FAB 间距（已修，2026-10-23 复量）
 
-- 节点页 FAB 距底栏约 58dp（Scaffold 把导航栏 inset 计了两次），比设计的 16dp 高；不影响可读性与点击，未为它再打一次 7 分钟的 release 包。
+首次真机发现节点页 FAB 距底栏 58dp、规则页 32dp。原因是 Scaffold 的 `contentWindowInsets` 又把导航栏 inset 加了一遍（底栏自己已经 pad 过）。改为只取顶部与左右 inset 后，在 Fire TV（1920×1080，density 2）复量：
+
+- 底栏 hairline y=951
+- 节点页 FAB 包围盒 y 807–918（112×112 px = 56dp）
+- 规则页 FAB 底边 y=918
+
+两页均为 **33px ≈ 16.5dp**，与设计的 16dp 一致。
+
+### 电视端（Fire TV Stick 4K Max，AFTKRT）
+
+- 系统 Android 11（SDK 30），**`ro.product.cpu.abilist` 只有 `armeabi-v7a`，`abilist64` 为空** —— 这台是 32 位用户空间，所以装的是 `app-armeabi-v7a-release.apk`；arm64 包装上去会在加载 libbox 时失败。
+- 1920×1080 / density 320 → 960×540dp，横屏走的是 dashboard 的滚动分支；五页截图在 `docs/recordings/obsidian-2026-10-22/tv-*.jpg`，四角采样均为 `(0,0,0)`。
+- 电视无触屏，用 `input tap` 注入坐标可正常导航；首次安装走了 onboarding，Skip 后进入主界面。
