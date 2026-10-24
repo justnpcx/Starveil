@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -240,6 +241,11 @@ fun ConnectionCore(
                             startAngle = rotation - 90f,
                             sweepAngle = 100f,
                             useCenter = false,
+                            // The arc has to sit on the ring, not on the canvas
+                            // edge: drawArc's default radius is the canvas's,
+                            // which is RING_INSET wider than the ring.
+                            topLeft = Offset(center.x - ringRadius, center.y - ringRadius),
+                            size = Size(ringRadius * 2, ringRadius * 2),
                             style = stroke,
                         )
                     }
@@ -251,6 +257,8 @@ fun ConnectionCore(
                             startAngle = -90f + 360f * sweep.value,
                             sweepAngle = 120f,
                             useCenter = false,
+                            topLeft = Offset(center.x - ringRadius, center.y - ringRadius),
+                            size = Size(ringRadius * 2, ringRadius * 2),
                             style = stroke,
                         )
                     }

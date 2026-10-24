@@ -147,7 +147,19 @@ private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color, alpha: 
         lineTo(points.first().x, size.height)
         close()
     }
-    drawPath(path = fill, color = color.copy(alpha = alpha))
+    // The demo's 14% is flat, and on its 52px sparkline that reads as a tint.
+    // Here the chart takes the card's remaining height, where a flat fill is a
+    // slab — so the same 14% sits at the curve and fades to nothing at the
+    // baseline. Still one colour, never a block.
+    val top = points.minOf { it.y }
+    drawPath(
+        path = fill,
+        brush = Brush.verticalGradient(
+            colors = listOf(color.copy(alpha = alpha), Color.Transparent),
+            startY = top,
+            endY = size.height,
+        ),
+    )
 }
 
 /**
@@ -199,7 +211,7 @@ private fun CollectingState(modifier: Modifier, height: Dp?) {
 private fun AvailabilityBand.color(): Color = when (this) {
     AvailabilityBand.GOOD -> StarveilColors.ok
     AvailabilityBand.FAIR -> StarveilColors.warn
-    AvailabilityBand.POOR -> StarveilColors.err
+    AvailabilityBand.POOR -> StarveilColors.errText
 }
 
 /**
