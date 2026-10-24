@@ -17,7 +17,7 @@
     <string name="profiles_add_clipboard">从剪贴板导入</string>
     <string name="profiles_add_scan">扫描二维码</string>
     <string name="profiles_add_subscription">添加订阅</string>
-    <string name="profiles_test_all">测试全部节点</string>
+    <string name="profiles_test_selected">测试所选节点</string>
     <string name="profiles_new_node_title">选择协议</string>
     <string name="profiles_row_edit">编辑</string>
     <string name="profiles_row_share">分享</string>

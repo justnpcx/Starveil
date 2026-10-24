@@ -263,7 +263,7 @@ fun ProfilesScreen(
                     // above the list for something used occasionally.
                     StarveilIconAction(
                         icon = StarveilIcons.Refresh,
-                        contentDescription = stringResource(R.string.profiles_test_all),
+                        contentDescription = stringResource(R.string.profiles_test_selected),
                         onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } },
                     )
                     // Group actions are not filters, so they do not belong in

@@ -21,7 +21,7 @@
     <string name="profiles_add_clipboard">Import from clipboard</string>
     <string name="profiles_add_scan">Scan QR code</string>
     <string name="profiles_add_subscription">Add subscription</string>
-    <string name="profiles_test_all">Test all nodes</string>
+    <string name="profiles_test_selected">Test the selected node</string>
     <string name="profiles_new_node_title">Which protocol?</string>
     <string name="profiles_row_edit">Edit</string>
     <string name="profiles_row_share">Share</string>
