@@ -732,3 +732,10 @@ tests=9 failures=0 errors=0 time=26.086s
 ### T5 网关指纹
 
 见 `docs/19-gateway-fingerprint.md`：采集 7 个"出口形状"字段（OUI、网关 IP、DHCP option 54/55、DNS 集合、门户 URL、管理页证书），**只存本机 + 哈希**，不上传不导出，用途是场景匹配与诊断。设计稿，无代码；文末列了实现前必须先验证的三个问题（ARP 受限、主动探测是否默认关、Mesh 抖动窗口）。
+
+### T9 设备清理（回执）
+
+| 设备 | 处理 | 结果 |
+|---|---|---|
+| Fire TV AFTKRT | `pm clear` → `pm uninstall com.justnpcx.starveil`；删 `/data/local/tmp/*.apk` 与 `/sdcard/*.png`；恢复 `screensaver_enabled=1`、`screen_off_timeout=600000`、`svc power stayon false` | 应用已移除，临时文件 0 个，休眠设置已还原 |
+| vivo V2520A | 本轮全程离线（mDNS 无广播、5555 refused），未做任何操作 | 0.8.1 由用户自行通过应用内更新安装 |
