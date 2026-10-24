@@ -1123,7 +1123,18 @@ private fun NodeRow(
                 onLongClickLabel = stringResource(R.string.profiles_node_long_press),
             )
             .heightIn(min = NODE_ROW_MIN_HEIGHT)
-            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
+            // The FAB floats over this list's bottom-right corner, so the row
+            // reserves its footprint on the right: 56dp of button plus the
+            // 16dp it sits from the screen edge. Without the gutter a row's
+            // latency — the one number on the right — passes under the button
+            // as the list scrolls, and "under the button" means unreadable and
+            // untappable at the same time.
+            .padding(
+                start = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                end = FAB_GUTTER,
+                bottom = StarveilSpacing.md,
+            ),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // The name and the number share a baseline: they are the row's two
@@ -1377,6 +1388,9 @@ private val LATENCY_TOUCH_CORNER = 8.dp
  * "timeout" in the mono face, so neither the unit nor the word is ever clipped.
  */
 private val LATENCY_COLUMN_WIDTH = 76.dp
+
+/** The FAB's footprint (56dp) plus its margin from the screen edge (16dp). */
+private val FAB_GUTTER = 72.dp
 
 @Composable
 private fun Hint(text: String) {
