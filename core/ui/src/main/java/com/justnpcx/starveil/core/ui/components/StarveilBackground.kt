@@ -5,12 +5,18 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 
 /**
@@ -21,9 +27,14 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
  * They are what makes a 68% white card read as glass: without something under
  * it, a translucent surface is just a lighter grey.
  *
- * This is painted once, behind the Scaffold, and every page is transparent over
- * it. Drawing it per screen would make each navigation re-rasterise a
- * full-screen gradient, and would put a seam at every page edge.
+ * Painted once, behind the Scaffold; every page is transparent over it.
+ *
+ * **Baked, not re-shaded.** Four full-screen gradients (one linear, three
+ * radial) are cheap on paper and ruinous on a Fire TV's fill rate: measured
+ * 97% janky frames on page transitions, against 7% for the same build with a
+ * flat page. So the gradients are rendered into a bitmap once per size and
+ * blitted afterwards — the result is identical, the cost is one texture copy
+ * instead of four shader passes over two million pixels.
  */
 @Composable
 fun StarveilBackground(
@@ -37,24 +48,49 @@ fun StarveilBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .drawBehind {
-                drawRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(top, mid, bottom),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width * 0.35f, size.height),
-                    ),
-                )
-                // The demo's three blooms, at the demo's positions and — more
-                // importantly — the demo's shapes. They are wide, flat
-                // ellipses (300×200, 280×220, 320×240 on a 390×844 phone), not
-                // discs: a disc of the same radius floods the page.
-                bloom(washes[0], x = 0.12f, y = 0.06f, rx = 0.385f, ry = 0.118f)
-                bloom(washes[1], x = 0.88f, y = 0.30f, rx = 0.359f, ry = 0.130f)
-                bloom(washes[2], x = 0.70f, y = 0.92f, rx = 0.410f, ry = 0.142f)
+            .drawWithCache {
+                // Keyed on size: the cache block re-runs when the page resizes
+                // and not once per frame.
+                val baked = bakeBackground(size, top, mid, bottom, washes)
+                onDrawBehind { drawImage(baked) }
             },
         content = content,
     )
+}
+
+/** Renders the whole page background into one bitmap. */
+private fun bakeBackground(
+    size: Size,
+    top: Color,
+    mid: Color,
+    bottom: Color,
+    washes: List<Color>,
+): ImageBitmap {
+    val width = size.width.toInt().coerceAtLeast(1)
+    val height = size.height.toInt().coerceAtLeast(1)
+    val bitmap = ImageBitmap(width, height)
+    CanvasDrawScope().draw(
+        density = Density(1f),
+        layoutDirection = LayoutDirection.Ltr,
+        canvas = Canvas(bitmap),
+        size = Size(width.toFloat(), height.toFloat()),
+    ) {
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(top, mid, bottom),
+                start = Offset(0f, 0f),
+                end = Offset(size.width * 0.35f, size.height),
+            ),
+        )
+        // The demo's three blooms, at the demo's positions and — more
+        // importantly — the demo's shapes. They are wide, flat ellipses
+        // (300×200, 280×220, 320×240 on a 390×844 phone), not discs: a disc of
+        // the same radius floods the page.
+        bloom(washes[0], x = 0.12f, y = 0.06f, rx = 0.385f, ry = 0.118f)
+        bloom(washes[1], x = 0.88f, y = 0.30f, rx = 0.359f, ry = 0.130f)
+        bloom(washes[2], x = 0.70f, y = 0.92f, rx = 0.410f, ry = 0.142f)
+    }
+    return bitmap
 }
 
 /**
