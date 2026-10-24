@@ -200,7 +200,14 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
                 NodeHealthSection(
                     health = health,
-                    modifier = Modifier.weight(1f, fill = false).fillMaxWidth(),
+                    // weight() inside a scrolling column gets no height at all,
+                    // so in landscape the card was composed and invisible — the
+                    // dashboard looked like it had no health section on a TV.
+                    modifier = if (landscape) {
+                        Modifier.fillMaxWidth()
+                    } else {
+                        Modifier.weight(1f, fill = false).fillMaxWidth()
+                    },
                     chartHeight = if (landscape) 160.dp else null,
                 )
             }

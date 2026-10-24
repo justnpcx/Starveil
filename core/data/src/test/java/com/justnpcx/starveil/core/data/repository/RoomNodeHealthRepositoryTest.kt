@@ -33,10 +33,6 @@ private class FakeLatencySampleDao : LatencySampleDao {
         rows += entity
     }
 
-    override suspend fun deleteOlderThan(cutoffMs: Long) {
-        rows.removeAll { it.atMs < cutoffMs }
-    }
-
     override suspend fun deleteForProfile(profileId: Long) {
         rows.removeAll { it.profileId == profileId }
     }
@@ -50,13 +46,9 @@ private class FakeLatencySampleDao : LatencySampleDao {
     var batchCalls = 0
         private set
 
-    override suspend fun recordSample(
-        entity: LatencySampleEntity,
-        cutoffMs: Long,
-        keep: Int,
-    ) {
+    override suspend fun recordSample(entity: LatencySampleEntity, keep: Int) {
         batchCalls++
-        super.recordSample(entity, cutoffMs, keep)
+        super.recordSample(entity, keep)
     }
 
     fun all(): List<LatencySampleEntity> = rows.toList()
@@ -104,17 +96,15 @@ class RoomNodeHealthRepositoryTest {
     }
 
     @Test
-    fun `recording prunes samples older than the window`() = runBlocking {
+    fun `recording keeps samples older than the window`() = runBlocking {
+        // The store is a bounded ring now, not a time window. Age pruning ran
+        // inside the same transaction as the insert, so the first probe after
+        // a night deleted the whole history the card draws its first frame
+        // from — which is why the curve was blank on every cold start.
         repo.record(profileId = 7L, latencyMs = 10L, atMs = now - HEALTH_WINDOW_MS - 1)
         repo.record(profileId = 7L, latencyMs = 20L, atMs = now)
 
-        // The stale one is gone from the store entirely, not merely filtered
-        // out of the query — otherwise the table grows forever.
-        //
-        // This also pins that pruning keys off the *sample's* time: `now` here
-        // is far from the wall clock, so a cutoff taken from
-        // System.currentTimeMillis() would have deleted both rows.
-        assertEquals(listOf(20L), dao.all().map { it.latencyMs })
+        assertEquals(listOf(10L, 20L), dao.all().map { it.latencyMs })
     }
 
     @Test

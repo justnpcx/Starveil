@@ -67,10 +67,10 @@ class RoomNodeHealthRepository @Inject constructor(
         atMs: Long,
         weightTenths: Int,
     ) {
-        // One transaction for insert + prune + cap: three separate calls were
-        // three commits per probe, and the background sweep records one probe
-        // per node. Pruning on write (rather than on a timer) is unchanged, so
-        // the store still cannot grow while nothing is sampling it.
+        // One transaction for insert + cap: separate calls were separate
+        // commits per probe, and the background sweep records one probe per
+        // node. The cap is what bounds the table; there is no age pruning any
+        // more, because it deleted the history the first frame draws from.
         dao.recordSample(
             LatencySampleEntity(
                 profileId = profileId,
@@ -78,7 +78,6 @@ class RoomNodeHealthRepository @Inject constructor(
                 latencyMs = latencyMs,
                 weightTenths = weightTenths,
             ),
-            cutoffMs = atMs - HEALTH_WINDOW_MS,
             keep = MAX_SAMPLES_PER_NODE,
         )
     }

@@ -29,10 +29,6 @@ interface LatencySampleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: LatencySampleEntity)
 
-    /** Drop samples older than [cutoffMs] — the window, applied on write. */
-    @Query("DELETE FROM latency_samples WHERE atMs < :cutoffMs")
-    suspend fun deleteOlderThan(cutoffMs: Long)
-
     @Query("DELETE FROM latency_samples WHERE profileId = :profileId")
     suspend fun deleteForProfile(profileId: Long)
 
@@ -60,20 +56,24 @@ interface LatencySampleDao {
     suspend fun trimToCap(profileId: Long, keep: Int)
 
     /**
-     * Insert one sample, then age-prune and cap — in one transaction.
+     * Insert one sample and cap the node's history.
      *
-     * As three separate calls this was three transactions per recorded probe,
-     * and the background sweep records one probe per node. [trimToCap] also
-     * carries a correlated subquery, so the cost was not just the commit.
+     * No age pruning. There used to be, and it was the reason the health card
+     * had nothing to draw on the first frame: the sampler records as soon as
+     * the app starts, the cutoff is thirty minutes, and an app opened the next
+     * morning deleted its entire history in the same transaction that added
+     * the first new sample. The card then said "collecting" until five probes
+     * had landed.
      *
-     * The window and the cap keep their meanings; only the number of commits
-     * changes. [entity] is inserted before pruning so a sample at the window's
-     * edge is present when the cutoff is applied.
+     * The cap alone bounds the table (120 rows per node, twice the window at
+     * the 30 s cadence), so nothing grows without limit. What the *window*
+     * means is a reading concern: windowSamples() decides what is current, and
+     * the repository falls back to the newest stored rows when the window is
+     * thin, so an old curve is drawn rather than a blank one.
      */
     @Transaction
-    suspend fun recordSample(entity: LatencySampleEntity, cutoffMs: Long, keep: Int) {
+    suspend fun recordSample(entity: LatencySampleEntity, keep: Int) {
         insert(entity)
-        deleteOlderThan(cutoffMs)
         trimToCap(entity.profileId, keep)
     }
 }
