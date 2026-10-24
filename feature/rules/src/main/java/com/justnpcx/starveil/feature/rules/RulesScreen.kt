@@ -342,7 +342,7 @@ private fun RuleMarketDialog(
                             packTitle(LocalContext.current, failure.id),
                         ),
                         style = StarveilType.label,
-                        color = StarveilColors.err,
+                        color = StarveilColors.errText,
                     )
                 }
                 packs.forEach { pack ->
@@ -854,7 +854,7 @@ private fun FlowOutcome.labelRes(): Int = when (this) {
 private fun FlowOutcome.colour(): Color = when (this) {
     FlowOutcome.PROXY -> StarveilColors.accent
     FlowOutcome.DIRECT -> StarveilColors.ok
-    FlowOutcome.BLOCK -> StarveilColors.err
+    FlowOutcome.BLOCK -> StarveilColors.errText
 }
 
 /** Keys and counts for the flow section. */
@@ -965,7 +965,7 @@ private fun RoutePresetCard(
             Text(
                 text = stringResource(R.string.rules_ruleset_failed),
                 style = StarveilType.label,
-                color = StarveilColors.err,
+                color = StarveilColors.errText,
                 modifier = Modifier.padding(
                     start = TEXT_COLUMN_INSET,
                     end = StarveilSpacing.lg,
