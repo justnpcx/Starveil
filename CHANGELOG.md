@@ -8,6 +8,30 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-10-24
+
+### Added
+
+- **DNS sampling, in developer options.** Every lookup is timed — DoH, system
+  fallback, cache hit, literal address, failure — into a 512-sample ring that
+  costs 4 KB, and the row under the switch reads `n · p50 · p95 · fallback% ·
+  cache%` with a clear action beside it. Turning the switch off stops the
+  recording without discarding what is already there. Measured on a real
+  network: 224 samples, p50 51 ms, p95 138 ms, 0% fallback.
+
+### Fixed
+
+- **The header icon said it tested every node, and tested one.** Its
+  accessibility label was "Test all nodes"; the action is
+  `testSelectedNode()`, and with nothing selected it answers "Pick a node
+  first." The label now says what happens: "Test the selected node".
+- **The health curve's first frame comes from what is already stored.** The
+  window is applied at read time, but the write path pruned by age inside the
+  insert transaction, so the first probe after a night away deleted the very
+  history the curve was about to draw — every cold start began at "collecting".
+  (This was listed under 0.8.1, but the fix landed after that tag; it ships
+  here.)
+
 ## [0.8.1] — 2026-10-24
 
 ### Fixed
@@ -18,10 +42,6 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   nothing when the pick is the node already in force, and lets the card carry
   the result. The badge states the mode — Auto or Manual — and the action is a
   text link under the node rather than a pill that looked like a label.
-- **The health curve draws its first frame from what is already stored.** The
-  window is applied at read time, so a node sampled before the app was closed
-  had rows on disk that the window hid; the card said "collecting" for the
-  seconds it took to refill, on every launch.
 - **No red block behind the node rows.** `SwipeToDismissBox` composes its
   background at rest, so a filled background painted a red rectangle behind
   every row and tinted the list warm. It is drawn only once a drag commits.

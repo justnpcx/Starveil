@@ -28,7 +28,7 @@ plugins {
  * monotonic exactly when the name moves forward, which is the property that
  * actually matters.
  */
-val appVersionName = "0.8.1"
+val appVersionName = "0.8.2"
 val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
     major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
 }
