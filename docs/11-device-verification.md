@@ -703,3 +703,32 @@ TOTAL PSS 78.4 MB   RSS 151.0 MB   swap 0.2 MB
 ```
 
 结论：**80 MB 目标在这台机器上已经达成（78.4 MB），而 libbox 只占 PSS 的 11.1 MB**。即便把 .so 砍掉 10%，PSS 也只降约 1 MB——瘦身不是这个目标的有效杠杆；真正的大项是 GL 表面（30.5 MB，圆环所在的硬件层）与系统共享页。要再往下走，方向是渲染层（圆环的离屏缓冲），不是内核库。
+
+## 2026-10-24 · C 组：T4 / T5 / SqlCipher 仪器测试
+
+### SqlCipher 仪器测试（悬了很久的一条，已关闭）
+
+`./gradlew :core:data:connectedDebugAndroidTest` 在 Fire TV AFTKRT（Android 11 / API 30）实跑：
+
+```
+tests=9 failures=0 errors=0 time=26.086s
+  a_failed_migration_throws_and_does_not_wipe_the_file
+  a_wrong_passphrase_cannot_open_the_database
+  keystore_passphrase_is_stable_and_non_empty
+  database_file_is_encrypted_and_round_trips_credentials
+  migration_1_to_2_keeps_every_row_and_adds_the_sample_table
+  migration_2_to_3_keeps_every_row_and_adds_the_region_column
+  migration_3_to_4_keeps_every_row_and_adds_the_country_column
+  migration_4_to_5_gives_existing_samples_full_weight
+  the_composite_key_makes_a_re_probe_a_replace
+```
+
+结论：不是"应该跑过"，是**真的在真机上跑过且全绿**（26 秒，含四次迁移）。
+
+### T4 内核崩溃取证
+
+见 `docs/18-kernel-crash-capture.md`。做了实操：`am crash` 制造的崩溃在 `logcat -b crash` 里拿到了完整记录；dropbox 可读但 Java 崩溃不落墓碑（符合预期）。**没做到**的部分也写明了：非 root 设备 `kill -11` 被 SELinux 拒绝，没有拿到真实 native 墓碑样本。文档里同时给出"内核日志未落盘"这一缺口的修复建议。
+
+### T5 网关指纹
+
+见 `docs/19-gateway-fingerprint.md`：采集 7 个"出口形状"字段（OUI、网关 IP、DHCP option 54/55、DNS 集合、门户 URL、管理页证书），**只存本机 + 哈希**，不上传不导出，用途是场景匹配与诊断。设计稿，无代码；文末列了实现前必须先验证的三个问题（ARP 受限、主动探测是否默认关、Mesh 抖动窗口）。
