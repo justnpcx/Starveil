@@ -756,7 +756,7 @@ private fun LinkText(
         Text(
             text = text,
             style = StarveilType.label,
-            color = if (enabled) StarveilColors.accentA else StarveilColors.ink3,
+            color = if (enabled) StarveilColors.accent else StarveilColors.ink3,
         )
     }
 }
@@ -842,7 +842,7 @@ private fun RadioOption(
             ),
         verticalAlignment = Alignment.Top,
     ) {
-        // The mark is a cyan ring with an ink dot, or an empty ring: a Material
+        // The mark is an accent ring with an accent dot, or an empty ring: a Material
         // radio button would bring its own tint and its own size.
         Box(
             modifier = Modifier
@@ -856,7 +856,7 @@ private fun RadioOption(
                     .clip(CircleShape)
                     .border(
                         1.5.dp,
-                        if (selected) StarveilColors.accentA else StarveilColors.ink3,
+                        if (selected) StarveilColors.accent else StarveilColors.ink3,
                         CircleShape,
                     ),
             )
@@ -865,7 +865,7 @@ private fun RadioOption(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(StarveilColors.ink),
+                        .background(StarveilColors.accent),
                 )
             }
         }

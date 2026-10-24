@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
@@ -95,8 +96,8 @@ fun StarveilIconAction(
 }
 
 /**
- * The search field: a glass capsule, 12dp corners' worth of inset, and a
- * magnifier that is never a button.
+ * The search field: a glass capsule, as the demo draws it — the thinner 55%
+ * material, a 1dp white edge, and a magnifier that is never a button.
  */
 @Composable
 fun StarveilSearchField(
@@ -109,9 +110,9 @@ fun StarveilSearchField(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clip(StarveilShapes.field)
-            .background(StarveilColors.surfaceGlass)
-            .border(1.dp, StarveilColors.glassBorder, StarveilShapes.field)
+            .clip(StarveilShapes.search)
+            .background(StarveilColors.surfaceThin)
+            .border(1.dp, StarveilColors.glassBorder, StarveilShapes.search)
             .padding(horizontal = StarveilSpacing.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -135,7 +136,7 @@ fun StarveilSearchField(
                 onValueChange = onValueChange,
                 singleLine = true,
                 textStyle = StarveilType.body.copy(color = StarveilColors.ink),
-                cursorBrush = SolidColor(StarveilColors.accentA),
+                cursorBrush = SolidColor(StarveilColors.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(),
                 modifier = Modifier.fillMaxWidth(),
@@ -161,11 +162,11 @@ fun StarveilSearchField(
 }
 
 /**
- * The floating add button: a glass disc with a cyan edge and an ink plus.
+ * The floating add button: a glass disc with an accent edge and an ink plus.
  *
- * The edge is the accent's third appearance on the Nodes screen, which is the
- * budget. It sits over the list, so every list that carries one pads its last
- * row by [StarveilSpacing.fabClearance].
+ * The edge is one of the accent's three appearances on the Nodes screen, which
+ * is the budget. It sits over the list, so every list that carries one pads
+ * its last row by [StarveilSpacing.fabClearance].
  */
 @Composable
 fun StarveilFab(
@@ -176,9 +177,10 @@ fun StarveilFab(
     Box(
         modifier = modifier
             .size(56.dp)
+            .shadow(6.dp, CircleShape, ambientColor = FabShadow, spotColor = FabShadow)
             .clip(CircleShape)
             .background(StarveilColors.surfaceGlass)
-            .border(1.dp, StarveilColors.accentA, CircleShape)
+            .border(1.dp, StarveilColors.accent, CircleShape)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -213,6 +215,9 @@ fun StarveilGroupHeader(text: String, modifier: Modifier = Modifier) {
         ),
     )
 }
+
+/** The FAB's shadow: a little stronger than a card's, because it floats. */
+private val FabShadow = androidx.compose.ui.graphics.Color(0xFF1F2687).copy(alpha = 0.10f)
 
 /** A row of chips, scrolling horizontally when it overflows. */
 @Composable

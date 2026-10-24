@@ -15,10 +15,10 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
 /**
  * A small outlined label: "auto-select", "in use".
  *
- * Outline only, in the accent's cyan, with the cyan for the text: this is one
- * of the three places a screen may spend the accent, and it is a line plus a
- * word rather than a filled pill. A filled badge would be a fourth kind of
- * block on a page that has none.
+ * Outline only, in the accent, with the accent's text grade for the word: this
+ * is one of the three places a screen may spend the accent, and it is a line
+ * plus a word rather than a filled pill. A filled badge would be a fourth kind
+ * of block on a page that has none.
  */
 @Composable
 fun StarveilBadge(
@@ -30,7 +30,7 @@ fun StarveilBadge(
         modifier = modifier,
         shape = CircleShape,
         color = StarveilColors.surfaceGlass,
-        border = BorderStroke(1.dp, StarveilColors.accentA),
+        border = BorderStroke(1.dp, StarveilColors.accent),
     ) {
         if (content != null) {
             content()
@@ -38,7 +38,7 @@ fun StarveilBadge(
             Text(
                 text = text,
                 style = StarveilType.tech,
-                color = StarveilColors.accentA,
+                color = StarveilColors.accentText,
                 modifier = Modifier.padding(
                     horizontal = StarveilSpacing.md,
                     vertical = StarveilSpacing.xs,

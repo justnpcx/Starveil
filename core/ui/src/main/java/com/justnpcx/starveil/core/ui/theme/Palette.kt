@@ -1,34 +1,42 @@
 package com.justnpcx.starveil.core.ui.theme
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
  * The palette. One instance, one set of names.
  *
- * Starveil has one face: obsidian. A pure black page, a near-black glass card
- * one step above it, and a single cyan-to-violet accent that is spent on the
- * ring, a selected marker and an on switch — nothing else.
+ * Starveil has one face: frosted glass. A light, slightly cool page, a
+ * translucent white material one layer above it, and a single blue spent on
+ * selected marks, switches and status. Nothing glows, nothing is pure black,
+ * and no surface is fully opaque — every card shows a little of what is under
+ * it, which is what keeps a full screen of text from reading as a glare.
  *
  * There is no second palette and no branch on "which theme". The indirection
  * that remains (a CompositionLocal, so Material components resolve the same
  * values) exists for the components, not for a choice the user can make.
  *
- * The greys this replaces were slate and warm-neutral by turns, and both read
- * as dirty against black: a grey with a blue cast goes muddy, a grey with a red
- * cast goes brown. These are cool and desaturated instead, and the only
- * saturated colours in the app are the accent and the three statuses.
+ * Every value below was read from the 03 mockup in the design demo — its own
+ * background gradient, the card's 68% white and 18px backdrop blur, the 75%
+ * white edge, and the two blues the mockup actually uses (#0071E3 for marks,
+ * #0066CC for accent-coloured text). The exceptions are called out one by one:
+ * `warn`, and the text grades that had to be darkened to clear 4.5:1 here.
  */
 @Immutable
 data class StarveilPalette(
-    /** Page background. Pure black — OLED black, not a dark grey pretending. */
+    /** The page's flat base. The gradient is painted on top of it. */
     val bg: Color,
-    /** A glass card, a sheet. One step off black, never a grey block. */
+    /** The ambient gradient, 160 degrees, cool to warm. */
+    val bgTop: Color,
+    val bgMid: Color,
+    val bgBottom: Color,
+    /** A glass card: 68% white, one step above the page. */
     val surfaceGlass: Color,
-    /** The 1dp edge that gives a glass card its shape. */
+    /** Thinner material: inputs, flag chips, small wells. */
+    val surfaceThin: Color,
+    /** The navigation bar's material. */
+    val surfaceChrome: Color,
+    /** The 1dp highlight edge that gives a glass card its shape. */
     val glassBorder: Color,
     /** Dividers inside a card, and the line above the navigation bar. */
     val hairline: Color,
@@ -38,66 +46,60 @@ data class StarveilPalette(
     val ink2: Color,
     /** Tertiary: placeholders, timestamps, unselected icons. */
     val ink3: Color,
-    /** The gradient's start: electric cyan. */
-    val accentA: Color,
-    /** The gradient's end: violet. */
-    val accentB: Color,
-    /** Online, healthy. */
+    /** The one accent: selected marks, switches, status dots. */
+    val accent: Color,
+    /** The accent as text. A shade darker, because 4.01:1 is not 4.5:1. */
+    val accentText: Color,
+    /** Online, healthy: text, dots and the ring's healthy state. */
     val ok: Color,
-    /** Attention. */
+    /** Attention. Not in the demo; fixed at 4.68:1 on the page. */
     val warn: Color,
-    /** Failure, blocking. */
+    /** Failure, as a dot or a line. */
     val err: Color,
-    /** The ring at rest: the one grey it is allowed to be when nothing runs. */
-    val ringIdle: Color,
+    /** Failure as text, darkened to clear 4.5:1. */
+    val errText: Color,
 ) {
     /** A divider, at the width the design calls a hairline. */
     val hairlineWidth = 1f
+
+    /** A selected row's wash: the accent at 10%, the only tinted fill allowed. */
+    val accentWash: Color get() = accent.copy(alpha = 0.10f)
+
+    /** The health curve's fill: the demo's 14%, under a 1.5dp line. */
+    val curveFillAlpha = 0.14f
+
+    /** The ambient washes that make the material visible: blue, green, amber. */
+    val washes: List<Color> get() = listOf(WASH_BLUE, WASH_GREEN, WASH_AMBER)
 }
+
+private val WASH_BLUE = Color(0xFF5AA0FF).copy(alpha = 0.28f)
+private val WASH_GREEN = Color(0xFF50D2AA).copy(alpha = 0.22f)
+private val WASH_AMBER = Color(0xFFFFAA5A).copy(alpha = 0.20f)
 
 /** The palette. There is one. */
-val ObsidianPalette = StarveilPalette(
-    bg = Color(0xFF000000),
-    surfaceGlass = Color(0xFF0B0D10),
-    glassBorder = Color(0xFF1E2430),
-    hairline = Color(0xFF161B24),
-    ink = Color(0xFFF5F7FA),
-    ink2 = Color(0xFF8A94A6),
-    ink3 = Color(0xFF5B6577),
-    accentA = Color(0xFF22D3EE),
-    accentB = Color(0xFF8B5CF6),
-    ok = Color(0xFF2FBF9B),
-    warn = Color(0xFFE8B33D),
-    err = Color(0xFFE05B4A),
-    // The spec's idle ring. Not a token for anything else: it is the ring at
-    // rest, one step above the card's edge so the circle still has a shape.
-    ringIdle = Color(0xFF232833),
+val GlassPalette = StarveilPalette(
+    bg = Color(0xFFE9EDF2),
+    bgTop = Color(0xFFE8EEF5),
+    bgMid = Color(0xFFEEF3EE),
+    bgBottom = Color(0xFFF3ECE4),
+    surfaceGlass = Color(0xFFFFFFFF).copy(alpha = 0.68f),
+    surfaceThin = Color(0xFFFFFFFF).copy(alpha = 0.55f),
+    surfaceChrome = Color(0xFFFFFFFF).copy(alpha = 0.60f),
+    glassBorder = Color(0xFFFFFFFF).copy(alpha = 0.75f),
+    hairline = Color(0xFFFFFFFF).copy(alpha = 0.75f),
+    ink = Color(0xFF1D1D1F),
+    // The demo's 60% and 42% are Apple's own secondary and tertiary grades;
+    // both land under AA on this page, so each is lifted one notch — 62% and
+    // 48% — which keeps the step between them and puts ink2 at 4.59:1.
+    ink2 = Color(0xFF1D1D1F).copy(alpha = 0.62f),
+    ink3 = Color(0xFF1D1D1F).copy(alpha = 0.48f),
+    accent = Color(0xFF0071E3),
+    accentText = Color(0xFF0066CC),
+    // The demo's status dot is a brighter green (#30A46C), but on this page
+    // that is 2.68:1 — under the 3:1 a graphic that carries meaning needs. One
+    // green, at 4.58:1, for text and dots alike.
+    ok = Color(0xFF1D7A3A),
+    warn = Color(0xFFAC4D00),
+    err = Color(0xFFE5484D),
+    errText = Color(0xFFBE3238),
 )
-
-/**
- * The accent, as a gradient.
- *
- * 135 degrees, cyan to violet, and only ever a stroke or a small fill. A
- * gradient that fills an area is the fastest way to make a black screen look
- * cheap; the health curve's fade under the line is the one exception, and it
- * fades to nothing rather than to a colour.
- */
-object StarveilAccent {
-
-    /** The two stops, in order. */
-    val colors: List<Color> = listOf(ObsidianPalette.accentA, ObsidianPalette.accentB)
-
-    /** The gradient across [size], running top-left to bottom-right. */
-    fun brush(size: Size): Brush = Brush.linearGradient(
-        colors = colors,
-        start = Offset.Zero,
-        end = Offset(size.width, size.height),
-    )
-
-    /** The gradient at a fraction of its opacity — the on switch's track. */
-    fun brush(size: Size, alpha: Float): Brush = Brush.linearGradient(
-        colors = colors.map { it.copy(alpha = alpha) },
-        start = Offset.Zero,
-        end = Offset(size.width, size.height),
-    )
-}

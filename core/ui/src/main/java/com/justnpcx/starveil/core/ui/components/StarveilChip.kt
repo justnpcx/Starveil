@@ -34,7 +34,7 @@ private val IN_USE_DOT = 6.dp
 private val MIN_TOUCH_TARGET = 48.dp
 
 /**
- * A filter chip: a glass capsule, its edge cyan when selected.
+ * A filter chip: a glass capsule, its edge and label blue when selected.
  *
  * Selection is the edge, not a fill. A filled chip would be a second solid
  * block in a row of outlines, and the accent is only allowed to be a line here.
@@ -77,7 +77,7 @@ fun StarveilChip(
         color = StarveilColors.surfaceGlass,
         border = BorderStroke(
             1.dp,
-            if (selected) StarveilColors.accentA else StarveilColors.glassBorder,
+            if (selected) StarveilColors.accent else StarveilColors.glassBorder,
         ),
     ) {
         Row(
@@ -102,7 +102,7 @@ fun StarveilChip(
             Text(
                 text = label,
                 style = StarveilType.label,
-                color = if (selected) StarveilColors.ink else StarveilColors.ink2,
+                color = if (selected) StarveilColors.accentText else StarveilColors.ink2,
             )
         }
     }

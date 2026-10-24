@@ -58,10 +58,10 @@ fun LatencySparkline(
     val trace = if (health.collecting) emptyList() else emaSeries(health.samples)
     // Read before the Canvas: a colour token is a composable read, and DrawScope
     // is not a composable scope.
-    val line = StarveilColors.accentA
+    val line = StarveilColors.accent
     Box(modifier = modifier.height(height)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawLatencyTrace(trace, line, strokeWidth = 1.5f)
+            drawLatencyTrace(trace, line, strokeWidth = 1.5.dp.toPx())
         }
     }
 }
@@ -77,9 +77,9 @@ fun LatencySparkline(
  * - packet loss as dots below the curve, so "slow" and "dropped" are
  *   distinguishable rather than both reading as a dip in one line.
  *
- * The fill under the curve is 8% of the line's own colour. The old chart faded
- * a saturated green across the whole area, which on a light page is a coloured
- * block — the one thing this design does not allow.
+ * The fill under the curve is the line's own colour at 14%, flat. The old chart
+ * faded a saturated green across the whole area, which on a light page is a
+ * coloured block — the one thing this design does not allow.
  *
  * Below [NodeHealth.MIN_SAMPLES] it says so instead of drawing. A curve through
  * three points is a claim about a shape that has not happened yet.
@@ -107,19 +107,19 @@ fun NodeHealthChart(
     val trace = emaSeries(health.samples)
     // Read before the Canvas: colour tokens are composable reads, and DrawScope
     // is not a composable scope.
-    val line = StarveilColors.accentA
+    val line = StarveilColors.accent
     val loss = StarveilColors.err
-    val baseline = StarveilColors.hairline
+    val fillAlpha = StarveilColors.curveFillAlpha
 
     Box(
         modifier = (if (height != null) modifier.height(height) else modifier)
             .semantics { this.contentDescription = contentDescription },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // No background plate and no band strip: the page is the only
-            // background. The fill under the curve is the accent at 18%,
-            // fading to nothing — shading, not a coloured block.
-            drawLatencyFill(trace, line)
+            // No background plate and no band strip: the card is the only
+            // background. The fill under the curve is the accent at 14% flat —
+            // shading, not a coloured block.
+            drawLatencyFill(trace, line, fillAlpha)
 
             // Loss first, so the trace sits over the dots rather than under
             // them — a dot the line crosses is still a dot you can see.
@@ -127,16 +127,7 @@ fun NodeHealthChart(
             drawLatencyTrace(
                 values = trace,
                 color = line,
-                strokeWidth = 1.5f,
-            )
-
-            // The baseline: the curve sits on a hairline, not in a box. It is
-            // the only rule in the card and it stops the fill from floating.
-            drawLine(
-                color = baseline,
-                start = Offset(0f, size.height),
-                end = Offset(size.width, size.height),
-                strokeWidth = 1.dp.toPx(),
+                strokeWidth = 1.5.dp.toPx(),
             )
         }
     }
@@ -144,10 +135,10 @@ fun NodeHealthChart(
 
 /**
  * The ribbon under the latency trace: the same spline, closed to the baseline
- * and filled with a fade. It is what makes the curve sit on the card instead of
- * on a plate of its own colour.
+ * and filled flat at the demo's 14%. It is what makes the curve sit on the card
+ * instead of on a plate of its own colour.
  */
-private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color) {
+private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color, alpha: Float) {
     val points = latencyTrace(values, size.width, size.height)
     if (points.size < 2) return
     val fill = Path().apply {
@@ -156,14 +147,7 @@ private fun DrawScope.drawLatencyFill(values: List<Long?>, color: Color) {
         lineTo(points.first().x, size.height)
         close()
     }
-    drawPath(
-        path = fill,
-        brush = Brush.verticalGradient(
-            colors = listOf(color.copy(alpha = 0.18f), Color.Transparent),
-            startY = 0f,
-            endY = size.height,
-        ),
-    )
+    drawPath(path = fill, color = color.copy(alpha = alpha))
 }
 
 /**

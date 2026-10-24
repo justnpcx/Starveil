@@ -447,7 +447,7 @@ private fun RuleRow(
             Text(
                 text = stringResource(R.string.rules_edit),
                 style = StarveilType.label,
-                color = StarveilColors.accentA,
+                color = StarveilColors.accent,
                 modifier = Modifier
                     .clip(RoundedCornerShape(StarveilSpacing.xs))
                     .clickable(role = Role.Button, onClick = onEdit)
@@ -852,7 +852,7 @@ private fun FlowOutcome.labelRes(): Int = when (this) {
 
 @Composable
 private fun FlowOutcome.colour(): Color = when (this) {
-    FlowOutcome.PROXY -> StarveilColors.accentA
+    FlowOutcome.PROXY -> StarveilColors.accent
     FlowOutcome.DIRECT -> StarveilColors.ok
     FlowOutcome.BLOCK -> StarveilColors.err
 }
@@ -1133,7 +1133,7 @@ private fun EntryRow(
             }
         }
         if (value != null) {
-            Text(text = value, style = StarveilType.label, color = StarveilColors.accentA)
+            Text(text = value, style = StarveilType.label, color = StarveilColors.accent)
             Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         }
         Icon(
@@ -1164,7 +1164,7 @@ private fun PresetRow(
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The mark is a cyan ring with a white dot, or an empty ring: a
+        // The mark is an accent ring with an accent dot, or an empty ring: a
         // Material radio button would bring its own tint and its own size.
         Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
             Box(
@@ -1173,7 +1173,7 @@ private fun PresetRow(
                     .clip(CircleShape)
                     .border(
                         1.5.dp,
-                        if (selected) StarveilColors.accentA else StarveilColors.ink3,
+                        if (selected) StarveilColors.accent else StarveilColors.ink3,
                         CircleShape,
                     ),
             )
@@ -1182,7 +1182,7 @@ private fun PresetRow(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(StarveilColors.ink),
+                        .background(StarveilColors.accent),
                 )
             }
         }

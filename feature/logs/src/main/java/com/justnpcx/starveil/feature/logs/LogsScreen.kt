@@ -84,7 +84,7 @@ fun LogsScreen(
             Text(
                 text = stringResource(if (showCopied) R.string.logs_copied else R.string.logs_copy),
                 style = StarveilType.label,
-                color = if (state.lines.isEmpty()) StarveilColors.ink3 else StarveilColors.accentA,
+                color = if (state.lines.isEmpty()) StarveilColors.ink3 else StarveilColors.accent,
                 modifier = Modifier
                     .clip(RoundedCornerShape(StarveilSpacing.xs))
                     .clickable(

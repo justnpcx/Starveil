@@ -162,7 +162,7 @@ private fun AppRow(
         Text(
             text = target,
             style = StarveilType.label,
-            color = StarveilColors.accentA,
+            color = StarveilColors.accent,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.justnpcx.starveil.core.ui.theme.StarveilAccent
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilMotion
 import com.justnpcx.starveil.core.ui.theme.StarveilType
@@ -174,11 +173,10 @@ fun ConnectionCore(
 
     // Resolved before the Canvas: the token getters are @Composable reads, and
     // a DrawScope lambda is not a composable context.
-    val accentA = StarveilColors.accentA
+    val accent = StarveilColors.accent
     val warnColor = StarveilColors.warn
     val errColor = StarveilColors.err
     val idleRing = StarveilColors.ringIdle
-    val accentStops = StarveilAccent.colors
 
     Box(
         modifier = modifier
@@ -201,33 +199,15 @@ fun ConnectionCore(
             val outer = size.minDimension / 2
             val ringRadius = outer - RING_INSET.toPx()
 
-            val lit = state == ConnectionState.CONNECTED || state == ConnectionState.CONNECTING
             val statusColor = when (state) {
                 ConnectionState.WARNING -> warnColor
                 ConnectionState.BLOCKED -> errColor
                 else -> null
             }
 
-            // The glow: one radial gradient, peaking on the ring and fading both
-            // ways over ~24dp. A continuous falloff, one draw call, and no blur
-            // pass — a RenderEffect would cost GPU work every frame and only
-            // exists from API 31 (minSdk is 29).
-            if (lit || statusColor != null) {
-                val glowColor = statusColor ?: accentA
-                val spread = GLOW_SPREAD.toPx()
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            ((ringRadius - spread) / outer).coerceIn(0f, 1f) to Color.Transparent,
-                            (ringRadius / outer).coerceIn(0f, 1f) to glowColor.copy(alpha = GLOW_PEAK_ALPHA),
-                            ((ringRadius + spread) / outer).coerceIn(0f, 1f) to Color.Transparent,
-                        ),
-                        center = center,
-                        radius = outer,
-                    ),
-                    radius = outer,
-                )
-            }
+            // No glow. A halo was how the previous face said "connected"; on a
+            // light page it reads as a smudge, and the accent line already says
+            // it. State is colour and the word in the middle, nothing else.
 
             when {
                 // Idle: a line, not a dimmed accent. A gradient ring on an idle
@@ -240,14 +220,9 @@ fun ConnectionCore(
                     drawCircle(color = statusColor, radius = ringRadius, style = stroke)
 
                 else -> {
-                    // 135° across the ring's box: cyan at the top-left, violet
-                    // at the bottom-right.
-                    val ringBrush = Brush.linearGradient(
-                        colors = accentStops,
-                        start = Offset(center.x - ringRadius, center.y - ringRadius),
-                        end = Offset(center.x + ringRadius, center.y + ringRadius),
-                    )
-                    drawCircle(brush = ringBrush, radius = ringRadius, style = stroke)
+                    // One blue line, the whole way round. The ring is a state
+                    // indicator, not a decoration.
+                    drawCircle(color = accent, radius = ringRadius, style = stroke)
 
                     if (state == ConnectionState.CONNECTING) {
                         // The charge arc: a bright run of the same gradient,
@@ -257,7 +232,7 @@ fun ConnectionCore(
                             brush = Brush.sweepGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    accentA,
+                                    accent,
                                     Color.Transparent,
                                 ),
                                 center = center,
@@ -272,7 +247,7 @@ fun ConnectionCore(
                     if (sweep.value > 0f && sweep.value < 1f) {
                         // The one-shot success sweep, fading as it completes.
                         drawArc(
-                            color = accentA.copy(alpha = 1f - sweep.value),
+                            color = accent.copy(alpha = 1f - sweep.value),
                             startAngle = -90f + 360f * sweep.value,
                             sweepAngle = 120f,
                             useCenter = false,
@@ -289,7 +264,7 @@ fun ConnectionCore(
             // Blocked borrows the ring's colour: the state is a warning, and
             // colour is the part that reads before the word does. Every other
             // state uses ink, so the word is legible without a plate.
-            color = if (state == ConnectionState.BLOCKED) StarveilColors.err else StarveilColors.ink,
+            color = if (state == ConnectionState.BLOCKED) StarveilColors.errText else StarveilColors.ink,
             textAlign = TextAlign.Center,
             // The box is trimmed at the bottom, so its centre is above the
             // ring's; move the word back onto the ring's centre line.
@@ -304,17 +279,8 @@ private val CORE_SIZE = 240.dp
 /** 4dp, and a stroke that does not scale with the diameter. */
 private val RING_STROKE = 4.dp
 
-/** How far the ring sits inside its box, leaving room for the glow. */
+/** How far the ring sits inside its box. */
 private val RING_INSET = 22.dp
-
-/** How far the glow reaches either side of the ring (~24dp total). */
-private val GLOW_SPREAD = 12.dp
-
-/**
- * The glow's peak. 30% of the accent: present enough to read as light, faint
- * enough that it never becomes a filled disc.
- */
-private const val GLOW_PEAK_ALPHA = 0.30f
 
 /**
  * Whether the system is animating at all.

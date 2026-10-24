@@ -57,6 +57,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.ui.components.StarveilBackground
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.probe.LeakCheckRunner
@@ -137,11 +138,15 @@ class MainActivity : ComponentActivity() {
             val onboardingDone by preferences.onboardingDone
                 .collectAsStateWithLifecycle(initialValue = null)
 
-            // One theme, and it is black: both system bars are transparent over
-            // the page, with light icons. `auto` would follow the system and
-            // leave a white navigation bar under a black app.
+            // One theme, and it is light: both system bars are transparent over
+            // the page, with dark icons. `auto` would follow the system and
+            // leave dark icons on a dark bar for anyone who runs their phone in
+            // dark mode, which this app does not.
             LaunchedEffect(Unit) {
-                val style = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                val style = SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                )
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
@@ -152,27 +157,37 @@ class MainActivity : ComponentActivity() {
                     true -> {
                         val navController = rememberNavController()
                         val snackbarHostState = remember { SnackbarHostState() }
-                        Scaffold(
-                            modifier = Modifier.fillMaxSize(),
-                            // The bottom bar owns the navigation inset (it pads
-                            // itself), so the content must not also be inset by
-                            // it: Scaffold would add both, and every floating
-                            // button ended up ~40dp higher than its 16dp margin.
-                            contentWindowInsets = WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
-                            ),
-                            bottomBar = { StarveilBottomBar(navController) },
-                            snackbarHost = {
-                                UndoSnackbarHost(requests = undoBus, hostState = snackbarHostState)
-                            },
-                        ) { innerPadding ->
-                            StarveilNavHost(
-                                navController = navController,
-                                latencyTester = latencyTester,
-                                leakCheckRunner = leakCheckRunner,
-                                deepLinks = deepLinks,
-                                modifier = Modifier.padding(innerPadding),
-                            )
+                        StarveilBackground {
+                            Scaffold(
+                                modifier = Modifier.fillMaxSize(),
+                                // Transparent: the ambient gradient is painted
+                                // once behind this Scaffold, and a container
+                                // colour here would cover it.
+                                containerColor = Color.Transparent,
+                                // The bottom bar owns the navigation inset (it
+                                // pads itself), so the content must not also be
+                                // inset by it: Scaffold would add both, and
+                                // every floating button ended up ~40dp higher
+                                // than its 16dp margin.
+                                contentWindowInsets = WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                                ),
+                                bottomBar = { StarveilBottomBar(navController) },
+                                snackbarHost = {
+                                    UndoSnackbarHost(
+                                        requests = undoBus,
+                                        hostState = snackbarHostState,
+                                    )
+                                },
+                            ) { innerPadding ->
+                                StarveilNavHost(
+                                    navController = navController,
+                                    latencyTester = latencyTester,
+                                    leakCheckRunner = leakCheckRunner,
+                                    deepLinks = deepLinks,
+                                    modifier = Modifier.padding(innerPadding),
+                                )
+                            }
                         }
                     }
                 }
@@ -219,7 +234,7 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val hairline = StarveilColors.hairline
-    val accent = StarveilColors.accentA
+    val accent = StarveilColors.accent
 
     Column(
         modifier = Modifier
@@ -228,7 +243,13 @@ private fun StarveilBottomBar(navController: androidx.navigation.NavHostControll
             // navigation inset itself: without this the labels sit under the
             // gesture handle and a tap in that strip goes to the system.
             .navigationBarsPadding()
+            // The page colour, then the chrome material over it. The pair is
+            // the degraded form §5 allows: Compose has no backdrop blur, so a
+            // translucent bar over scrolling text would smear rather than
+            // frost. Two paints give the same slightly-lifted surface with the
+            // text kept out of it.
             .background(StarveilColors.bg)
+            .background(StarveilColors.surfaceChrome)
             .drawBehind {
                 // The bar's only separation from the page is this line. A
                 // shadow would be the one soft edge in an app that has none.

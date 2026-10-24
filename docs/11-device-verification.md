@@ -796,3 +796,38 @@ tests=9 failures=0 errors=0 time=26.086s
 
 截图：`docs/recordings/m43-2026-10-24/`。
 
+
+## 2026-10-25 · Step 0：03 苹果毛玻璃令牌抄录与令牌层
+
+**来源**：`apple-google-demo`（muse 分享页 → iframe → 03 面板）。不是目测：用 Playwright 打开 03 面板后读 `getComputedStyle`，逐项取计算值。
+
+| 令牌 | 值 | 出处（Demo 03 的元素） |
+|---|---|---|
+| `bg` | `#E9EDF2` | `.screen` 底色 / 色卡 |
+| 页面渐变 | `linear-gradient(160deg, #E8EEF5, #EEF3EE 55%, #F3ECE4)` | `.screen` 的 `background-image` |
+| 氛围晕染 | 蓝 `rgba(90,160,255,.28)` @12%/6%、绿 `rgba(80,210,170,.22)` @88%/30%、琥珀 `rgba(255,170,90,.20)` @70%/92%，各自 300×200 / 280×220 / 320×240，65% 处淡出 | `.glassfx` |
+| `surfaceGlass` | `rgba(255,255,255,.68)` + `blur(18px) saturate(1.5)`，圆角 22，阴影 `rgba(31,38,135,.07) 0 4 18` | `.pcard` / `.nlist` |
+| `surfaceThin` | `rgba(255,255,255,.55)` | `.search` / `.flag` |
+| `surfaceChrome` | `rgba(255,255,255,.60)` | `.pnav` |
+| `glassBorder` / `hairline` | `rgba(255,255,255,.75)` 1px（卡边、导航顶线、卡内行分隔共用） | `.pcard` 边框、`.nrow` 下边框 |
+| `ink` | `#1D1D1F` | 正文 |
+| `ink2` | `rgba(29,29,31,.62)`（Demo 为 .60，见下） | `.rsub` |
+| `ink3` | `rgba(29,29,31,.48)`（Demo 为 .42，见下） | `.tot` / 未选中图标 |
+| `accent` | `#0071E3` | `.chip` 边与字、导航选中点、选中行 10% 底 |
+| `accentText` | `#0066CC` | Demo 自己的次级蓝（"选它"按钮、进度条） |
+| `ok` | `#1D7A3A` | `.onl`「在线 100%」 |
+| `warn` | `#AC4D00` | **Demo 未出现**，用户补定（对底面 4.68:1） |
+| `err` | `#E5484D` | `.sdot` 失败点 |
+| `errText` | `#BE3238` | 派生：Demo 的红做文字只有 3.33:1 |
+| 曲线 | 描边 `accent` 1.5dp，填充 `accent` @14% | `.spark` 的两条 path |
+| 圆角 | 卡片 22dp、搜索框胶囊、旗标 6dp、FAB 圆形 | 计算值 |
+
+**为过 4.5:1 做的三处调整**（§5 允许，逐条记数）：
+- `ink2` .60 → **.62**：4.29 → 4.59（`ink2` 是全应用的说明行，属正文）。
+- `ink3` .42 → **.48**：2.59 → 3.06（三级字与未选中图标，按 3:1 的承意图形下限）。
+- Demo 的亮绿状态点 `#30A46C` 在底面只有 2.68:1，8dp 的点是承意图形，统一改用 `ok`（4.58:1），不再单列 `okDot`。
+
+**无法照抄的一处：backdrop blur**。Compose 没有原生背景模糊（`Modifier.blur` 模糊的是自身内容，不是身后），三方库被 §5 禁止。落地方式：卡片用 68% 白叠在静态氛围底上——底是平滑渐变，视觉上等价于把底模糊后透上来；导航条因为下面会滚过文字，按 §5 的降级条款改成**不透明浅色实面**（页面底色 + 60% 白）。这一条要在真机上按帧率再确认一次。
+
+**替换范围**：`Palette.kt` 整体重写（`ObsidianPalette` → `GlassPalette`，`accentA/accentB` 合并为 `accent`），`Theme.kt` 改 `lightColorScheme`，卡片/开关/芯片/徽标/按钮/搜索框/FAB/圆环/曲线全部换到新令牌，新增 `StarveilBackground`（页面渐变 + 三处晕染）与 `StarveilButton` 的内容重载（引导页不再用 Material 的填充按钮）。
+

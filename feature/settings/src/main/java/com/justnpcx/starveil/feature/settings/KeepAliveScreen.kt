@@ -168,7 +168,7 @@ private fun KeepAliveRow(
                         color = if (statusIsWarning) {
                             StarveilColors.err
                         } else {
-                            StarveilColors.accentA
+                            StarveilColors.accent
                         },
                     )
                 }

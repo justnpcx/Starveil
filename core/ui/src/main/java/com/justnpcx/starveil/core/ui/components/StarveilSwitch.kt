@@ -17,11 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.justnpcx.starveil.core.ui.theme.StarveilAccent
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilMotion
 
@@ -33,14 +32,14 @@ private val THUMB_SIZE = 22.dp
 /**
  * A switch, drawn rather than borrowed.
  *
- * On is the accent: the gradient at 35%, with an ink thumb. Off is a ghost: a
- * 40% ink3 track and an ink2 thumb. The two states differ in colour and in the
- * thumb's position, which is what lets the control be read at a glance without
- * the platform's blue (or green, on some ROMs) arriving with it.
+ * On is the accent — a solid track, because a mark this small does not need a
+ * gradient — with a white thumb. Off is a ghost: a 40% ink3 track and an ink2
+ * thumb. The two states differ in colour and in the thumb's position, which is
+ * what lets the control be read at a glance without the platform's blue (or
+ * green, on some ROMs) arriving with it.
  *
- * The gradient is the accent's second permitted appearance on a screen, so it
- * is deliberately faint — a track you notice before the row's label is a switch
- * that has stopped being a control and become decoration.
+ * The accent track is one of a screen's three permitted appearances, so it is
+ * the only filled control in the app: everything else is an outline.
  */
 @Composable
 fun StarveilSwitch(
@@ -50,8 +49,6 @@ fun StarveilSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val accentStops = StarveilAccent.colors
-    val pageBg = StarveilColors.bg
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) TRACK_WIDTH - THUMB_SIZE - 3.dp else 3.dp,
         animationSpec = StarveilMotion.stateTransition(),
@@ -60,7 +57,7 @@ fun StarveilSwitch(
     val thumbColor by animateColorAsState(
         targetValue = when {
             !enabled -> StarveilColors.ink3
-            checked -> StarveilColors.ink
+            checked -> Color.White
             else -> StarveilColors.ink2
         },
         animationSpec = StarveilMotion.stateTransition(),
@@ -70,6 +67,11 @@ fun StarveilSwitch(
         targetValue = StarveilColors.ink3.copy(alpha = if (enabled) 0.40f else 0.20f),
         animationSpec = StarveilMotion.stateTransition(),
         label = "switch-track-off",
+    )
+    val onTrack by animateColorAsState(
+        targetValue = if (enabled) StarveilColors.accent else StarveilColors.accent.copy(alpha = 0.40f),
+        animationSpec = StarveilMotion.stateTransition(),
+        label = "switch-track-on",
     )
 
     Box(
@@ -96,19 +98,7 @@ fun StarveilSwitch(
                 .width(TRACK_WIDTH)
                 .height(TRACK_HEIGHT)
                 .clip(CircleShape)
-                .drawBehind {
-                    if (checked) {
-                        drawRect(
-                            brush = Brush.linearGradient(
-                                colors = accentStops.map { it.copy(alpha = if (enabled) 0.35f else 0.15f) },
-                                start = Offset.Zero,
-                                end = Offset(size.width, size.height),
-                            ),
-                        )
-                    } else {
-                        drawRect(color = offTrack)
-                    }
-                },
+                .background(if (checked) onTrack else offTrack),
         ) {
             Box(
                 modifier = Modifier
@@ -121,7 +111,7 @@ fun StarveilSwitch(
                         // A hairline ring keeps the thumb off the track's edge
                         // when the track is nearly the same value as the page.
                         drawCircle(
-                            color = pageBg.copy(alpha = 0.35f),
+                            color = Color.White.copy(alpha = 0.55f),
                             radius = size.minDimension / 2 - 0.5.dp.toPx(),
                             center = Offset(size.width / 2, size.height / 2),
                             style = Stroke(width = 1.dp.toPx()),

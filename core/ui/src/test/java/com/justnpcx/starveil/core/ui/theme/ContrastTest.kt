@@ -19,7 +19,7 @@ import org.junit.Test
  */
 class ContrastTest {
 
-    private val p = ObsidianPalette
+    private val p = GlassPalette
 
     @Test
     fun `body text meets AA on the page`() {
@@ -38,9 +38,10 @@ class ContrastTest {
 
     @Test
     fun `the accent is readable as text`() {
-        // The badge label and the selected value are drawn in the accent.
-        assertAtLeast(4.5, p.accentA, p.bg, "accentA on bg")
-        assertAtLeast(4.5, p.accentA, p.surfaceGlass, "accentA on surfaceGlass")
+        // Text in the accent uses its text grade: #0071E3 is 4.01:1 on this
+        // page, which is a mark's contrast, not a paragraph's.
+        assertAtLeast(4.5, p.accentText, p.bg, "accentText on bg")
+        assertAtLeast(4.5, p.accentText, p.surfaceGlass, "accentText on surfaceGlass")
     }
 
     @Test
@@ -48,8 +49,8 @@ class ContrastTest {
         // WCAG 1.4.11: a graphic that carries meaning needs 3:1 against what is
         // behind it. The ring, the selected chip's edge and the navigation dot
         // are graphics.
-        assertAtLeast(3.0, p.accentA, p.bg, "accentA on bg")
-        assertAtLeast(3.0, p.accentB, p.bg, "accentB on bg")
+        assertAtLeast(3.0, p.accent, p.bg, "accent on bg")
+        assertAtLeast(3.0, p.err, p.bg, "err dot on bg")
     }
 
     @Test
@@ -57,7 +58,7 @@ class ContrastTest {
         // The availability percentage is drawn in its band's colour, and the
         // notice line uses these as text. Small labels, so 4.5:1.
         assertAtLeast(4.5, p.ok, p.bg, "ok on bg")
-        assertAtLeast(4.5, p.err, p.bg, "err on bg")
+        assertAtLeast(4.5, p.errText, p.bg, "errText on bg")
         assertAtLeast(4.5, p.warn, p.bg, "warn on bg")
     }
 
@@ -66,7 +67,7 @@ class ContrastTest {
         // The wash is the one tinted fill in the design (the accent at 12% over
         // the page), so it has to keep the row's own text above AA — otherwise
         // selecting a node would make it harder to read.
-        val wash = blend(p.accentA.copy(alpha = 0.12f), p.bg)
+        val wash = blend(p.accent.copy(alpha = 0.10f), p.bg)
         assertAtLeast(4.5, p.ink, wash, "ink on the selected wash")
         assertAtLeast(4.5, p.ink2, wash, "ink2 on the selected wash")
     }

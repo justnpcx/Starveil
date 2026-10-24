@@ -296,7 +296,8 @@ fun ProfilesScreen(
                     }
             }
         },
-        containerColor = StarveilColors.bg,
+        // Transparent: the ambient gradient behind the app is the page.
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             StarveilFab(
@@ -1087,7 +1088,7 @@ private fun NodeRow(
 ) {
     val reading = latencyReading(profile, health)
     val wash = StarveilColors.accentWash
-    val accent = StarveilColors.accentA
+    val accent = StarveilColors.accent
     val line = StarveilColors.hairline
     Box(
         modifier = Modifier

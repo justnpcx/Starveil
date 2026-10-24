@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -24,9 +26,10 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 /**
  * A glass card: the app's only grouping device.
  *
- * One step off black, a 1dp edge, 20dp corners, and no shadow. The edge is what
- * gives it a shape; a shadow on a black page is invisible work, and a heavier
- * fill would read as a grey block — which is exactly the look this replaces.
+ * 68% white over the page's ambient gradient, a 1dp white edge, 22dp corners,
+ * and the demo's own whisper of a shadow (7%, 4dp, 18dp blur) so the material
+ * reads as lifted rather than drawn on. The edge is the highlight that makes
+ * it glass; the shadow only separates it from the page.
  *
  * Cards do not nest. A card inside a card is two edges for one grouping, and
  * the inner one always looks like a mistake.
@@ -39,12 +42,26 @@ fun StarveilCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = 4.dp,
+                shape = StarveilShapes.card,
+                ambientColor = StarveilShadow,
+                spotColor = StarveilShadow,
+            )
             .clip(StarveilShapes.card)
             .background(StarveilColors.surfaceGlass)
             .border(1.dp, StarveilColors.glassBorder, StarveilShapes.card),
         content = content,
     )
 }
+
+/**
+ * The card's shadow, at the demo's 7% — a tint, not a drop shadow.
+ *
+ * Compose takes the shadow's colour per-instance rather than from the palette,
+ * so it lives here next to the only thing that draws it.
+ */
+private val StarveilShadow = Color(0xFF1F2687).copy(alpha = 0.07f)
 
 /**
  * A hairline inside a card, inset to the text column.

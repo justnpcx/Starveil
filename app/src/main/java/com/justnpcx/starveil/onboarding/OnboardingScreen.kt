@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +50,7 @@ import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
+import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
@@ -195,7 +194,7 @@ private fun StepDots(step: Int) {
                     .clip(CircleShape)
                     .background(
                         if (active) {
-                            StarveilColors.accentA
+                            StarveilColors.accent
                         } else {
                             StarveilColors.surfaceGlass
                         },
@@ -212,32 +211,21 @@ private fun WelcomeStep(onNext: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // The one piece of "future technology" the design system already
-        // speaks: a glowing core, the same language as the dashboard's.
+        // The same ring language as the dashboard, at rest: a thin accent
+        // line with a hole in it. No glow — the halo was the old face, and on
+        // a light page it reads as a smudge rather than as light.
         Box(
             modifier = Modifier
                 .size(168.dp)
                 .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            StarveilColors.accentA.copy(alpha = 0.85f),
-                            StarveilColors.accentA.copy(alpha = 0.05f),
-                        ),
-                    ),
-                )
-                .border(
-                    width = 1.dp,
-                    color = StarveilColors.accentA.copy(alpha = 0.35f),
-                    shape = CircleShape,
-                ),
+                .border(width = 1.5.dp, color = StarveilColors.accent, shape = CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(StarveilColors.bg),
+                    .background(StarveilColors.bg.copy(alpha = 0.55f)),
             )
         }
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
@@ -254,7 +242,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
-        Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+        StarveilButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.onboarding_start))
         }
     }
@@ -329,7 +317,7 @@ private fun ImportStep(
                     stringResource(R.string.onboarding_imported, result.nodes)
                 },
                 style = StarveilType.label,
-                color = StarveilColors.accentA,
+                color = StarveilColors.accentText,
             )
 
             is ImportResult.Failed -> Text(
@@ -383,10 +371,10 @@ private fun ConnectStep(
                         stringResource(R.string.onboarding_connected, it)
                     } ?: stringResource(R.string.onboarding_connected_unknown),
                     style = StarveilType.headline,
-                    color = StarveilColors.accentA,
+                    color = StarveilColors.accentText,
                 )
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                Button(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
+                StarveilButton(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.onboarding_done))
                 }
             }
@@ -397,7 +385,7 @@ private fun ConnectStep(
                     style = StarveilType.label,
                     color = StarveilColors.err,
                 )
-                Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                StarveilButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.onboarding_back))
                 }
             }
@@ -410,7 +398,7 @@ private fun ConnectStep(
                     style = StarveilType.label,
                     color = StarveilColors.err,
                 )
-                Button(
+                StarveilButton(
                     onClick = onConnect,
                     enabled = !state.connecting,
                     modifier = Modifier.fillMaxWidth(),
@@ -423,7 +411,7 @@ private fun ConnectStep(
             }
 
             null -> {
-                Button(
+                StarveilButton(
                     onClick = onConnect,
                     enabled = !state.connecting,
                     modifier = Modifier.fillMaxWidth(),
@@ -448,10 +436,9 @@ private fun BigAction(
     subtitle: String,
     onClick: () -> Unit,
 ) {
-    Button(
+    StarveilButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(StarveilSpacing.md),
     ) {
         Column(
             modifier = Modifier
@@ -464,9 +451,9 @@ private fun BigAction(
                 text = subtitle,
                 style = StarveilType.label,
                 maxLines = 1,
-                // A filled button's subtitle stays on the button's own
-                // foreground; onSurfaceVariant would be invisible here.
-                color = StarveilColors.bg.copy(alpha = 0.8f),
+                // A glass button's subtitle is secondary ink, not the
+                // page's own colour: there is no filled plate to sit on.
+                color = StarveilColors.ink2,
             )
         }
     }
