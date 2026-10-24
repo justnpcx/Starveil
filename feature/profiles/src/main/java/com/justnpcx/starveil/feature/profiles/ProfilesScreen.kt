@@ -205,7 +205,7 @@ fun ProfilesScreen(
     if (showAddSheet) {
         ModalBottomSheet(
             onDismissRequest = { showAddSheet = false },
-            containerColor = StarveilColors.surfaceGlass,
+            containerColor = StarveilColors.surfaceSolid,
             shape = StarveilShapes.sheet,
             dragHandle = null,
         ) {
@@ -516,7 +516,7 @@ fun ProfilesScreen(
                     ) {
                         Text(
                             text = stringResource(R.string.profiles_group_delete),
-                            color = StarveilColors.err,
+                            color = StarveilColors.errText,
                         )
                     }
                 }
@@ -536,7 +536,7 @@ fun ProfilesScreen(
     rowMenu?.let { profile ->
         ModalBottomSheet(
             onDismissRequest = { rowMenu = null },
-            containerColor = StarveilColors.surfaceGlass,
+            containerColor = StarveilColors.surfaceSolid,
             dragHandle = null,
         ) {
             Column(modifier = Modifier.navigationBarsPadding()) {
@@ -590,7 +590,7 @@ fun ProfilesScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.profiles_delete, profile.name),
-                        color = StarveilColors.err,
+                        color = StarveilColors.errText,
                     )
                 }
             },
@@ -671,7 +671,7 @@ fun ProfilesScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.profiles_group_delete),
-                        color = StarveilColors.err,
+                        color = StarveilColors.errText,
                     )
                 }
             },
@@ -804,7 +804,7 @@ private fun ImportDialog(
                     Text(
                         text = it,
                         style = StarveilType.label,
-                        color = StarveilColors.err,
+                        color = StarveilColors.errText,
                     )
                 }
                 // Paste only. The scan entry lives in the add sheet, one level
@@ -1429,7 +1429,7 @@ private fun StarveilSheetRow(
             Text(
                 text = text,
                 style = StarveilType.headline,
-                color = if (destructive) StarveilColors.err else StarveilColors.ink,
+                color = if (destructive) StarveilColors.errText else StarveilColors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
