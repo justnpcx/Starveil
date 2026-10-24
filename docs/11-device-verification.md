@@ -667,3 +667,39 @@ adb logcat -d | grep -E 'StarveilDoh|falling back'
 - 唯一真正的掉帧在**打开列表后的第一次滚动**（31.9%），属于首屏组合 + 首帧绑定的一次性成本，是后续要优化的点。
 
 **Macrobenchmark**：`NodesScrollBenchmark` 已随夹具入库，但在本机跑不通——`UiDevice.click()` 与 `input tap` 在这台电视上对 Compose 底部导航的首次点击会被吞掉（屏幕休眠也会介入），多次重试仍不稳定。上面的数字因此来自同一夹具上的 gfxinfo framestats。手机恢复连接后应补一次 Macrobenchmark 的 `FrameTimingMetric` 结果。
+
+## 2026-10-24 · M4-4 .so 瘦身评估
+
+**现状（arm64-v8a release 包）**
+
+| 库 | 原始 | APK 内（deflate） |
+|---|---|---|
+| libbox.so | 61.70 MB | 19.57 MB |
+| libsqlcipher.so | 2.10 MB | 1.03 MB |
+| libsentry.so | 0.88 MB | 0.32 MB |
+| 其余 3 个 | 0.04 MB | 0.01 MB |
+| 合计 | 64.7 MB | 20.9 MB |
+
+libbox.so 的段分布（`size -A`）：`.text` 22.4 MB、`.data.rel.ro` 26.7 MB、`.rela.dyn` 6.9 MB、`.rodata` 4.2 MB、`.noptrdata` 0.64 MB、`.eh_frame` 0.13 MB、`.comment` 204 B。
+
+**已经做掉的**：符号表与调试段**不存在**（无 `.symtab`/`.debug_*`，Go 链接期 `-s -w` 生效），按 ABI 拆分已在做。
+
+**还剩什么，能量化到多少**
+
+1. **动态重定位未打包**：`.rela.dyn` 6.9 MB / 每项 18 B ≈ 38 万条，且没有 `.relr.dyn`。重新链接时加 `--pack-dyn-relocs=android`（API 23+ 可用的 APS2）通常能压到 1/3 左右，**原始省约 4 MB、APK 内省约 1.0–1.3 MB**。代价是要重编 libbox.aar（当前是预编译产物）。
+2. **按功能裁剪内核**：`.text` 22.4 MB 就是整个 sing-box 代码，唯一的真大头。用 sing-box 的 build tag 去掉不需要的入站/协议（QUIC、TUN、WireGuard 等）能省多少只能靠一次真实构建测出来——没有源码构建就没有数字，这里不编。
+3. **`useLegacyPackaging = true` 是既定取舍，不是漏配**：它让 .so 在 APK 里保持压缩（下载 19.6 MB 而不是 61.7 MB），代价是安装时解压到 `/data/app`（多占约 62 MB 存储）。改回 false 等于用 62 MB 存储换 42 MB/次的下载量，对 GitHub 直发 APK 的分发方式不划算。
+
+**对内存目标的意义（实测）**
+
+Fire TV，3 个节点、隧道已连接、benchmark 变体（R8，与 release 同级）：
+
+```
+TOTAL PSS 78.4 MB   RSS 151.0 MB   swap 0.2 MB
+  .so mmap   11.1 MB PSS / 33.1 MB RSS
+  GL mtrack  30.5 MB
+  Native heap 10.9 MB
+  Dalvik      4.8 MB
+```
+
+结论：**80 MB 目标在这台机器上已经达成（78.4 MB），而 libbox 只占 PSS 的 11.1 MB**。即便把 .so 砍掉 10%，PSS 也只降约 1 MB——瘦身不是这个目标的有效杠杆；真正的大项是 GL 表面（30.5 MB，圆环所在的硬件层）与系统共享页。要再往下走，方向是渲染层（圆环的离屏缓冲），不是内核库。
