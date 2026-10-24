@@ -8,6 +8,31 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-10-24
+
+### Fixed
+
+- **The auto-pick is silent when nothing changes.** It compared the card's
+  label (flag included) with the stored name, so the same node always looked
+  like a change and every press raised a notice. It compares ids now, says
+  nothing when the pick is the node already in force, and lets the card carry
+  the result. The badge states the mode — Auto or Manual — and the action is a
+  text link under the node rather than a pill that looked like a label.
+- **The health curve draws its first frame from what is already stored.** The
+  window is applied at read time, so a node sampled before the app was closed
+  had rows on disk that the window hid; the card said "collecting" for the
+  seconds it took to refill, on every launch.
+- **No red block behind the node rows.** `SwipeToDismissBox` composes its
+  background at rest, so a filled background painted a red rectangle behind
+  every row and tinted the list warm. It is drawn only once a drag commits.
+- **The latency is a fixed 76dp column, right-aligned**, so the unit is never
+  clipped by a long node name.
+- **The rules page's empty state is a card**, like every other block on it.
+- **Settings groups are 16dp apart** instead of 32, and the caption sits 8dp
+  above its card.
+- **The rule market's subtitle is one line**, and the Kill Switch link has a
+  line of its own instead of squeezing the paragraph beside it.
+
 ## [0.8.0] — 2026-10-23
 
 ### Changed
