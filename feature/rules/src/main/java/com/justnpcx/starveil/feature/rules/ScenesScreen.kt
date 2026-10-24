@@ -313,7 +313,7 @@ private fun SceneDialog(
                     Text(
                         text = stringResource(R.string.scenes_ssid_unavailable),
                         style = StarveilType.label,
-                        color = StarveilColors.err,
+                        color = StarveilColors.errText,
                     )
                 }
                 if (!mobile) {

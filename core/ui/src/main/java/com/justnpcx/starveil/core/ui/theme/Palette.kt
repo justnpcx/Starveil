@@ -36,6 +36,12 @@ data class StarveilPalette(
     val surfaceThin: Color,
     /** The navigation bar's material. */
     val surfaceChrome: Color,
+    /**
+     * The same material with the transparency resolved. A dialog or a menu sits
+     * over a dim scrim, and 68% white over a scrim is grey — so anything that
+     * floats above a dimmed page uses this instead of [surfaceGlass].
+     */
+    val surfaceSolid: Color,
     /** The 1dp highlight edge that gives a glass card its shape. */
     val glassBorder: Color,
     /** Dividers inside a card, and the line above the navigation bar. */
@@ -58,6 +64,11 @@ data class StarveilPalette(
     val err: Color,
     /** Failure as text, darkened to clear 4.5:1. */
     val errText: Color,
+    /**
+     * The tint of every shadow the app draws. One value, because a shadow is
+     * part of the material and not a per-component decision.
+     */
+    val shadowTint: Color,
 ) {
     /** A divider, at the width the design calls a hairline. */
     val hairlineWidth = 1f
@@ -85,6 +96,7 @@ val GlassPalette = StarveilPalette(
     surfaceGlass = Color(0xFFFFFFFF).copy(alpha = 0.68f),
     surfaceThin = Color(0xFFFFFFFF).copy(alpha = 0.55f),
     surfaceChrome = Color(0xFFFFFFFF).copy(alpha = 0.60f),
+    surfaceSolid = Color(0xFFF6F8FA),
     glassBorder = Color(0xFFFFFFFF).copy(alpha = 0.75f),
     hairline = Color(0xFFFFFFFF).copy(alpha = 0.75f),
     ink = Color(0xFF1D1D1F),
@@ -102,4 +114,5 @@ val GlassPalette = StarveilPalette(
     warn = Color(0xFFAC4D00),
     err = Color(0xFFE5484D),
     errText = Color(0xFFBE3238),
+    shadowTint = Color(0xFF1F2687),
 )

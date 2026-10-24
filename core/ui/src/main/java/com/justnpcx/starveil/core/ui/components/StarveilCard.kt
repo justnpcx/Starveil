@@ -45,8 +45,8 @@ fun StarveilCard(
             .shadow(
                 elevation = 4.dp,
                 shape = StarveilShapes.card,
-                ambientColor = StarveilShadow,
-                spotColor = StarveilShadow,
+                ambientColor = StarveilColors.shadowTint.copy(alpha = 0.07f),
+                spotColor = StarveilColors.shadowTint.copy(alpha = 0.07f),
             )
             .clip(StarveilShapes.card)
             .background(StarveilColors.surfaceGlass)
@@ -54,14 +54,6 @@ fun StarveilCard(
         content = content,
     )
 }
-
-/**
- * The card's shadow, at the demo's 7% — a tint, not a drop shadow.
- *
- * Compose takes the shadow's colour per-instance rather than from the palette,
- * so it lives here next to the only thing that draws it.
- */
-private val StarveilShadow = Color(0xFF1F2687).copy(alpha = 0.07f)
 
 /**
  * A hairline inside a card, inset to the text column.

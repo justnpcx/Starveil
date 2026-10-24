@@ -177,7 +177,13 @@ fun StarveilFab(
     Box(
         modifier = modifier
             .size(56.dp)
-            .shadow(6.dp, CircleShape, ambientColor = FabShadow, spotColor = FabShadow)
+            .shadow(
+                6.dp,
+                CircleShape,
+                // A little stronger than a card's: it floats.
+                ambientColor = StarveilColors.shadowTint.copy(alpha = 0.10f),
+                spotColor = StarveilColors.shadowTint.copy(alpha = 0.10f),
+            )
             .clip(CircleShape)
             .background(StarveilColors.surfaceGlass)
             .border(1.dp, StarveilColors.accent, CircleShape)
@@ -215,9 +221,6 @@ fun StarveilGroupHeader(text: String, modifier: Modifier = Modifier) {
         ),
     )
 }
-
-/** The FAB's shadow: a little stronger than a card's, because it floats. */
-private val FabShadow = androidx.compose.ui.graphics.Color(0xFF1F2687).copy(alpha = 0.10f)
 
 /** A row of chips, scrolling horizontally when it overflows. */
 @Composable

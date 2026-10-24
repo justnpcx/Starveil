@@ -323,7 +323,7 @@ private fun ImportStep(
             is ImportResult.Failed -> Text(
                 text = stringResource(R.string.onboarding_import_failed, result.failure.text()),
                 style = StarveilType.label,
-                color = StarveilColors.err,
+                color = StarveilColors.errText,
             )
 
             null -> Unit
@@ -360,7 +360,7 @@ private fun ConnectStep(
             Text(
                 text = stringResource(R.string.onboarding_consent_denied),
                 style = StarveilType.label,
-                color = StarveilColors.err,
+                color = StarveilColors.errText,
             )
         }
 
@@ -383,7 +383,7 @@ private fun ConnectStep(
                 Text(
                     text = stringResource(R.string.onboarding_no_nodes),
                     style = StarveilType.label,
-                    color = StarveilColors.err,
+                    color = StarveilColors.errText,
                 )
                 StarveilButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.onboarding_back))
@@ -396,7 +396,7 @@ private fun ConnectStep(
                         stringResource(R.string.onboarding_connect_failed, it)
                     } ?: stringResource(R.string.onboarding_connect_failed_unknown),
                     style = StarveilType.label,
-                    color = StarveilColors.err,
+                    color = StarveilColors.errText,
                 )
                 StarveilButton(
                     onClick = onConnect,

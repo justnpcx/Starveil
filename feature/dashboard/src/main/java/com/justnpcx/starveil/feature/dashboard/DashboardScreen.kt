@@ -163,7 +163,7 @@ fun DashboardScreen(
                         text = noticeText,
                         style = StarveilType.label,
                         color = when (notice) {
-                            DashboardNotice.KillSwitchBlocking -> StarveilColors.err
+                            DashboardNotice.KillSwitchBlocking -> StarveilColors.errText
                             else -> StarveilColors.warn
                         },
                         maxLines = 1,
@@ -310,7 +310,7 @@ private fun NodeHealthSection(
                         color = when (health.band) {
                             AvailabilityBand.GOOD -> StarveilColors.ok
                             AvailabilityBand.FAIR -> StarveilColors.warn
-                            AvailabilityBand.POOR -> StarveilColors.err
+                            AvailabilityBand.POOR -> StarveilColors.errText
                         },
                     )
                 }

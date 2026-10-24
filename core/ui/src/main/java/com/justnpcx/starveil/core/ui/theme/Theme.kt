@@ -54,6 +54,10 @@ object StarveilColors {
     val surfaceChrome: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.surfaceChrome
 
+    /** The material with the transparency resolved, for anything over a scrim. */
+    val surfaceSolid: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.surfaceSolid
+
     /** The 1dp edge of a glass card. */
     val glassBorder: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.glassBorder
@@ -106,6 +110,10 @@ object StarveilColors {
     val accentWash: Color
         @Composable @ReadOnlyComposable get() = accent.copy(alpha = 0.10f)
 
+    /** The tint every shadow is drawn in. */
+    val shadowTint: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.shadowTint
+
     /** The health curve's fill alpha, under the line. */
     val curveFillAlpha: Float
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.curveFillAlpha
@@ -132,10 +140,13 @@ private fun ColorScheme.withPalette(p: StarveilPalette): ColorScheme = copy(
     onSurface = p.ink,
     surfaceVariant = p.bg,
     onSurfaceVariant = p.ink2,
-    surfaceContainer = p.surfaceGlass,
-    surfaceContainerHigh = p.surfaceGlass,
-    surfaceContainerHighest = p.surfaceGlass,
-    surfaceContainerLow = p.surfaceGlass,
+    // Material's floating surfaces (dialogs, menus, sheets) sit over a dim
+    // scrim, where a translucent material turns grey. They get the resolved
+    // material instead.
+    surfaceContainer = p.surfaceSolid,
+    surfaceContainerHigh = p.surfaceSolid,
+    surfaceContainerHighest = p.surfaceSolid,
+    surfaceContainerLow = p.surfaceSolid,
     outline = p.glassBorder,
     outlineVariant = p.hairline,
     error = p.errText,

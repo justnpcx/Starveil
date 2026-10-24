@@ -831,3 +831,33 @@ tests=9 failures=0 errors=0 time=26.086s
 
 **替换范围**：`Palette.kt` 整体重写（`ObsidianPalette` → `GlassPalette`，`accentA/accentB` 合并为 `accent`），`Theme.kt` 改 `lightColorScheme`，卡片/开关/芯片/徽标/按钮/搜索框/FAB/圆环/曲线全部换到新令牌，新增 `StarveilBackground`（页面渐变 + 三处晕染）与 `StarveilButton` 的内容重载（引导页不再用 Material 的填充按钮）。
 
+
+## 2026-10-25 · 03 毛玻璃换肤：全量走查
+
+**搜索口径**（`--include=*.kt,*.xml,*.md`，排除 `build/`）：
+
+| 目标 | 结果 |
+|---|---|
+| 曜令牌色值 `#000000` / `0B0D10` / `22D3EE` / `8B5CF6` | 0 处（原 `docs/02` 与 `StarveilWidget.kt` 的残留已改） |
+| 旧灰紫 / 纱主题色值 `FAF9F6` / `B08D57` | 0 处 |
+| `Obsidian` / `obsidian` 命名 | 0 处 |
+| `Palette.kt` 之外的 `Color(0x…)` | 4 处，全部在 `StarveilWidget.kt`：Glance 的 RemoteViews 树读不到 CompositionLocal，按 §6 的例外条款写死并注明来源 |
+
+**逐屏强调色计数**（`accent` 的出现处，不含 `accentText` 文字）：
+
+| 页面 | 处数 | 明细 |
+|---|---|---|
+| 首页 | 1 | 圆环（未连接时是 `ink3`，连接后才是 accent） |
+| 节点页 | 3 | FAB 描边、选中行左缘、选中行淡底（同一处选中态的两笔） |
+| 规则页 | 1 | 单选标记 |
+| 日志页 | 0 | 复制是 `accentText` |
+| 设置页 | 1 | 单选标记 |
+
+**回归复核**：U3（节点行右侧色块/暖调底）——选中行只有 `accentWash` + 左缘竖线，右侧 ms 与「untested」无遮挡；U4（空状态收进卡片）——规则页空状态仍在卡内；U5（设置组间距 32dp）——保持；U6（规则市场副标题单行省略、VPN 链接独立成行）——保持；U1（自动选择徽标语义）——行为未动，仅换色。
+
+**已知遗留**（本次换肤未引入，也不在换肤范围内）：
+
+- 电视 1080p 横屏下，圆环中心词 `DISCONNECTED` 比 240dp 圆环宽约 40px——0.8.1 就有，属字阶与圆环直径的既有矛盾，任务书禁止改字号，未动。
+- Compose 无原生 backdrop blur，卡片用半透明 + 静态氛围底等效，导航条用不透明实面（§6 降级条款）。
+- 桌面小组件按 §6 例外写死解析后的色值。
+
