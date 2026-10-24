@@ -157,4 +157,9 @@
     <string name="settings_group_developer">Developer options</string>
     <string name="settings_group_about">About</string>
     <string name="settings_version_title">Starveil</string>
+    <string name="settings_dns_metrics_title">DNS sampling</string>
+    <string name="settings_dns_metrics_desc">Time every lookup and keep the last 512. 4 KB, on unless turned off.</string>
+    <string name="settings_dns_metrics_empty">No samples yet.</string>
+    <string name="settings_dns_metrics_stats">%1$d samples · p50 %2$d ms · p95 %3$d ms · fallback %4$d%% · cache %5$d%%</string>
+    <string name="settings_dns_metrics_clear">Clear samples</string>
 </resources>

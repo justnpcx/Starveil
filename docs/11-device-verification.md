@@ -739,3 +739,18 @@ tests=9 failures=0 errors=0 time=26.086s
 |---|---|---|
 | Fire TV AFTKRT | `pm clear` → `pm uninstall com.justnpcx.starveil`；删 `/data/local/tmp/*.apk` 与 `/sdcard/*.png`；恢复 `screensaver_enabled=1`、`screen_off_timeout=600000`、`svc power stayon false` | 应用已移除，临时文件 0 个，休眠设置已还原 |
 | vivo V2520A | 本轮全程离线（mDNS 无广播、5555 refused），未做任何操作 | 0.8.1 由用户自行通过应用内更新安装 |
+
+## 2026-10-24 · M4-2 DNS 埋点（采样待设备）
+
+**埋点**：`DnsMetrics`（core:data，@Singleton）——512 条定长环，4 KB，记录每次解析的耗时与来源（`DOH` / `FALLBACK` / `CACHE` / `LITERAL` / `FAILED`），百分位用**最近秩**（不插值：p95 报"27.4ms"是样本给不出的精度）。
+
+**接入点**：
+- `DohResolver.resolve/resolveStrict`：DoH 成功、系统回退、失败三条路径都记；
+- `NodeCountryResolver` 的进程内记忆命中记 `CACHE`（这就是"缓存命中标记"）；
+- 开关在**开发者选项**（默认开，关掉即停止记录，环里已有数据保留）。
+
+**UI**：开发者选项里一行开关 + 一行统计（`n 次 · p50 · p95 · 回退% · 缓存%`）+ 清除，屏幕可见时每 2 秒刷新一次（不让 DNS 路径去驱动 UI）。
+
+**测试**：`DnsMetricsTest` 6 条——空环不编数、最近秩、5 样本的 p95、环滚动只留最新 512、缓存/回退占比、关掉开关后不再记录且不丢已有。
+
+**未完成**：≥200 次真实采样。电视在恢复休眠设置后已进入待机（`ping` 不通、ARP INCOMPLETE），手机仍离线；两项都拿不到设备。等设备回来跑：节点页「测试全部」100 次（每次 2 个节点 = 2 次解析），然后读开发者选项那行。

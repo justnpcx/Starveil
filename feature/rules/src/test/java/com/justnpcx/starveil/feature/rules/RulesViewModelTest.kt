@@ -213,6 +213,7 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     private val packs = MutableStateFlow<Set<String>>(emptySet())
     override val subscribedRulePacks: Flow<Set<String>> = packs
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
+    override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
     override val onboardingDone: Flow<Boolean> = flowOf(true)
 
     override val autoReconnect: Flow<Boolean> get() = notUsed()
@@ -240,6 +241,7 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
         packs.value = if (subscribed) packs.value + id else packs.value - id
     }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
+    override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }

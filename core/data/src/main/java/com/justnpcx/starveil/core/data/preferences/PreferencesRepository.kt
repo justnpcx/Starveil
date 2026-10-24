@@ -102,6 +102,15 @@ interface PreferencesRepository {
     val localApiEnabled: Flow<Boolean>
 
     /**
+     * Whether DNS timings are sampled (developer options).
+     *
+     * On by default: the ring is 4 KB and the point of the metric is to be
+     * there when someone asks. The switch exists so it can be turned off, not
+     * so it has to be turned on.
+     */
+    val dnsMetricsEnabled: Flow<Boolean>
+
+    /**
      * Whether the three-step onboarding has been completed or skipped.
      *
      * One flag, written by either ending: "skip" is an answer, and asking
@@ -184,6 +193,8 @@ interface PreferencesRepository {
 
     suspend fun setLocalApiEnabled(enabled: Boolean)
 
+    suspend fun setDnsMetricsEnabled(enabled: Boolean)
+
     suspend fun setOnboardingDone(done: Boolean)
 
     suspend fun setScenes(scenes: List<Scene>)
@@ -234,6 +245,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val RULE_PACKS = stringPreferencesKey("subscribed_rule_packs")
         val LOCAL_API = booleanPreferencesKey("local_api_enabled")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+
+        val DNS_METRICS = booleanPreferencesKey("dns_metrics_enabled")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
@@ -319,6 +332,9 @@ class DataStorePreferencesRepository @Inject constructor(
                 .toSet()
         }
 
+    override val dnsMetricsEnabled: Flow<Boolean> = dataStore.data
+        .map { it[Keys.DNS_METRICS] ?: true }
+
     override val localApiEnabled: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.LOCAL_API] ?: false }
@@ -353,6 +369,10 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setLocalApiEnabled(enabled: Boolean) {
         dataStore.edit { it[Keys.LOCAL_API] = enabled }
+    }
+
+    override suspend fun setDnsMetricsEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.DNS_METRICS] = enabled }
     }
 
     override suspend fun setOnboardingDone(done: Boolean) {

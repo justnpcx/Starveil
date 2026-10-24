@@ -8,6 +8,8 @@ import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
+import com.justnpcx.starveil.core.data.geo.DnsMetrics
+import com.justnpcx.starveil.core.data.geo.DnsSnapshot
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.update.UpdateCheck
 import com.justnpcx.starveil.core.data.update.UpdateChecker
@@ -21,6 +23,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +52,10 @@ data class SettingsUiState(
     val crashReports: Boolean = true,
     /** Whether the local Clash-compatible API is served. Off unless asked for. */
     val localApiEnabled: Boolean = false,
+    /** Whether DNS timings are sampled (developer options). */
+    val dnsMetricsEnabled: Boolean = true,
+    /** The current ring, as the developer options row shows it. */
+    val dnsStats: DnsSnapshot = DnsSnapshot.EMPTY,
     /**
      * The bearer token a dashboard must send. Empty until the Keystore read
      * lands, and never logged.
@@ -95,6 +102,7 @@ class SettingsViewModel @Inject constructor(
     private val updateChecker: UpdateChecker,
     private val updateDownloader: UpdateDownloadPort,
     private val localApiToken: LocalApiTokenStore,
+    private val metrics: DnsMetrics,
 ) : ViewModel() {
 
     private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
@@ -194,7 +202,15 @@ class SettingsViewModel @Inject constructor(
     /** Read from the Keystore once, off the main thread. */
     private val apiToken = MutableStateFlow("")
 
+    /** Declared before the init block, which reads it. */
+    private val dnsStatsFlow = MutableStateFlow(DnsSnapshot.EMPTY)
+
     init {
+        // The ring is on unless the switch says otherwise; the stored value is
+        // the source of truth, and the metric has no opinion of its own.
+        viewModelScope.launch {
+            metrics.enabled = preferences.dnsMetricsEnabled.first()
+        }
         // Read once. It is a build constant, and Settings is the one place it
         // is worth showing — a bug report needs to name the core it ran.
         viewModelScope.launch { kernelVersion.value = kernel.version() }
@@ -228,21 +244,42 @@ class SettingsViewModel @Inject constructor(
             // says which.
             preferences.perAppRoutes.map { it.size },
             crashReports,
-            preferences.localApiEnabled,
-        ) { state, version, perAppCount, reports, apiEnabled ->
+            combine(
+                preferences.localApiEnabled,
+                preferences.dnsMetricsEnabled,
+            ) { api, dns -> api to dns },
+        ) { state, version, perAppCount, reports, apiAndDns ->
             state.copy(
                 kernelVersion = version,
                 perAppDirectCount = perAppCount,
                 crashReports = reports,
-                localApiEnabled = apiEnabled,
+                localApiEnabled = apiAndDns.first,
+                dnsMetricsEnabled = apiAndDns.second,
             )
         }.combine(apiToken) { state, token ->
             state.copy(apiToken = token)
+        }.combine(dnsStatsFlow) { state, stats ->
+            state.copy(dnsStats = stats)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = SettingsUiState(),
         )
+
+    /** Read the ring into the row; called while the developer group is open. */
+    fun refreshDnsStats() {
+        dnsStatsFlow.value = metrics.snapshot()
+    }
+
+    fun clearDnsStats() {
+        metrics.clear()
+        dnsStatsFlow.value = DnsSnapshot.EMPTY
+    }
+
+    fun setDnsMetricsEnabled(enabled: Boolean) {
+        metrics.enabled = enabled
+        viewModelScope.launch { preferences.setDnsMetricsEnabled(enabled) }
+    }
 
     fun setKillSwitchMode(mode: KillSwitchMode) {
         viewModelScope.launch { preferences.setKillSwitchMode(mode) }

@@ -860,6 +860,7 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
+    override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
     override val onboardingDone: Flow<Boolean> = flowOf(true)
     override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = notUsed()
@@ -878,6 +879,7 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
+    override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }

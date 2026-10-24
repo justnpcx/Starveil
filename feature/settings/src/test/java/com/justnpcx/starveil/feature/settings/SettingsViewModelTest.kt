@@ -8,6 +8,7 @@ import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
 import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
+import com.justnpcx.starveil.core.data.geo.DnsMetrics
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -82,6 +83,7 @@ class SettingsViewModelTest {
             UpdateChecker(),
             NoDownloads(),
             FakeTokens,
+            DnsMetrics(),
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -96,7 +98,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens)
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics())
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -116,7 +118,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens)
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics())
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -138,6 +140,7 @@ class SettingsViewModelTest {
             UpdateChecker(),
             NoDownloads(),
             FakeTokens,
+            DnsMetrics(),
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -176,6 +179,7 @@ private class FakePreferences : PreferencesRepository {
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     private val localApi = MutableStateFlow(false)
     override val localApiEnabled: Flow<Boolean> = localApi
+    override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
     override val onboardingDone: Flow<Boolean> = flowOf(true)
     override val killSwitchMode: Flow<KillSwitchMode> = flowOf(KillSwitchMode.OFF)
     override val lastLeakCheck: Flow<LeakCheckRecord> = flowOf(LeakCheckRecord())
@@ -185,6 +189,7 @@ private class FakePreferences : PreferencesRepository {
     override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { localApi.value = enabled }
+    override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()

@@ -35,6 +35,8 @@ class DohResolver(
     // No-op by default so a JVM test does not need android.util.Log; the DI
     // provider passes the logcat one.
     private val warn: (String) -> Unit = {},
+    /** Where the timing samples go; null in tests that do not care. */
+    private val metrics: DnsMetrics? = null,
 ) {
 
     // Eight at once: a subscription can hold hundreds of nodes, and the point
@@ -53,12 +55,24 @@ class DohResolver(
         if (host.isBlank()) return null
         // A literal address needs no lookup; asking would be a round trip for
         // something already known.
-        if (isIpLiteral(host)) return host
+        if (isIpLiteral(host)) {
+            metrics?.record(0L, DnsOutcome.LITERAL)
+            return host
+        }
 
-        resolveOverDoh(host)?.let { return it }
+        val startedAt = System.nanoTime()
+        resolveOverDoh(host)?.let {
+            metrics?.record(elapsedMs(startedAt), DnsOutcome.DOH)
+            return it
+        }
 
         warn("DoH unavailable; falling back to the system resolver for a node host")
-        return fallback(host)
+        val answer = fallback(host)
+        metrics?.record(
+            elapsedMs(startedAt),
+            if (answer != null) DnsOutcome.FALLBACK else DnsOutcome.FAILED,
+        )
+        return answer
     }
 
     /**
@@ -71,8 +85,17 @@ class DohResolver(
      */
     suspend fun resolveStrict(host: String): String? {
         if (host.isBlank()) return null
-        if (isIpLiteral(host)) return host
-        return resolveOverDoh(host)
+        if (isIpLiteral(host)) {
+            metrics?.record(0L, DnsOutcome.LITERAL)
+            return host
+        }
+        val startedAt = System.nanoTime()
+        val answer = resolveOverDoh(host)
+        metrics?.record(
+            elapsedMs(startedAt),
+            if (answer != null) DnsOutcome.DOH else DnsOutcome.FAILED,
+        )
+        return answer
     }
 
     /**
@@ -118,6 +141,8 @@ class DohResolver(
 
     private companion object {
         const val TAG = "StarveilDoh"
+
+        fun elapsedMs(startedAtNanos: Long): Long = (System.nanoTime() - startedAtNanos) / 1_000_000
         const val DNS_MESSAGE = "application/dns-message"
         const val MAX_CONCURRENT = 8
         const val TIMEOUT_MS = 3_000

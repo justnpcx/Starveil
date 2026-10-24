@@ -24,13 +24,16 @@ class NodeCountryResolver(
     private val resolveHost: suspend (String) -> String?,
     private val lookupCountry: (String) -> String?,
     private val nowMs: () -> Long,
+    /** Counted as a DNS sample so the cache-hit share is visible next to p50. */
+    private val onCacheHit: () -> Unit = {},
 ) : CountryResolver {
 
     @Inject
-    constructor(geo: GeoIpLookup, dns: DohResolver) : this(
+    constructor(geo: GeoIpLookup, dns: DohResolver, metrics: DnsMetrics) : this(
         resolveHost = { host -> dns.resolve(host) },
         lookupCountry = { address -> geo.countryCode(address) },
         nowMs = System::currentTimeMillis,
+        onCacheHit = { metrics.record(0L, DnsOutcome.CACHE) },
     )
 
     private val resolved = ConcurrentHashMap<String, String>()
@@ -50,7 +53,10 @@ class NodeCountryResolver(
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
 
     override suspend fun countryOf(host: String): String? = withContext(Dispatchers.IO) {
-        resolved[host]?.let { return@withContext it }
+        resolved[host]?.let {
+            onCacheHit()
+            return@withContext it
+        }
 
         val failed = failedAt[host]
         if (failed != null && nowMs() - failed < FAILURE_RETRY_MS) return@withContext null

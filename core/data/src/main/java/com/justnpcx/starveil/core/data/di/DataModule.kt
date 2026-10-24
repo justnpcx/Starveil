@@ -17,6 +17,7 @@ import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepositor
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.backup.RestoreTransaction
 import com.justnpcx.starveil.core.data.backup.RoomRestoreTransaction
+import com.justnpcx.starveil.core.data.geo.DnsMetrics
 import com.justnpcx.starveil.core.data.geo.DohResolver
 import com.justnpcx.starveil.core.data.network.AndroidLocalSubnets
 import com.justnpcx.starveil.core.data.network.LocalSubnets
@@ -85,8 +86,9 @@ object DataModule {
      */
     @Provides
     @Singleton
-    fun provideDohResolver(): DohResolver = DohResolver(
+    fun provideDohResolver(metrics: DnsMetrics): DohResolver = DohResolver(
         warn = { android.util.Log.w("StarveilDoh", it) },
+        metrics = metrics,
     )
 
     @Provides

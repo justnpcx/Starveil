@@ -47,6 +47,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -308,6 +309,56 @@ fun SettingsScreen(
         // ---- Developer options ---------------------------------------------
         StarveilGroupHeader(stringResource(R.string.settings_group_developer))
         SettingsCard {
+            // The ring only changes while something resolves, so the row reads
+            // it on a slow tick rather than making every lookup flow into the
+            // UI: a settings screen has no business observing the DNS path.
+            LaunchedEffect(Unit) {
+                while (true) {
+                    viewModel.refreshDnsStats()
+                    delay(DNS_STATS_REFRESH_MS)
+                }
+            }
+            SwitchRow(
+                title = stringResource(R.string.settings_dns_metrics_title),
+                description = stringResource(R.string.settings_dns_metrics_desc),
+                checked = state.dnsMetricsEnabled,
+                onCheckedChange = viewModel::setDnsMetricsEnabled,
+            )
+            if (state.dnsMetricsEnabled) {
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                Column(
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        top = StarveilSpacing.md,
+                        bottom = StarveilSpacing.sm,
+                    ),
+                ) {
+                    Text(
+                        text = if (state.dnsStats.samples == 0) {
+                            stringResource(R.string.settings_dns_metrics_empty)
+                        } else {
+                            stringResource(
+                                R.string.settings_dns_metrics_stats,
+                                state.dnsStats.samples,
+                                state.dnsStats.p50Ms,
+                                state.dnsStats.p95Ms,
+                                state.dnsStats.fallbackPct,
+                                state.dnsStats.cacheHitPct,
+                            )
+                        },
+                        style = StarveilType.log,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                    LinkText(
+                        text = stringResource(R.string.settings_dns_metrics_clear),
+                        enabled = state.dnsStats.samples > 0,
+                        onClick = viewModel::clearDnsStats,
+                    )
+                }
+            }
+            StarveilDivider(startInset = StarveilSpacing.lg)
             SwitchRow(
                 title = stringResource(R.string.settings_local_api_title),
                 description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
@@ -668,6 +719,9 @@ private fun BackupMessage.text(): String = when (this) {
 
 /** Enough entropy that guessing is not the cheapest attack on the file. */
 private const val MIN_PASSPHRASE = 8
+
+/** How often the DNS row re-reads its ring while the screen is open. */
+private const val DNS_STATS_REFRESH_MS = 2_000L
 
 private fun defaultBackupFileName(): String {
     val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())

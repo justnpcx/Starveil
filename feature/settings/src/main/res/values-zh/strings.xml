@@ -146,4 +146,9 @@
     <string name="settings_group_developer">开发者选项</string>
     <string name="settings_group_about">关于</string>
     <string name="settings_version_title">Starveil</string>
+    <string name="settings_dns_metrics_title">DNS 采样</string>
+    <string name="settings_dns_metrics_desc">记录每次解析耗时，保留最近 512 次。占 4 KB，默认开启。</string>
+    <string name="settings_dns_metrics_empty">暂无样本。</string>
+    <string name="settings_dns_metrics_stats">%1$d 次 · p50 %2$d ms · p95 %3$d ms · 回退 %4$d%% · 缓存 %5$d%%</string>
+    <string name="settings_dns_metrics_clear">清除样本</string>
 </resources>

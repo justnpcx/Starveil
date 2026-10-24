@@ -213,6 +213,7 @@ private class FakePreferences : PreferencesRepository {
     override val blockAds: Flow<Boolean> = flowOf(false)
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
+    override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
     override val killSwitchMode: Flow<KillSwitchMode> get() = notUsed()
     override val selectedGroupId: Flow<Long> get() = notUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = notUsed()
@@ -232,6 +233,7 @@ private class FakePreferences : PreferencesRepository {
     override suspend fun setBlockAds(enabled: Boolean) = notUsed()
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) = notUsed()
     override suspend fun setLocalApiEnabled(enabled: Boolean) = notUsed()
+    override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = notUsed()
     override suspend fun setScenes(scenes: List<Scene>) = notUsed()
     override suspend fun recordManualPresetChange(atEpochMs: Long) = notUsed()
