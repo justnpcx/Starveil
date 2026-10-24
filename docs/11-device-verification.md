@@ -648,3 +648,22 @@ adb logcat -d | grep -E 'StarveilDoh|falling back'
 - 规则市场副标题单行：`Curated packs, pinned and hash-checked` 单行显示（`maxLines=1` + 省略号，与语言无关，中文词内断行同样不会再发生）。
 
 截图：`docs/recordings/obsidian-fixes-2026-10-24/`。
+
+## 2026-10-24 · M4-1 1000 节点滚动
+
+**夹具**：`app/src/benchmark/.../SeedReceiver.kt`（仅 benchmark 变体，release 包里没有这个 receiver）。广播 `com.justnpcx.starveil.benchmark.SEED` 写入 1000 个节点：12 个地区的国旗/中文名、vless 协议、两种端口、每节点 6 条延迟样本（40–320ms，每 25 个节点最后一条为超时）。写完后在外部目录落一个 `seed.done` 标记，benchmark 读到才继续。
+
+**测量**（Fire TV AFTKRT，1920×1080 override / 60Hz 面板 / 32 位）：
+
+| 场景 | 帧数 | fps | Janky | p50 | p90 | p95 | p99 |
+|---|---|---|---|---|---|---|---|
+| 稳态滚动（3 次 fling，中位） | 743 | **29.9** | **0.0%** | 6ms | 8ms | 8ms | 10ms |
+| 打开列表后第一次滚动 | 386 | — | **31.9%** | 11ms | 32ms | 46ms | 69ms |
+
+方法：`dumpsys gfxinfo <pkg> reset` → `input swipe`（fling，80ms）→ 2.5s → `dumpsys gfxinfo`，取 `Total frames rendered` / `Janky frames` / 百分位；fps = 帧数 ÷ 墙钟窗口。三次试验取中位。
+
+**结论**：
+- 稳态下 1000 行列表 **0% 掉帧**，单帧 p99 10ms，远在 16.7ms 预算内；29.9fps 是这台电视在 1080p override 下的合成节奏（60Hz 面板、每两个 vsync 出一帧），不是丢帧——gfxinfo 的 Janky 计数为 0 也印证了这点。
+- 唯一真正的掉帧在**打开列表后的第一次滚动**（31.9%），属于首屏组合 + 首帧绑定的一次性成本，是后续要优化的点。
+
+**Macrobenchmark**：`NodesScrollBenchmark` 已随夹具入库，但在本机跑不通——`UiDevice.click()` 与 `input tap` 在这台电视上对 Compose 底部导航的首次点击会被吞掉（屏幕休眠也会介入），多次重试仍不稳定。上面的数字因此来自同一夹具上的 gfxinfo framestats。手机恢复连接后应补一次 Macrobenchmark 的 `FrameTimingMetric` 结果。

@@ -12,5 +12,14 @@
         <profileable
             android:shell="true"
             tools:targetApi="29" />
+
+        <!--
+          Seeding for the scroll benchmark. Benchmark variant only, and exported
+          only there: a release build has no such receiver, so nothing can push
+          a thousand rows into a shipped app.
+        -->
+        <receiver
+            android:name=".benchmark.SeedReceiver"
+            android:exported="true" />
     </application>
 </manifest>
