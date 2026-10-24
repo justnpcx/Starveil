@@ -208,5 +208,5 @@ private fun AppLogLevel.colour(): Color = when (this) {
     AppLogLevel.DEBUG -> StarveilColors.ink3
     AppLogLevel.INFO -> StarveilColors.ink2
     AppLogLevel.WARN -> StarveilColors.warn
-    AppLogLevel.ERROR -> StarveilColors.err
+    AppLogLevel.ERROR -> StarveilColors.errText
 }
