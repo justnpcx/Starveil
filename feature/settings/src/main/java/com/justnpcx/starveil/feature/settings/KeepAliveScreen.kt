@@ -166,9 +166,9 @@ private fun KeepAliveRow(
                         text = status,
                         style = StarveilType.label,
                         color = if (statusIsWarning) {
-                            StarveilColors.err
+                            StarveilColors.errText
                         } else {
-                            StarveilColors.accent
+                            StarveilColors.accentText
                         },
                     )
                 }
