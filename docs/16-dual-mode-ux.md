@@ -46,7 +46,7 @@ Starveil 的自我定位同时是「极客自用神器」和「Top 1 大众产�
 每一步都有现成实现，平民模式只是把它们串起来，并给出一个「正在准备…」的进度态：
 
 | 步骤 | 现有能力 |
-| --- | --- |
+|---|---|
 | 规则集 | `MainlandRuleSetStore.ensure()` / `ensureAds()` |
 | 批量探测 | `NodeHealthBatchProbe.run()`（每节点一次 TCP 握手） |
 | 选点 | `NodePicker.recommend()` |

@@ -8,7 +8,7 @@ telemetry about what anyone subscribes to.
 ## What is in phase one
 
 | Pack | Source (`SagerNet/sing-geosite`) | Action | Why |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | Ads and telemetry | `geosite-category-ads-and-telemetry.srs` | reject | The built-in ad switch covers `category-ads-all`; this adds software telemetry. |
 | Telemetry only | `geosite-category-telemetry.srs` | reject | Analytics and crash reporting blocked without blocking ads. |
 | Streaming | `geosite-category-entertainment.srs` | proxy | The list is explicitly "outside China mainland", so domestic video is not dragged through the tunnel with it. |

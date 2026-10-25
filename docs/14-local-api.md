@@ -59,7 +59,7 @@ A missing or wrong token returns `401 Unauthorized` before any handler runs.
 The minimal set, as served by the pinned core:
 
 | Method | Path | What it returns |
-| --- | --- | --- |
+|---|---|---|
 | GET | `/traffic` | Up/down byte rates, one JSON object per line (streaming) |
 | GET | `/proxies` | Every proxy and group, with the selected member |
 | GET | `/connections` | Active connections, with host, rule and chain |

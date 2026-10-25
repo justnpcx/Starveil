@@ -11,7 +11,7 @@
 ## 对比对象
 
 | 应用 | 版本（执行时记录） | 备注 |
-| --- | --- | --- |
+|---|---|---|
 | Starveil | 当前 release tag | 被测对象 |
 | NekoBox | 执行时最新稳定版 | sing-box 系 |
 | Hiddify | 执行时最新稳定版 | sing-box 系 |
@@ -23,7 +23,7 @@
 ## 指标与定义
 
 | 指标 | 定义 | 采集方式 |
-| --- | --- | --- |
+|---|---|---|
 | 冷启动 TTID | 点击图标到首帧可见 | `adb shell am start -W <pkg>/.MainActivity` 的 `TotalTime`，10 次取中位数，每次前 `am force-stop` |
 | 1000 节点滑动掉帧率 | 节点列表滚动时的 janky frame 比例 | 导入 1000 节点订阅，固定脚本滑动 20 次，`dumpsys gfxinfo <pkg> framestats` 统计；报告总帧数、janky 帧数、比例 |
 | 常驻空闲 PSS | 连接后静置 5 分钟的总 PSS | `dumpsys meminfo <pkg> \| grep "TOTAL PSS"`，3 次取中位 |
