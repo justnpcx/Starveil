@@ -992,7 +992,7 @@ tests=9 failures=0 errors=0 time=26.086s
 
 **① 当前即最优时连点 → 应 0 提示、节点不变：通过**
 
-实测：导入订阅后第一次点「Auto select」选中了节点（日志 `switched none → HY2+Reality-hy2-443, delta 0 pts (0 → 0)`，因为此前没有在用的节点，属预期）；随后再点 4 次，日志全部是：
+实测：导入订阅后第一次点「Auto select」选中了节点（日志 `switched none → HY2+Reality-hy2-443, delta 0 pts (0 → 0)`，因为此前没有在用的节点，属预期）；随后再点 4 次，日志全部是（当时两个节点都还没有读数，所以分数是 0；有读数之后的 `kept` 见 ② 的第二段）：
 
 ```
 auto-select: probes=TCP node.example.com:443; cooldown=30min, margin=3pts(≈10ms);
@@ -1020,3 +1020,5 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 - 分数不是编的：10099 = 可用率 100% × 100 + 延迟满分 99（4ms 已到下限），10063 = 同一可用率、延迟约 177ms。
 
 **过程中的一个插曲（对用户报的现象有解释力）**：第一次尝试时两个节点都是 `untested`，日志里 `scores 0, delta 0`，怎么点都不切——因为**没有任何读数时所有节点同分，粘性规则正确地不让它动**。这也说明"自动选择从不切换"的观感，很可能是"没有可用读数"，而不是切换逻辑坏了。
+
+**V-2 结论：两条都通过**（设备 Fire TV；行为类，不涉及帧率/延迟/DNS/后台）。验证的是 P0-5 的切换与防抖逻辑本身；手机接入后无需重测 V-2，除非要复核点击手感（那属于 P1-11）。
