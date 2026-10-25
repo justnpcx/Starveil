@@ -949,3 +949,24 @@ tests=9 failures=0 errors=0 time=26.086s
 **本次改动**：`ProfilesScreen` 用 `state.health` 分出 `NodeStatus.DOWN` 的行，默认不渲染；卡片底部加一行 `N 个超时 · 显示` / `收起 N 个超时节点`（`accentText`，点击切换）。数据不动，只是不画。没有超时节点时这一行不出现。文案双语已过 `checkTranslations`（514 条全译）。
 
 **未做（任务书验收项）**：1000 节点合成订阅的手机 Macrobenchmark。手机 192.168.50.140 可达但 5555 关闭，按规矩 8 不能拿 Fire TV 的数顶替，本项帧率留待手机接入后补测；夹具与 benchmark 已在仓库（`app/src/benchmark`、`benchmark/`）。
+
+## 2026-10-25 · P2-12 / P2-13 / P2-14 结论
+
+### P2-12 QS Tile / Widget / 通知：已核查，无需新增
+
+现有三处一键入口：`StarveilTileService`（快捷设置磁贴）、`StarveilWidget`（Glance 桌面小组件，显示状态并可点进应用）、通知上的 `DisconnectReceiver`（`ACTION_DISCONNECT`）。任务书要求「只做用户一键可达的动作，不要堆新入口」——连接 / 断开 / 查看状态这三件事已经各自有一处可达，再加 START / STOP / TOGGLE 广播只是给自动化工具开的口子，不是给用户的一键入口。**关项，不新增。**
+
+### P2-13 多订阅合并 / 过滤 / 去重：按任务书暂缓
+
+任务书写明「P0 / P1 没做完不要提前做」。当前 P0 只完成 P0-5 与 P0-1 的非帧率部分，P1 未开工，因此本项**不启动**。
+
+### P2-14 Android 性能基线：方法已定，数值待手机
+
+**方法（写进本文件，后续每轮照此测）**：
+
+1. 机型与系统版本、是否充电、屏幕亮度、是否飞行模式，逐项记录；一次基线内不得变化。
+2. workload 固定为：冷启动进首页 → 停留 30s → 切节点页 → 1000 节点夹具上 3 次 fling → 切规则/日志/设置各一次 → 返回首页。
+3. 指标：`dumpsys gfxinfo <pkg> framestats` 的掉帧率与 p95 帧间隔；`am start -W` 的 TotalTime；`dumpsys meminfo <pkg>` 的 PSS；一轮 10 分钟的 `dumpsys batterystats` 差值作能耗参考。
+4. 每项测 3 次取中位，原始数写进本文件，不写「整体达标」这种汇总。
+
+**本轮没有数值**：手机 192.168.50.140 可达但 5555 关闭（无线调试未开），按规矩 8 不能拿 Fire TV 的数顶替。方法已定，等手机接入后按上述 workload 补首轮基线。
