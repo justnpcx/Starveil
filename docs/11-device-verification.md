@@ -995,7 +995,7 @@ tests=9 failures=0 errors=0 time=26.086s
 实测：导入订阅后第一次点「Auto select」选中了节点（日志 `switched none → HY2+Reality-hy2-443, delta 0 pts (0 → 0)`，因为此前没有在用的节点，属预期）；随后再点 4 次，日志全部是：
 
 ```
-auto-select: probes=TCP api.justnpc.com:443; cooldown=30min, margin=3pts(≈10ms);
+auto-select: probes=TCP node.example.com:443; cooldown=30min, margin=3pts(≈10ms);
   kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 0, delta 0 < 3
 ```
 
@@ -1003,4 +1003,4 @@ auto-select: probes=TCP api.justnpc.com:443; cooldown=30min, margin=3pts(≈10ms
 
 **② 制造明显更优节点后再触发 → 应仅提示 1 次且真切换：未验证**
 
-卡在两个节点都测不出延迟：`untested`，分数 0，`delta 0`，无法制造「明显更优」。电视上对 `api.justnpc.com:443/2053` 的 TCP 探测当前不返回（同一条订阅早些时候在电视上能测出 3–5ms，现在不行，怀疑节点侧或网络侧变化）。没有可用读数就不写结论，等手机接入后按 V-2 脚本补 ②。
+卡在两个节点都测不出延迟：`untested`，分数 0，`delta 0`，无法制造「明显更优」。电视上对订阅里那两个端口的 TCP 探测当前不返回（同一条订阅早些时候在电视上能测出 3–5ms，现在不行，怀疑节点侧或网络侧变化）。没有可用读数就不写结论，等手机接入后按 V-2 脚本补 ②。
