@@ -1491,3 +1491,11 @@ val inGroup = when {
 - 渐隐色取 `surfaceSolid`，因为这一行在对话框里（与 F-1 同一个实色面）；颜色在 draw 块外读好再传进去（`StarveilColors` 是 composable 查找，`drawWithContent` 不是 composable 作用域）。
 
 **阻塞**：手机锁屏，无法取「修前截断 / 修后渐隐」的真机截图。
+
+## 2026-10-26 · F-4 首页上行速率单位断行（代码完成，截图待手机解锁）
+
+**现状**：`SpeedColumn` 里数字和单位是两个 `Text`，单位没有禁换行。上行 `1003 B/s` 时，`B/s` 在斜杠处断成 `B/` + `s`。
+
+**修法**：两个 `Text` 都加 `softWrap = false` + `maxLines = 1`。数值格式、单位换算、字阶（`display` + `tnum`、单位 13sp）一律没动。
+
+**阻塞**：手机锁屏，无法取 1003 B/s / 1023 KB/s / 1.0 MB/s 三档的真机截图。
