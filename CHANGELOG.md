@@ -8,6 +8,40 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.3] — 2026-10-25
+
+### Changed
+
+- **The app has a new face: frosted glass.** A light page with an ambient
+  gradient, translucent white cards with a 1dp highlight edge, one blue for
+  marks, and no glow anywhere. The old face — pure black under a saturated
+  cyan ring with a halo — was too harsh to look at for long; this one caps the
+  page at 14.3:1 instead of 21:1, and spends the accent on lines and dots
+  rather than fills.
+- **The ring is a line.** Same size and position in every state, no halo:
+  connected is one blue stroke, connecting adds a rotating highlight on the
+  ring, warning is amber, blocked is red.
+- **The health curve fills at 14% and fades to nothing**, instead of a
+  saturated block under the line.
+- **The node list reserves 72dp on the right**, so the latency column never
+  passes under the add button while scrolling.
+
+### Fixed
+
+- **The connecting sweep was drawn outside the ring.** `drawArc` defaults to
+  the canvas's radius, which is 22dp wider than the ring; the arc now shares
+  the ring's radius. It was there on the dark face too, invisible against
+  black.
+- **Accent and error text use their own grades** (`#0066CC`, `#BE3238`).
+  The mark colours are 4.01:1 and 3.33:1 as body text on the new page, which
+  is under AA.
+
+### Notes
+
+- The ambient background is rendered into a bitmap once per size and blitted
+  afterwards. Shading it every frame cost 97% janky frames on a Fire TV; the
+  baked version measures 4.7%, the same as 0.8.1.
+
 ## [0.8.2] — 2026-10-24
 
 ### Added
