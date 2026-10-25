@@ -5,6 +5,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -163,6 +164,11 @@ fun RulesScreen(
                 // The preset is a switch, not a rule: it is a whole routing
                 // policy, and it belongs above both the decisions it produces
                 // and the rules it sits in front of.
+                if (state.beginnerMode) {
+                    item(key = BEGINNER_KEY) {
+                        BeginnerCard(onCustomize = viewModel::exitBeginnerMode)
+                    }
+                }
                 item(key = PRESET_KEY) {
                     RoutePresetCard(
                         preset = state.preset,
@@ -921,6 +927,7 @@ private fun FlowOutcome.colour(): Color = when (this) {
 
 /** Keys and counts for the flow section. */
 private const val FLOW_HEADER_KEY = "flow-header"
+private const val BEGINNER_KEY = "beginner"
 private const val PRESET_KEY = "mainland-preset"
 
 /** Matches the node card on the Nodes screen; the two are the same kind of thing. */
@@ -1258,3 +1265,47 @@ private fun PresetRow(
 
 /** Where a preset row's text starts: the card's padding, the mark, the gap. */
 private val TEXT_COLUMN_INSET = 48.dp
+
+/**
+ * What a new user gets before they touch anything.
+ *
+ * Not a modal and not a separate screen: it sits at the top of the rules page,
+ * says what is already in force in three lines, and gets out of the way with
+ * one tap. The controls underneath stay live — this is an explanation, not a
+ * mode the app enforces.
+ */
+@Composable
+private fun BeginnerCard(onCustomize: () -> Unit) {
+    StarveilCard {
+        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+            Text(
+                text = stringResource(R.string.rules_beginner_title),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+            )
+            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+            listOf(
+                R.string.rules_beginner_domestic,
+                R.string.rules_beginner_abroad,
+                R.string.rules_beginner_ads,
+            ).forEach { line ->
+                Text(
+                    text = "· " + stringResource(line),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.padding(vertical = 2.dp),
+                )
+            }
+            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+            Text(
+                text = stringResource(R.string.rules_beginner_customize),
+                style = StarveilType.label,
+                color = StarveilColors.accentText,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(StarveilSpacing.xs))
+                    .clickable(role = Role.Button, onClick = onCustomize)
+                    .padding(vertical = StarveilSpacing.xs),
+            )
+        }
+    }
+}

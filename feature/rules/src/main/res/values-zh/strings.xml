@@ -36,6 +36,11 @@
     <string name="rules_save">保存</string>
     <string name="rules_cancel">取消</string>
 
+    <string name="rules_beginner_title">新手模式</string>
+    <string name="rules_beginner_domestic">国内网站直连</string>
+    <string name="rules_beginner_abroad">其余流量走代理</string>
+    <string name="rules_beginner_ads">广告与追踪已拦截</string>
+    <string name="rules_beginner_customize">自定义</string>
     <string name="rules_fallback_title">其余流量</string>
     <string name="rules_edit">编辑</string>
     <string name="rules_delete">删除</string>

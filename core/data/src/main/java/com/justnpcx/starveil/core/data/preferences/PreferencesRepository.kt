@@ -81,6 +81,20 @@ interface PreferencesRepository {
      */
     val routePreset: Flow<RoutePreset>
 
+    /**
+     * True until the user has made any routing choice of their own.
+     *
+     * Derived, not stored: the moment a preset is written the beginner setup
+     * stops applying. That keeps "novice mode" from becoming a second source of
+     * truth that can disagree with the routing actually in force.
+     */
+    val beginnerMode: Flow<Boolean>
+        /** A fake that never chose is not in beginner mode. */
+        get() = kotlinx.coroutines.flow.flowOf(false)
+
+    /** Keeps the beginner defaults and stops calling them defaults. */
+    suspend fun exitBeginnerMode() = Unit
+
     /** Whether advertising domains are rejected, whatever the preset is. */
     val blockAds: Flow<Boolean>
 
@@ -314,11 +328,31 @@ class DataStorePreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.BYPASS_MAINLAND] = enabled }
     }
 
+    override val beginnerMode: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.ROUTE_PRESET] == null && prefs[Keys.BYPASS_MAINLAND] == null }
+
+    override suspend fun exitBeginnerMode() {
+        dataStore.edit { prefs ->
+            // Write what is already in force, so leaving beginner mode does
+            // not change routing — it only makes the choice explicit.
+            if (prefs[Keys.ROUTE_PRESET] == null) {
+                prefs[Keys.ROUTE_PRESET] = RoutePreset.BYPASS_MAINLAND.name
+            }
+            if (prefs[Keys.BLOCK_ADS] == null) {
+                prefs[Keys.BLOCK_ADS] = true
+            }
+        }
+    }
+
     override val routePreset: Flow<RoutePreset> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs ->
             prefs[Keys.ROUTE_PRESET]?.let(RoutePreset::fromStorage)
-                ?: if (prefs[Keys.BYPASS_MAINLAND] == true) RoutePreset.BYPASS_MAINLAND else RoutePreset.GLOBAL_PROXY
+                // No stored choice: a new user gets the beginner setup, which
+                // is domestic direct and everything else through the tunnel.
+                ?: if (prefs[Keys.BYPASS_MAINLAND] == false) RoutePreset.GLOBAL_PROXY
+                else RoutePreset.BYPASS_MAINLAND
         }
 
     override val scenes: Flow<List<Scene>> = dataStore.data
@@ -339,7 +373,7 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override val blockAds: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.BLOCK_ADS] ?: false }
+        .map { prefs -> prefs[Keys.BLOCK_ADS] ?: (prefs[Keys.ROUTE_PRESET] == null && prefs[Keys.BYPASS_MAINLAND] == null) }
 
     override val subscribedRulePacks: Flow<Set<String>> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }

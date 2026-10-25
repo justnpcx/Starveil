@@ -44,6 +44,9 @@ data class RulesUiState(
      * at connect time.
      */
     val preset: RoutePreset = RoutePreset.GLOBAL_PROXY,
+
+    /** True until the user has made a routing choice; drives the beginner card. */
+    val beginnerMode: Boolean = false,
     /** Whether advertising domains are rejected, on top of any preset. */
     val blockAds: Boolean = false,
     /**
@@ -129,7 +132,8 @@ class RulesViewModel @Inject constructor(
     private val packs = combine(
         preferences.subscribedRulePacks,
         packStore.failure,
-    ) { subscribed, failure -> subscribed to failure }
+        preferences.beginnerMode,
+    ) { subscribed, failure, beginner -> Triple(subscribed, failure, beginner) }
 
     val uiState: StateFlow<RulesUiState> =
         combine(
@@ -147,10 +151,11 @@ class RulesViewModel @Inject constructor(
                 blockAds = ads,
                 ruleSetFailure = failure,
             )
-        }.combine(packs) { state, (subscribed, packFailure) ->
+        }.combine(packs) { state, (subscribed, packFailure, beginner) ->
             state.copy(
                 subscribedPacks = subscribed,
                 rulePackFailure = packFailure,
+                beginnerMode = beginner,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -166,6 +171,11 @@ class RulesViewModel @Inject constructor(
             preferences.recordManualPresetChange(System.currentTimeMillis())
             preferences.setRoutePreset(preset)
         }
+    }
+
+    /** Keeps the beginner defaults and stops calling them defaults. */
+    fun exitBeginnerMode() {
+        viewModelScope.launch { preferences.exitBeginnerMode() }
     }
 
     fun setBlockAds(enabled: Boolean) {

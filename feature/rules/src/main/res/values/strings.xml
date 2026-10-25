@@ -39,6 +39,11 @@
     <string name="rules_save">Save</string>
     <string name="rules_cancel">Cancel</string>
 
+    <string name="rules_beginner_title">Beginner setup</string>
+    <string name="rules_beginner_domestic">Mainland sites go direct</string>
+    <string name="rules_beginner_abroad">Everything else goes through the tunnel</string>
+    <string name="rules_beginner_ads">Ads and trackers are blocked</string>
+    <string name="rules_beginner_customize">Customize</string>
     <string name="rules_fallback_title">Everything else</string>
     <string name="rules_edit">Edit</string>
     <string name="rules_delete">Delete</string>
