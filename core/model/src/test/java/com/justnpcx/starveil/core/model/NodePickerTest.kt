@@ -192,6 +192,45 @@ class NodePickerTest {
         assertEquals(0, healthScore(null))
     }
 
+
+    @Test
+    fun `a five millisecond win does not move the selection`() {
+        // 60 ms vs 55 ms on otherwise identical nodes: 1.4 score points, which
+        // is under the margin. This is the case the task book calls out.
+        val current = candidate(1, healthOf(reachable = 10, latency = 60))
+        val slightlyFaster = candidate(2, healthOf(reachable = 10, latency = 55))
+
+        val decision = decide(listOf(current, slightlyFaster), currentId = 1L, nowMs = NOW)
+
+        assertEquals(false, decision?.switch)
+        assertEquals(1, decision?.delta)
+    }
+
+    @Test
+    fun `a real win does move the selection, with the margin on the record`() {
+        val current = candidate(1, healthOf(reachable = 10, latency = 200))
+        val muchFaster = candidate(2, healthOf(reachable = 10, latency = 60))
+
+        val decision = decide(listOf(current, muchFaster), currentId = 1L, nowMs = NOW)
+
+        assertEquals(true, decision?.switch)
+        assertEquals(2L, decision?.recommendation?.profileId)
+        assertTrue("delta=" + decision?.delta, (decision?.delta ?: 0) >= STICKINESS_MARGIN)
+    }
+
+    @Test
+    fun `a node in time-out is left even when the challenger barely wins`() {
+        // Three failures in a row park the node; the margin must not keep the
+        // app on a node that is not answering.
+        val parked = candidate(1, healthOf(reachable = 5, failed = 3, latency = 50))
+        val slowButUp = candidate(2, healthOf(reachable = 10, latency = 300))
+
+        val decision = decide(listOf(parked, slowButUp), currentId = 1L, nowMs = NOW)
+
+        assertEquals(true, decision?.switch)
+        assertEquals(2L, decision?.recommendation?.profileId)
+    }
+
     private companion object {
         const val NOW = 10_000_000L
     }

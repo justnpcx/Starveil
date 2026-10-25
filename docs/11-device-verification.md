@@ -914,3 +914,23 @@ tests=9 failures=0 errors=0 time=26.086s
 **实测（电视，取像素）**：选中芯片 (221,235,247) = accent 10% 叠在 `surfaceSolid` 上的精确值；未选中 (233,237,242) = `bg`；无淡紫、无白框。截图：`docs/recordings/glass-2026-10-25/dialog-rule-chips.png`、`dialog-scene-chips.png`。
 
 顺带把另外两处也换了（节点页分组菜单对话框、节点编辑器里的 `ChipRow`），否则同一个 Material 默认色还会在那里露出来。
+
+## 2026-10-25 · P0-5 自动选择：透明化 + 防抖 + 真切换
+
+**开工实查**：远端 main HEAD = `95f1d4f`（任务书基线 `7c13c14` 已过期：其间发了 0.8.4 与对话框芯片修复）。
+
+**改了什么**
+
+- `NodePicker` 新增 `STICKINESS_MARGIN = 3`（分制：99 分覆盖 350ms，所以 3 分 ≈ 10ms）、`AutoPick`、`decide(candidates, currentId, ...)`、`pickerPolicySummary()`。
+- `DropRecovery.autoPick()` 把「当前节点」纳入决策；`DashboardViewModel.autoSelect()` 改成按 `AutoPick` 走，并把每次判断写进日志：探针地址（`TCP host:port`）、策略（`cooldown=30min, margin=3pts(≈10ms)`）、以及 kept / switched 的具体分数与差值。
+- 切换行为本身没改（目标收集器在已连接时 `applyConfigChange()`，一直是真的重建配置），改的是「凭什么切」和「为什么不切」现在有数可查。
+
+**实测（单元测试，`core:model`）**
+
+| 用例 | 输入 | 结果 |
+|---|---|---|
+| 5ms 小胜不切 | 60ms vs 55ms，同可用率 | `switch=false`，delta=1 < 3 |
+| 真优势才切 | 200ms vs 60ms | `switch=true`，delta≥3，选中挑战者 |
+| 超时节点必须离开 | 当前节点连续 3 次失败 | `switch=true`（粘性不保护已停摆的节点） |
+
+**V-2（真机行为自测）未做**：手机 192.168.50.140 可达但 5555 关闭（无线调试未开），按任务书规矩 8，电视的数不算数，本项留待手机接入后按 V-2 脚本补。

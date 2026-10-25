@@ -14,6 +14,8 @@ import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.STICKINESS_MARGIN
+import com.justnpcx.starveil.core.model.pickerPolicySummary
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.displayName
@@ -405,25 +407,45 @@ class DashboardViewModel @Inject constructor(
     fun autoSelect() {
         if (_uiState.value.isBusy) return
         scope.launch {
-            val pick = recovery.best() ?: run {
+            val pick = recovery.autoPick() ?: run {
                 _uiState.update { it.copy(notice = DashboardNotice.NoTarget) }
                 return@launch
             }
-            // Compare ids, not labels: the card draws displayName() (which can
-            // carry a flag) while the profile row has name, so the strings
-            // differ for the same node and every press looked like a change.
-            if (pick.profileId == preferences.selectedProfileId.first()) return@launch
-            val name = profiles.getById(pick.profileId)?.displayName().orEmpty()
-            // The raw score lives here, not on screen: it is a ranking key, and
-            // the card shows the node and its latency it is made of.
-            KernelDiagnostics.log("auto-select $name: score ${pick.score}")
+            val target = pick.recommendation
+            val winner = profiles.getById(target.profileId)
+            val current = pick.currentId?.let { profiles.getById(it) }
+
+            // Every press says what it saw, even when it does nothing. The
+            // complaint this answers was "it only ever shows a toast and never
+            // switches"; the fix is not a better toast, it is the numbers
+            // behind the decision being on the record.
+            KernelDiagnostics.log(
+                "auto-select: probes=TCP ${winner?.server}:${winner?.port}; " +
+                    "${pickerPolicySummary()}; " +
+                    if (pick.switch) {
+                        "switched ${current?.displayName() ?: "none"} → " +
+                            "${winner?.displayName()}, delta ${pick.delta} pts " +
+                            "(${pick.currentScore} → ${target.score})"
+                    } else {
+                        "kept ${current?.displayName() ?: winner?.displayName()}: " +
+                            "best challenger ${winner?.displayName()} scores " +
+                            "${target.score}, delta ${pick.delta} < " +
+                            "${STICKINESS_MARGIN}"
+                    },
+            )
+
+            // A pick inside the margin is not a switch: the card stays put and
+            // no notice appears, which is the behaviour the button is supposed
+            // to have when nothing has actually changed.
+            if (!pick.switch) return@launch
+
             // The target collector does the rest: it reconnects when the tunnel
             // is up, and only arms the selection when it is not. Doing the
             // connect here as well would race that path.
-            preferences.setSelectedProfileId(pick.profileId)
+            preferences.setSelectedProfileId(target.profileId)
             // The result is the card itself — new name, new latency. This flag
             // only turns the badge from "manual" to "auto".
-            _uiState.update { it.copy(autoPickedName = name) }
+            _uiState.update { it.copy(autoPickedName = winner?.displayName().orEmpty()) }
         }
     }
 

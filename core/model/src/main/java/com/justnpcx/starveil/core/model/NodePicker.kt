@@ -197,3 +197,65 @@ object NodePicker {
         )
     }
 }
+
+/**
+ * How much better a challenger has to be before the selection moves.
+ *
+ * In score points: 3 points is about 10 ms at the middle of the latency range
+ * (99 points span 350 ms), so the "a node won by 5 ms" case the task book calls
+ * out cannot move the selection. Availability is the high-order digit, so a
+ * node that answers even one percent more often clears this on its own.
+ */
+const val STICKINESS_MARGIN = 3
+
+/**
+ * What an automatic pick would do, given a node already in force.
+ *
+ * [switch] is the decision; [delta] is the margin it was made on. Both are
+ * logged, because "it switched" without a number is the black box the task book
+ * is asking to replace.
+ */
+data class AutoPick(
+    val recommendation: NodeRecommendation,
+    val currentId: Long?,
+    val currentScore: Int,
+    val delta: Int,
+    val switch: Boolean,
+)
+
+/**
+ * The picker's policy, in one line, for the log.
+ *
+ * These are the knobs a user would otherwise have to read the source to find:
+ * how long a node stays out, and how much better a challenger must be.
+ */
+fun pickerPolicySummary(): String =
+    "cooldown=${COOLDOWN_MS / 60_000}min, margin=${STICKINESS_MARGIN}pts(≈${STICKINESS_MARGIN * 350 / 99}ms)"
+
+/**
+ * [recommend], plus the stickiness rule.
+ *
+ * The picker itself stays a pure ranking; this is the policy layer on top, kept
+ * separate so the ranking can be tested without a notion of "current".
+ */
+fun decide(
+    candidates: List<NodeCandidate>,
+    currentId: Long?,
+    preferredRegion: NodeRegion? = null,
+    nowMs: Long,
+): AutoPick? {
+    val recommendation = NodePicker.recommend(candidates, preferredRegion, nowMs) ?: return null
+    val current = candidates.firstOrNull { it.profileId == currentId }
+    val currentScore = healthScore(current?.health)
+    val currentUsable = current != null && cooldownRemainingMs(current.health, nowMs) == 0L
+    val delta = recommendation.score - currentScore
+    val switch = when {
+        currentId == null -> true
+        recommendation.profileId == currentId -> false
+        // A node in time-out is not a node to stay on.
+        current == null || !currentUsable -> true
+        else -> delta >= STICKINESS_MARGIN
+    }
+    return AutoPick(recommendation, currentId, currentScore, delta, switch)
+}
+
