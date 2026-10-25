@@ -101,12 +101,14 @@ interface PreferencesRepository {
      * Empty is the normal case — most providers send no `subscription-userinfo`.
      */
     val subscriptionUsage: Flow<Map<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo>>
+        /** No quota known is the honest default for a fake that never fetches. */
+        get() = kotlinx.coroutines.flow.flowOf(emptyMap())
 
     /** Records (or clears, with null) one subscription's quota. */
     suspend fun setSubscriptionUsage(
         groupId: Long,
         info: com.justnpcx.starveil.core.model.SubscriptionUserInfo?,
-    )
+    ) = Unit
 
     /**
      * Whether the local Clash-compatible API is served.
