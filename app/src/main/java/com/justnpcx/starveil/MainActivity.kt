@@ -153,7 +153,9 @@ class MainActivity : ComponentActivity() {
             StarveilTheme {
                 when (onboardingDone) {
                     null -> Box(modifier = Modifier.fillMaxSize())
-                    false -> OnboardingScreen()
+                    // Behind the same gradient as the rest of the app, so the
+                    // first screen is not the one flat page in it.
+                    false -> StarveilBackground { OnboardingScreen() }
                     true -> {
                         val navController = rememberNavController()
                         val snackbarHostState = remember { SnackbarHostState() }

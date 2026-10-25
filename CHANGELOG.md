@@ -8,6 +8,18 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.4] — 2026-10-25
+
+### Fixed
+
+- **The first screen has the depth the rest of the app has.** Onboarding
+  painted its own flat page colour, so the ambient gradient stopped at it —
+  the one screen in the app with no material behind the glass. It now sits on
+  the same background as everything else.
+- **Nothing inside the onboarding ring.** A translucent disc filled it, which
+  was invisible on a flat page and reads as a smudge once there is a gradient
+  behind it. The ring is a line, and the page shows through it.
+
 ## [0.8.3] — 2026-10-25
 
 ### Changed

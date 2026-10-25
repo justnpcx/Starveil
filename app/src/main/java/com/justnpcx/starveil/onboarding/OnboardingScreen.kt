@@ -104,10 +104,12 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
         viewModel.detectClipboard(clipboardText(context))
     }
 
+    // No background of its own: the ambient gradient painted behind the whole
+    // app shows through here too. Onboarding used to fill the page with a flat
+    // `bg`, which made the first screen the one place in the app with no depth.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(StarveilColors.bg)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(StarveilSpacing.lg),
     ) {
@@ -211,23 +213,16 @@ private fun WelcomeStep(onNext: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // The same ring language as the dashboard, at rest: a thin accent
-        // line with a hole in it. No glow — the halo was the old face, and on
-        // a light page it reads as a smudge rather than as light.
+        // The same ring language as the dashboard, at rest: a thin accent line,
+        // and nothing inside it. The page shows through the hole — a translucent
+        // disc in the middle read as a smudge once there was a gradient behind
+        // it, which is the cost of having depth.
         Box(
             modifier = Modifier
                 .size(168.dp)
                 .clip(CircleShape)
                 .border(width = 1.5.dp, color = StarveilColors.accent, shape = CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(StarveilColors.bg.copy(alpha = 0.55f)),
-            )
-        }
+        )
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
         Text(
             text = stringResource(R.string.onboarding_welcome_title),
