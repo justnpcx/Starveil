@@ -71,7 +71,7 @@ router: failed to search process: procfs: not found
 **2. WiFi 下流量走移动数据**（`f99206f`）
 
 `reportDefaultInterface` 从 `allNetworks` 取第一个有 INTERNET 的网络，而该列表
-**无序**。WiFi 与蜂窝并存时它报了 `rmnet_data4`（蜂窝），内核把出站全绑上去：
+**无序**：WiFi 与蜂窝并存时它报了 `rmnet_data4`（蜂窝），内核把出站全绑上去：
 
 ```
 dial rmnet_data4 (28): dial tcp 142.250.73.67:443: i/o timeout
@@ -193,14 +193,14 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 
 两个包都是 release 模式（R8），为了安装用 debug 证书签名；除 `debug` 配置块外代码相同。前台刚连上时 before 118,020 KB、after 132,287 KB，但 after 那次前台多停留了约一分钟并伴随 DNS 报错，不可比，不列入结论。
 
-**结论：没有可测出的改善，目标未达标。**
+**结论**：没有可测出的改善，目标未达标。
 
 - 5 分钟差 2.0 MiB，10 分钟差 −0.5 MiB；而 before 自己在 5→10 分钟之间就漂移了 1.2 MiB，after 漂移 1.3 MiB。差异在噪声内。
 - 5 分钟 after 的构成：Java 5.6 MB、Native 9.2 MB、Code 17.6 MB、Private Other 23.1 MB、System 25.8 MB、Graphics 0.4 MB。Go 堆只有约 9 MB，`memory_limit`（Go 上限 64 MiB）根本没有触到。
 - 80 MB 的地板由共享代码页（libbox.so，61.7 MB stored / 19.5 MB deflated）、Compose 的 Private Other 和系统共享页决定，不是 GOGC 能压下去的。要真正达标，下一根杠杆是 libbox 的 so 体积或更轻的 UI，不在本轮范围。
 - GOGC=50 没有观察到卡顿；保留 50 作护栏（对更大的节点列表是无害上限），但它不是达标证据。“M4 内存达标”这个结论**不能**写。
 
-**增补二 v2 作废**。任务书里的「`SetMemoryLimit` 组合拳 + 内存水位触发 `FreeOSMemory`」不再实现：上面的数据说明 Go 堆不是瓶颈（约 9 MB，离 64 MiB 上限很远），加软上限不会改变 PSS；`FreeOSMemory` 也没有安全的 JNI 出口（见上）。
+**增补二 v2 作废**：任务书里的「`SetMemoryLimit` 组合拳 + 内存水位触发 `FreeOSMemory`」不再实现：上面的数据说明 Go 堆不是瓶颈（约 9 MB，离 64 MiB 上限很远），加软上限不会改变 PSS；`FreeOSMemory` 也没有安全的 JNI 出口（见上）。
 
 **验收线调整**：`< 80 MB` 从 M4 门禁降为 stretch 目标。真要压到 80 MB 以下，下一根杠杆是 libbox.so 瘦身（61.7 MB stored / 19.5 MB deflated）或更轻的 UI，另立项，不在 M4 范围。
 
@@ -243,7 +243,7 @@ not granted`）。修复后两条路径都在真机上走了一遍。
   新增「打开系统 VPN 设置」，跳 `Settings.ACTION_VPN_SETTINGS`（vivo 上实测打开的是
   「VPN → 个人 VPN」，列表里有 Starveil），失败时回退无线设置/设置首页。
 
-**实测一：应用内锁的边界**
+**实测一**：应用内锁的边界
 
 vivo V2520A / Android 17，选「始终阻断」后点连接：
 
@@ -258,7 +258,7 @@ vivo V2520A / Android 17，选「始终阻断」后点连接：
 只起前台通知并跟踪底层网络，不会自动连接；所以系统 always-on 在 Starveil 未运行时是
 **fail-closed**（断网直到手动打开 App 重连），不会自己恢复隧道。设置页文案已写明这一点。
 
-**实测二：计划内切换会重建 tun**
+**实测二**：计划内切换会重建 tun
 
 连接态下把预设从「绕过中国大陆」切到「全局代理」再切到「全局直连」，`tun0` 的 ifindex
 从 **237 变 238**——tun 是新接口，不是同一条。
@@ -272,7 +272,7 @@ vivo V2520A / Android 17，选「始终阻断」后点连接：
 约 1 秒的空窗。原来 `ConnectionController.disconnect()` 里「tun never goes away」的注释
 是错的，已一并改正。
 
-**未做：系统级锁的真机验证**
+**未做**：系统级锁的真机验证
 
 方法（需要人在设备旁，lockdown 开启后服务起不来会整机断网）：
 
@@ -365,7 +365,7 @@ gvisor → `77aa442` mixed 的 Android 适配 → `553100b`/`3ae7cbf` 本地 DNS
 `c140dd1` 回退的原因是 mixed 下 TCP 全黑洞（SYN_SENT / SYN_RECV）；修复后未复现，
 mixed 下国内 10–16 MB/s、境外 ~4 MB/s。
 
-**回归中发现并修复：AAAA 黑洞**
+**回归中发现并修复**：AAAA 黑洞
 
 首轮 Chrome 打不开百度和腾讯（`ERR_CONNECTION_RESET`），但 curl 到同一 IPv4 地址是
 200。内核日志给出原因：
@@ -827,7 +827,7 @@ tests=9 failures=0 errors=0 time=26.086s
 - `ink3` .42 → **.48**：2.59 → 3.06（三级字与未选中图标，按 3:1 的承意图形下限）。
 - Demo 的亮绿状态点 `#30A46C` 在底面只有 2.68:1，8dp 的点是承意图形，统一改用 `ok`（4.58:1），不再单列 `okDot`。
 
-**无法照抄的一处：backdrop blur**。Compose 没有原生背景模糊（`Modifier.blur` 模糊的是自身内容，不是身后），三方库被 §5 禁止。落地方式：卡片用 68% 白叠在静态氛围底上——底是平滑渐变，视觉上等价于把底模糊后透上来；导航条因为下面会滚过文字，按 §5 的降级条款改成**不透明浅色实面**（页面底色 + 60% 白）。这一条要在真机上按帧率再确认一次。
+**无法照抄的一处**：backdrop blur。Compose 没有原生背景模糊（`Modifier.blur` 模糊的是自身内容，不是身后），三方库被 §5 禁止。落地方式：卡片用 68% 白叠在静态氛围底上——底是平滑渐变，视觉上等价于把底模糊后透上来；导航条因为下面会滚过文字，按 §5 的降级条款改成**不透明浅色实面**（页面底色 + 60% 白）。这一条要在真机上按帧率再确认一次。
 
 **替换范围**：`Palette.kt` 整体重写（`ObsidianPalette` → `GlassPalette`，`accentA/accentB` 合并为 `accent`），`Theme.kt` 改 `lightColorScheme`，卡片/开关/芯片/徽标/按钮/搜索框/FAB/圆环/曲线全部换到新令牌，新增 `StarveilBackground`（页面渐变 + 三处晕染）与 `StarveilButton` 的内容重载（引导页不再用 Material 的填充按钮）。
 
@@ -990,7 +990,7 @@ tests=9 failures=0 errors=0 time=26.086s
 
 **为什么可以用电视**：V-2 测的是行为（是否切换、是否弹提示），不是帧率 / 点按延迟 / DNS / 后台，规矩 8 限制的是后四类。
 
-**① 当前即最优时连点 → 应 0 提示、节点不变：通过**
+**① 当前即最优时连点 → 应 0 提示、节点不变**：通过
 
 实测：导入订阅后第一次点「Auto select」选中了节点（日志 `switched none → HY2+Reality-hy2-443, delta 0 pts (0 → 0)`，因为此前没有在用的节点，属预期）；随后再点 4 次，日志全部是（当时两个节点都还没有读数，所以分数是 0；有读数之后的 `kept` 见 ② 的第二段）：
 
@@ -1002,7 +1002,7 @@ auto-select: probes=TCP node.example.com:443; cooldown=30min, margin=3pts(≈10m
 - 首页没有任何提示条（uiautomator 里只有速率文本，无 notice），节点未变。
 - 日志每行都带探针地址、冷却时长、粘性阈值、胜者分数、差值与结论——这就是 P0-5 要的透明化。
 
-**② 制造明显更优节点后再触发 → 1 次切换、随后不再切：通过**
+**② 制造明显更优节点后再触发 → 1 次切换、随后不再切**：通过
 
 实测（Fire TV，同一条订阅的两个节点）：
 
@@ -1022,4 +1022,4 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 
 **过程中的一个插曲（对用户报的现象有解释力）**：第一次尝试时两个节点都是 `untested`，日志里 `scores 0, delta 0`，怎么点都不切——因为**没有任何读数时所有节点同分，粘性规则正确地不让它动**。这也说明"自动选择从不切换"的观感，很可能是"没有可用读数"，而不是切换逻辑坏了。
 
-**V-2 结论：两条都通过**（设备 Fire TV；行为类，不涉及帧率/延迟/DNS/后台）。验证的是 P0-5 的切换与防抖逻辑本身；手机接入后无需重测 V-2，除非要复核点击手感（那属于 P1-11）。
+**V-2 结论**：两条都通过（设备 Fire TV；行为类，不涉及帧率/延迟/DNS/后台）。验证的是 P0-5 的切换与防抖逻辑本身；手机接入后无需重测 V-2，除非要复核点击手感（那属于 P1-11）。

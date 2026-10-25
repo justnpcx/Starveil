@@ -34,7 +34,7 @@
 :core:ui → （无第一方依赖）
 ```
 
-**Verdict：通过。** 依赖全部单向，无循环。feature 之间互不依赖，可独立编译。`:core:model` / `:core:kernel` / `:core:ui` 零第一方依赖，是干净的底层。
+**Verdict**：通过。依赖全部单向，无循环。feature 之间互不依赖，可独立编译。`:core:model` / `:core:kernel` / `:core:ui` 零第一方依赖，是干净的底层。
 
 ### 1.2 缺口 A：DI 绑定让 `:app` 直接依赖 `:core:kernel`
 
@@ -77,7 +77,7 @@ suspend fun urlTest(link: String): Long   // -1 = 失败
 
 Fake/Real 切换在一处：`KernelModule.provideKernelBridge()`（`app/.../di/KernelModule.kt`），注释明确"Phase 2 换这一个函数"。
 
-**Verdict：有缺口。** 接口方向正确（App 不碰内核），但承载真实 sing-box 接入时，至少缺以下 6 类能力：
+**Verdict**：有缺口。接口方向正确（App 不碰内核），但承载真实 sing-box 接入时，至少缺以下 6 类能力：
 
 ### 2.2 缺失的方法与类型
 
@@ -104,7 +104,7 @@ Fake/Real 切换在一处：`KernelModule.provideKernelBridge()`（`app/.../di/K
 
 ## 3. 数据层
 
-**Verdict：缺失。**
+**Verdict**：缺失。
 
 | 项 | 骨架现状 | 证据 |
 |---|---|---|
@@ -125,7 +125,7 @@ Fake/Real 切换在一处：`KernelModule.provideKernelBridge()`（`app/.../di/K
 
 ## 4. 导航与状态
 
-**Verdict：有缺口。** 结构正确，恢复与深链缺失。
+**Verdict**：有缺口。结构正确，恢复与深链缺失。
 
 | 项 | 骨架现状 | 证据 |
 |---|---|---|
