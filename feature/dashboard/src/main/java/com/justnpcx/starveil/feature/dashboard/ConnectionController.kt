@@ -11,6 +11,7 @@ import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
+import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.KillSwitchController
 import com.justnpcx.starveil.core.kernel.TrafficPolicy
 import com.justnpcx.starveil.core.kernel.config.ConfigBuildException
@@ -217,6 +218,23 @@ class ConnectionController @Inject constructor(
     suspend fun restart(): ConnectionOutcome {
         disconnect()
         return connect()
+    }
+
+    /**
+     * Puts the Kill Switch back when the app starts and nothing is connected.
+     *
+     * Called once at start, after the leftover-tunnel reconciliation. A
+     * disconnect the user asked for is already blocked by then (the blackhole
+     * keeps the tun, so the kernel is running and this does nothing); what this
+     * catches is the process having been killed, which takes the kernel with it
+     * and leaves the chosen policy unenforced.
+     */
+    suspend fun enforceKillSwitchOnStart() {
+        val mode = preferences.killSwitchMode.first()
+        if (!KillSwitchController.shouldBlockOnStart(mode, kernel.state.value == KernelState.Running)) {
+            return
+        }
+        kernel.block()
     }
 
     /**

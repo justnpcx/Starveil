@@ -22,6 +22,20 @@ object KillSwitchController {
 
             KillSwitchMode.ALWAYS_BLOCK -> TrafficPolicy.BLOCK
         }
+
+    /**
+     * Whether starting the app should put the block in place.
+     *
+     * The policy outlives a process; the kernel does not. A phone whose app was
+     * killed sits there with "block on disconnect" chosen and traffic flowing —
+     * the one promise that mode makes, broken by something the user did not do.
+     *
+     * [kernelRunning] is the whole check on the other side: a tunnel that is up
+     * (forwarding, or already blocking) needs nothing from here, and blocking
+     * again would tear down a working connection.
+     */
+    fun shouldBlockOnStart(mode: KillSwitchMode, kernelRunning: Boolean): Boolean =
+        !kernelRunning && policyFor(mode, connected = false) == TrafficPolicy.BLOCK
 }
 
 /** Leak self-check (PRD §3.6 K9). */

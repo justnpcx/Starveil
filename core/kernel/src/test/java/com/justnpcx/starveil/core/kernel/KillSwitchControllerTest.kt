@@ -54,4 +54,17 @@ class LeakCheckTest {
         assertFalse(LeakCheck.isLeaking(KillSwitchMode.BLOCK_ON_DISCONNECT, connected = false, trafficAllowed = false))
         assertFalse(LeakCheck.isLeaking(KillSwitchMode.ALWAYS_BLOCK, connected = true, trafficAllowed = false))
     }
+
+    @Test
+    fun `a start with no kernel puts the block back when the mode asks for it`() {
+        assertTrue(KillSwitchController.shouldBlockOnStart(KillSwitchMode.BLOCK_ON_DISCONNECT, kernelRunning = false))
+        assertTrue(KillSwitchController.shouldBlockOnStart(KillSwitchMode.ALWAYS_BLOCK, kernelRunning = false))
+        assertFalse(KillSwitchController.shouldBlockOnStart(KillSwitchMode.OFF, kernelRunning = false))
+    }
+
+    @Test
+    fun `a start with a kernel running leaves it alone`() {
+        assertFalse(KillSwitchController.shouldBlockOnStart(KillSwitchMode.BLOCK_ON_DISCONNECT, kernelRunning = true))
+        assertFalse(KillSwitchController.shouldBlockOnStart(KillSwitchMode.ALWAYS_BLOCK, kernelRunning = true))
+    }
 }

@@ -1325,3 +1325,34 @@ StarveilKernel: writeStatus: up=23139/23572 down=6676/6676
 这不是本轮改动引入的：`ConnectionReconciler` 只在"进程死了但 VpnService 还在"时接管，进程和隧道一起被杀时它什么也不做。要不要在启动时按 kill switch 策略补一个阻断，是产品决定（开机就全阻断对用户是另一种伤害），我没有擅自改。
 
 **证据命令**：`ls -d /sys/class/net/tun0`、`ip route get 1.1.1.1 uid 2000`、`ping -c 2 1.1.1.1`。
+
+## 2026-10-25 · Kill Switch 在进程被杀后不再失守（已修，电视实测）
+
+**问题**：V-3 复测时发现，`断开时阻断` 选着、进程被系统杀掉后，隧道没了、阻断也没了，流量直接出去。界面这次没说谎（显示 `DISCONNECTED`），但**用户以为的保护没了**。
+
+**改法**：策略是持久的，内核不是。启动时补一步——
+
+- `KillSwitchController.shouldBlockOnStart(mode, kernelRunning)`：纯函数，`kernelRunning=false` 且策略要求阻断时才动手；
+- `ConnectionController.enforceKillSwitchOnStart()`：满足条件就 `kernel.block()`（起一个只阻断的内核）；
+- `StarveilApp` 在"接管遗留隧道 / 自动重连"之后调用它。
+
+已经连着的、或用户主动断开后已经在阻断的（blackhole 保留 tun，内核还在跑），都不会被重复打断。
+
+**电视实测**（Kill Switch = 断开时阻断）：
+
+| 步骤 | tun | 路由 | 实际连通 | UI |
+|---|---|---|---|---|
+| 连接 | 有 | tun0 | 通 | `CONNECTED` |
+| 强杀进程 | 无 | wlan0 | 通 | — |
+| **重新打开** | **有** | **tun0** | **ping 0.4 ms（内核本地应答，非真实往返）** | **`BLOCKING`** |
+
+内核日志同时给出证据：每个连接都被拒绝——
+
+```text
+ERROR connection: open connection to 18.65.10.177:443 using outbound/block[block]: operation not permitted
+ERROR connection: open connection to 223.5.5.5:443 using outbound/block[block]: operation not permitted
+```
+
+**一个观感细节**：重启后界面先闪一下 `DISCONNECTED`，约 8 秒后变 `BLOCKING`——阻断内核是异步起来的，状态跟着真实情况走，不是一开始就假装。
+
+**单测**：`KillSwitchControllerTest` 新增两条——要求阻断的模式在无内核时补阻断、有内核时不动。

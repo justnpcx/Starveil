@@ -110,6 +110,10 @@ class StarveilApp : Application() {
             if (connectionReconciler.shouldRestore(outcome, autoReconnect, hasTarget)) {
                 connection.connect()
             }
+            // The policy has to outlive the process as well as the tunnel: a
+            // phone whose app was killed would otherwise sit there with "block
+            // on disconnect" chosen and traffic flowing.
+            connection.enforceKillSwitchOnStart()
         }
 
         // Scenes are evaluated while the process lives, which is exactly while
