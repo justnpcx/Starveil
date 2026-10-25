@@ -1169,3 +1169,26 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 **验证**：`core:kernel` 单测全绿。**电视上没有复测这个修复**：0.8.4 是已发布包，修复只在 main；复现还得再强杀一次进程。
 
 **关于"抓包"这个词**：这台电视和本机在同一个交换式局域网里，宿主机被动抓包看不到电视发往路由器的流量（不是集线器）。要抓只能在路由器上，或者做 ARP 欺骗——后者会打断家里网络，没做。所以本项的证据是"设备侧路由 + VPN 服务是否存在 + 真实往返时间"，不是报文捕获，这一条如实记下。
+
+## 2026-10-25 · P0-1 手机帧率 + P2-14 首轮基线（vivo V2238A，Android 16）
+
+**设备**：vivo V2238A（iQOO Neo7 SE），Android 16 / SDK 36，1080×2400，充电中、屏幕常亮、动画缩放全部 0。
+
+**夹具**：benchmark 变体 + `SeedReceiver` 播种 1000 节点（`seed.done` 已写出），节点页显示 `全部` 分组。
+
+**workload**：`dumpsys gfxinfo <pkg> reset` → 10 次 `input swipe 540 1900 540 700 160`（间隔 0.7 s）→ 读 `dumpsys gfxinfo`。
+
+| 指标 | 数值 |
+|---|---|
+| 渲染帧数 | 1136 |
+| Janky frames（Android 12+ 口径） | **3（0.26%）** |
+| Janky frames（legacy 口径） | 342（30.11%） |
+| p50 / p90 / p95 / p99 帧间隔 | 10 / 14 / 14 / 17 ms |
+| Missed Vsync | 0 |
+
+**冷启动**（`am start -W`，force-stop 后三次）：275 / 268 / 231 ms，中位 **268 ms**。
+**内存**：`dumpsys meminfo` TOTAL PSS **81 MB**（RSS 229 MB）。
+
+**Macrobenchmark 没跑成**：`NodesScrollBenchmark` 在本机连续两次失败——第一次是 UiAutomation 冲突（测量期间我跑了 uiautomator），第二次进程挂住十几分钟、输出停在 `test=scrollThousandNodes`、无任何帧数据，最后被我终止（`shortMsg=Process crashed.` 是终止的结果，不是原因）。所以上面的数字来自 gfxinfo + 同一套 1000 节点夹具，**不是 Macrobenchmark 的 FrameTimingMetric**，方法差异如实记下。
+
+**关于两个 Janky 口径**：`0.26%` 是 Android 12 起按"错过 vsync 且没有及时补帧"的口径；`30.11%` 是旧口径（超过 16 ms 就算）。同一批数据两个数差两个数量级，只报一个会误导，两个都留。
