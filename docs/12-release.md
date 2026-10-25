@@ -80,6 +80,8 @@ remote: - Required status check "build" is expected.
 
 改写历史（rebase、压缩提交）同理，只能走第 2 条。
 
+**推完先 `git fetch` 再核对远端。** 用一次性 URL（`git push https://x-access-token:…@github.com/…`）推送时，本地的 `origin/main` 引用**不会跟着更新**——它停在你上一次 `fetch` 的位置，于是 `git ls-tree origin/main`、`git status -sb` 读到的都是旧树，看起来像"没推上去"。核对远端只有两种可靠办法：`git fetch origin main` 之后再比 `HEAD` 与 `origin/main`，或者直接查 API（`GET /repos/:owner/:repo/contents/<path>?ref=main`）。
+
 ## 发一个版本
 
 1. **改版本号**：`app/build.gradle.kts` 的 `appVersionName`（里程碑 N → `0.N.0`；`versionCode` 自动派生）
