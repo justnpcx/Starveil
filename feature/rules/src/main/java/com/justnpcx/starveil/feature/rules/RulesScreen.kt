@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,7 +70,9 @@ import com.justnpcx.starveil.core.model.RulePack
 import com.justnpcx.starveil.core.model.RulePackAction
 import com.justnpcx.starveil.core.ui.components.AppearOnFirstShow
 import com.justnpcx.starveil.core.ui.components.rememberAppearance
+import com.justnpcx.starveil.core.ui.components.ChipSurface
 import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -509,10 +510,11 @@ private fun RuleDialog(
                     horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     MatcherKind.entries.forEach { candidate ->
-                        FilterChip(
+                        StarveilChip(
+                            label = kindLabel(candidate),
                             selected = kind == candidate,
                             onClick = { kind = candidate },
-                            label = { Text(kindLabel(candidate)) },
+                            surface = ChipSurface.Dialog,
                         )
                     }
                 }
@@ -534,10 +536,11 @@ private fun RuleDialog(
                     horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     RuleAction.entries.forEach { candidate ->
-                        FilterChip(
+                        StarveilChip(
+                            label = actionLabel(candidate),
                             selected = action == candidate,
                             onClick = { action = candidate },
-                            label = { Text(actionLabel(candidate)) },
+                            surface = ChipSurface.Dialog,
                         )
                     }
                 }

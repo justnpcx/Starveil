@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,7 +54,9 @@ import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.SceneTarget
 import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
+import com.justnpcx.starveil.core.ui.components.ChipSurface
 import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -297,16 +298,18 @@ private fun SceneDialog(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    FilterChip(
+                    StarveilChip(
+                        label = stringResource(R.string.scenes_trigger_wifi),
                         selected = !mobile,
                         onClick = { mobile = false },
                         enabled = ssidReadable,
-                        label = { Text(stringResource(R.string.scenes_trigger_wifi)) },
+                        surface = ChipSurface.Dialog,
                     )
-                    FilterChip(
+                    StarveilChip(
+                        label = stringResource(R.string.scenes_trigger_mobile),
                         selected = mobile,
                         onClick = { mobile = true },
-                        label = { Text(stringResource(R.string.scenes_trigger_mobile)) },
+                        surface = ChipSurface.Dialog,
                     )
                 }
                 if (!ssidReadable) {

@@ -17,6 +17,7 @@ import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
 import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.components.ChipSurface
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilChipRow
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
@@ -40,7 +41,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.FilterChip
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.size
 import com.justnpcx.starveil.core.model.GroupMode
@@ -448,10 +448,11 @@ fun ProfilesScreen(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
                         GroupMode.entries.forEach { mode ->
-                            FilterChip(
+                            StarveilChip(
+                                label = stringResource(mode.labelRes()),
                                 selected = group.mode == mode,
                                 onClick = { viewModel.setGroupMode(group, mode) },
-                                label = { Text(stringResource(mode.labelRes())) },
+                                surface = ChipSurface.Dialog,
                             )
                         }
                     }

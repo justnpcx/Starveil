@@ -10,9 +10,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilSwitch
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -484,10 +484,10 @@ private fun <T> ChipRow(
         horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
         options.forEach { option ->
-            FilterChip(
+            StarveilChip(
+                label = label(option),
                 selected = option == selected,
                 onClick = { onSelect(option) },
-                label = { Text(label(option)) },
             )
         }
     }

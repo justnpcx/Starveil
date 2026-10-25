@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -34,10 +35,20 @@ private val IN_USE_DOT = 6.dp
 private val MIN_TOUCH_TARGET = 48.dp
 
 /**
- * A filter chip: a glass capsule, its edge and label blue when selected.
+ * What a chip is sitting on.
  *
- * Selection is the edge, not a fill. A filled chip would be a second solid
- * block in a row of outlines, and the accent is only allowed to be a line here.
+ * The page is translucent material with a white highlight edge; a dialog is an
+ * opaque surface with no highlight to speak of. A chip drawn for the page
+ * looks washed out in a dialog, which is why Material's own chip defaults —
+ * a lavender container and an outline — used to leak through there.
+ */
+enum class ChipSurface { Page, Dialog }
+
+/**
+ * A filter chip: a capsule, its edge and label blue when selected.
+ *
+ * Selection is the edge, not a fill — except on a dialog, where the fill is
+ * what separates a selected chip from the surface behind it.
  *
  * [stateDescription] is passed in because the meaning of "selected" belongs to
  * the screen: a filtered group and a group the tunnel runs through look alike
@@ -53,18 +64,40 @@ fun StarveilChip(
     onLongClick: (() -> Unit)? = null,
     inUse: Boolean = false,
     stateDescription: String? = null,
+    enabled: Boolean = true,
+    surface: ChipSurface = ChipSurface.Page,
 ) {
     // Named apart from the semantics property it feeds: inside the `semantics`
     // block an unqualified name would resolve to the receiver's, not the
     // parameter's.
     val isSelected = selected
     val description = stateDescription
+
+    val fill: Color = when {
+        !enabled -> StarveilColors.surfaceGlass
+        surface == ChipSurface.Dialog && selected -> StarveilColors.accentWash
+        surface == ChipSurface.Dialog -> StarveilColors.bg
+        else -> StarveilColors.surfaceGlass
+    }
+    val edge: Color = when {
+        !enabled -> StarveilColors.hairline
+        selected -> StarveilColors.accent
+        surface == ChipSurface.Dialog -> StarveilColors.ink3
+        else -> StarveilColors.glassBorder
+    }
+    val content: Color = when {
+        !enabled -> StarveilColors.ink3
+        selected -> StarveilColors.accentText
+        else -> StarveilColors.ink2
+    }
+
     Surface(
         modifier = modifier
             // Material's 48dp minimum applies to its own components, not to a
             // raw Surface; the chip's padding alone came out around 40dp.
             .heightIn(min = MIN_TOUCH_TARGET)
             .combinedClickable(
+                enabled = enabled,
                 onClick = onClick,
                 onLongClick = onLongClick,
                 role = Role.Button,
@@ -74,11 +107,8 @@ fun StarveilChip(
                 if (description != null) this.stateDescription = description
             },
         shape = CircleShape,
-        color = StarveilColors.surfaceGlass,
-        border = BorderStroke(
-            1.dp,
-            if (selected) StarveilColors.accent else StarveilColors.glassBorder,
-        ),
+        color = fill,
+        border = BorderStroke(1.dp, edge),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -102,7 +132,7 @@ fun StarveilChip(
             Text(
                 text = label,
                 style = StarveilType.label,
-                color = if (selected) StarveilColors.accentText else StarveilColors.ink2,
+                color = content,
             )
         }
     }
