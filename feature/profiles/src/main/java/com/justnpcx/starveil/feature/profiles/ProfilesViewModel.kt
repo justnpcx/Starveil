@@ -68,6 +68,9 @@ data class ProfilesUiState(
     val importing: Boolean = false,
     /** Result of the last import or refresh, as data. See [ProfilesMessage]. */
     val message: ProfilesMessage? = null,
+
+    /** Quota reported by each subscription, keyed by group id. Usually empty. */
+    val usage: Map<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo> = emptyMap(),
     /** The node the share sheet is open for, with its link. */
     val share: ShareTarget? = null,
     /**
@@ -209,12 +212,15 @@ class ProfilesViewModel @Inject constructor(
     private val health: Flow<Map<Long, NodeHealth>> =
         nodeHealth.observeAll().map { byNode -> byNode.mapValues { (_, s) -> nodeHealthOf(s) } }
 
+    private val usage = preferences.subscriptionUsage
+
     val uiState: StateFlow<ProfilesUiState> = combine(
         listState,
         share,
         health,
-    ) { state, sharing, healthByNode ->
-        state.copy(share = sharing, health = healthByNode)
+        usage,
+    ) { state, sharing, healthByNode, usageByGroup ->
+        state.copy(share = sharing, health = healthByNode, usage = usageByGroup)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -453,8 +459,14 @@ class ProfilesViewModel @Inject constructor(
             importing.value = true
             refreshScheduler.schedule(group.id)
             message.value = when (val outcome = updater.update(group.id, url)) {
-                is SubscriptionUpdateOutcome.Success ->
+                is SubscriptionUpdateOutcome.Success -> {
+                    // The header only arrives with the response, so this is the
+                    // one moment the quota can be recorded.
+                    if (outcome.userInfo != null) {
+                        preferences.setSubscriptionUsage(group.id, outcome.userInfo)
+                    }
                     ProfilesMessage.Refreshed(outcome.profileCount, outcome.dropped)
+                }
                 is SubscriptionUpdateOutcome.Failure -> ProfilesMessage.RefreshFailed(outcome.reason)
             }
             importing.value = false

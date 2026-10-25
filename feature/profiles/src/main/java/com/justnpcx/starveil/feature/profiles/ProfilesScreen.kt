@@ -357,6 +357,13 @@ fun ProfilesScreen(
                     )
                 }
             }
+            // The quota the provider published, when it published one.
+            val usage = state.usage[state.selectedGroupId]
+                ?: state.groupFilter?.let { state.usage[it] }
+                ?: state.usage.values.firstOrNull()
+            if (usage != null) {
+                UsageBanner(info = usage)
+            }
             when {
                 !state.hasProfiles -> EmptyState(
                     title = stringResource(R.string.profiles_empty_title),
@@ -1500,4 +1507,57 @@ private fun StarveilSheetRow(
 @Composable
 private fun AddSheetRow(title: String, onClick: () -> Unit) {
     StarveilSheetRow(text = title, onClick = onClick)
+}
+
+/**
+ * The quota the subscription reported, when the provider reports one.
+ *
+ * A line, not a card: it is a fact about the subscription, not a section. It
+ * disappears entirely when the header was missing or unreadable — a "no data"
+ * banner would be a permanent apology for something the user cannot act on.
+ */
+@Composable
+private fun UsageBanner(
+    info: com.justnpcx.starveil.core.model.SubscriptionUserInfo,
+    modifier: Modifier = Modifier,
+) {
+    val days = info.daysLeft(System.currentTimeMillis() / 1000L)
+    val parts = buildList {
+        val used = info.usedBytes
+        val total = info.totalBytes
+        when {
+            used != null && total != null ->
+                add(stringResource(R.string.profiles_usage_of, formatBytes(used), formatBytes(total)))
+            used != null -> add(stringResource(R.string.profiles_usage_used, formatBytes(used)))
+            total != null -> add(stringResource(R.string.profiles_usage_total, formatBytes(total)))
+        }
+        if (days != null) add(stringResource(R.string.profiles_usage_days, days))
+    }
+    if (parts.isEmpty()) return
+    Text(
+        text = parts.joinToString(" · "),
+        style = StarveilType.label,
+        color = StarveilColors.ink2,
+        modifier = modifier.padding(
+            start = StarveilSpacing.pageMargin,
+            end = StarveilSpacing.pageMargin,
+            top = StarveilSpacing.sm,
+        ),
+    )
+}
+
+/** Bytes in the shortest unit that keeps one decimal. */
+private fun formatBytes(bytes: Long): String {
+    val units = listOf("B", "KB", "MB", "GB", "TB")
+    var value = bytes.toDouble()
+    var unit = 0
+    while (value >= 1024 && unit < units.lastIndex) {
+        value /= 1024
+        unit++
+    }
+    return if (unit == 0 || value >= 100) {
+        "${value.toLong()} ${units[unit]}"
+    } else {
+        String.format(java.util.Locale.US, "%.1f %s", value, units[unit])
+    }
 }

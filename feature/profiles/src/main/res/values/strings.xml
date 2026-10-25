@@ -56,6 +56,10 @@
     <string name="profiles_no_search_title">Nothing matches</string>
     <string name="profiles_no_search_body">No node has “%1$s” in its name or address.</string>
     <string name="profiles_no_matches_title">No nodes in this group</string>
+    <string name="profiles_usage_of">Used %1$s of %2$s</string>
+    <string name="profiles_usage_used">Used %1$s</string>
+    <string name="profiles_usage_total">%1$s total</string>
+    <string name="profiles_usage_days">%1$d days left</string>
     <string name="profiles_timed_out_hidden">%1$d timed out · show</string>
     <string name="profiles_timed_out_shown">Hide %1$d timed out</string>
     <string name="profiles_no_matches_body">Pick another group, or import a subscription.</string>

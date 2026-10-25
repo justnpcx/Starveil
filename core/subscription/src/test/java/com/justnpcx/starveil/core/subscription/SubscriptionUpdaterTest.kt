@@ -13,18 +13,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private class FakeFetcher(
     private val body: String? = null,
     private val error: Exception? = null,
+    private val userInfoHeader: String? = null,
 ) : SubscriptionFetcher {
     var lastUrl: String? = null
-    override suspend fun fetch(url: String): String {
+    override suspend fun fetch(url: String): String = fetchWithMeta(url).body
+    override suspend fun fetchWithMeta(url: String): FetchedSubscription {
         lastUrl = url
         error?.let { throw it }
-        return body!!
+        return FetchedSubscription(body!!, userInfoHeader)
     }
 }
 
@@ -79,6 +82,7 @@ class SubscriptionUpdaterTest {
     private fun updater(
         body: String? = null,
         error: Exception? = null,
+        userInfo: String? = null,
         profiles: FakeProfiles = FakeProfiles(),
         health: FakeHealth = FakeHealth(),
         now: Long = 1_700_000_000_000L,
@@ -102,7 +106,7 @@ class SubscriptionUpdaterTest {
             registry = registry,
             profiles = profiles,
             health = health,
-            fetcher = FakeFetcher(body, error),
+            fetcher = FakeFetcher(body, error, userInfo),
             clock = { now },
         )
         return Triple(updater, profiles, health)
@@ -110,6 +114,33 @@ class SubscriptionUpdaterTest {
 
     private fun base64Links(vararg links: String): String =
         Base64.getEncoder().encodeToString(links.joinToString("\n").toByteArray())
+
+
+    @Test
+    fun `the quota header rides along with a successful refresh`() = runBlocking {
+        val body = base64Links("vless://u1@h1:443#node1")
+        val (updater, _, _) = updater(
+            body = body,
+            userInfo = "upload=10; download=20; total=100; expire=1893456000",
+        )
+
+        val outcome = updater.update(groupId = 1L, url = "https://s.example/sub")
+
+        val success = outcome as SubscriptionUpdateOutcome.Success
+        assertEquals(30L, success.userInfo?.usedBytes)
+        assertEquals(100L, success.userInfo?.totalBytes)
+    }
+
+    @Test
+    fun `no header means no quota, not a zero quota`() = runBlocking {
+        val body = base64Links("vless://u1@h1:443#node1")
+        val (updater, _, _) = updater(body = body)
+
+        val outcome = updater.update(groupId = 1L, url = "https://s.example/sub")
+
+        val success = outcome as SubscriptionUpdateOutcome.Success
+        assertNull(success.userInfo)
+    }
 
     @Test
     fun `success replaces the group profiles and records the time`() = runBlocking {

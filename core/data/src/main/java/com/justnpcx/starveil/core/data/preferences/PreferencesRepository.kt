@@ -94,6 +94,21 @@ interface PreferencesRepository {
     val subscribedRulePacks: Flow<Set<String>>
 
     /**
+     * The quota each subscription last reported, keyed by group id.
+     *
+     * Stored rather than fetched on demand: the header only arrives with a
+     * refresh, and the screen must not trigger network traffic to draw a line.
+     * Empty is the normal case — most providers send no `subscription-userinfo`.
+     */
+    val subscriptionUsage: Flow<Map<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo>>
+
+    /** Records (or clears, with null) one subscription's quota. */
+    suspend fun setSubscriptionUsage(
+        groupId: Long,
+        info: com.justnpcx.starveil.core.model.SubscriptionUserInfo?,
+    )
+
+    /**
      * Whether the local Clash-compatible API is served.
      *
      * Off by default: it is a developer tool, and a listening socket is not
@@ -256,6 +271,7 @@ class DataStorePreferencesRepository @Inject constructor(
         val SUB_LAST_SUCCESS = longPreferencesKey("subscription_last_success_at")
         val SUB_LAST_FAILURE = longPreferencesKey("subscription_last_failure_at")
         val SUB_LAST_ERROR = stringPreferencesKey("subscription_last_error")
+        val SUB_USAGE = stringPreferencesKey("subscription_usage")
         val HEALTH_PROBE_AT = longPreferencesKey("health_probe_at")
         val SCENES = stringPreferencesKey("scenes")
         val MANUAL_PRESET_AT = longPreferencesKey("manual_preset_at")
@@ -331,6 +347,22 @@ class DataStorePreferencesRepository @Inject constructor(
                 .filter { it.isNotEmpty() }
                 .toSet()
         }
+
+    override val subscriptionUsage: Flow<Map<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo>> =
+        dataStore.data
+            .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+            .map { prefs -> parseUsage(prefs[Keys.SUB_USAGE]) }
+
+    override suspend fun setSubscriptionUsage(
+        groupId: Long,
+        info: com.justnpcx.starveil.core.model.SubscriptionUserInfo?,
+    ) {
+        dataStore.edit { prefs ->
+            val current = parseUsage(prefs[Keys.SUB_USAGE]).toMutableMap()
+            if (info == null) current.remove(groupId) else current[groupId] = info
+            prefs[Keys.SUB_USAGE] = encodeUsage(current)
+        }
+    }
 
     override val dnsMetricsEnabled: Flow<Boolean> = dataStore.data
         .map { it[Keys.DNS_METRICS] ?: true }
@@ -471,4 +503,39 @@ class DataStorePreferencesRepository @Inject constructor(
             it[Keys.SUB_LAST_ERROR] = reason
         }
     }
+}
+
+/**
+ * `groupId,upload,download,total,expire` per entry, `;`-separated.
+ *
+ * Hand-rolled rather than JSON: four numbers and an id do not need a parser,
+ * and an empty field has to survive as "not stated" (see SubscriptionUserInfo).
+ */
+private fun encodeUsage(map: Map<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo>): String =
+    map.entries.joinToString(";") { (id, info) ->
+        listOf(
+            id.toString(),
+            info.uploadBytes?.toString().orEmpty(),
+            info.downloadBytes?.toString().orEmpty(),
+            info.totalBytes?.toString().orEmpty(),
+            info.expireEpochSeconds?.toString().orEmpty(),
+        ).joinToString(",")
+    }
+
+private fun parseUsage(raw: String?): Map<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo> {
+    if (raw.isNullOrBlank()) return emptyMap()
+    val out = LinkedHashMap<Long, com.justnpcx.starveil.core.model.SubscriptionUserInfo>()
+    for (entry in raw.split(";")) {
+        val parts = entry.split(",")
+        if (parts.size != 5) continue
+        val id = parts[0].toLongOrNull() ?: continue
+        fun at(i: Int): Long? = parts[i].takeIf { it.isNotBlank() }?.toLongOrNull()
+        out[id] = com.justnpcx.starveil.core.model.SubscriptionUserInfo(
+            uploadBytes = at(1),
+            downloadBytes = at(2),
+            totalBytes = at(3),
+            expireEpochSeconds = at(4),
+        )
+    }
+    return out
 }

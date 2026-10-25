@@ -28,7 +28,12 @@ sealed interface SubscriptionUpdateOutcome {
      * node dropped is a node the user does not have, and silently importing
      * 98 of 100 is how a broken subscription looks healthy.
      */
-    data class Success(val profileCount: Int, val dropped: Int = 0) : SubscriptionUpdateOutcome
+    data class Success(
+        val profileCount: Int,
+        val dropped: Int = 0,
+        /** What the server said about the quota, when it said anything. */
+        val userInfo: com.justnpcx.starveil.core.model.SubscriptionUserInfo? = null,
+    ) : SubscriptionUpdateOutcome
 
     /** [reason] is already redacted — safe to persist and show in the UI. */
     data class Failure(val reason: SubscriptionFailure) : SubscriptionUpdateOutcome
@@ -53,8 +58,8 @@ class SubscriptionUpdater @Inject constructor(
 ) {
 
     suspend fun update(groupId: Long, url: String): SubscriptionUpdateOutcome {
-        val body = try {
-            fetcher.fetch(url)
+        val fetched = try {
+            fetcher.fetchWithMeta(url)
         } catch (e: HttpStatusException) {
             return fail(SubscriptionFailure.Http(e.code))
         } catch (e: IOException) {
@@ -62,6 +67,8 @@ class SubscriptionUpdater @Inject constructor(
         } catch (e: Exception) {
             return fail(SubscriptionFailure.Network)
         }
+        val body = fetched.body
+        val userInfo = com.justnpcx.starveil.core.model.parseSubscriptionUserInfo(fetched.userInfoHeader)
 
         val parsed = try {
             registry.resolve(body).parseDetailed(body)
@@ -85,7 +92,7 @@ class SubscriptionUpdater @Inject constructor(
         return try {
             profiles.replaceGroupProfiles(groupId, unique)
             health.recordSuccess(clock.nowMs())
-            SubscriptionUpdateOutcome.Success(unique.size, dropped = parsed.dropped)
+            SubscriptionUpdateOutcome.Success(unique.size, dropped = parsed.dropped, userInfo = userInfo)
         } catch (e: Exception) {
             fail(SubscriptionFailure.SaveFailed)
         }

@@ -6,9 +6,26 @@ import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** What one fetch produced: the body, and the headers this app reads. */
+data class FetchedSubscription(
+    val body: String,
+    /** Raw `subscription-userinfo`, or null when the server did not send one. */
+    val userInfoHeader: String? = null,
+)
+
 /** Fetches the raw body of a subscription URL. Throws on any failure. */
 interface SubscriptionFetcher {
     suspend fun fetch(url: String): String
+
+    /**
+     * Same fetch, plus the headers worth keeping.
+     *
+     * Defaulted rather than required so the existing fakes stay honest: a fake
+     * that only knows the body is a server that sends no quota, which is the
+     * common case and not a special one.
+     */
+    suspend fun fetchWithMeta(url: String): FetchedSubscription =
+        FetchedSubscription(fetch(url), null)
 }
 
 /**
@@ -32,7 +49,9 @@ class HttpUrlConnectionFetcher(
     private val maxBytes: Int = 4 * 1024 * 1024,
 ) : SubscriptionFetcher {
 
-    override suspend fun fetch(url: String): String = withContext(Dispatchers.IO) {
+    override suspend fun fetch(url: String): String = fetchWithMeta(url).body
+
+    override suspend fun fetchWithMeta(url: String): FetchedSubscription = withContext(Dispatchers.IO) {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = connectTimeoutMs
             readTimeout = readTimeoutMs
@@ -46,6 +65,8 @@ class HttpUrlConnectionFetcher(
             if (code !in 200..299) {
                 throw HttpStatusException(code)
             }
+            // Read before the body: after disconnect() the headers are gone.
+            val userInfo = connection.getHeaderField(USER_INFO_HEADER)
             // Not InputStream.readNBytes: that is API 33, and minSdk is 29.
             val body = connection.inputStream.use { stream ->
                 val buffer = java.io.ByteArrayOutputStream()
@@ -60,7 +81,7 @@ class HttpUrlConnectionFetcher(
                 }
                 buffer.toByteArray()
             }
-            return@withContext String(body, Charsets.UTF_8)
+            return@withContext FetchedSubscription(String(body, Charsets.UTF_8), userInfo)
         } finally {
             connection.disconnect()
         }
@@ -68,5 +89,8 @@ class HttpUrlConnectionFetcher(
 
     private companion object {
         const val USER_AGENT = "Starveil/0.1"
+
+        /** The de-facto quota header; see SubscriptionUserInfo. */
+        const val USER_INFO_HEADER = "subscription-userinfo"
     }
 }

@@ -1054,3 +1054,35 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 
 **没做**：真机流量下的 `Recent flow` 对照（需要连上隧道并让流量命中规则）。命中的第一手证据目前是"配置里规则的先后"，sing-box 的 first-match 语义是上游文档保证的，不是本仓库代码。
 
+
+## 2026-10-25 · P1-9 订阅用量与到期横幅（代码 + 单测完成，界面未在真机观测）
+
+**做了什么**
+
+- `core:model` 新增 `SubscriptionUserInfo` 与 `parseSubscriptionUserInfo()`：解析 `subscription-userinfo`（`upload/download/total/expire`，字节与 Unix 秒），**缺字段保持 null 而不是 0**——"0 / 0 已用"比"没显示额度"更像假话。
+- `SubscriptionFetcher` 增加 `fetchWithMeta()`（默认实现回落 `fetch()`，老 fake 不用改）；`HttpUrlConnectionFetcher` 在 `disconnect()` 前读出该响应头。
+- `SubscriptionUpdater` 解析后挂到 `Success.userInfo`；`ProfilesViewModel` 在刷新成功时写入偏好；`PreferencesRepository` 新增 `subscriptionUsage`（按 group id，手写编码，不引 JSON 依赖）。
+- 节点页在列表上方显示一行：`已用 3.0 GB / 100 GB · 剩余 N 天`；**没有该头时整行不出现**（不是显示"暂无数据"）。
+
+**实测（单元测试）**
+
+| 用例 | 断言 |
+|---|---|
+| 完整头 | 四个数都对，`usedBytes` = upload + download |
+| 只给 total | upload/used 保持 null，total 有值 |
+| 垃圾头 / 负数 / 空 | 解析为 null，不抛异常 |
+| 分隔符与空格 | ` upload = 10 ;download=20, total=30 ` 也能解 |
+| 剩余天数 | 向上取整；过期或没有 expire 时为 null |
+| 更新器带头发刷新 | `Success.userInfo.usedBytes = 30`、`totalBytes = 100` |
+| 更新器无头 | `Success.userInfo == null`（不是 0） |
+
+`core:model` 与 `core:subscription` 测试全绿；`checkTranslations` 519 条全译。
+
+**没做到的部分（如实记录）**
+
+界面横幅**没有在真机上看到过**，原因是拿不到一个"会发这个头"的 https 订阅：
+
+- 真实订阅的 provider 不发 `subscription-userinfo`（导入后横幅正确地不出现，即降级路径符合预期，但这只证明了"没有就不显示"）。
+- 本地起的测试服务器发这个头，但它是 `http://`，Android 的明文流量策略在 `targetSdk 35` 下直接拒绝，应用侧报 `Import failed: Network error`。要用它得给正式包开 `usesCleartextTraffic`，那是为了测试改产品配置，没做。
+
+**下次补验收**：找一个 https 且带该头的订阅（多数机场都有），导入 → 刷新 → 截图；或临时用 `ngrok`/隧道把一个带头的本地服务暴露成 https。
