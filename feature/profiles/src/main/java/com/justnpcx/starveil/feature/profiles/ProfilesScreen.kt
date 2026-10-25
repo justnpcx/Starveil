@@ -10,6 +10,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
+import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
@@ -804,11 +806,11 @@ private fun GroupNameDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
+            StarveilTextField(
                 value = name,
                 onValueChange = { name = it },
-                singleLine = true,
-                label = { Text(stringResource(R.string.profiles_group_name_label)) },
+                label = stringResource(R.string.profiles_group_name_label),
+                surface = FieldSurface.Dialog,
                 modifier = Modifier.fillMaxWidth(),
             )
         },
@@ -847,15 +849,16 @@ private fun ImportDialog(
         title = { Text(stringResource(R.string.profiles_import_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                OutlinedTextField(
+                StarveilTextField(
                     value = text,
                     onValueChange = {
                         text = it
                         hint = null
                     },
+                    label = stringResource(R.string.profiles_import_hint),
+                    surface = FieldSurface.Dialog,
                     singleLine = false,
                     minLines = 3,
-                    label = { Text(stringResource(R.string.profiles_import_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 hint?.let {

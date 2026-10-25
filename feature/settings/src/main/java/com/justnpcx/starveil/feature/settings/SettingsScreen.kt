@@ -62,6 +62,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
+import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.LocalApi
@@ -680,15 +682,13 @@ private fun PassphraseDialog(
                     style = StarveilType.label,
                     color = StarveilColors.ink2,
                 )
-                OutlinedTextField(
+                StarveilTextField(
                     value = value,
                     onValueChange = { value = it },
-                    singleLine = true,
+                    label = stringResource(R.string.backup_passphrase),
+                    surface = FieldSurface.Dialog,
                     visualTransformation = PasswordVisualTransformation(),
-                    label = { Text(stringResource(R.string.backup_passphrase)) },
-                    supportingText = {
-                        Text(stringResource(R.string.backup_passphrase_min, MIN_PASSPHRASE))
-                    },
+                    supportingText = stringResource(R.string.backup_passphrase_min, MIN_PASSPHRASE),
                 )
             }
         },

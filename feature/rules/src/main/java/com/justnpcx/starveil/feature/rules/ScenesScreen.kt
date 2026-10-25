@@ -27,7 +27,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -47,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
+import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.RoutePreset
@@ -289,11 +290,11 @@ private fun SceneDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
-                OutlinedTextField(
+                StarveilTextField(
                     value = name,
                     onValueChange = { name = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.scenes_name)) },
+                    label = stringResource(R.string.scenes_name),
+                    surface = FieldSurface.Dialog,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -320,12 +321,12 @@ private fun SceneDialog(
                     )
                 }
                 if (!mobile) {
-                    OutlinedTextField(
+                    StarveilTextField(
                         value = ssids,
                         onValueChange = { ssids = it },
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.scenes_ssids)) },
-                        supportingText = { Text(stringResource(R.string.scenes_ssids_hint)) },
+                        label = stringResource(R.string.scenes_ssids),
+                        surface = FieldSurface.Dialog,
+                        supportingText = stringResource(R.string.scenes_ssids_hint),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

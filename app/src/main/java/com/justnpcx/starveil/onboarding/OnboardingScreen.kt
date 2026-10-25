@@ -25,7 +25,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +44,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
+import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.core.subscription.DocumentFormat
@@ -158,11 +159,11 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
             onDismissRequest = { showSubscription = false },
             title = { Text(stringResource(R.string.onboarding_add_subscription)) },
             text = {
-                OutlinedTextField(
+                StarveilTextField(
                     value = subscriptionDraft,
                     onValueChange = { subscriptionDraft = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.onboarding_subscription_hint)) },
+                    label = stringResource(R.string.onboarding_subscription_hint),
+                    surface = FieldSurface.Dialog,
                 )
             },
             confirmButton = {

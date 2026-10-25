@@ -482,12 +482,19 @@ private fun SpeedColumn(
                 // change width, or the whole row twitches with it.
                 style = StarveilType.display.copy(fontFeatureSettings = "tnum"),
                 color = StarveilColors.ink,
+                // One line, always. A rate that wraps is no longer a rate.
+                softWrap = false,
+                maxLines = 1,
                 modifier = Modifier.alignByBaseline(),
             )
             Text(
                 text = parts.unit,
                 style = StarveilType.tech.copy(fontSize = 13.sp),
                 color = StarveilColors.ink2,
+                // "B/s" was breaking after the slash on a narrow column: the
+                // unit is one token, not a word the layout may split.
+                softWrap = false,
+                maxLines = 1,
                 modifier = Modifier
                     .alignByBaseline()
                     .padding(start = 6.dp),

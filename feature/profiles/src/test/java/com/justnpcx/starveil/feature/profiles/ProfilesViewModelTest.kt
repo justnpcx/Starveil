@@ -121,6 +121,46 @@ class ProfilesViewModelTest {
     }
 
     @Test
+    fun `filtering by a region group lists that region's nodes, not the group's own`() = runBlocking {
+        // A region group owns no nodes by design — membership is derived from
+        // name and country, so filtering by its id would always come out empty
+        // while the nodes sit in the subscription they came from.
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "US 01").copy(groupId = SUB),
+                profile(TWO, "Hong Kong 02").copy(groupId = SUB),
+            ),
+        )
+        val us = ProxyGroup(id = 9L, name = "United States", mode = GroupMode.URL_TEST, region = NodeRegion.UNITED_STATES)
+        val viewModel = viewModel(profiles, FakePreferences(0L), FakeGroups(listOf(subGroup(GroupMode.URL_TEST), us)))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(us.id)
+        yield()
+
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+        assertFalse(viewModel.uiState.value.hasNoMatches)
+        job.cancel()
+    }
+
+    @Test
+    fun `a region group with no matching nodes still says the group is empty`() = runBlocking {
+        val profiles = FakeProfiles(mutableListOf(profile(ONE, "Hong Kong 01").copy(groupId = SUB)))
+        val us = ProxyGroup(id = 9L, name = "United States", mode = GroupMode.URL_TEST, region = NodeRegion.UNITED_STATES)
+        val viewModel = viewModel(profiles, FakePreferences(0L), FakeGroups(listOf(subGroup(GroupMode.URL_TEST), us)))
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.filterByGroup(us.id)
+        yield()
+
+        assertTrue(viewModel.uiState.value.profiles.isEmpty())
+        assertTrue(viewModel.uiState.value.hasNoMatches)
+        job.cancel()
+    }
+
+    @Test
     fun `search narrows the list by name`() = runBlocking {
         val profiles = FakeProfiles(
             mutableListOf(

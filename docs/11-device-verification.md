@@ -1416,3 +1416,38 @@ ERROR connection: open connection to 223.5.5.5:443 using outbound/block[block]: 
 **复核中发现一处过时文案（已修）**：设置页 kill switch 的说明还写着"上面的模式由应用自己执行，进程结束就失效"。kill switch 修好之后这句不再准确——现在是**进程结束时暂停、下次启动恢复**。中英两条都改，`checkTranslations` 525 条全译。
 
 **U7 的判据变更说明**：0.8.0「曜」验收里 U7 是"连接态渐变环（左青右紫）"，03 毛玻璃换肤时**故意**改成实心 accent（注释给了理由）。所以这次复核的判据是"实心 accent + 中心位置不变"，不是"渐变"。把旧判据当基准会得出"回归"的错误结论。
+
+## 2026-10-26 · F-1 输入框未激活边框（代码完成，真机截图待手机解锁）
+
+**基线**：开工时 main HEAD = `d808993e881f683daf80e012887c8058133194b7`（0.8.5 发布后的文档提交）。
+
+**根因（复核后与任务书一致）**：`Theme.kt` 把 `outline` 映射成 `glassBorder`（白 75%），全仓没有任何 `OutlinedTextFieldDefaults` 覆盖，所以未激活边框是白 75%，画在对话框实色面 `#F6F8FA` 上等于没有；激活态走 accent 蓝，所以只有点进去才看得出是输入框。
+
+**修法**：新增共用组件 `core/ui/.../components/StarveilTextField.kt`（`FieldSurface.Page` / `FieldSurface.Dialog`），照 `StarveilChip` 的对话框款取色：
+
+| 状态 | 颜色 |
+|---|---|
+| 未激活边框（对话框） | `ink3` |
+| 激活边框 | `accent` |
+| 未激活标签 | `ink2` |
+| 激活标签 | `accentText` |
+| 光标 | `accent` |
+| 出错态 | 保持 Material 默认（主题已映射到 `errText`），未改动 |
+
+**不动全局** `glassBorder` / `hairline` / `outline`：玻璃卡片的边还要靠白 75%。
+
+**覆盖清单（对话框 / 实色面，全部改完）**：
+
+| 位置 | 用途 |
+|---|---|
+| `RulesScreen` 新建/编辑规则 | 「值」输入框（原发点） |
+| `RulesScreen` 流向弹层 | 搜索框（`Surface(fillMaxSize())` 在 Dialog 内，同属实色面） |
+| `ProfilesScreen` 导入节点 | 多行输入（`minLines = 3`，原发点） |
+| `ProfilesScreen` 新建/改名分组 | 分组名 |
+| `ScenesScreen` ×2 | 场景名称、SSID 列表 |
+| `SettingsScreen` 备份口令 | 密码输入（保留 `PasswordVisualTransformation`） |
+| `OnboardingScreen` 添加订阅 | 引导页订阅地址 |
+
+**页面点位（待截图审计，未改）**：`PerAppScreen` 搜索框、`ProfileEditorScreen` 的 `Field`。两者都在页面底色上，`glassBorder` 同样接近隐形，但任务书要求先截图再决定，**没有盲改**。
+
+**阻塞**：手机（vivo V2238A）在开工时已锁屏且需要密码，`wm dismiss-keyguard` 无效，无法进入应用截图。任务书要求的「修前未激活 / 修后未激活 / 修后激活」三张真机截图**一张都没取到**，本项按任务书的停止规则只停该项的验收，代码与覆盖清单已核实。

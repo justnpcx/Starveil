@@ -182,7 +182,21 @@ class ProfilesViewModel @Inject constructor(
         val selectedId = (target as? ConnectionTarget.Node)?.id ?: 0L
         // A node imported from a share link has no group, so it only ever
         // shows under "All".
-        val inGroup = if (filter == null) list else list.filter { it.groupId == filter }
+        //
+        // A region group is the exception: it owns no nodes by design (its
+        // members are derived from name and country at read time, so a
+        // subscription refresh cannot leave it stale). Filtering it by id would
+        // therefore always come out empty — the nodes still belong to the
+        // subscription they came from. Ask the region instead; that is what the
+        // group means.
+        val filterGroup = filter?.let { id -> groupList.firstOrNull { it.id == id } }
+        val inGroup = when {
+            filter == null -> list
+            filterGroup?.region != null -> list.filter { profile ->
+                NodeRegions.resolve(profile.name, profile.country) == filterGroup.region
+            }
+            else -> list.filter { it.groupId == filter }
+        }
         val visible = inGroup.filterBy(query)
         ProfilesUiState(
             profiles = visible,

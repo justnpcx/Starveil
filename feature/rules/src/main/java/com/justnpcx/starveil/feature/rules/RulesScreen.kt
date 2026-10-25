@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -49,6 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +58,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
+import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
 import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.model.FlowOutcome
@@ -508,6 +511,9 @@ private fun RuleRow(
 /** The order column: wide enough for three digits, which is a long list. */
 private val ORDER_COLUMN_WIDTH = 34.dp
 
+/** How wide the "there is more" fade is at the end of a scrolling row. */
+private val MATCHER_FADE = 32.dp
+
 /**
  * The last thing evaluated: traffic no rule matched.
  *
@@ -568,26 +574,54 @@ private fun RuleDialog(
                     text = stringResource(R.string.rules_match_label),
                     style = StarveilType.label,
                 )
-                Row(
+                // The four matchers do not fit on a phone. The row scrolls, but
+                // nothing said so — the fourth chip was simply cut off. A fade
+                // at the edge is the hint, and it only appears while there is
+                // more to the right, so a wide screen shows no affordance it
+                // does not need.
+                val matcherScroll = rememberScrollState()
+                // Read outside the draw block: StarveilColors is a composable
+                // lookup, and drawWithContent is not a composable scope.
+                val fadeTo = StarveilColors.surfaceSolid
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                        .drawWithContent {
+                            drawContent()
+                            if (matcherScroll.canScrollForward) {
+                                val fade = MATCHER_FADE.toPx()
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(Color.Transparent, fadeTo),
+                                        startX = size.width - fade,
+                                        endX = size.width,
+                                    ),
+                                )
+                            }
+                        },
                 ) {
-                    MatcherKind.entries.forEach { candidate ->
-                        StarveilChip(
-                            label = kindLabel(candidate),
-                            selected = kind == candidate,
-                            onClick = { kind = candidate },
-                            surface = ChipSurface.Dialog,
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(matcherScroll)
+                            .padding(end = StarveilSpacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                    ) {
+                        MatcherKind.entries.forEach { candidate ->
+                            StarveilChip(
+                                label = kindLabel(candidate),
+                                selected = kind == candidate,
+                                onClick = { kind = candidate },
+                                surface = ChipSurface.Dialog,
+                            )
+                        }
                     }
                 }
-                OutlinedTextField(
+                StarveilTextField(
                     value = value,
                     onValueChange = { value = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.rules_value_label)) },
+                    label = stringResource(R.string.rules_value_label),
+                    surface = FieldSurface.Dialog,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -828,11 +862,11 @@ private fun AllFlowDialog(
                         Text(stringResource(R.string.rules_flow_close))
                     }
                 }
-                OutlinedTextField(
+                StarveilTextField(
                     value = query,
                     onValueChange = { query = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.rules_flow_search_hint)) },
+                    label = stringResource(R.string.rules_flow_search_hint),
+                    surface = FieldSurface.Dialog,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
