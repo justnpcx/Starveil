@@ -358,9 +358,15 @@ fun ProfilesScreen(
                 }
             }
             // The quota the provider published, when it published one.
-            val usage = state.usage[state.selectedGroupId]
-                ?: state.groupFilter?.let { state.usage[it] }
-                ?: state.usage.values.firstOrNull()
+            // Filtered to a group: that group's number or nothing. Showing
+            // another subscription's quota here would be worse than showing
+            // none, because the number looks like it belongs to what is on
+            // screen. Unfiltered, the node in force is the one being described.
+            val usage = if (state.groupFilter != null) {
+                state.usage[state.groupFilter]
+            } else {
+                state.usage[state.selectedGroupId]
+            }
             if (usage != null) {
                 UsageBanner(info = usage)
             }

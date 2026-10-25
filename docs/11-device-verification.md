@@ -1055,7 +1055,7 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 **没做**：真机流量下的 `Recent flow` 对照（需要连上隧道并让流量命中规则）。命中的第一手证据目前是"配置里规则的先后"，sing-box 的 first-match 语义是上游文档保证的，不是本仓库代码。
 
 
-## 2026-10-25 · P1-9 订阅用量与到期横幅（代码 + 单测完成，界面未在真机观测）
+## 2026-10-25 · P1-9 订阅用量与到期横幅（已验收）
 
 **做了什么**
 
@@ -1078,11 +1078,18 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 
 `core:model` 与 `core:subscription` 测试全绿；`checkTranslations` 519 条全译。
 
-**没做到的部分（如实记录）**
+**验收（Fire TV，2026-10-25，经 cloudflared 临时隧道）**
 
-界面横幅**没有在真机上看到过**，原因是拿不到一个"会发这个头"的 https 订阅：
+测试订阅由本机起的小服务提供，两条路径内容相同、只差响应头，经 `trycloudflare` 临时隧道暴露成 https 供电视导入（Android 拒绝明文 http，这是唯一能验的路子）。
 
-- 真实订阅的 provider 不发 `subscription-userinfo`（导入后横幅正确地不出现，即降级路径符合预期，但这只证明了"没有就不显示"）。
-- 本地起的测试服务器发这个头，但它是 `http://`，Android 的明文流量策略在 `targetSdk 35` 下直接拒绝，应用侧报 `Import failed: Network error`。要用它得给正式包开 `usesCleartextTraffic`，那是为了测试改产品配置，没做。
+| 订阅 | 响应头 | 界面 |
+|---|---|---|
+| `/with` | `upload=1GiB; download=2GiB; total=100GiB; expire=2030-01-01` | 芯片下方一行 **`Used 3.0 GB of 100 GB · 1164 days left`** |
+| `/without` | 无 | **整行不出现**，列表直接接在芯片下面 |
 
-**下次补验收**：找一个 https 且带该头的订阅（多数机场都有），导入 → 刷新 → 截图；或临时用 `ngrok`/隧道把一个带头的本地服务暴露成 https。
+- 3.0 GB = 1 GiB 上传 + 2 GiB 下载，100 GB 总量、1164 天都是头里给的数，不是算错。
+- 降级不是显示"暂无数据"，是**什么都不显示**——用户对没有的额度无能为力，一行道歉只会占地方。
+
+**验收过程中修的一个设计错误**：横幅原先在"没筛分组"时会退回到任意一个分组的用量，于是筛到没有额度的那个订阅、屏幕上却显示别人的数字。改成**按当前分组取值**：筛了分组只看该分组，没筛才看当前节点所属分组。
+
+截图：`docs/recordings/glass-2026-10-25/usage-with-header.png`、`usage-without-header.png`。
