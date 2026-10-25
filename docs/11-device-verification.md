@@ -1480,3 +1480,14 @@ val inGroup = when {
 **没动的**：地区分类词表（`NodeRegion`）、地区组删组不删节点的规则、地区组连接走 URL_TEST 的行为——本项只改列表过滤一处。
 
 **阻塞**：同 F-1，手机锁屏，无法取「点美国组前后」的真机截图。
+
+## 2026-10-26 · F-3 新建规则的匹配行被右缘截断（代码完成，截图待手机解锁）
+
+**现状**：`MatcherKind` 四个选项（域名 / 域名后缀 / 域名关键词 / IP_CIDR）在 `horizontalScroll` 的一行里，窄屏上第 4 个被裁掉，且没有任何"还能往右滑"的提示。
+
+**修法**：行外再包一层 `Box`，用 `drawWithContent` 在右缘画 32dp 的渐隐（透明 → `surfaceSolid`），**只在 `canScrollForward` 为真时画**——宽屏上不会出现一个没有意义的提示。行尾加 `StarveilSpacing.sm` 的留白，最后一个芯片不贴边。
+
+- 芯片本身的颜色、选中逻辑、顺序一行未动；
+- 渐隐色取 `surfaceSolid`，因为这一行在对话框里（与 F-1 同一个实色面）；颜色在 draw 块外读好再传进去（`StarveilColors` 是 composable 查找，`drawWithContent` 不是 composable 作用域）。
+
+**阻塞**：手机锁屏，无法取「修前截断 / 修后渐隐」的真机截图。
