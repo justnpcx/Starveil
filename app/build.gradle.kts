@@ -218,6 +218,7 @@ dependencies {
     implementation(project(":core:kernel"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+    implementation(libs.room.ktx)
     implementation(project(":core:subscription"))
     // Probes: latency, health sampling, the leak self-check, flow log.
     implementation(project(":core:probe"))

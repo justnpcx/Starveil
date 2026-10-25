@@ -9,6 +9,7 @@ import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.WEIGHT_FULL
+import androidx.room.withTransaction
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -39,6 +40,17 @@ class SeedReceiver : BroadcastReceiver() {
         fun profiles(): ProfileRepository
         fun health(): NodeHealthRepository
         fun preferences(): PreferencesRepository
+
+        /**
+         * The database itself, so the whole fixture can be written in one
+         * transaction.
+         *
+         * Without it the seed was 7000 separate transactions: on a phone that
+         * outlived the broadcast's budget, the process was killed mid-write,
+         * and the benchmark sat on the welcome screen waiting for rows that
+         * never arrived.
+         */
+        fun database(): com.justnpcx.starveil.core.data.StarveilDatabase
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -55,6 +67,10 @@ class SeedReceiver : BroadcastReceiver() {
             // build opens on the welcome screen, where a tap on the tab bar
             // does nothing and the measured scroll moves no frames at all.
             entry.preferences().setOnboardingDone(true)
+            // One transaction for the lot. A thousand nodes and six thousand
+            // samples is a few seconds of work when it is one commit, and more
+            // than a broadcast's budget when it is seven thousand.
+            entry.database().withTransaction {
             repeat(count) { index ->
                 val region = REGIONS[index % REGIONS.size]
                 // The flag comes from country, not from the name: prefixing it
@@ -90,6 +106,7 @@ class SeedReceiver : BroadcastReceiver() {
                         weightTenths = WEIGHT_FULL,
                     )
                 }
+            }
             }
             // A marker the benchmark can read from the shell: "the broadcast
             // returned" is not the same as "the rows are on disk", and the two

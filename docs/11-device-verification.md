@@ -970,3 +970,18 @@ tests=9 failures=0 errors=0 time=26.086s
 4. 每项测 3 次取中位，原始数写进本文件，不写「整体达标」这种汇总。
 
 **本轮没有数值**：手机 192.168.50.140 可达但 5555 关闭（无线调试未开），按规矩 8 不能拿 Fire TV 的数顶替。方法已定，等手机接入后按上述 workload 补首轮基线。
+
+## 2026-10-25 · P0-1 夹具修复：广播种子从来没写进去过
+
+**定位结论（比数字更重要）**：1000 节点夹具的 `SeedReceiver` 在真机上**从来没有执行过**，`am broadcast` 却一直返回 `result=0`。原因是 `pm clear` 之后应用处于 **stopped 状态**，stopped 包收不到广播——命令成功、接收器没跑，看起来像写进去了。M4-1 当时把电视上的失败归因为"`input tap` 被 Compose 底部导航吞掉"，那个判断是错的。
+
+**修法（两处，都在 benchmark 侧）**：
+
+1. `NodesScrollBenchmark.seed()`：`pm clear` 之后先 `am start` 把进程拉起来，再发广播，并加 `--include-stopped-packages`。
+2. `SeedReceiver`：1000 节点 + 6000 样本改成**一个事务**（新增 `database()` entry point + `withTransaction`）。原来是 7000 次独立事务，手机上一次就超出广播的执行预算，进程被中途杀掉。为此给 `:app` 加了 `libs.room.ktx`（只有 benchmark 变体用到）。
+
+**验证**：修完后广播能让应用跳过引导、节点确实写进库（应用在前台时实测）。
+
+**Macrobenchmark 仍未跑出数**：两次尝试都中断——第一次是我在测量期间执行 `uiautomator dump`，与 instrumentation 的 UiAutomation 冲突，benchmark 进程崩溃（`UiAutomationService already registered`）；第二次重跑后手机无线调试掉线（`ping 192.168.50.140` 100% 丢包、mDNS 无广播），无法继续。**本轮没有任何手机帧率数字，不写结论。**
+
+**下次接上手机后的步骤**：装 `app-arm64-v8a-benchmark.apk` + `benchmark-benchmark.apk` → `am instrument -w -e class com.justnpcx.starveil.benchmark.NodesScrollBenchmark com.justnpcx.starveil.benchmark/androidx.test.runner.AndroidJUnitRunner` → **测量期间不要执行任何 `uiautomator` / `screencap`**。

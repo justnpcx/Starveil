@@ -41,11 +41,19 @@ class NodesScrollBenchmark {
     @Before
     fun seed() {
         device.executeShellCommand("pm clear $PACKAGE")
+        // The app has to be running before the seed is sent. `pm clear` leaves
+        // the package in the stopped state, and a stopped app does not receive
+        // broadcasts — the command still answers "result=0", which reads like
+        // success while nothing happens. That is exactly how this fixture sat
+        // on the welcome screen for a whole run on two different devices.
+        device.executeShellCommand("am start -n $PACKAGE/.MainActivity")
+        device.waitForIdle()
         // The action is not optional: the receiver ignores anything else, and a
         // broadcast with no action looks like it worked — result=0 — while
         // nothing is written.
         device.executeShellCommand(
-            "am broadcast -a $PACKAGE.benchmark.SEED -n $PACKAGE/.benchmark.SeedReceiver --ei count $NODES",
+            "am broadcast --include-stopped-packages -a $PACKAGE.benchmark.SEED " +
+                "-n $PACKAGE/.benchmark.SeedReceiver --ei count $NODES",
         )
         device.waitForIdle()
     }
