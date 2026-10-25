@@ -1451,3 +1451,32 @@ ERROR connection: open connection to 223.5.5.5:443 using outbound/block[block]: 
 **页面点位（待截图审计，未改）**：`PerAppScreen` 搜索框、`ProfileEditorScreen` 的 `Field`。两者都在页面底色上，`glassBorder` 同样接近隐形，但任务书要求先截图再决定，**没有盲改**。
 
 **阻塞**：手机（vivo V2238A）在开工时已锁屏且需要密码，`wm dismiss-keyguard` 无效，无法进入应用截图。任务书要求的「修前未激活 / 修后未激活 / 修后激活」三张真机截图**一张都没取到**，本项按任务书的停止规则只停该项的验收，代码与覆盖清单已核实。
+
+## 2026-10-26 · F-2「美国」分组点开为空（代码 + 单测完成，真机截图待手机解锁）
+
+**根因（复核后与任务书一致）**：列表过滤只有 `list.filter { it.groupId == filter }`；而 `groupByRegion()` 建地区组时**不移动节点**，成员是按名字/国家在读取时派生的，地区组本身没有任何节点。所以按地区组的 id 过滤必然是空集，节点仍在 Subscription 组里。
+
+**选了方案 A**（地区组按地区过滤，不按 groupId）：
+
+- 地区组是"派生的视图"，不是"容器"——把它从 chip 里去掉（方案 B）会让用户少一个入口，而按地区过滤正好符合这个组存在的意义；
+- 方案 A 不需要改任何数据：刷新订阅后地区组照旧自动重算，不存在"成员要同步"的问题。
+
+```kotlin
+val filterGroup = filter?.let { id -> groupList.firstOrNull { it.id == id } }
+val inGroup = when {
+    filter == null -> list
+    filterGroup?.region != null -> list.filter { NodeRegions.resolve(it.name, it.country) == filterGroup.region }
+    else -> list.filter { it.groupId == filter }
+}
+```
+
+**单测**（`feature:profiles`，全绿）：
+
+| 用例 | 断言 |
+|---|---|
+| 点「美国」组 | 只出现 `US 01`，不出现 `Hong Kong 02`；`hasNoMatches = false` |
+| 地区组里确实没有该地区节点 | 列表为空且 `hasNoMatches = true`（空状态文案仍成立） |
+
+**没动的**：地区分类词表（`NodeRegion`）、地区组删组不删节点的规则、地区组连接走 URL_TEST 的行为——本项只改列表过滤一处。
+
+**阻塞**：同 F-1，手机锁屏，无法取「点美国组前后」的真机截图。
