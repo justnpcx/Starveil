@@ -369,6 +369,11 @@ class RealKernelBridge(
             // A failed start can still have established a tun; leaving it up
             // would route every app into a tunnel with nothing behind it.
             runCatching { stopVpn() }
+            // The flag describes a block that is in force, and this attempt did
+            // not put one there. Leaving it set is how the dashboard came to
+            // say 阻断中 with no tunnel, no kernel and traffic going out
+            // directly — the exact claim the Kill Switch exists to make true.
+            _blocking.value = false
             // Redacted: a libbox error can echo back parts of the config.
             val detail = LogRedactor.redact(e.message.orEmpty()).ifBlank { e::class.java.simpleName }
             android.util.Log.e(LOG_TAG, "kernel start failed: $detail")
