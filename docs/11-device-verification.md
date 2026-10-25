@@ -985,3 +985,22 @@ tests=9 failures=0 errors=0 time=26.086s
 **Macrobenchmark 仍未跑出数**：两次尝试都中断——第一次是我在测量期间执行 `uiautomator dump`，与 instrumentation 的 UiAutomation 冲突，benchmark 进程崩溃（`UiAutomationService already registered`）；第二次重跑后手机无线调试掉线（`ping 192.168.50.140` 100% 丢包、mDNS 无广播），无法继续。**本轮没有任何手机帧率数字，不写结论。**
 
 **下次接上手机后的步骤**：装 `app-arm64-v8a-benchmark.apk` + `benchmark-benchmark.apk` → `am instrument -w -e class com.justnpcx.starveil.benchmark.NodesScrollBenchmark com.justnpcx.starveil.benchmark/androidx.test.runner.AndroidJUnitRunner` → **测量期间不要执行任何 `uiautomator` / `screencap`**。
+
+## 2026-10-25 · V-2 自动选择行为自测（Fire TV，行为类，非性能）
+
+**为什么可以用电视**：V-2 测的是行为（是否切换、是否弹提示），不是帧率 / 点按延迟 / DNS / 后台，规矩 8 限制的是后四类。
+
+**① 当前即最优时连点 → 应 0 提示、节点不变：通过**
+
+实测：导入订阅后第一次点「Auto select」选中了节点（日志 `switched none → HY2+Reality-hy2-443, delta 0 pts (0 → 0)`，因为此前没有在用的节点，属预期）；随后再点 4 次，日志全部是：
+
+```
+auto-select: probes=TCP api.justnpc.com:443; cooldown=30min, margin=3pts(≈10ms);
+  kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 0, delta 0 < 3
+```
+
+首页没有任何提示条（uiautomator 里只有速率文本，无 notice），节点未变。**每次判断都把探针地址、冷却、粘性阈值、胜者分数、差值和结论写进日志**——这就是 P0-5 要的透明化。
+
+**② 制造明显更优节点后再触发 → 应仅提示 1 次且真切换：未验证**
+
+卡在两个节点都测不出延迟：`untested`，分数 0，`delta 0`，无法制造「明显更优」。电视上对 `api.justnpc.com:443/2053` 的 TCP 探测当前不返回（同一条订阅早些时候在电视上能测出 3–5ms，现在不行，怀疑节点侧或网络侧变化）。没有可用读数就不写结论，等手机接入后按 V-2 脚本补 ②。
