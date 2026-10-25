@@ -899,3 +899,18 @@ tests=9 failures=0 errors=0 time=26.086s
 - **结构性风险（已修）**：行右侧的延迟/「untested」原本右边界在 x=1832，而 FAB 圆覆盖 x 1776–1888 —— 只要某行滚到 y 807–919 这条带里，右侧文字就会从按钮底下经过。
 - 修法（方案 1）：节点行右侧加 **72dp 右槽**（FAB 56 + 边距 16），常量 `FAB_GUTTER`。改后实测：行文字右边界 x=1720，FAB 圆左边界 x=1776，**56px（28dp）净空**，任何滚动位置都不可能相交。代价是延迟列不再贴卡片右缘、整列左移 56dp。截图：`docs/recordings/glass-2026-10-25/nodes-fab-gutter.png`。
 
+
+## 2026-10-25 · 对话框里的芯片（Material 默认色漏入）
+
+**现象**：新增规则 / 新增场景 / 分组菜单三个对话框里的芯片是 Material `FilterChip` 的默认色——选中是淡紫 `secondaryContainer`，未选中描边是 `outline`（我们把它设成了白色 `glassBorder`，于是在对话框上是一圈白框）。
+
+**改法**：四处 `FilterChip` 全部换成 `StarveilChip`，并给它加了 `ChipSurface.Dialog`：
+
+| 状态 | 填充 | 描边 | 文字 |
+|---|---|---|---|
+| 未选中 | `bg` | `ink3` | `ink2` |
+| 选中 | `accentWash`（accent 10%） | `accent` | `accentText` |
+
+**实测（电视，取像素）**：选中芯片 (221,235,247) = accent 10% 叠在 `surfaceSolid` 上的精确值；未选中 (233,237,242) = `bg`；无淡紫、无白框。截图：`docs/recordings/glass-2026-10-25/dialog-rule-chips.png`、`dialog-scene-chips.png`。
+
+顺带把另外两处也换了（节点页分组菜单对话框、节点编辑器里的 `ChipRow`），否则同一个 Material 默认色还会在那里露出来。
