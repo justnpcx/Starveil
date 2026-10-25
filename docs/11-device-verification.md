@@ -843,6 +843,12 @@ tests=9 failures=0 errors=0 time=26.086s
 | `Obsidian` / `obsidian` 命名 | 0 处 |
 | `Palette.kt` 之外的 `Color(0x…)` | 4 处，全部在 `StarveilWidget.kt`：Glance 的 RemoteViews 树读不到 CompositionLocal，按 §6 的例外条款写死并注明来源 |
 
+**提交与改动的对应关系（按提交名找代码前先看这段）**：
+
+- 设置页的玻璃组与单选标记实际落在 `6aeb069`（Step 0 一次性替换令牌时带过去的），`14a711b` 只改了 `KeepAliveScreen` 的状态色 —— 那个提交名比改动大。
+- `6aeb069` 还夹带了一个误提交的 `.write-probe`（写权限探针），已在 `35f4755` 删除。
+- 其余提交与文件名一一对应；本次 10 个提交只含 `kt` / `png` / `md`，没有构建产物。
+
 **逐屏强调色计数**（`accent` 的出现处，不含 `accentText` 文字）：
 
 | 页面 | 处数 | 明细 |
