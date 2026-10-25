@@ -176,6 +176,10 @@ fun ProfilesScreen(
     // Long-press a node for its actions. A tap has to stay "select", because
     // that is what the dashboard connects to.
     var rowMenu by remember { mutableStateOf<Profile?>(null) }
+    // Whether the timed-out nodes are back in the list. Remembered for the
+    // visit, not persisted: the point of folding them is that the next visit is
+    // short again.
+    var showTimedOut by remember { mutableStateOf(false) }
     // The menu's delete is a tap, not a gesture: confirm it. The swipe keeps
     // its instant delete + undo, because a swipe cannot be a stray tap.
     var nodeToDelete by remember { mutableStateOf<Profile?>(null) }
@@ -381,11 +385,20 @@ fun ProfilesScreen(
                         .weight(1f)
                         .padding(horizontal = StarveilSpacing.pageMargin),
                 ) {
+                    // Timed-out nodes are hidden by default: a subscription
+                    // with hundreds of dead rows is a list you scroll once and
+                    // never again. The rows are not deleted — a footer says how
+                    // many are out of the way and brings them back.
+                    val timedOut = remember(state.profiles, state.health) {
+                        state.profiles.filter { state.health[it.id]?.status == NodeStatus.DOWN }
+                    }
+                    val shown = if (showTimedOut) state.profiles else
+                        state.profiles.filterNot { state.health[it.id]?.status == NodeStatus.DOWN }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = StarveilSpacing.fabClearance),
                     ) {
-                    itemsIndexed(state.profiles, key = { _, profile -> profile.id }) { index, profile ->
+                    itemsIndexed(shown, key = { _, profile -> profile.id }) { index, profile ->
                         // §5.2: rows settle in top-down instead of snapping in
                         // as a block. `appeared` lives out here so a row that
                         // scrolls away and back does not replay its entrance.
@@ -397,12 +410,43 @@ fun ProfilesScreen(
                                     groupLabel = groupNames[profile.groupId]
                                         ?: stringResource(R.string.profiles_group_none),
                                     selected = profile.id == state.selectedId,
-                                    showDivider = index != state.profiles.lastIndex,
+                                    showDivider = index != shown.lastIndex || timedOut.isNotEmpty(),
                                     onClick = { viewModel.select(profile.id) },
                                     onLongClick = { rowMenu = profile },
                                     onTestClick = {
                                         onTestNode(profile.id) { msg -> viewModel.postMessage(msg) }
                                     },
+                                )
+                            }
+                        }
+                    }
+                    if (timedOut.isNotEmpty()) {
+                        item {
+                            StarveilDivider(startInset = StarveilSpacing.lg)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClick = { showTimedOut = !showTimedOut },
+                                    )
+                                    .padding(
+                                        horizontal = StarveilSpacing.lg,
+                                        vertical = StarveilSpacing.md,
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (showTimedOut) {
+                                            R.string.profiles_timed_out_shown
+                                        } else {
+                                            R.string.profiles_timed_out_hidden
+                                        },
+                                        timedOut.size,
+                                    ),
+                                    style = StarveilType.label,
+                                    color = StarveilColors.accentText,
                                 )
                             }
                         }

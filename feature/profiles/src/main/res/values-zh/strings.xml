@@ -50,6 +50,8 @@
     <string name="profiles_no_search_title">没有匹配的节点</string>
     <string name="profiles_no_search_body">没有节点的名称或地址包含「%1$s」。</string>
     <string name="profiles_no_matches_title">该分组内没有节点</string>
+    <string name="profiles_timed_out_hidden">%1$d 个超时 · 显示</string>
+    <string name="profiles_timed_out_shown">收起 %1$d 个超时节点</string>
     <string name="profiles_no_matches_body">换一个分组，或导入订阅。</string>
 
     <string name="profiles_group_menu_body">%1$d 个节点</string>
