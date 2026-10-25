@@ -1033,7 +1033,7 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 
 **如果以后规则市场改成"可编辑的规则条目"**，本项才成立：那时需要 `rules` 表加 `source` 列（user / pack），刷新只换 pack 行，关 Override 删 pack 行恢复 user 行。现在加这一层是为不存在的场景写代码。
 
-## 2026-10-25 · P1-8 规则顺序可视化（代码完成，视觉验收未拍）
+## 2026-10-25 · P1-8 规则顺序可视化（已验收）
 
 **改了什么**：
 
@@ -1041,4 +1041,16 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 - 列表末尾加**兜底行**：`#N 其余流量 → 代理/直连`。它不是一条可编辑的规则，是预设的属性（`GLOBAL_DIRECT` → 直连，其余 → 代理），所以没有开关也没有编辑入口 —— 但列表必须有终点，否则读起来像"没匹配的流量消失了"。
 - 新增 `RulesUiState.fallbackAction()` 与文案 `rules_fallback_title`（中英各一条，`checkTranslations` 515 条全译）。
 
-**未完成**：电视上的视觉验收没拍成 —— 规则对话框的输入框会被 Fire TV 的输入法挡住，关掉输入法后 `input text` 能写进去，但 `Save` 的点击反复落空，最终规则没保存，页面回到预设列表。任务书要求的"调换两条规则顺序后命中结果随之变化"的用例同样没跑。**代码已编译通过，但没有截图，不宣称通过。**
+**验收（Fire TV，2026-10-25）**
+
+| 项 | 结果 |
+|---|---|
+| 序号列 | 规则页显示 `#1` / `#2` / `#3`，等宽、`ink3`，与规则名同一行 |
+| 兜底行 | `#3 Everything else → Proxy`，无开关、无 Edit/Delete —— 它是预设属性，不是可编辑规则 |
+| 上下移动真的改顺序 | 把 `#1 Domain suffix: ads.example.com (Proxy)` 下移一格后，uiautomator 读到 `#1 video.example.com (Direct)` / `#2 ads.example.com (Proxy)` |
+| 顺序即命中结果 | `ConfigBuilderTest` 新增用例：同一条域名两条规则（proxy / direct），正序生成的配置第一条命中 `proxy`，倒序命中 `direct`（`firstActionAfter` 断言，`core:kernel` 119 个测试全绿） |
+
+截图：`docs/recordings/glass-2026-10-25/rules-order-and-fallback.png`。
+
+**没做**：真机流量下的 `Recent flow` 对照（需要连上隧道并让流量命中规则）。命中的第一手证据目前是"配置里规则的先后"，sing-box 的 first-match 语义是上游文档保证的，不是本仓库代码。
+

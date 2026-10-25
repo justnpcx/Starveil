@@ -354,7 +354,44 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"action\":\"route\",\"outbound\":\"auto\""))
     }
 
-    @Test
+        @Test
+    fun `the order the user arranged the rules in is the order they are emitted`() {
+        // Two rules for the same domain with different actions. sing-box stops
+        // at the first match, so the emitted order *is* the routing decision —
+        // which is what the up and down arrows on the rules page change.
+        val toProxy = Rule(
+            matcher = RuleMatcher(MatcherKind.DOMAIN_SUFFIX, "example.com"),
+            action = RuleAction.PROXY,
+            order = 0,
+        )
+        val toDirect = toProxy.copy(action = RuleAction.DIRECT, order = 1)
+
+        val forward = builder.build(vlessProfile(), listOf(toProxy, toDirect))
+        val reversed = builder.build(vlessProfile(), listOf(toDirect, toProxy))
+
+        assertEquals("proxy", firstActionAfter(forward, RULE_NEEDLE))
+        assertEquals("direct", firstActionAfter(reversed, RULE_NEEDLE))
+    }
+
+    /** The emitted matcher for the test rule, not the node's own host. */
+    private val RULE_NEEDLE = "\"domain_suffix\":[\"example.com\"]"
+
+    /** Which outbound the first rule mentioning [needle] sends traffic to. */
+    private fun firstActionAfter(json: String, needle: String): String? {
+        val from = json.indexOf(needle)
+        if (from < 0) return null
+        val proxy = json.indexOf("\"outbound\":\"proxy\"", from)
+        val direct = json.indexOf("\"outbound\":\"direct\"", from)
+        return when {
+            proxy < 0 && direct < 0 -> null
+            direct < 0 -> "proxy"
+            proxy < 0 -> "direct"
+            proxy < direct -> "proxy"
+            else -> "direct"
+        }
+    }
+
+@Test
     fun `geoip is never emitted`() {
         // This fork removed the geoip matcher: a rule carrying one fails config
         // construction ("removed in sing-box 1.12.0"), so the kernel would not
