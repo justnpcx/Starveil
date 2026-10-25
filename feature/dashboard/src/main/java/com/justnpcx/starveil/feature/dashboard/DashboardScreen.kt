@@ -212,6 +212,24 @@ fun DashboardScreen(
                 )
             }
 
+            // Where the traffic appears to come from, and how long the round
+            // trip to a third party took. Always visible while connected: a
+            // proxy that silently fell back to the local connection looks
+            // exactly like one that works until this line says so.
+            state.exit?.let { exit ->
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                Text(
+                    text = stringResource(
+                        R.string.dashboard_exit,
+                        exit.address,
+                        exit.rttMs,
+                    ),
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             // The last card must not touch the navigation bar.
             Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
         }

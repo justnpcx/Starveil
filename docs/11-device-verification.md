@@ -1114,3 +1114,32 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 截图：`docs/recordings/glass-2026-10-25/beginner-setup.png`。
 
 **一个观察**：卡片首次进入时被列表的初始滚动带到了视口上方，需要往回滑才看得见。不是渲染问题（滑回来完整可见），是列表滚动位置没有在首次进入时归零。没改——这属于列表行为，不在本项范围，记在这里备查。
+
+## 2026-10-25 · P1-10 重连与出口反馈（页脚 + 唤醒已验收）
+
+**做了什么**
+
+- **页脚出口行**：连接时在健康卡下方常驻一行 `Exit <地址> · <RTT> ms`；断开即消失。RTT 是完整的一次 HTTPS 往返（DNS + TLS 都算），所以是几百毫秒而不是节点延迟的那个个位数。
+- **唤醒自愈**（`WakeRecovery`）：监听 `ACTION_SCREEN_ON` / `ACTION_USER_PRESENT`，1.5 s 后探一次出口，失败再等 3 s 复探；**两次都失败**、且 kernel 正在转发、且 `auto-reconnect` 开着，才 `connection.reapply()`。一次失败不算——刚唤醒时射频还没起来，一次失败是常态。
+- **每次唤醒都写一行日志**（成功也写），否则"检查到底跑没跑"无法从日志回答。
+- **未连接或 Kill Switch 阻断时不探测**：阻断模式下探测必然失败，去重建就是跟这个设置对着干。
+
+**验收（Fire TV，debug 签名包）**
+
+| 项 | 结果 |
+|---|---|
+| 页脚出现且数字在动 | `Exit <地址> · 384 ms` → 30 s 后 `· 169 ms` → `· 179 ms` |
+| 断开后不留旧值 | 广播断开 → 页面 `DISCONNECTED`，`Exit` 行数 0 |
+| 唤醒检查真的跑 | 灭屏 20 s → 唤醒 12 s 后日志：`wake: exit <地址> in 176 ms, tunnel kept` |
+| 未连接时唤醒不探测 | 同样灭屏/唤醒，日志里没有 `wake:` 行 |
+| 判定逻辑 | `WakeRecoveryPolicyTest`：两次都失败才重建 / 有一次成功不重建 / kernel 未运行不重建 / 关掉自动重连不重建 |
+
+截图：`docs/recordings/glass-2026-10-25/exit-footer.png`。**地址做了打码**——那台节点就是维护者自己的机器，公开仓库里不出现它的地址；原文里的数字与格式未改。
+
+**出口地址为什么可信**：这台电视所在的局域网本身也从同一台机器出去，所以"连上/没连上"看到的 IP 相同，光看数字分不出有没有走隧道。真正的证据是内核自己的路由与日志：`ip route get 1.1.1.1 uid <app>` → `dev tun0`，且 sing-box 日志里能看到 `inbound/tun[tun-in]` + `router: found package name: com.justnpcx.starveil` + `outbound/hysteria2[proxy]`。
+
+**网络切换那一半是既有实现，本轮没新增**：`SceneController` 监听默认网络，子网变化时 `rebuildForSubnets()` → `connection.reapply()`，日志是 `network changed: rebuilding for N local subnet(s)`；进程被系统杀掉后由 `ConnectionReconciler` + `DropRecovery` 负责恢复。
+
+**没做的一项（说清楚原因）**：没有在电视上做物理网络切换验证。Fire TV 只有 Wi-Fi，关掉 Wi-Fi 会同时断掉 adb，一旦恢复失败这台设备就失联——这个风险不值得为一条已经存在于代码里的路径去冒。
+
+**一个没解释清楚的现象**：某次安装后界面显示 `CONNECTED`，但 `ip route get 1.1.1.1 uid <app>` 走的是 wlan0、`tun0` 不存在，日志页也是空的。强制停止再启动、重新连接后恢复正常。没查到根因，先记在这里。

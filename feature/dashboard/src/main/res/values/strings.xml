@@ -61,4 +61,5 @@
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
     <string name="dashboard_mode_auto">Auto</string>
     <string name="dashboard_mode_manual">Manual</string>
+    <string name="dashboard_exit">Exit %1$s · %2$d ms</string>
 </resources>

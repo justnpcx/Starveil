@@ -1,6 +1,8 @@
 package com.justnpcx.starveil.feature.dashboard
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
+import com.justnpcx.starveil.core.data.network.ExitInfo
+import com.justnpcx.starveil.core.data.network.ExitProbe
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
@@ -658,6 +660,11 @@ class DashboardViewModelTest {
         assertNull(viewModel.uiState.value.health)
     }
 
+    /** The exit probe is a network call; the tests here are not about it. */
+    private object NoExit : ExitProbe() {
+        override suspend fun probe(): ExitInfo? = null
+    }
+
     private fun viewModel(
         preferences: FakePreferences,
         kernel: RecordingKernel,
@@ -695,6 +702,7 @@ class DashboardViewModelTest {
             nodeHealth = nodeHealth,
             recovery = DropRecovery(profiles, nodeHealth, preferences),
             sceneApply = SceneApplyState(),
+            exitProbe = NoExit,
         )
     }
 

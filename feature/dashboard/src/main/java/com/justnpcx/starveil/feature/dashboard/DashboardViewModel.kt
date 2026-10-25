@@ -63,6 +63,9 @@ data class DashboardUiState(
      * no samples yet is present but [NodeHealth.collecting].
      */
     val health: NodeHealth? = null,
+
+    /** What the exit looks like from outside, or null until it has been asked. */
+    val exit: com.justnpcx.starveil.core.data.network.ExitInfo? = null,
     val isBusy: Boolean = false,
     /** What to tell the user, as data. See [DashboardNotice]. */
     val notice: DashboardNotice? = null,
@@ -165,6 +168,7 @@ class DashboardViewModel @Inject constructor(
     private val groups: GroupRepository,
     private val connection: ConnectionController,
     private val nodeHealth: NodeHealthRepository,
+    private val exitProbe: com.justnpcx.starveil.core.data.network.ExitProbe,
     private val recovery: DropRecovery,
     private val sceneApply: SceneApplyState,
 ) : ViewModel() {
@@ -197,6 +201,34 @@ class DashboardViewModel @Inject constructor(
     private var trafficWatchJob: Job? = null
 
     init {
+        // The exit is a fact about the outside world, so it is asked for on a
+        // slow loop while the tunnel is up — never on a timer that runs while
+        // disconnected, because that is a request the user did not ask for.
+        scope.launch {
+            while (true) {
+                if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
+                    exitProbe.probe()?.let { info ->
+                        _uiState.update { it.copy(exit = info) }
+                    }
+                } else if (_uiState.value.exit != null) {
+                    // An exit address under a disconnected tunnel reads as
+                    // "you are still going out that way". The number is only
+                    // true while the tunnel is the thing carrying traffic.
+                    _uiState.update { it.copy(exit = null) }
+                }
+                // Ticking faster while disconnected costs nothing (no request)
+                // and means the first probe happens right after a connect,
+                // rather than up to half a minute later.
+                delay(
+                    if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
+                        EXIT_REFRESH_MS
+                    } else {
+                        EXIT_IDLE_TICK_MS
+                    },
+                )
+            }
+        }
+
         // The kernel pushes its lifecycle, so an unexpected death arrives here
         // without polling. Only recoverable errors are retryable (Crashed /
         // StartFailed / Unknown); Stopped is the user stopping, which must
@@ -769,3 +801,9 @@ private fun KernelConnection.isProxied(): Boolean =
 
 /** How often the traffic watch re-checks its deadline. */
 private const val TRAFFIC_WATCH_TICK_MS = 1_000L
+
+/** How often the exit is re-measured while connected. */
+private const val EXIT_REFRESH_MS = 30_000L
+
+/** How often the connected/disconnected state is looked at. No network involved. */
+private const val EXIT_IDLE_TICK_MS = 2_000L

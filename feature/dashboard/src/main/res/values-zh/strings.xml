@@ -55,4 +55,5 @@
     <string name="dashboard_notice_kernel_refused_reason">内核启动失败：%1$s</string>
     <string name="dashboard_mode_auto">自动</string>
     <string name="dashboard_mode_manual">手动</string>
+    <string name="dashboard_exit">出口 %1$s · %2$d ms</string>
 </resources>

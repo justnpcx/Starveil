@@ -10,6 +10,7 @@ import com.justnpcx.starveil.core.probe.NodeHealthProbeScheduler
 import com.justnpcx.starveil.rules.RuleSetFailureReporter
 import com.justnpcx.starveil.feature.dashboard.ConnectionController
 import com.justnpcx.starveil.scene.SceneController
+import com.justnpcx.starveil.scene.WakeRecovery
 import com.justnpcx.starveil.timing.ConnectionTiming
 import com.justnpcx.starveil.widget.StarveilWidget
 import androidx.glance.appwidget.updateAll
@@ -45,6 +46,10 @@ class StarveilApp : Application() {
 
     @Inject
     lateinit var scenes: SceneController
+
+    /** Brings the tunnel back when an unlock finds it dead. */
+    @Inject
+    lateinit var wakeRecovery: WakeRecovery
 
     @Inject
     lateinit var connectionTiming: ConnectionTiming
@@ -111,6 +116,10 @@ class StarveilApp : Application() {
         // the tunnel is up: the VpnService keeps it alive. With no process
         // there is no tunnel to switch, so nothing is lost.
         scenes.start()
+
+        // The kernel keeps running through a screen-off, so a tunnel that died
+        // in doze still reports Running. This is what notices.
+        wakeRecovery.start()
 
         // Two lines per connect in the Logs screen: how long the tunnel took to
         // come up, and how long until traffic actually went through it.
