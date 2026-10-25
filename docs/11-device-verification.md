@@ -1093,3 +1093,24 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 **验收过程中修的一个设计错误**：横幅原先在"没筛分组"时会退回到任意一个分组的用量，于是筛到没有额度的那个订阅、屏幕上却显示别人的数字。改成**按当前分组取值**：筛了分组只看该分组，没筛才看当前节点所属分组。
 
 截图：`docs/recordings/glass-2026-10-25/usage-with-header.png`、`usage-without-header.png`。
+
+## 2026-10-25 · P1-7 新手默认规则组（已验收）
+
+**做了什么**
+
+- **默认分流改了**：以前没有任何存储值时是 `GLOBAL_PROXY`（全部走代理），现在是 **`BYPASS_MAINLAND`**（国内直连、其余走代理）；**去广告默认开**。这正好是任务书要的那一组。
+- **新手模式是推导出来的，不是新开关**：`beginnerMode` = "从未写过 `ROUTE_PRESET` 且没有旧版 `BYPASS_MAINLAND` 键"。用户一旦改预设，键被写入，新手模式自动结束——不会出现"模式说 A、实际跑 B"的双份真相。
+- **规则页顶部一张卡**（`Beginner setup` / 新手模式）：三行说明 + `Customize`。点它调用 `exitBeginnerMode()`，把当前生效值写实（`BYPASS_MAINLAND` + `BLOCK_ADS=true`），**路由不变**，只是不再叫默认。
+
+**验收（Fire TV，`pm clear` 后全新状态）**
+
+| 项 | 结果 |
+|---|---|
+| 默认组已生效 | 规则页预设卡片选中 `Bypass mainland China`，去广告开 |
+| 新手卡片可见 | `Beginner setup` + `· Mainland sites go direct` / `· Everything else goes through the tunnel` / `· Ads and trackers are blocked` + `Customize` |
+| 一键切到完整编辑 | 点 `Customize` 后卡片消失，预设仍是 `Bypass mainland China`、`Block ads` 仍在 |
+| 默认组里没有"把国内送进代理"的规则 | 预设即 `BYPASS_MAINLAND`，国内规则由预设自己发（`DOMESTIC_NAMES` / `DOMESTIC_ADDRESSES` → direct） |
+
+截图：`docs/recordings/glass-2026-10-25/beginner-setup.png`。
+
+**一个观察**：卡片首次进入时被列表的初始滚动带到了视口上方，需要往回滑才看得见。不是渲染问题（滑回来完整可见），是列表滚动位置没有在首次进入时归零。没改——这属于列表行为，不在本项范围，记在这里备查。
