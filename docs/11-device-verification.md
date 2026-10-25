@@ -1,10 +1,11 @@
 # 真机验证记录
 
-设备：vivo V2520A（PD2520），Android 17（SDK 37），1080×2376，系统语言 zh-CN。
-连接方式：无线调试（mDNS 序列号形如 `adb-…._adb-tls-connect._tcp`）。
+设备：各轮不同，逐节标注。主力是 vivo V2520A（PD2520，Android 17 / SDK 37，1080×2376）、
+iQOO Neo7 SE（V2238A，Android 16 / SDK 36，1080×2400）与 Fire TV Stick 4K Max（AFTKRT，SDK 30，1080p）。
+连接方式：无线调试（mDNS 序列号形如 `adb-…._adb-tls-connect._tcp`）；电视走 `IP:5555`。
 
-本文件记录**在真机上实际验证过什么**，以及验证过程中发现的问题。它不是计划，是结果；
-未验证的项目在最后一节。
+本文件记录**在真机上实际验证过什么**，以及验证过程中发现的问题。它不是计划，是结果。
+早年的「未验证」一节是 2026-10-17 的快照，其中部分项已在后续轮次关闭，逐条以各轮记录为准。
 
 ## 2026-10-17 · 0.7.0
 
@@ -59,7 +60,7 @@ IP——这台机器的 WiFi 本身经上游代理出口（`node.example.com` = 
 
 配置里规则正确，内核日志却是：
 
-```
+```text
 router: failed to search process: procfs: not found
 ```
 
@@ -73,7 +74,7 @@ router: failed to search process: procfs: not found
 `reportDefaultInterface` 从 `allNetworks` 取第一个有 INTERNET 的网络，而该列表
 **无序**：WiFi 与蜂窝并存时它报了 `rmnet_data4`（蜂窝），内核把出站全绑上去：
 
-```
+```text
 dial rmnet_data4 (28): dial tcp 142.250.73.67:443: i/o timeout
 ```
 
@@ -187,7 +188,7 @@ URL；TTFP 从点击算到内核决定第一条代理连接。**这个数字包�
 同一台设备、同一个节点（HY2+Reality-hy2-443）、同一预设（绕过中国大陆 + 去广告，4 条规则在生效）、规则集已加载。应用在后台（按 Home），`dumpsys meminfo com.justnpcx.starveil` 的 `TOTAL PSS`：
 
 | 构建 | 5 分钟 | 10 分钟 |
-| --- | --- | --- |
+|---|---|---|
 | before（`fd923ae`，默认 GOGC，无 memory_limit） | 85,985 KB（84.0 MiB） | 84,732 KB（82.7 MiB） |
 | after（`b0c36a8`，GOGC=50 + memory_limit 96 MiB → Go 64 MiB） | 83,986 KB（82.0 MiB） | 85,256 KB（83.3 MiB） |
 
@@ -276,7 +277,7 @@ vivo V2520A / Android 17，选「始终阻断」后点连接：
 
 方法（需要人在设备旁，lockdown 开启后服务起不来会整机断网）：
 
-```
+```bash
 adb shell settings put secure always_on_vpn_app com.justnpcx.starveil
 adb shell settings put secure always_on_vpn_lockdown 1
 adb shell am force-stop com.justnpcx.starveil
@@ -331,8 +332,8 @@ IPv6。所以这是正确结果，不是分流 bug。
 用 `cmd appops set com.justnpcx.starveil ACTIVATE_VPN` 在 connect 的 consent 检查之后、
 `establish()` 之前撤销授权，制造「阻断内核启动失败」：
 
-```
-openTun: ... 
+```text
+openTun: ...
 kernel start failed: ... openTun failed [java.lang.IllegalStateException] mtu=9000: VPN consent not granted
 ```
 
@@ -370,7 +371,7 @@ mixed 下国内 10–16 MB/s、境外 ~4 MB/s。
 首轮 Chrome 打不开百度和腾讯（`ERR_CONNECTION_RESET`），但 curl 到同一 IPv4 地址是
 200。内核日志给出原因：
 
-```
+```text
 connection: open connection to [2408:...]:443 using outbound/direct[direct]:
 dial wlan0 (37): dial tcp [2408:...]:443: connect: network is unreachable
 ```
@@ -439,6 +440,9 @@ MTU 9000/1500、Go 内存上限/GOGC、`endpoint_independent_nat`（只改善并
 QUIC 窗口（默认已 8 MB/20 MB）、强制带宽提示（服务端不接受，直接零流量）。
 
 ## 未验证
+
+> 本节是 **2026-10-17 的状态快照**，不是当前结论。之后几轮已关闭其中若干项（如 DNS 埋点，已补 224 条采样），
+> 也有仍未关闭的（如 1000 节点滚动的手机帧率），以文末各轮记录为准。
 
 以下项目需要真机，且当时无法完成（设备不在网、无相应素材）：
 
@@ -515,7 +519,6 @@ adb logcat -d | grep -c 'network callback released'
 adb logcat -d | grep -c 'initialize cache-file'
 adb logcat -d | grep -E 'StarveilDoh|falling back'
 ```
-
 
 ## 2026-10-22 · 曜 深空曜黑单主题换肤验收
 
@@ -600,7 +603,6 @@ adb logcat -d | grep -E 'StarveilDoh|falling back'
 - 1920×1080 / density 320 → 960×540dp，横屏走的是 dashboard 的滚动分支；五页截图在 `docs/recordings/obsidian-2026-10-22/tv-*.jpg`，四角采样均为 `(0,0,0)`。
 - 电视无触屏，用 `input tap` 注入坐标可正常导航；首次安装走了 onboarding，Skip 后进入主界面。
 
-
 ## 2026-10-23 · 0.8.0「曜」验收整改（U1–U7）
 
 依据：用户 2026-10-23 真机截图 8 张 + v3 验收清单。设备：Fire TV Stick 4K Max（1920×1080 / density 2 / Android 11），订阅实测节点 2 个 + 1 个测试节点（`example.com`，用于凑满三行）。
@@ -618,7 +620,6 @@ adb logcat -d | grep -E 'StarveilDoh|falling back'
 截图：`docs/recordings/obsidian-fixes-2026-10-23/`。
 
 **未完成**：手机（vivo V2520A）在整改期间掉线（mDNS 无广播、5555 refused），以上为电视端实测；手机端待重新开启无线调试后补拍（尤其中文断行与竖屏零位移）。电视端同时发现一个非整改项：横屏连接后页面会因焦点滚动，圆环整体上移——竖屏无此路径，已记录未修。
-
 
 ## 2026-10-24 · 0.8.1 验收复核（V1–V3）
 
@@ -694,7 +695,7 @@ libbox.so 的段分布（`size -A`）：`.text` 22.4 MB、`.data.rel.ro` 26.7 MB
 
 Fire TV，3 个节点、隧道已连接、benchmark 变体（R8，与 release 同级）：
 
-```
+```text
 TOTAL PSS 78.4 MB   RSS 151.0 MB   swap 0.2 MB
   .so mmap   11.1 MB PSS / 33.1 MB RSS
   GL mtrack  30.5 MB
@@ -710,7 +711,7 @@ TOTAL PSS 78.4 MB   RSS 151.0 MB   swap 0.2 MB
 
 `./gradlew :core:data:connectedDebugAndroidTest` 在 Fire TV AFTKRT（Android 11 / API 30）实跑：
 
-```
+```text
 tests=9 failures=0 errors=0 time=26.086s
   a_failed_migration_throws_and_does_not_wipe_the_file
   a_wrong_passphrase_cannot_open_the_database
@@ -755,7 +756,7 @@ tests=9 failures=0 errors=0 time=26.086s
 
 **采样（2026-10-24 补跑，电视端）**：装 HEAD 的 debug 包（含 M4-2 埋点，R8 无关紧要，量的是 DNS 不是 UI），导入一条 2 节点的订阅，逐节点选中后各点 100 次「测所选节点」——每次探针在计时之外先做一次 `resolveStrict` DoH 查询，所以一次点击 = 1 条真实样本。
 
-```
+```text
 224 samples · p50 51 ms · p95 138 ms · fallback 0% · cache 0%
 ```
 
@@ -796,7 +797,6 @@ tests=9 failures=0 errors=0 time=26.086s
 
 截图：`docs/recordings/m43-2026-10-24/`。
 
-
 ## 2026-10-25 · Step 0：03 苹果毛玻璃令牌抄录与令牌层
 
 **来源**：`apple-google-demo`（muse 分享页 → iframe → 03 面板）。不是目测：用 Playwright 打开 03 面板后读 `getComputedStyle`，逐项取计算值。
@@ -830,7 +830,6 @@ tests=9 failures=0 errors=0 time=26.086s
 **无法照抄的一处**：backdrop blur。Compose 没有原生背景模糊（`Modifier.blur` 模糊的是自身内容，不是身后），三方库被 §5 禁止。落地方式：卡片用 68% 白叠在静态氛围底上——底是平滑渐变，视觉上等价于把底模糊后透上来；导航条因为下面会滚过文字，按 §5 的降级条款改成**不透明浅色实面**（页面底色 + 60% 白）。这一条要在真机上按帧率再确认一次。
 
 **替换范围**：`Palette.kt` 整体重写（`ObsidianPalette` → `GlassPalette`，`accentA/accentB` 合并为 `accent`），`Theme.kt` 改 `lightColorScheme`，卡片/开关/芯片/徽标/按钮/搜索框/FAB/圆环/曲线全部换到新令牌，新增 `StarveilBackground`（页面渐变 + 三处晕染）与 `StarveilButton` 的内容重载（引导页不再用 Material 的填充按钮）。
-
 
 ## 2026-10-25 · 03 毛玻璃换肤：全量走查
 
@@ -867,7 +866,6 @@ tests=9 failures=0 errors=0 time=26.086s
 - Compose 无原生 backdrop blur，卡片用半透明 + 静态氛围底等效，导航条用不透明实面（§6 降级条款）。
 - 桌面小组件按 §6 例外写死解析后的色值。
 
-
 ### 性能复核（换肤后，2026-10-25）
 
 第一版把氛围底画在 `drawBehind` 里，每帧重跑 1 条线性渐变 + 3 个大半径径向渐变（1920×1080 全覆盖）。电视上直接掉到 30fps：
@@ -898,7 +896,6 @@ tests=9 failures=0 errors=0 time=26.086s
 - 静止状态下抓了 6 个滚动位置，文字与 FAB 圆（含 56dp 外框）零相交。
 - **结构性风险（已修）**：行右侧的延迟/「untested」原本右边界在 x=1832，而 FAB 圆覆盖 x 1776–1888 —— 只要某行滚到 y 807–919 这条带里，右侧文字就会从按钮底下经过。
 - 修法（方案 1）：节点行右侧加 **72dp 右槽**（FAB 56 + 边距 16），常量 `FAB_GUTTER`。改后实测：行文字右边界 x=1720，FAB 圆左边界 x=1776，**56px（28dp）净空**，任何滚动位置都不可能相交。代价是延迟列不再贴卡片右缘、整列左移 56dp。截图：`docs/recordings/glass-2026-10-25/nodes-fab-gutter.png`。
-
 
 ## 2026-10-25 · 对话框里的芯片（Material 默认色漏入）
 
@@ -994,7 +991,7 @@ tests=9 failures=0 errors=0 time=26.086s
 
 实测：导入订阅后第一次点「Auto select」选中了节点（日志 `switched none → HY2+Reality-hy2-443, delta 0 pts (0 → 0)`，因为此前没有在用的节点，属预期）；随后再点 4 次，日志全部是（当时两个节点都还没有读数，所以分数是 0；有读数之后的 `kept` 见 ② 的第二段）：
 
-```
+```text
 auto-select: probes=TCP node.example.com:443; cooldown=30min, margin=3pts(≈10ms);
   kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 0, delta 0 < 3
 ```
@@ -1006,7 +1003,7 @@ auto-select: probes=TCP node.example.com:443; cooldown=30min, margin=3pts(≈10m
 
 实测（Fire TV，同一条订阅的两个节点）：
 
-```
+```text
 # 当前节点是较慢的那个（vless-2053，10063 分），点一次「Auto select」
 auto-select: probes=TCP node.example.com:443; cooldown=30min, margin=3pts(≈10ms);
   switched 🇺🇸 HY2+Reality-vless-reality-2053 → 🇺🇸 HY2+Reality-hy2-443,
