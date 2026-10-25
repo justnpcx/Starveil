@@ -217,6 +217,7 @@ fun RulesScreen(
                                 }
                                 RuleRow(
                                     rule = rule,
+                                    position = index + 1,
                                     canMoveUp = index > 0,
                                     canMoveDown = index < state.rules.lastIndex,
                                     onToggle = { viewModel.setEnabled(rule, it) },
@@ -226,6 +227,15 @@ fun RulesScreen(
                                     onMoveDown = { viewModel.move(rule, up = false) },
                                 )
                             }
+                            // The rule that is always there and never shown as a
+                            // row: whatever falls through every rule above goes
+                            // to the preset's own action. Without it the list
+                            // reads as if unmatched traffic vanished.
+                            StarveilDivider(startInset = StarveilSpacing.lg)
+                            FallbackRow(
+                                position = state.rules.size + 1,
+                                action = state.fallbackAction(),
+                            )
                         }
                     }
                 }
@@ -403,6 +413,7 @@ private fun packDescription(context: android.content.Context, id: String): Strin
 @Composable
 private fun RuleRow(
     rule: Rule,
+    position: Int,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onToggle: (Boolean) -> Unit,
@@ -421,6 +432,12 @@ private fun RuleRow(
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                text = "#$position",
+                style = StarveilType.tech,
+                color = StarveilColors.ink3,
+                modifier = Modifier.width(ORDER_COLUMN_WIDTH),
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = kindLabel(rule.matcher.kind) + ": " + rule.matcher.value,
@@ -482,7 +499,49 @@ private fun RuleRow(
     }
 }
 
+/** The order column: wide enough for three digits, which is a long list. */
+private val ORDER_COLUMN_WIDTH = 34.dp
+
+/**
+ * The last thing evaluated: traffic no rule matched.
+ *
+ * Rendered as a row so the list has an end, but with no switch and no actions —
+ * it is a property of the preset, and pretending it is editable would be a lie.
+ */
 @Composable
+private fun FallbackRow(position: Int, action: RuleAction) {
+    Row(
+        modifier = Modifier.padding(
+            start = StarveilSpacing.lg,
+            end = StarveilSpacing.md,
+            top = StarveilSpacing.md,
+            bottom = StarveilSpacing.md,
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "#$position",
+            style = StarveilType.tech,
+            color = StarveilColors.ink3,
+            modifier = Modifier.width(ORDER_COLUMN_WIDTH),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.rules_fallback_title),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+            )
+            Text(
+                text = actionLabel(action),
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+            )
+        }
+    }
+}
+
+@Composable
+
 private fun RuleDialog(
     initial: Rule?,
     onDismiss: () -> Unit,

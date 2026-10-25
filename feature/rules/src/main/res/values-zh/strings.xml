@@ -36,6 +36,7 @@
     <string name="rules_save">保存</string>
     <string name="rules_cancel">取消</string>
 
+    <string name="rules_fallback_title">其余流量</string>
     <string name="rules_edit">编辑</string>
     <string name="rules_delete">删除</string>
     <string name="rules_move_up">上移</string>

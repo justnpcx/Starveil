@@ -78,6 +78,16 @@ data class RulesUiState(
             }
         }
 
+    /**
+     * What happens to traffic no rule matched.
+     *
+     * It is a property of the preset, not a row the user can edit — but it is
+     * the last thing evaluated, so the list has to end with it or the page
+     * reads as if unmatched traffic vanished.
+     */
+    fun fallbackAction(): RuleAction =
+        if (preset == RoutePreset.GLOBAL_DIRECT) RuleAction.DIRECT else RuleAction.PROXY
+
     val enabledUserRules: Int get() = rules.count { it.enabled }
 
     /** What the page claims is in force, across the preset, packs and rules. */

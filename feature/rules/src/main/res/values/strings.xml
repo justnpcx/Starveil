@@ -39,6 +39,7 @@
     <string name="rules_save">Save</string>
     <string name="rules_cancel">Cancel</string>
 
+    <string name="rules_fallback_title">Everything else</string>
     <string name="rules_edit">Edit</string>
     <string name="rules_delete">Delete</string>
     <string name="rules_move_up">Move up</string>
