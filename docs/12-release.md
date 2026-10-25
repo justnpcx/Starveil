@@ -80,7 +80,7 @@ remote: - Required status check "build" is expected.
 
 改写历史（rebase、压缩提交）同理，只能走第 2 条。
 
-**推完先 `git fetch` 再核对远端。** 用一次性 URL（`git push https://x-access-token:…@github.com/…`）推送时，本地的 `origin/main` 引用**不会跟着更新**：带 token 的 URL 和 `remote.origin.url` 不是同一个字符串，git 认不出这是 origin，于是只更新远端、不动本地跟踪引用。它停在你上一次 `fetch` 的位置，于是 `git ls-tree origin/main`、`git status -sb` 读到的都是旧树，看起来像"没推上去"。核对远端只有两种可靠办法：`git fetch origin main` 之后再比 `HEAD` 与 `origin/main`，或者直接查 API（`GET /repos/:owner/:repo/contents/<path>?ref=main`）。
+**推完先 `git fetch` 再核对远端。** 用一次性 URL（`git push https://x-access-token:…@github.com/…`）推送时，本地的 `origin/main` 引用**不会跟着更新**：按 URL 推送走的是 git 临时建的一次性匿名远端，它没有 `remote.<name>.fetch` 那条 refspec，所以远端分支更新了、`refs/remotes/origin/*` 却一个都不动。这跟 URL 长得像不像 origin 无关——把 origin 的 URL 改成与推送 URL **完全相同**的字符串再推，引用照样不动；换成 `git push origin`，哪怕凭据写在 URL 里，引用立刻跟上。它停在你上一次 `fetch` 的位置，于是 `git ls-tree origin/main`、`git status -sb` 读到的都是旧树，看起来像"没推上去"。核对远端只有两种可靠办法：`git fetch origin main` 之后再比 `HEAD` 与 `origin/main`，或者直接查 API（`GET /repos/:owner/:repo/contents/<path>?ref=main`）。
 
 ## 发一个版本
 
