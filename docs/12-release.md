@@ -156,3 +156,17 @@ R8 打开后，release 的堆栈是混淆过的。`mapping.txt` 由 workflow 作
 - 品牌资产（商店截图、社交预览图）未做
 - 多设备覆盖（横屏 / 平板 / 折叠屏）未做
 - `targetSdk` 35：Play 每年提高要求，上架前确认
+
+## 0.8.5 发布记录（2026-10-26）
+
+| 项 | 结果 |
+|---|---|
+| 提交 | `50450e0`（`release: 0.8.5`），CI `Build` 绿 |
+| tag | `v0.8.5`（annotated），推送后触发 `Release` workflow，12 步全部成功 |
+| 产物 | `starveil-v0.8.5-arm64-v8a.apk` 29.9 MB / `armeabi-v7a` 29.9 MB / `x86_64` 31.3 MB |
+| 发布状态 | `draft=false`、`prerelease=false`，`releases/latest` 已指向 `v0.8.5` |
+| 版本 | 下载 armv7a 校验：`versionCode=805`、`versionName=0.8.5` |
+| 签名 | `CN=Starveil, O=justnpcx, C=CN`，证书 SHA-256 `f904a417…0b268c`——**与 0.8.4 同一把**，老用户可直接升级 |
+| 校验和 | 本地 `sha256sum` = `06f0fe5e692a1db8…`，与 API 的 `digest` 前缀一致 |
+
+**升级路径提醒**：电视和手机现在装的是 debug 签名包（测试用），与发布签名不同，**不能覆盖安装**；要换回正式包必须先卸载，本地数据（订阅/节点/规则）会清空。
