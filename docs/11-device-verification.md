@@ -1192,3 +1192,20 @@ auto-select: …; kept 🇺🇸 HY2+Reality-hy2-443: best challenger … scores 
 **Macrobenchmark 没跑成**：`NodesScrollBenchmark` 在本机连续两次失败——第一次是 UiAutomation 冲突（测量期间我跑了 uiautomator），第二次进程挂住十几分钟、输出停在 `test=scrollThousandNodes`、无任何帧数据，最后被我终止（`shortMsg=Process crashed.` 是终止的结果，不是原因）。所以上面的数字来自 gfxinfo + 同一套 1000 节点夹具，**不是 Macrobenchmark 的 FrameTimingMetric**，方法差异如实记下。
 
 **关于两个 Janky 口径**：`0.26%` 是 Android 12 起按"错过 vsync 且没有及时补帧"的口径；`30.11%` 是旧口径（超过 16 ms 就算）。同一批数据两个数差两个数量级，只报一个会误导，两个都留。
+
+## 2026-10-25 · P0-4 Doze：灭屏 10 分钟隧道仍在（vivo V2238A）
+
+**做法**：手机连上真实节点（订阅导入，hysteria2）→ `input keyevent 223` 灭屏 → 等 10 分钟 → 不碰屏幕，直接查状态。
+
+| 检查项 | 结果 |
+|---|---|
+| 电源状态 | `mWakefulness=Asleep`（确实进了休眠） |
+| tun 接口 | `/sys/class/net/tun0` 仍存在 |
+| 路由 | `ip route get 1.1.1.1 uid 2000` → **dev tun0** |
+| 进程 | 仍有 1 个 `com.justnpcx.starveil` 进程 |
+| 连通性 | `ping -c 3 1.1.1.1` 3/3 收到，0% 丢包 |
+| 内存 | PSS 182 MB（连接态，含内核） |
+
+**边界**：只测了 10 分钟。Android 真正的 Doze 维护窗口是 30 分钟级，`Doze` 的深度限制（网络挂起、Job 延迟）在 10 分钟里还没完全展开，所以这条只能说明"短时灭屏不掉"，**不能说明"过了一个完整 Doze 窗口还在"**。要下更强的结论得再等 30 分钟以上。
+
+**顺带**：这台手机装了锁屏密码，`wm dismiss-keyguard` 无效，灭屏后再想操作界面必须先解锁——所以后面的 DNS 指标读取、曲线首帧、逐页点按延迟都卡在"屏幕锁着"这一步。
