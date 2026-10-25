@@ -8,6 +8,48 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.5] — 2026-10-26
+
+### Added
+
+- **The subscription's own quota, when the provider publishes one.** The nodes
+  page shows `used / total · days left` from the `subscription-userinfo`
+  header. Providers that do not send it get no line at all — a "no data" banner
+  would be a permanent apology for something the user cannot act on.
+- **Where traffic leaves, and how long the round trip takes.** The dashboard
+  ends with one line: the address a third party sees, and the HTTPS round trip
+  behind it. A proxy that silently fell back to the local connection looks
+  exactly like one that works until that line says otherwise.
+- **A wake that finds a dead tunnel rebuilds it.** Screen-off closes the sockets
+  the kernel cannot see; on unlock the exit is probed twice, and only two
+  failures trigger a rebuild.
+
+### Changed
+
+- **A new install starts on a policy that works**: mainland direct, everything
+  else through the tunnel, ads blocked — stated in three lines at the top of
+  the rules page, dismissed in one tap. The mode is derived from "no choice
+  stored yet", so it cannot disagree with the routing actually in force.
+- **The rules page numbers its rules and ends with "everything else"**, so the
+  order is visible and the list has a bottom instead of stopping at the last
+  rule the user happened to add.
+- **Auto-select explains itself.** Every decision writes the probe, the
+  cooldown, the stickiness margin, the challenger's score and the delta to the
+  log — including the ones that kept the current node.
+- **Nodes that just timed out are folded out of the list** rather than listed
+  as if they were candidates.
+
+### Fixed
+
+- **The kill switch no longer claims a block it is not enforcing.** A failed
+  rebuild left the "blocking" flag set, so the dashboard said 阻断中 with no
+  tunnel and traffic going out directly.
+- **The kill switch survives the process.** Being killed took the kernel with
+  it and left the chosen policy unenforced; it is now put back on the next
+  start.
+- **The kill switch description** no longer says the modes end with the process,
+  because they no longer do.
+
 ## [0.8.4] — 2026-10-25
 
 ### Fixed
