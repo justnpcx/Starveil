@@ -44,8 +44,18 @@ data class StarveilPalette(
     val surfaceSolid: Color,
     /** The 1dp highlight edge that gives a glass card its shape. */
     val glassBorder: Color,
-    /** Dividers inside a card, and the line above the navigation bar. */
+    /** The 1dp highlight edge that gives a glass card its shape. */
     val hairline: Color,
+    /**
+     * A rule drawn **inside** a card.
+     *
+     * Not [hairline]: that is white at 75%, which is brighter than the 68%
+     * white card it would sit on, so it reads as a gap between rows rather than
+     * a separator. Ink at 10% is darker than the card in both directions and
+     * stays a hairline. The white value keeps its one job — the card's own
+     * edge, where a highlight is what makes the glass read as glass.
+     */
+    val divider: Color,
     /** Primary text. */
     val ink: Color,
     /** Secondary text: labels, descriptions. */
@@ -99,6 +109,9 @@ val GlassPalette = StarveilPalette(
     surfaceSolid = Color(0xFFF6F8FA),
     glassBorder = Color(0xFFFFFFFF).copy(alpha = 0.75f),
     hairline = Color(0xFFFFFFFF).copy(alpha = 0.75f),
+    // Ink at 10%: measured on the card it lands around #DCDFE3 against a
+    // #F4F6F9 card, a step you can see without it becoming a table rule.
+    divider = Color(0xFF1D1D1F).copy(alpha = 0.10f),
     ink = Color(0xFF1D1D1F),
     // The demo's 60% and 42% are Apple's own secondary and tertiary grades;
     // both land under AA on this page, so each is lifted one notch — 62% and

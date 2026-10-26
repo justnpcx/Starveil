@@ -68,7 +68,7 @@ fun StarveilDivider(
     startInset: Dp = StarveilSpacing.lg,
     endInset: Dp = 0.dp,
 ) {
-    val line = StarveilColors.hairline
+    val line = StarveilColors.divider
     Box(
         modifier = modifier
             .fillMaxWidth()

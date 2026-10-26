@@ -1147,7 +1147,7 @@ private fun NodeRow(
     val reading = latencyReading(profile, health)
     val wash = StarveilColors.accentWash
     val accent = StarveilColors.accent
-    val line = StarveilColors.hairline
+    val line = StarveilColors.divider
     Box(
         modifier = Modifier
             .fillMaxWidth()

@@ -62,9 +62,13 @@ object StarveilColors {
     val glassBorder: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.glassBorder
 
-    /** Dividers inside a card, and the line above the navigation bar. */
+    /** The 1dp highlight edge of a glass card. */
     val hairline: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hairline
+
+    /** A rule inside a card: ink at 10%, so it is darker than the card. */
+    val divider: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.divider
 
     /** Primary text. */
     val ink: Color
