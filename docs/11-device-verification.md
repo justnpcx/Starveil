@@ -1587,7 +1587,7 @@ val inGroup = when {
 
 **结论：规则在，但没有生效。** 不是「开关没开」，也不是「规则集没下载」——规则集缺失时 `ConfigBuilder` 会把 `ads` 整条从 config 里删掉，而这里连 reject 都没有，说明规则存在、只是没命中。
 
-**为什么没命中（代码层）**：`ConfigBuilder` 生成的 `route.rules` 里没有任何 `{"action": "sniff"}`，`tunInbound()` 也没有 `sniff` 字段。tun 收到的连接只有目标 IP，而 `ads` 是 `rule_set`（geosite 域名集）——**域名匹配不到 IP 连接，规则永远不会命中**。同一份配置里 `geosite-cn`（「国内域名直连」）依赖同样的机制，受同一问题影响；能生效的只有 `geoip-cn` 这种按 IP 的规则。
+**为什么没命中（代码层）**：`ConfigBuilder` 生成的 `route.rules` 里没有任何 `{"action": "sniff"}`，`tunInbound()` 也没有 `sniff` 字段。tun 收到的连接只有目标 IP，而 `ads` 是 `rule_set`（geosite 域名集）——**域名匹配不到 IP 连接，规则永远不会命中**。同一份配置里 `geosite-cn`（「国内域名直连」）依赖同样的机制，**按同一机制推断也会失效**——但没有单独验证：要证明它，得找一个「在 geosite-cn 里、IP 不在 geoip-cn 里」的样本，否则 `geoip-cn` 会把结论盖住。能确定生效的只有按 IP 的 `geoip-cn`。
 
 **顺带看到、未定论**：日志里还有一条 `outbound/hysteria2[proxy]: outbound packet connection to 192.168.50.1:53`——应用自己的 DNS 查询走了代理。局域网地址本应命中 `lan` 的 `ip_cidr` 规则（`localSubnets` 来自当前网络接口），没有命中。可能和 V-1 里「探针 socket 进隧道」是同一件事，也可能 `localSubnets` 在建立隧道时是空的。**没有继续查，也没有改代码。**
 
