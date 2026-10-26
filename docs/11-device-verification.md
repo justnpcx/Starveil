@@ -1653,3 +1653,16 @@ val inGroup = when {
 
 **验证状态**：代码 + 资源改动，`./gradlew :app:assembleDebug` 通过。**真机截图未取**——手机本轮不在线（adb 只有电视），任务书要求手机截图，因此 C-1..C-3、S-1..S-3 的验收项均**未关闭**，等手机上线补。
 
+### B 节（全量扫查）结果
+
+**X-1 主题容器**：`withPalette` 现在映射全部 tonal 容器（primary/secondary/tertiary/error 的 Container 与 Fixed 两族、surfaceTint=透明、scrim=黑、surfaceBright/Dim/Lowest），`outlineVariant` 从 `hairline` 改为 `divider`（Material 用它画分隔线，见 C-3）。组件清单在 X-1 的 commit 里：FAB 已无（C-2 换掉）、FilterChip 无、AlertDialog 26 处走 surfaceContainerHigh、DropdownMenu 走 surfaceContainer、两个 ModalBottomSheet 都显式传 surfaceSolid、Snackbar 走 inverseSurface（深色，设计如此）、Switch 无裸用。全仓 `Color(0x…)` 除 `Palette.kt` 外只剩注释与测试，没有紫色字面量。
+
+**X-2 涟漪与裁剪**：`StarveilCard` 新增 `onClick` 参数——调用方的 modifier 在卡的 clip 之前，所以"从外面套 clickable"的卡涟漪是矩形、22dp 圆角会漏；场景卡与首页节点卡改用它。`StarveilChrome` 的 48dp 图标按钮、32dp 清除按钮原来都是方形涟漪，改成 `clip(CircleShape)`。其余 20 处逐个看过：9 处已有 clip、6 处在卡/表内容的裁剪内、圆环与底部导航是 `indication = null` 故意无涟漪、小组件是 RemoteViews 没有涟漪。
+
+**X-3 分隔线与阴影**：`shadow( )` 全仓只有两处（卡 4dp / 7%，FAB 6dp / 10%），没有第三档。`drawLine` 三处：`StarveilDivider`、节点行底线（都是新的 `divider`），以及底部导航顶线——它画在 chrome 上，白 75% 比 chrome 更亮，同样读成亮条，已换成 `divider`。玻璃卡外缘、对话框缘、搜索框缘继续用白 75%。
+
+**X-4 成套一致性**：两处失效的 `OutlinedTextField` import 删掉；节点页两个底部表单一处没传 `StarveilShapes.sheet`（吃了 Material 默认 28dp），已统一。12 个 AlertDialog 全部是"取消在左 dismissButton、动作在右 confirmButton"。搜索框三处共用 `StarveilSearchField`。
+
+**X-5 空状态**：全部走 `EmptyState`，且"空"与"筛空"分开：日志"还没有日志"/"没有匹配的日志"，节点"还没有节点"/"该分组内没有节点"/"没有匹配的节点"。加载态与错误态**未在真机逐个触发**（手机不在线），留在未关闭项里。
+
+
