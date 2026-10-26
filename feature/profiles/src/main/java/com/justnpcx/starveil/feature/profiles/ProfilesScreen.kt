@@ -69,7 +69,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -596,6 +595,10 @@ fun ProfilesScreen(
         ModalBottomSheet(
             onDismissRequest = { rowMenu = null },
             containerColor = StarveilColors.surfaceSolid,
+            // Same top corners as the add sheet. Without this the menu sheet
+            // took Material's default 28dp radius and the two sheets on one
+            // screen disagreed.
+            shape = StarveilShapes.sheet,
             dragHandle = null,
         ) {
             Column(modifier = Modifier.navigationBarsPadding()) {
