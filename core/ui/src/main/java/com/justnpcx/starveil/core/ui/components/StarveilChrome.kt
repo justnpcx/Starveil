@@ -20,6 +20,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,6 +32,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.justnpcx.starveil.core.ui.R
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
@@ -144,6 +147,23 @@ fun StarveilSearchField(
                 keyboardActions = KeyboardActions(),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        // A clear button, because a search field without one leaves the only
+        // way out as the keyboard's backspace — and on a long query that is a
+        // keypress per character. Hidden while empty so it does not look like a
+        // control that does nothing.
+        if (value.isNotEmpty()) {
+            IconButton(
+                onClick = { onValueChange("") },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = StarveilIcons.Close,
+                    contentDescription = stringResource(R.string.core_search_clear),
+                    tint = StarveilColors.ink3,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
         if (value.isNotEmpty()) {
             Spacer(modifier = Modifier.width(StarveilSpacing.sm))

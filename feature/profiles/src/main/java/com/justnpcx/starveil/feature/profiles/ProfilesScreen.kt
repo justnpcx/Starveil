@@ -84,7 +84,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -1274,15 +1277,22 @@ private fun NodeRow(
             // the thing this replaces.
             Row(modifier = Modifier.fillMaxWidth()) {
                 // A fixed slot: a star that appears and disappears would shift
-                // every name on the list when one node is pinned.
-                Text(
-                    text = if (profile.favorite) "★" else "",
-                    style = StarveilType.tech,
-                    color = StarveilColors.accentText,
-                    modifier = Modifier
-                        .width(16.dp)
-                        .alignByBaseline(),
-                )
+                // every name on the list when one node is pinned. A Box of a
+                // fixed size rather than a Text, because a baseline-aligned
+                // empty Text still contributes a baseline to the row and made
+                // every row taller than it was.
+                Box(
+                    modifier = Modifier.size(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (profile.favorite) {
+                        Text(
+                            text = "★",
+                            style = StarveilType.tech,
+                            color = StarveilColors.accentText,
+                        )
+                    }
+                }
                 StatusDot(
                     status = health?.status ?: NodeStatus.UNTESTED,
                     modifier = Modifier.align(Alignment.CenterVertically),
@@ -1363,57 +1373,37 @@ private fun NodeRow(
                 }
             }
             Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-            Row(modifier = Modifier.padding(start = 16.dp)) {
-                // Selected but unreachable: the blue rule and the red dot each
-                // say half of it, and neither says the two together. The
-                // warning is inline, not a second line, so the row's height does
-                // not change when a node is selected.
+            // One Text, not a Row of five: when the children stopped fitting,
+                // the last one was pushed onto a second line and the row grew the
+                // moment a node was selected. A single string ellipsises at the
+                // end instead, and the warning keeps its colour through a span.
+                // Group first (what the user filed it under), then the protocol
+                // in the mono face, then the address.
+            val secondary = buildAnnotatedString {
                 if (selected && health?.status == NodeStatus.DOWN) {
-                    Text(
-                        text = stringResource(R.string.profiles_selected_unreachable),
-                        style = StarveilType.label,
-                        color = StarveilColors.errText,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = " · ",
-                        style = StarveilType.label,
-                        color = StarveilColors.ink3,
-                    )
+                    withStyle(SpanStyle(color = StarveilColors.errText)) {
+                        append(stringResource(R.string.profiles_selected_unreachable))
+                    }
+                    append(" · ")
                 }
-                // Group first: it is what the user filed the node under. The
-                // protocol is the mono face because it is a name, not prose,
-                // and the address is the detail read last.
-                Text(
-                    text = groupLabel,
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                    maxLines = 1,
-                )
-                Text(
-                    text = " · ",
-                    style = StarveilType.label,
-                    color = StarveilColors.ink3,
-                )
-                Text(
-                    text = profile.type.name.lowercase(),
-                    style = StarveilType.label.copy(fontFamily = MonoFamily),
-                    color = StarveilColors.ink2,
-                    maxLines = 1,
-                )
-                Text(
-                    text = " · ",
-                    style = StarveilType.label,
-                    color = StarveilColors.ink3,
-                )
-                Text(
-                    text = profile.server + ":" + profile.port,
-                    style = StarveilType.label,
-                    color = StarveilColors.ink3,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                append(groupLabel)
+                append(" · ")
+                append(profile.type.name.lowercase())
+                append(" · ")
+                append(profile.server)
+                append(":")
+                append(profile.port.toString())
             }
+            Text(
+                text = secondary,
+                style = StarveilType.label,
+                color = StarveilColors.ink3,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp),
+            )
         }
     }
 }
@@ -1490,7 +1480,15 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
  */
 internal fun shortAddress(server: String, port: Int): String {
     val isAddress = server.contains(':') || server.count { it == '.' } == 3 && server.all { it.isDigit() || it == '.' }
-    val head = if (isAddress) server else server.substringBefore('.')
+    // An address has no "first label": the whole thing would be as long as the
+    // name it is trying to disambiguate. The last two groups are the part that
+    // differs between two nodes on one host, and short enough to fit.
+    val head = if (isAddress) {
+        val separator = if (server.contains(':')) ':' else '.'
+        server.split(separator).takeLast(2).joinToString(separator.toString())
+    } else {
+        server.substringBefore('.')
+    }
     return head + ":" + port
 }
 

@@ -97,7 +97,12 @@ class StagedNodeProbe @Inject constructor(
             // ---- TLS ----------------------------------------------------
             val tls = tlsOptions(profile)
             when {
-                tls == null -> stages += StageResult(ProbeStage.TLS, StageOutcome.SKIPPED, note = StageNote.NO_TLS)
+                // A protocol can carry TLS options and still have it switched
+                // off (VLESS with security=none). Handshaking then would measure
+                // a TLS server that is not there, and report a failure for a
+                // node that is working.
+                tls == null || tls.security == SecurityMode.NONE ->
+                    stages += StageResult(ProbeStage.TLS, StageOutcome.SKIPPED, note = StageNote.NO_TLS)
                 tls.security == SecurityMode.REALITY ->
                     stages += StageResult(ProbeStage.TLS, StageOutcome.SKIPPED, note = StageNote.REALITY_HANDSHAKE)
                 else -> {

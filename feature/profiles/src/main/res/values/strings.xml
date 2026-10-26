@@ -145,7 +145,7 @@
     <string name="profiles_probe_note_reality">n/a · REALITY needs the kernel\'s uTLS handshake</string>
     <string name="profiles_probe_note_no_tls">n/a · no TLS layer</string>
     <string name="profiles_probe_note_no_http">n/a · the proxy protocol is not HTTP</string>
-    <string name="profiles_selected_unreachable">Selected, unreachable</string>
+    <string name="profiles_selected_unreachable">selected, unreachable</string>
 <string name="profiles_favorites">Favorites</string>
     <string name="profiles_favorite_add">Pin to top</string>
     <string name="profiles_favorite_remove">Unpin</string>

@@ -135,7 +135,7 @@
     <string name="profiles_probe_note_reality">不适用 · REALITY 需内核的 uTLS 握手</string>
     <string name="profiles_probe_note_no_tls">不适用 · 无 TLS 层</string>
     <string name="profiles_probe_note_no_http">不适用 · 代理协议不是 HTTP</string>
-    <string name="profiles_selected_unreachable">当前选中但不可达</string>
+    <string name="profiles_selected_unreachable">选中但不可达</string>
 <string name="profiles_favorites">收藏</string>
     <string name="profiles_favorite_add">收藏并置顶</string>
     <string name="profiles_favorite_remove">取消收藏</string>

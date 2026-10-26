@@ -3,4 +3,5 @@
     <string name="core_message_dismiss">关闭</string>
     <string name="core_undo">撤销</string>
     <string name="core_health_collecting">正在生成健康曲线…</string>
+    <string name="core_search_clear">清除搜索</string>
 </resources>

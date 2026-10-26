@@ -10,4 +10,5 @@
       one that has never answered are different things to know.
     -->
     <string name="core_health_collecting">Building the health curve…</string>
+    <string name="core_search_clear">Clear search</string>
 </resources>
