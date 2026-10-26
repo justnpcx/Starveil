@@ -1677,3 +1677,24 @@ val inGroup = when {
 所以「切到 DEBUG 就多出 DEBUG 行」这个验收在当前架构下做不到；要做就得让日志级别变更触发一次隧道重建，那是另一个决定，不在本项范围内。**没有做假开关，也没有加一个点了没用的 UI。**
 
 
+### D-1 第一步：`.srs` 解析器（已完成，可单测）
+
+**位置**：`core/kernel/.../ruleset/Srs.kt`。格式实查自 `sing-box/common/srs/binary.go` 与 `sing/common/domain/{set,matcher}.go`（本机 `/root/sing-box` + Go module cache，不是凭记忆）。
+
+**读出来的东西**：规则类型、domain 集、domain_keyword、domain_regex、network、port、invert。**没读**：`ip_cidr` / `source_ip_cidr`——那是另一套前缀压缩格式，遇到会抛 `SrsFormatException("IP sets … not read yet")`，不猜、不静默跳过；geoip 留给 D-1 的下一步。
+
+**域名集怎么解**：srs 存的是**反转域名**上的 succinct trie（LOUDS）。解码 = 读 `leaves` / `labelBitmap` / `labels` 三个位图，用 rank（每 64 位前缀 popcount）与 select（二分 + 单字内扫描）走一遍得到全部 key，再反转回来。key 首字节是标记：`\n` = 该域名及其子域，`\r` = 仅子域（旧的 `.example.com`），其余 = 精确域名。
+
+**验证**（三档）：
+
+| 输入 | 结果 |
+|---|---|
+| 自造的 94 字节夹具（2 精确 + 1 后缀 + 1 关键字） | 逐项断言通过，进 CI |
+| `geosite-category-ads-all.srs`（真实，8 KB） | version=1，1 条规则，**902 精确 + 744 后缀**，`doubleclick.net` 命中 |
+| `geosite-cn.srs`（真实，56 KB） | version=1，1 条规则，**9278 精确 + 8704 后缀** |
+
+真实文件只在本地跑：`SRS_SAMPLE=/path/to/x.srs ./gradlew :core:kernel:testDebugUnitTest --tests "*SrsTest*"`，CI 里没设这个变量就跳过——单元测试不该联网下载规则集。
+
+**下一步（D-1 未完）**：ip_cidr 解析（geoip-cn 要用）→ 按 `routeRules()` 产出的同一份规则表求值 → 诊断组入口 + 界面。
+
+
