@@ -96,6 +96,13 @@ fun StarveilChip(
             // Material's 48dp minimum applies to its own components, not to a
             // raw Surface; the chip's padding alone came out around 40dp.
             .heightIn(min = MIN_TOUCH_TARGET)
+            // Clip before the click, or the ripple is drawn into the bounds
+            // rectangle: the surface is a capsule, but the press indicator is
+            // not, and its four corners show as a grey block wider than the
+            // chip. The shape has to be on the modifier chain, not only on the
+            // Surface — a Surface clips its own background, not its children's
+            // drawing, and the ripple is drawn by the click modifier above it.
+            .clip(CircleShape)
             .combinedClickable(
                 enabled = enabled,
                 onClick = onClick,
