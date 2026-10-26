@@ -182,4 +182,5 @@
     <string name="rule_test_reason_preset">Preset fallback</string>
     <string name="rule_test_reason_default">Nothing matched</string>
     <string name="rule_test_entry_desc">Ask which rule wins for a domain or address</string>
+    <string name="rule_test_scope">Rule packs and per-app exceptions are not part of this walk yet.</string>
 </resources>

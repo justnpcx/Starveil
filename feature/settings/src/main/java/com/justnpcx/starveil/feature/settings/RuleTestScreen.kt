@@ -29,6 +29,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.config.DecisionReason
@@ -79,6 +80,7 @@ class RuleTestViewModel @Inject constructor(
     private val store: MainlandRuleSetStore,
     private val builder: ConfigBuilder,
     private val preferences: PreferencesRepository,
+    private val ruleRepository: RuleRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RuleTestUiState>(RuleTestUiState.Loading)
@@ -95,6 +97,7 @@ class RuleTestViewModel @Inject constructor(
     private suspend fun load() {
         try {
             val preset = preferences.routePreset.first()
+            val userRules = ruleRepository.observeAllOrdered().first()
             val mainland = store.ensure()
             val ads = store.ensureAds()
             val sets = buildMap {
@@ -108,6 +111,7 @@ class RuleTestViewModel @Inject constructor(
             finalTag = RuleDryRun.finalTag(preset)
             rules = RuleDryRun.rulesFor(
                 builder = builder,
+                rules = userRules,
                 preset = preset,
                 mainland = mainland,
                 adsPath = ads,
@@ -186,6 +190,14 @@ fun RuleTestScreen(
                 style = StarveilType.label,
                 color = StarveilColors.ink2,
                 modifier = Modifier.padding(bottom = StarveilSpacing.lg),
+            )
+            // Said before the answer, not after it: a result that quietly
+            // ignored the user's own rules would be worse than no result.
+            Text(
+                text = stringResource(R.string.rule_test_scope),
+                style = StarveilType.tech,
+                color = StarveilColors.ink3,
+                modifier = Modifier.padding(bottom = StarveilSpacing.md),
             )
             StarveilTextField(
                 value = query,
