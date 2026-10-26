@@ -8,6 +8,35 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.6] — 2026-10-26
+
+### Fixed
+
+- **Domain rules now match anything at all.** The generated routing config had
+  no `sniff` action, and a connection arriving at the tunnel carries only a
+  destination address — the app resolved the name itself, or the hijacked DNS
+  did it on the app's behalf. Every domain rule was therefore dead on arrival:
+  the ad list sat above the preset and never fired, `geosite-cn` never fired,
+  and a domain rule written by hand never fired. A sniffer now runs as the
+  first rule, over TLS, HTTP and QUIC only, so a plain SSH or WireGuard
+  connection is not held waiting for a name it will never send. On the Fire TV
+  this turned `doubleclick.net` from a 301 through the proxy into a local
+  rejection in 66 ms, and moved `www.baidu.com` from the proxy to
+  `outbound/direct`.
+- **Every input field has a border before you touch it.** Fields sat on a
+  transparent fill with a white 75% outline, which is invisible on both the
+  page and the dialog surface: the resting border was zero pixels. They now
+  share one component with a visible `ink3` resting border and the accent
+  border on focus, across six dialogs and three page-level fields.
+- **A region group shows the nodes that are in it.** "United States" was an
+  empty list because region groups are derived and own no nodes; the filter
+  now matches by resolved region instead of by group id.
+- **The matcher row says it can scroll.** A chip row cut off at the right edge
+  looked complete; it now fades out when there is more to the right.
+- **A rate never breaks its unit.** The value and the unit are separate
+  texts, and `B/s` wrapped to `B/` + `s` on a narrow column. Both are
+  single-line and non-wrapping now.
+
 ## [0.8.5] — 2026-10-26
 
 ### Added
