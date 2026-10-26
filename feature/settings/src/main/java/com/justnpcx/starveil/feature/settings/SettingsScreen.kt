@@ -75,12 +75,15 @@ import com.justnpcx.starveil.core.data.update.UpdateInstaller
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.components.StarveilGroupHeader
+import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
+import com.justnpcx.starveil.core.ui.components.StarveilSearchField
 import com.justnpcx.starveil.core.ui.components.StarveilSwitch
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
+import com.justnpcx.starveil.core.ui.util.writeClipboard
 
 /**
  * Settings — theme, the Kill Switch three-way choice, and the leak self-check.
@@ -97,6 +100,10 @@ fun SettingsScreen(
     onOpenPerApp: () -> Unit = {},
     onOpenKeepAlive: () -> Unit = {},
     onOpenRuleTest: () -> Unit = {},
+    /** Opens the live connection table. :app owns the route. */
+    onOpenConnections: () -> Unit = {},
+    /** Opens the per-query DNS log. :app owns the route. */
+    onOpenDnsLog: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
     /**
@@ -131,6 +138,8 @@ fun SettingsScreen(
     var exportPassphrase by remember { mutableStateOf<CharArray?>(null) }
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     var confirmingTokenReset by remember { mutableStateOf(false) }
+    /** The built bundle, held until the user closes the preview. */
+    var diagnostics by remember { mutableStateOf<String?>(null) }
 
     val createBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -146,6 +155,82 @@ fun SettingsScreen(
         // does not leave a typed secret sitting in a field.
         if (uri != null) restoreUri = uri
     }
+
+    // Settings has four groups and no search; a long scroll is the one thing
+    // this screen could not do. The query matches a group when it appears in
+    // any of that group's titles or descriptions — and, deliberately, in a
+    // short list of the words people actually type for it ("kill", "vpn",
+    // "backup"), because the UI's own label for the Kill Switch is "Block on
+    // disconnect" and searching that word should still find it.
+    var query by remember { mutableStateOf("") }
+    val q = query.trim()
+    fun matches(texts: List<String>): Boolean =
+        q.isBlank() || texts.any { it.contains(q, ignoreCase = true) }
+
+    val showConnection = matches(
+        listOf(
+            stringResource(R.string.settings_group_connection),
+            stringResource(R.string.kill_switch_off),
+            stringResource(R.string.kill_switch_off_desc),
+            stringResource(R.string.kill_switch_on_disconnect),
+            stringResource(R.string.kill_switch_on_disconnect_desc),
+            stringResource(R.string.kill_switch_always),
+            stringResource(R.string.kill_switch_always_desc),
+            stringResource(R.string.kill_switch_system_desc),
+            stringResource(R.string.kill_switch_system_link),
+            stringResource(R.string.auto_reconnect_title),
+            stringResource(R.string.auto_reconnect_desc),
+            stringResource(R.string.auto_switch_title),
+            stringResource(R.string.auto_switch_desc),
+            "kill switch", "kill", "vpn", "reconnect",
+        ),
+    )
+    val showRouting = matches(
+        listOf(
+            stringResource(R.string.settings_group_routing),
+            stringResource(R.string.per_app_entry_title),
+            stringResource(R.string.per_app_entry_desc),
+            stringResource(R.string.keepalive_entry_title),
+            stringResource(R.string.keepalive_entry_desc),
+            "per-app", "background", "keep alive",
+        ),
+    )
+    val showDiagnostics = matches(
+        listOf(
+            stringResource(R.string.settings_group_diagnostics),
+            stringResource(R.string.backup_explainer),
+            stringResource(R.string.backup_export),
+            stringResource(R.string.backup_restore),
+            stringResource(R.string.rule_test_title),
+            stringResource(R.string.rule_test_entry_desc),
+            stringResource(R.string.connections_entry_title),
+            stringResource(R.string.connections_entry_desc),
+            stringResource(R.string.diagnostics_export_title),
+            stringResource(R.string.diagnostics_export_desc),
+            stringResource(R.string.leak_check_run),
+            stringResource(R.string.settings_dns_metrics_title),
+            stringResource(R.string.settings_dns_metrics_desc),
+            stringResource(R.string.settings_dns_log_title),
+            stringResource(R.string.settings_local_api_title),
+            stringResource(R.string.settings_local_api_desc, LocalApi.address),
+            "backup", "dns", "leak", "token", "api", "diagnostic", "log",
+        ),
+    )
+    val showAbout = matches(
+        listOf(
+            stringResource(R.string.settings_group_about),
+            stringResource(R.string.settings_version_title),
+            stringResource(R.string.settings_kernel_title),
+            stringResource(R.string.update_check),
+            stringResource(R.string.settings_privacy),
+            stringResource(R.string.settings_github_repo),
+            stringResource(R.string.settings_github_changelog),
+            stringResource(R.string.settings_github_issues),
+            "version", "kernel", "update", "privacy", "github", "about",
+        ),
+    )
+    val nothingMatches = q.isNotBlank() &&
+        !showConnection && !showRouting && !showDiagnostics && !showAbout
 
     LaunchedEffect(updateState) {
         val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
@@ -165,7 +250,26 @@ fun SettingsScreen(
     ) {
         StarveilPageHeader(title = stringResource(R.string.settings_title))
 
+        StarveilSearchField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = stringResource(R.string.settings_search_hint),
+            modifier = Modifier.padding(
+                start = StarveilSpacing.pageMargin,
+                end = StarveilSpacing.pageMargin,
+                bottom = StarveilSpacing.sm,
+            ),
+        )
+
+        if (nothingMatches) {
+            EmptyState(
+                title = stringResource(R.string.settings_search_empty_title),
+                body = stringResource(R.string.settings_search_empty_body, q),
+            )
+        }
+
         // ---- Connection ----------------------------------------------------
+        if (showConnection) {
         StarveilGroupHeader(stringResource(R.string.settings_group_connection))
         SettingsCard {
             KillSwitchMode.entries.forEach { mode ->
@@ -220,7 +324,10 @@ fun SettingsScreen(
             )
         }
 
+        }
+
         // ---- Routing and background ----------------------------------------
+        if (showRouting) {
         // One group, because the two entries answer one question: what happens
         // to traffic this app is not sending through the tunnel, and what keeps
         // the tunnel alive. Two groups of one row each was two captions and a
@@ -244,7 +351,10 @@ fun SettingsScreen(
             )
         }
 
+        }
+
         // ---- Data, security and diagnostics --------------------------------
+        if (showDiagnostics) {
         // Everything that answers "what is going on": the backup file, the leak
         // self-check, the DNS numbers and the local API. The new diagnostics
         // from this task book belong here too, so they do not start a fifth
@@ -290,6 +400,24 @@ fun SettingsScreen(
                 onClick = onOpenRuleTest,
             )
             StarveilDivider(startInset = StarveilSpacing.lg)
+            EntryRow(
+                title = stringResource(R.string.connections_entry_title),
+                description = stringResource(R.string.connections_entry_desc),
+                onClick = onOpenConnections,
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            EntryRow(
+                title = stringResource(R.string.diagnostics_export_title),
+                description = stringResource(R.string.diagnostics_export_desc),
+                onClick = {
+                    // Nothing is produced until this tap, and nothing leaves
+                    // the device until the preview's copy is pressed.
+                    viewModel.buildDiagnosticBundle(appVersion.orEmpty()) { text ->
+                        diagnostics = text
+                    }
+                },
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
             Row(
                 modifier = Modifier.padding(
                     start = StarveilSpacing.lg,
@@ -330,37 +458,16 @@ fun SettingsScreen(
             )
             if (state.dnsMetricsEnabled) {
                 StarveilDivider(startInset = StarveilSpacing.lg)
-                Column(
-                    modifier = Modifier.padding(
-                        start = StarveilSpacing.lg,
-                        end = StarveilSpacing.lg,
-                        top = StarveilSpacing.md,
-                        bottom = StarveilSpacing.sm,
-                    ),
-                ) {
-                    Text(
-                        text = if (state.dnsStats.samples == 0) {
-                            stringResource(R.string.settings_dns_metrics_empty)
-                        } else {
-                            stringResource(
-                                R.string.settings_dns_metrics_stats,
-                                state.dnsStats.samples,
-                                state.dnsStats.p50Ms,
-                                state.dnsStats.p95Ms,
-                                state.dnsStats.fallbackPct,
-                                state.dnsStats.cacheHitPct,
-                            )
-                        },
-                        style = StarveilType.log,
-                        color = StarveilColors.ink2,
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                    LinkText(
-                        text = stringResource(R.string.settings_dns_metrics_clear),
-                        enabled = state.dnsStats.samples > 0,
-                        onClick = viewModel::clearDnsStats,
-                    )
-                }
+                // One line of state, not the telemetry: "23 samples · p50 81 ms
+                // · p95 587 ms · fallback 0% · cache 0%" is a row of numbers in
+                // a list of settings, and it made the diagnostics group the
+                // only place where a setting looked like a dashboard. The
+                // numbers are one tap away, with the per-query log beside them.
+                EntryRow(
+                    title = stringResource(R.string.settings_dns_log_title),
+                    description = dnsStatusLine(state.dnsStats),
+                    onClick = onOpenDnsLog,
+                )
             }
             StarveilDivider(startInset = StarveilSpacing.lg)
             SwitchRow(
@@ -419,7 +526,21 @@ fun SettingsScreen(
             }
         }
 
+        diagnostics?.let { text ->
+            DiagnosticPreviewDialog(
+                text = text,
+                onCopy = {
+                    writeClipboard(context, text, "Starveil diagnostics")
+                    diagnostics = null
+                },
+                onDismiss = { diagnostics = null },
+            )
+        }
+
+        }
+
         // ---- About ----------------------------------------------------------
+        if (showAbout) {
         StarveilGroupHeader(stringResource(R.string.settings_group_about))
         SettingsCard {
             ValueRow(
@@ -485,6 +606,8 @@ fun SettingsScreen(
                     onClick = { openUrl(context, PROJECT_ISSUES) },
                 )
             }
+        }
+
         }
 
         if (askingForExport) {
@@ -948,6 +1071,23 @@ private fun SwitchRow(
     }
 }
 
+/**
+ * The DNS row's one line.
+ *
+ * The threshold is the project's own (§7.1: p50 under 30 ms), not a number
+ * invented here — "normal" without a stated rule would be a judgement the
+ * screen has no basis for.
+ */
+@Composable
+private fun dnsStatusLine(stats: com.justnpcx.starveil.core.data.geo.DnsSnapshot): String = when {
+    stats.samples == 0 -> stringResource(R.string.settings_dns_metrics_empty)
+    stats.p50Ms <= DNS_TARGET_MS -> stringResource(R.string.settings_dns_log_ok, stats.p50Ms, stats.samples)
+    else -> stringResource(R.string.settings_dns_log_slow, stats.p50Ms, stats.samples)
+}
+
+/** §7.1's p50 budget. */
+private const val DNS_TARGET_MS = 30L
+
 @Composable
 private fun leakCheckSummary(record: LeakCheckRecord): String =
     if (record.checkedAtEpochMs <= 0L) {
@@ -1021,3 +1161,50 @@ private fun openSystemVpnSettings(context: Context) {
         }
     }
 }
+
+/**
+ * The bundle, before it goes anywhere.
+ *
+ * A preview rather than a share sheet straight from the row: the user is about
+ * to publish their own network's numbers, and the only honest way to ask is to
+ * show them the text first. Nothing is written to a file, and nothing is
+ * uploaded — the button copies.
+ */
+@Composable
+private fun DiagnosticPreviewDialog(
+    text: String,
+    onCopy: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.diagnostics_preview_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                Text(
+                    text = stringResource(R.string.diagnostics_preview_note),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                )
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 380.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(text = text, style = StarveilType.log, color = StarveilColors.ink2)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onCopy) {
+                Text(stringResource(R.string.diagnostics_preview_copy))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.diagnostics_preview_cancel))
+            }
+        },
+    )
+}
+

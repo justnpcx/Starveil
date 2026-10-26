@@ -40,7 +40,6 @@ import com.justnpcx.starveil.core.kernel.ruleset.SrsRuleSetLookup
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
-import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -184,7 +183,6 @@ fun RuleTestScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = StarveilSpacing.pageMargin),
         ) {
-            StarveilPageHeader(title = stringResource(R.string.rule_test_title))
             Text(
                 text = stringResource(R.string.rule_test_intro),
                 style = StarveilType.label,

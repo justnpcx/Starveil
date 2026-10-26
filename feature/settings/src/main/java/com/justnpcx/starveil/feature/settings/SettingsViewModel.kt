@@ -8,7 +8,13 @@ import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
+import com.justnpcx.starveil.core.data.diagnostics.DiagnosticBundle
+import com.justnpcx.starveil.core.data.diagnostics.DiagnosticInput
 import com.justnpcx.starveil.core.data.geo.DnsMetrics
+import com.justnpcx.starveil.core.data.repository.GroupRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.data.repository.RuleRepository
+import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.data.geo.DnsSnapshot
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.update.UpdateCheck
@@ -103,6 +109,10 @@ class SettingsViewModel @Inject constructor(
     private val updateDownloader: UpdateDownloadPort,
     private val localApiToken: LocalApiTokenStore,
     private val metrics: DnsMetrics,
+    private val profiles: ProfileRepository,
+    private val groups: GroupRepository,
+    private val rules: RuleRepository,
+    private val logs: LogStream,
 ) : ViewModel() {
 
     private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
@@ -266,6 +276,58 @@ class SettingsViewModel @Inject constructor(
             initialValue = SettingsUiState(),
         )
 
+    /**
+     * Build the diagnostic bundle and hand the text back.
+     *
+     * Nothing is written anywhere until the user confirms in the preview — this
+     * function returns a string and that is all it does.
+     */
+    fun buildDiagnosticBundle(appVersion: String, onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            val nodeList = profiles.observeAll().first()
+            val groupList = groups.observeAll().first()
+            val ruleList = rules.observeAllOrdered().first()
+            val token = localApiToken.token()
+            val leak = preferences.lastLeakCheck.first()
+            // The ring is oldest-first; the bundle keeps the most recent
+            // hundred, in the order they happened.
+            val logLines = logs.lines.first()
+                .takeLast(MAX_LOG_LINES)
+                .map { line ->
+                    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+                        .format(java.util.Date(line.timestampMs))
+                    time + " " + line.level.name.take(1) + " " + line.message
+                }
+
+            val input = DiagnosticInput(
+                appVersion = appVersion,
+                kernelVersion = kernelVersion.value,
+                androidSdk = android.os.Build.VERSION.SDK_INT,
+                dns = metrics.snapshot(),
+                leakCheckedAtMs = leak.checkedAtEpochMs,
+                leakLeaking = leak.leaking,
+                nodeCount = nodeList.size,
+                groupCount = groupList.size,
+                ruleCount = ruleList.size,
+                routePreset = preferences.routePreset.first().name.lowercase(),
+                killSwitchMode = preferences.killSwitchMode.first().name.lowercase(),
+                localApiEnabled = preferences.localApiEnabled.first(),
+                perAppDirectCount = preferences.perAppRoutes.first().size,
+                dnsMetricsEnabled = preferences.dnsMetricsEnabled.first(),
+                logLines = logLines,
+                // The exact values this device must never publish. Servers,
+                // subscription URLs and the API token are the three that the
+                // shapes alone cannot reliably catch.
+                secrets = buildList {
+                    nodeList.forEach { add(it.server) }
+                    groupList.forEach { group -> group.subscriptionUrl?.let { add(it) } }
+                    if (token.isNotBlank()) add(token)
+                },
+            )
+            onReady(DiagnosticBundle.build(input))
+        }
+    }
+
     /** Read the ring into the row; called while the developer group is open. */
     fun refreshDnsStats() {
         dnsStatsFlow.value = metrics.snapshot()
@@ -305,6 +367,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoSwitchOnDrop(enabled: Boolean) {
         viewModelScope.launch { preferences.setAutoSwitchOnDrop(enabled) }
+    }
+
+    private companion object {
+        /** Enough to see the last failure, small enough to paste. */
+        const val MAX_LOG_LINES = 100
     }
 
     fun setCrashReports(enabled: Boolean) {

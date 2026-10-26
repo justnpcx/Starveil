@@ -48,6 +48,11 @@ private class FakeProfiles(private val failOnReplace: Boolean = false) : Profile
         stored.removeAll { it.id == id }
     }
 
+    override suspend fun setFavorite(id: Long, favorite: Boolean) {
+        val index = stored.indexOfFirst { it.id == id }
+        if (index >= 0) stored[index] = stored[index].copy(favorite = favorite)
+    }
+
     override suspend fun deleteByGroup(groupId: Long) {
         stored.removeAll { it.groupId == groupId }
     }

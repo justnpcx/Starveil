@@ -84,6 +84,20 @@ object StarveilMigrations {
         }
     }
 
+    /**
+     * v5 → v6: `profiles.favorite`, the pin behind the Favorites filter.
+     *
+     * Additive with a default of 0: every existing node is not a favorite,
+     * which is what "the feature did not exist" means. No row changes value.
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `profiles` ADD COLUMN `favorite` INTEGER NOT NULL DEFAULT 0",
+            )
+        }
+    }
+
     val ALL: Array<Migration> =
-        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

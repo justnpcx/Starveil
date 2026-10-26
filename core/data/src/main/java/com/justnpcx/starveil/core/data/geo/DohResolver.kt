@@ -56,14 +56,14 @@ class DohResolver(
         // A literal address needs no lookup; asking would be a round trip for
         // something already known.
         if (isIpLiteral(host)) {
-            metrics?.record(0L, DnsOutcome.LITERAL)
+            metrics?.record(0L, DnsOutcome.LITERAL, host = host)
             return host
         }
 
         val startedAt = System.nanoTime()
-        resolveOverDoh(host)?.let {
-            metrics?.record(elapsedMs(startedAt), DnsOutcome.DOH)
-            return it
+        resolveOverDoh(host)?.let { answer ->
+            metrics?.record(elapsedMs(startedAt), DnsOutcome.DOH, host = host, resolver = answer.endpoint)
+            return answer.address
         }
 
         warn("DoH unavailable; falling back to the system resolver for a node host")
@@ -71,6 +71,8 @@ class DohResolver(
         metrics?.record(
             elapsedMs(startedAt),
             if (answer != null) DnsOutcome.FALLBACK else DnsOutcome.FAILED,
+            host = host,
+            resolver = SYSTEM_RESOLVER,
         )
         return answer
     }
@@ -86,7 +88,7 @@ class DohResolver(
     suspend fun resolveStrict(host: String): String? {
         if (host.isBlank()) return null
         if (isIpLiteral(host)) {
-            metrics?.record(0L, DnsOutcome.LITERAL)
+            metrics?.record(0L, DnsOutcome.LITERAL, host = host)
             return host
         }
         val startedAt = System.nanoTime()
@@ -94,8 +96,10 @@ class DohResolver(
         metrics?.record(
             elapsedMs(startedAt),
             if (answer != null) DnsOutcome.DOH else DnsOutcome.FAILED,
+            host = host,
+            resolver = answer?.endpoint.orEmpty(),
         )
-        return answer
+        return answer?.address
     }
 
     /**
@@ -107,10 +111,13 @@ class DohResolver(
      * the kernel could not dial it. The order still matters, because most
      * names have an A and the common case should cost one request.
      */
-    private suspend fun resolveOverDoh(host: String): String? =
+    private suspend fun resolveOverDoh(host: String): DohAnswer? =
         lookup(host, DnsMessage.TYPE_A) ?: lookup(host, DnsMessage.TYPE_AAAA)
 
-    private suspend fun lookup(host: String, type: Int): String? {
+    /** An address and the endpoint that answered, for the per-query log. */
+    private data class DohAnswer(val address: String, val endpoint: String)
+
+    private suspend fun lookup(host: String, type: Int): DohAnswer? {
         val query = DnsMessage.query(host, type = type)
         val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(query)
         for (endpoint in endpoints) {
@@ -124,12 +131,13 @@ class DohResolver(
                 warn("DoH ${endpoint.substringAfter("://")} failed: ${e.javaClass.simpleName}")
                 continue
             }
-            DnsMessage.firstAddress(body, type = type)?.let {
-                // No hostname here: the log ring is readable from the UI, and
-                // which servers someone connects to is the thing this class
-                // exists to keep off the wire.
+            DnsMessage.firstAddress(body, type = type)?.let { address ->
+                // No hostname in the logcat line: logcat is readable by other
+                // tools, and which servers someone connects to is the thing
+                // this class exists to keep off the wire. The in-app ring keeps
+                // the name on the device, which is where the user can see it.
                 warn("DoH answered in ${(System.nanoTime() - startedAt) / 1_000_000} ms")
-                return it
+                return DohAnswer(address, endpoint.substringAfter("://").substringBefore('/'))
             }
             warn(
                 "DoH ${endpoint.substringAfter("://")} answered without " +
@@ -144,6 +152,9 @@ class DohResolver(
 
         fun elapsedMs(startedAtNanos: Long): Long = (System.nanoTime() - startedAtNanos) / 1_000_000
         const val DNS_MESSAGE = "application/dns-message"
+
+        /** The label the per-query log gives the cleartext fallback. */
+        const val SYSTEM_RESOLVER = "system"
         const val MAX_CONCURRENT = 8
         const val TIMEOUT_MS = 3_000
 

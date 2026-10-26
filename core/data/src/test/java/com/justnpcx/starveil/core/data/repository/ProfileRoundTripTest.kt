@@ -64,6 +64,10 @@ private class FakeProfileDao : ProfileDao {
         rows.remove(entity.id)
     }
 
+    override suspend fun setFavorite(id: Long, favorite: Boolean) {
+        rows[id]?.let { rows[id] = it.copy(favorite = favorite) }
+    }
+
     override suspend fun deleteById(id: Long) {
         rows.remove(id)
     }

@@ -66,6 +66,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -107,6 +108,9 @@ import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.justnpcx.starveil.core.model.ProbeStage
+import com.justnpcx.starveil.core.model.StageNote
+import com.justnpcx.starveil.core.model.StageOutcome
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.ProfileType
@@ -129,6 +133,12 @@ import com.justnpcx.starveil.core.ui.util.writeClipboard
 @Composable
 fun ProfilesScreen(
     viewModel: ProfilesViewModel = hiltViewModel(),
+    /**
+     * The staged diagnostic. A separate view model because it owns a probe and
+     * a result that outlive one row's press, and because nothing it does may
+     * touch the list's state.
+     */
+    probeViewModel: StagedProbeViewModel = hiltViewModel(),
     /**
      * Measures the selected node's latency. Supplied by :app, which owns the
      * kernel; it reports back a user-facing message so a failed measurement is
@@ -153,6 +163,7 @@ fun ProfilesScreen(
     onLinkHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val probeState by probeViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showImport by remember { mutableStateOf(false) }
 
@@ -195,6 +206,19 @@ fun ProfilesScreen(
     // hundreds of nodes, and a linear scan per row would be hundreds of scans
     // per recomposition.
     val groupNames = remember(state.groups) { state.groups.associate { it.id to it.name } }
+    // Two nodes can share a display name — a subscription that ships
+    // "HY2+Rea…" twice is common — and a truncated title then identifies
+    // neither. Only the colliding names get a suffix, so the ordinary row is
+    // unchanged: the last label of the host plus the port is short enough to
+    // sit beside the name and specific enough to tell the two apart.
+    val disambiguators = remember(state.profiles) {
+        state.profiles
+            .groupBy { it.displayName() }
+            .filterValues { it.size > 1 }
+            .values
+            .flatten()
+            .associate { profile -> profile.id to shortAddress(profile.server, profile.port) }
+    }
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -343,9 +367,17 @@ fun ProfilesScreen(
             // have somewhere to live.
             StarveilChipRow {
                 GroupChip(
+                    label = stringResource(R.string.profiles_favorites),
+                    selected = state.favoritesOnly,
+                    onClick = { viewModel.filterFavorites(true) },
+                )
+                GroupChip(
                     label = stringResource(R.string.profiles_group_all),
-                    selected = state.groupFilter == null,
-                    onClick = { viewModel.filterByGroup(null) },
+                    selected = state.groupFilter == null && !state.favoritesOnly,
+                    onClick = {
+                        viewModel.filterFavorites(false)
+                        viewModel.filterByGroup(null)
+                    },
                 )
                 state.groups.forEach { group ->
                     GroupChip(
@@ -357,6 +389,25 @@ fun ProfilesScreen(
                     )
                 }
             }
+            // One line, once. Long-press is the only way to reach edit, share,
+            // move and delete, and nothing on the row says so; a caption that
+            // stayed forever would be chrome, so it leaves after the first
+            // long-press or the first tap on it.
+            if (state.showLongPressHint) {
+                Text(
+                    text = stringResource(R.string.profiles_long_press_hint),
+                    style = StarveilType.label,
+                    color = StarveilColors.accentText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { viewModel.dismissNodeHint() }
+                        .padding(
+                            horizontal = StarveilSpacing.pageMargin,
+                            vertical = StarveilSpacing.sm,
+                        ),
+                )
+            }
+
             // The quota the provider published, when it published one.
             // Filtered to a group: that group's number or nothing. Showing
             // another subscription's quota here would be worse than showing
@@ -420,12 +471,16 @@ fun ProfilesScreen(
                                 NodeRow(
                                     profile = profile,
                                     health = state.health[profile.id],
+                                    disambiguator = disambiguators[profile.id],
                                     groupLabel = groupNames[profile.groupId]
                                         ?: stringResource(R.string.profiles_group_none),
                                     selected = profile.id == state.selectedId,
                                     showDivider = index != shown.lastIndex || timedOut.isNotEmpty(),
                                     onClick = { viewModel.select(profile.id) },
-                                    onLongClick = { rowMenu = profile },
+                                    onLongClick = {
+                                        rowMenu = profile
+                                        viewModel.dismissNodeHint()
+                                    },
                                     onTestClick = {
                                         onTestNode(profile.id) { msg -> viewModel.postMessage(msg) }
                                     },
@@ -619,6 +674,18 @@ fun ProfilesScreen(
                     rowMenu = null
                     onEditNode(profile.type, profile.id)
                 }
+                StarveilSheetRow(
+                    stringResource(
+                        if (profile.favorite) R.string.profiles_favorite_remove else R.string.profiles_favorite_add,
+                    ),
+                ) {
+                    rowMenu = null
+                    viewModel.toggleFavorite(profile)
+                }
+                StarveilSheetRow(stringResource(R.string.profiles_row_probe)) {
+                    rowMenu = null
+                    probeViewModel.run(profile)
+                }
                 StarveilSheetRow(stringResource(R.string.profiles_row_share)) {
                     rowMenu = null
                     viewModel.shareNode(profile)
@@ -637,6 +704,8 @@ fun ProfilesScreen(
             }
         }
     }
+
+    StagedProbeDialog(state = probeState, onDismiss = probeViewModel::dismiss)
 
     nodeToDelete?.let { profile ->
         AlertDialog(
@@ -1140,6 +1209,8 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
 private fun NodeRow(
     profile: Profile,
     health: NodeHealth?,
+    /** Non-null only when another row shows the same name. */
+    disambiguator: String?,
     groupLabel: String,
     selected: Boolean,
     showDivider: Boolean,
@@ -1202,6 +1273,16 @@ private fun NodeRow(
             // readings, and a number that floats at the top-right of the row is
             // the thing this replaces.
             Row(modifier = Modifier.fillMaxWidth()) {
+                // A fixed slot: a star that appears and disappears would shift
+                // every name on the list when one node is pinned.
+                Text(
+                    text = if (profile.favorite) "★" else "",
+                    style = StarveilType.tech,
+                    color = StarveilColors.accentText,
+                    modifier = Modifier
+                        .width(16.dp)
+                        .alignByBaseline(),
+                )
                 StatusDot(
                     status = health?.status ?: NodeStatus.UNTESTED,
                     modifier = Modifier.align(Alignment.CenterVertically),
@@ -1219,6 +1300,18 @@ private fun NodeRow(
                         .weight(1f)
                         .alignByBaseline(),
                 )
+                if (disambiguator != null) {
+                    // Part of the name's own line, so it survives the title's
+                    // ellipsis: two rows that both read "HY2+Rea…" are told
+                    // apart by "hk1:443" / "jp2:443", not by where the dots fell.
+                    Text(
+                        text = " · " + disambiguator,
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink3,
+                        maxLines = 1,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
                 Spacer(modifier = Modifier.width(StarveilSpacing.md))
                 // A fixed column, right-aligned: the unit must never be clipped
                 // by a long node name, and the column must not jump when a
@@ -1271,6 +1364,23 @@ private fun NodeRow(
             }
             Spacer(modifier = Modifier.height(StarveilSpacing.xs))
             Row(modifier = Modifier.padding(start = 16.dp)) {
+                // Selected but unreachable: the blue rule and the red dot each
+                // say half of it, and neither says the two together. The
+                // warning is inline, not a second line, so the row's height does
+                // not change when a node is selected.
+                if (selected && health?.status == NodeStatus.DOWN) {
+                    Text(
+                        text = stringResource(R.string.profiles_selected_unreachable),
+                        style = StarveilType.label,
+                        color = StarveilColors.errText,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = " · ",
+                        style = StarveilType.label,
+                        color = StarveilColors.ink3,
+                    )
+                }
                 // Group first: it is what the user filed the node under. The
                 // protocol is the mono face because it is a name, not prose,
                 // and the address is the detail read last.
@@ -1369,6 +1479,19 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
         profile.latencyMs >= 0 -> LatencyReading.Value(profile.latencyMs)
         else -> LatencyReading.Untested
     }
+}
+
+/**
+ * A short handle for a node whose name collides with another.
+ *
+ * The host's first label plus the port: "hk1.example.com:443" becomes
+ * "hk1:443". The first label is the part subscription naming varies; the domain
+ * is usually shared and would only repeat what the second line already says.
+ */
+internal fun shortAddress(server: String, port: Int): String {
+    val isAddress = server.contains(':') || server.count { it == '.' } == 3 && server.all { it.isDigit() || it == '.' }
+    val head = if (isAddress) server else server.substringBefore('.')
+    return head + ":" + port
 }
 
 /** §6.3 card metrics. */
@@ -1570,3 +1693,142 @@ private fun formatBytes(bytes: Long): String {
         String.format(java.util.Locale.US, "%.1f %s", value, units[unit])
     }
 }
+
+/**
+ * The staged test's result.
+ *
+ * Four rows always, because the point is to show which layer answered and
+ * which did not. A row that cannot apply to this protocol says why instead of
+ * disappearing — a missing row would read as "passed".
+ */
+@Composable
+private fun StagedProbeDialog(state: StagedProbeUiState, onDismiss: () -> Unit) {
+    if (state is StagedProbeUiState.Idle) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    R.string.profiles_probe_title,
+                    when (state) {
+                        is StagedProbeUiState.Running -> state.profileName
+                        is StagedProbeUiState.Done -> state.profileName
+                        is StagedProbeUiState.Failed -> state.profileName
+                        StagedProbeUiState.Idle -> ""
+                    },
+                ),
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                when (state) {
+                    StagedProbeUiState.Idle -> Unit
+
+                    is StagedProbeUiState.Running -> Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.profiles_probe_running))
+                    }
+
+                    is StagedProbeUiState.Failed -> Text(
+                        text = stringResource(R.string.profiles_probe_failed, state.message),
+                        style = StarveilType.label,
+                        color = StarveilColors.errText,
+                    )
+
+                    is StagedProbeUiState.Done -> {
+                        val report = state.report
+                        report.stages.forEach { stage -> StageRow(stage.stage, stage.outcome, stage.ms, stage.note) }
+                        Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                        Text(
+                            text = report.failedAt?.let { failed ->
+                                stringResource(
+                                    R.string.profiles_probe_stuck,
+                                    stageLabel(failed.stage),
+                                    outcomeLabel(failed.outcome),
+                                )
+                            } ?: stringResource(R.string.profiles_probe_reached),
+                            style = StarveilType.label,
+                            color = if (report.failedAt == null) StarveilColors.ok else StarveilColors.errText,
+                        )
+                        Text(
+                            text = stringResource(R.string.profiles_probe_scope),
+                            style = StarveilType.tech,
+                            color = StarveilColors.ink3,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.profiles_dialog_ok))
+            }
+        },
+    )
+}
+
+@Composable
+private fun StageRow(stage: ProbeStage, outcome: StageOutcome, ms: Long, note: StageNote) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stageLabel(stage),
+            style = StarveilType.label,
+            color = StarveilColors.ink,
+            modifier = Modifier.width(96.dp),
+        )
+        Text(
+            text = when (outcome) {
+                StageOutcome.OK -> stringResource(R.string.profiles_probe_ok, ms)
+                StageOutcome.TIMEOUT -> stringResource(R.string.profiles_probe_timeout)
+                StageOutcome.FAILED -> stringResource(R.string.profiles_probe_failed_stage)
+                StageOutcome.SKIPPED -> noteLabel(note)
+            },
+            style = StarveilType.label,
+            color = when (outcome) {
+                StageOutcome.OK -> StarveilColors.ok
+                StageOutcome.TIMEOUT, StageOutcome.FAILED -> StarveilColors.errText
+                StageOutcome.SKIPPED -> StarveilColors.ink3
+            },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun stageLabel(stage: ProbeStage): String = stringResource(
+    when (stage) {
+        ProbeStage.DNS -> R.string.profiles_probe_stage_dns
+        ProbeStage.TCP -> R.string.profiles_probe_stage_tcp
+        ProbeStage.TLS -> R.string.profiles_probe_stage_tls
+        ProbeStage.HTTP -> R.string.profiles_probe_stage_http
+    },
+)
+
+@Composable
+private fun outcomeLabel(outcome: StageOutcome): String = stringResource(
+    when (outcome) {
+        StageOutcome.OK -> R.string.profiles_probe_outcome_ok
+        StageOutcome.TIMEOUT -> R.string.profiles_probe_timeout
+        StageOutcome.FAILED -> R.string.profiles_probe_failed_stage
+        StageOutcome.SKIPPED -> R.string.profiles_probe_skipped
+    },
+)
+
+@Composable
+private fun noteLabel(note: StageNote): String = stringResource(
+    when (note) {
+        StageNote.NONE -> R.string.profiles_probe_skipped
+        StageNote.LITERAL_HOST -> R.string.profiles_probe_note_literal
+        StageNote.UDP_PROTOCOL -> R.string.profiles_probe_note_udp
+        StageNote.REALITY_HANDSHAKE -> R.string.profiles_probe_note_reality
+        StageNote.NO_TLS -> R.string.profiles_probe_note_no_tls
+        StageNote.NO_HTTP -> R.string.profiles_probe_note_no_http
+    },
+)
+

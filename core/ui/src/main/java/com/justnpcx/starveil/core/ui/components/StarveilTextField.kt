@@ -38,6 +38,8 @@ fun StarveilTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     supportingText: String? = null,
+    /** An example of what belongs here, shown while the field is empty. */
+    placeholder: String? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -48,6 +50,7 @@ fun StarveilTextField(
         minLines = minLines,
         isError = isError,
         label = { Text(label) },
+        placeholder = placeholder?.let { text -> { Text(text) } },
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         supportingText = supportingText?.let { text -> { Text(text) } },

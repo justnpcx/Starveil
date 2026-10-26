@@ -196,6 +196,34 @@ interface PreferencesRepository {
     /** Last leak self-check (minimal M2 version). */
     val lastLeakCheck: Flow<LeakCheckRecord>
 
+    /**
+     * True once a tunnel has actually come up on this install.
+     *
+     * The dashboard's "tap the ring" hint is for someone who has never
+     * connected; after the first success the ring is not a thing that needs
+     * explaining, and a hint that stays is a permanent strip of chrome.
+     *
+     * The default is true so a fake used by a screen test does not have to
+     * teach the hint's absence.
+     */
+    val hasConnectedOnce: Flow<Boolean>
+        get() = kotlinx.coroutines.flow.flowOf(true)
+
+    /** Records the first successful connect. Idempotent. */
+    suspend fun markConnectedOnce() = Unit
+
+    /**
+     * True once the node list's long-press hint has been shown and dismissed.
+     *
+     * The hint is a one-time line, not a permanent strip: long-press is a
+     * gesture nobody discovers by accident, but after it has been pointed out
+     * once, a permanent caption would be chrome.
+     */
+    val nodeHintSeen: Flow<Boolean>
+        get() = kotlinx.coroutines.flow.flowOf(true)
+
+    suspend fun markNodeHintSeen() = Unit
+
     /** Epoch ms of the last successful subscription refresh; 0 = never. */
     val subscriptionLastSuccessAt: Flow<Long>
 
@@ -291,6 +319,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val HEALTH_PROBE_AT = longPreferencesKey("health_probe_at")
         val SCENES = stringPreferencesKey("scenes")
         val MANUAL_PRESET_AT = longPreferencesKey("manual_preset_at")
+        val HAS_CONNECTED_ONCE = booleanPreferencesKey("has_connected_once")
+        val NODE_HINT_SEEN = booleanPreferencesKey("node_hint_seen")
     }
 
     override val autoReconnect: Flow<Boolean> = dataStore.data
@@ -314,6 +344,22 @@ class DataStorePreferencesRepository @Inject constructor(
     override val perAppRoutes: Flow<Map<String, AppRoute>> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> PerAppRouteCodec.decode(prefs[Keys.PER_APP_DIRECT]) }
+
+    override val hasConnectedOnce: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.HAS_CONNECTED_ONCE] ?: false }
+
+    override suspend fun markConnectedOnce() {
+        dataStore.edit { it[Keys.HAS_CONNECTED_ONCE] = true }
+    }
+
+    override val nodeHintSeen: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.NODE_HINT_SEEN] ?: false }
+
+    override suspend fun markNodeHintSeen() {
+        dataStore.edit { it[Keys.NODE_HINT_SEEN] = true }
+    }
 
     override val lastLeakCheck: Flow<LeakCheckRecord> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }

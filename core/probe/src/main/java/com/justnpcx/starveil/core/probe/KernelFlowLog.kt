@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.probe
 
+import com.justnpcx.starveil.core.kernel.ConnectionEventKind
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelConnection
@@ -32,6 +33,9 @@ class KernelFlowLog(bridge: KernelBridge) : FlowLog {
     init {
         scope.launch {
             bridge.connections.collect { connection ->
+                // Updates and closes repeat a connection already reported; the
+                // decision being shown was made once, at the start.
+                if (connection.event != ConnectionEventKind.NEW) return@collect
                 val record = connection.toFlowRecord()
                 ring.update { prepend(it, record) }
             }

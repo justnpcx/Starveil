@@ -25,4 +25,6 @@ data class ProfileEntity(
     val settingsJson: String = "{}",
     /** ISO-3166 alpha-2 of the address; null until resolved, or unknown. */
     val country: String? = null,
+    /** Pinned to the top of the list and shown by the Favorites filter. */
+    val favorite: Boolean = false,
 )

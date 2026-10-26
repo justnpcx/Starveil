@@ -171,6 +171,7 @@ private class FakeProfiles(private val byId: Map<Long, Profile>) : ProfileReposi
     override suspend fun getById(id: Long): Profile? = byId[id]
     override suspend fun upsert(profile: Profile): Long = samplerNotUsed()
     override suspend fun deleteById(id: Long) = samplerNotUsed()
+    override suspend fun setFavorite(id: Long, favorite: Boolean) = samplerNotUsed()
     override suspend fun deleteByGroup(groupId: Long) = samplerNotUsed()
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = samplerNotUsed()
 }

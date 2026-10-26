@@ -84,6 +84,10 @@ class SettingsViewModelTest {
             NoDownloads(),
             FakeTokens,
             DnsMetrics(),
+            NoProfiles(),
+            NoGroups(),
+            NoRules(),
+            NoLogs,
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -98,7 +102,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics(), NoProfiles(), NoGroups(), NoRules(), NoLogs)
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -118,7 +122,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics())
+        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics(), NoProfiles(), NoGroups(), NoRules(), NoLogs)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -141,6 +145,10 @@ class SettingsViewModelTest {
             NoDownloads(),
             FakeTokens,
             DnsMetrics(),
+            NoProfiles(),
+            NoGroups(),
+            NoRules(),
+            NoLogs,
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -238,6 +246,10 @@ private fun emptyBackup() = BackupManager(NoProfiles(), NoGroups(), NoRules(), N
 private class NoFiles : BackupFileStore {
     override suspend fun write(uri: Uri, bytes: ByteArray) = notUsed()
     override suspend fun read(uri: Uri): ByteArray = notUsed()
+}
+
+private object NoLogs : com.justnpcx.starveil.core.kernel.LogStream {
+    override val lines = kotlinx.coroutines.flow.flowOf(emptyList<com.justnpcx.starveil.core.model.AppLogLine>())
 }
 
 private class NoProfiles : ProfileRepository {

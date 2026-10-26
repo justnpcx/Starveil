@@ -61,6 +61,10 @@ data class ProfilesUiState(
      * search, "this group is empty" is about the filter.
      */
     val hasNoSearchMatches: Boolean = false,
+    /** True while the "Favorites" chip is the active filter. */
+    val favoritesOnly: Boolean = false,
+    /** Show the one-time "long-press a node" line. */
+    val showLongPressHint: Boolean = false,
     val selectedId: Long = 0L,
     /** The group the tunnel goes through, when that is the target instead. */
     val selectedGroupId: Long = 0L,
@@ -143,6 +147,7 @@ class ProfilesViewModel @Inject constructor(
     private val importing = MutableStateFlow(false)
     private val message = MutableStateFlow<ProfilesMessage?>(null)
     private val groupFilter = MutableStateFlow<Long?>(null)
+    private val favoritesOnly = MutableStateFlow(false)
     private val searchQuery = MutableStateFlow("")
     private val share = MutableStateFlow<ShareTarget?>(null)
 
@@ -163,8 +168,14 @@ class ProfilesViewModel @Inject constructor(
     /** Paired so the two transient signals count as one flow to [combine]. */
     private val transient = combine(importing, message) { isImporting, msg -> isImporting to msg }
 
-    /** The two things that narrow the list, paired for the same reason. */
-    private val filters = combine(groupFilter, searchQuery) { group, text -> group to text }
+    /**
+     * The three things that narrow the list, as one value for the same reason:
+     * reading them separately can catch a half-applied change, and the
+     * favorites chip and the group chips are alternatives.
+     */
+    private val filters = combine(groupFilter, searchQuery, favoritesOnly) { group, text, favorites ->
+        Triple(group, text, favorites)
+    }
 
     /**
      * The list itself. Combined first because `combine` has no overload for six
@@ -178,7 +189,7 @@ class ProfilesViewModel @Inject constructor(
         preferences.connectionTarget,
         transient,
         filters,
-    ) { list, groupList, target, (isImporting, msg), (filter, query) ->
+    ) { list, groupList, target, (isImporting, msg), (filter, query, onlyFavorites) ->
         val selectedId = (target as? ConnectionTarget.Node)?.id ?: 0L
         // A node imported from a share link has no group, so it only ever
         // shows under "All".
@@ -189,15 +200,22 @@ class ProfilesViewModel @Inject constructor(
         // therefore always come out empty — the nodes still belong to the
         // subscription they came from. Ask the region instead; that is what the
         // group means.
+        // Favorites is a filter, not a sort: it narrows to the starred nodes
+        // and leaves the group chips alone (the screen clears the group when
+        // this is chosen, so the two cannot contradict each other).
+        val pool = if (onlyFavorites) list.filter { it.favorite } else list
         val filterGroup = filter?.let { id -> groupList.firstOrNull { it.id == id } }
         val inGroup = when {
-            filter == null -> list
-            filterGroup?.region != null -> list.filter { profile ->
+            filter == null -> pool
+            filterGroup?.region != null -> pool.filter { profile ->
                 NodeRegions.resolve(profile.name, profile.country) == filterGroup.region
             }
-            else -> list.filter { it.groupId == filter }
+            else -> pool.filter { it.groupId == filter }
         }
-        val visible = inGroup.filterBy(query)
+        // Favorites come first — "pin", not just "bookmark". The sort is
+        // stable, so the order inside each half is the one the list already
+        // had.
+        val visible = inGroup.filterBy(query).sortedByDescending { it.favorite }
         ProfilesUiState(
             profiles = visible,
             groups = groupList,
@@ -209,6 +227,7 @@ class ProfilesViewModel @Inject constructor(
             hasNoMatches = visible.isEmpty() && list.isNotEmpty() && query.isBlank(),
             query = query,
             hasNoSearchMatches = visible.isEmpty() && list.isNotEmpty() && query.isNotBlank(),
+            favoritesOnly = onlyFavorites,
             selectedId = selectedId,
             selectedGroupId = (target as? ConnectionTarget.Group)?.id ?: 0L,
             loading = false,
@@ -233,13 +252,35 @@ class ProfilesViewModel @Inject constructor(
         share,
         health,
         usage,
-    ) { state, sharing, healthByNode, usageByGroup ->
-        state.copy(share = sharing, health = healthByNode, usage = usageByGroup)
+        preferences.nodeHintSeen,
+    ) { state, sharing, healthByNode, usageByGroup, hintSeen ->
+        state.copy(
+            share = sharing,
+            health = healthByNode,
+            usage = usageByGroup,
+            showLongPressHint = !hintSeen && state.profiles.isNotEmpty(),
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ProfilesUiState(),
     )
+
+    /** The hint has been read (or a long-press made it moot). */
+    fun dismissNodeHint() {
+        viewModelScope.launch { preferences.markNodeHintSeen() }
+    }
+
+    /** Star or unstar; the row is the same row, so nothing else moves. */
+    fun toggleFavorite(profile: Profile) {
+        viewModelScope.launch { profiles.setFavorite(profile.id, !profile.favorite) }
+    }
+
+    /** The favorites chip; choosing it clears the group, and the reverse. */
+    fun filterFavorites(on: Boolean) {
+        favoritesOnly.value = on
+        if (on) groupFilter.value = null
+    }
 
     fun select(id: Long) {
         viewModelScope.launch { preferences.setSelectedProfileId(id) }

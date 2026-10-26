@@ -70,6 +70,54 @@ class DnsMetricsTest {
     }
 
     @Test
+    fun `the per-query log keeps the newest hundred`() {
+        val metrics = DnsMetrics()
+        repeat(150) { i ->
+            metrics.record(10L, DnsOutcome.DOH, host = "n$i.example.com", resolver = "223.5.5.5")
+        }
+
+        val entries = metrics.recentEntries()
+
+        assertEquals(100, entries.size)
+        // Newest first, and the first 50 were evicted.
+        assertEquals("n149.example.com", entries.first().host)
+        assertEquals("n50.example.com", entries.last().host)
+    }
+
+    @Test
+    fun `the per-query log is off with the switch, like the aggregate`() {
+        val metrics = DnsMetrics()
+        metrics.enabled = false
+        metrics.record(10L, DnsOutcome.DOH, host = "a.example.com")
+
+        assertEquals(0, metrics.recentEntries().size)
+    }
+
+    @Test
+    fun `the export carries domains and timings, never the resolver`() {
+        val metrics = DnsMetrics()
+        metrics.record(12L, DnsOutcome.DOH, host = "node.example.com", resolver = "223.5.5.5")
+        metrics.record(40L, DnsOutcome.FALLBACK, host = "other.example.com", resolver = "system")
+
+        val text = metrics.exportText()
+
+        assertEquals(true, text.contains("node.example.com"))
+        assertEquals(true, text.contains("12ms"))
+        assertEquals(false, text.contains("223.5.5.5"))
+        assertEquals(false, text.contains("system"))
+    }
+
+    @Test
+    fun `clearing empties the per-query log too`() {
+        val metrics = DnsMetrics()
+        metrics.record(10L, DnsOutcome.DOH, host = "a.example.com")
+        metrics.clear()
+
+        assertEquals(0, metrics.recentEntries().size)
+        assertEquals(0, metrics.snapshot().samples)
+    }
+
+    @Test
     fun `the switch stops recording without losing what is already there`() {
         val metrics = DnsMetrics()
         metrics.record(10L, DnsOutcome.DOH)

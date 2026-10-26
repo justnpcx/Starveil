@@ -41,6 +41,8 @@ import com.justnpcx.starveil.feature.rules.ScenesScreen
 import com.justnpcx.starveil.feature.settings.KeepAliveScreen
 import com.justnpcx.starveil.feature.settings.PerAppScreen
 import com.justnpcx.starveil.feature.settings.PrivacyScreen
+import com.justnpcx.starveil.feature.settings.ConnectionsScreen
+import com.justnpcx.starveil.feature.settings.DnsLogScreen
 import com.justnpcx.starveil.feature.settings.RuleTestScreen
 import com.justnpcx.starveil.feature.settings.SettingsScreen
 
@@ -65,6 +67,8 @@ private const val PER_APP_ROUTE = "perapp"
 private const val SCENES_ROUTE = "scenes"
 private const val KEEP_ALIVE_ROUTE = "keepalive"
 private const val RULE_TEST_ROUTE = "ruletest"
+private const val CONNECTIONS_ROUTE = "connections"
+private const val DNS_LOG_ROUTE = "dnslog"
 
 /** Also not a tab: the policy is read once, from the About section. */
 private const val PRIVACY_ROUTE = "privacy"
@@ -186,6 +190,8 @@ fun StarveilNavHost(
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
                 onOpenKeepAlive = { navController.navigate(KEEP_ALIVE_ROUTE) },
                 onOpenRuleTest = { navController.navigate(RULE_TEST_ROUTE) },
+                onOpenConnections = { navController.navigate(CONNECTIONS_ROUTE) },
+                onOpenDnsLog = { navController.navigate(DNS_LOG_ROUTE) },
                 onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) },
                 // A build with no DSN has no crash reporting, so the switch is
                 // hidden rather than shown doing nothing.
@@ -200,6 +206,12 @@ fun StarveilNavHost(
         }
         composable(RULE_TEST_ROUTE) {
             RuleTestScreen(onBack = { navController.popBackStack() })
+        }
+        composable(CONNECTIONS_ROUTE) {
+            ConnectionsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(DNS_LOG_ROUTE) {
+            DnsLogScreen(onBack = { navController.popBackStack() })
         }
         composable(KEEP_ALIVE_ROUTE) {
             KeepAliveScreen(onBack = { navController.popBackStack() })

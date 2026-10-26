@@ -219,7 +219,43 @@ data class KernelConnection(
     val outbound: String,
     val outboundType: String,
     val createdAtMs: Long,
+    /** Which of the three lifecycle events this is. */
+    val event: ConnectionEventKind = ConnectionEventKind.NEW,
+    /**
+     * Package that opened the connection, as the kernel attributed it. Empty
+     * when the kernel could not find an owner (a connection from a uid with no
+     * package, or one it saw before the process lookup answered).
+     */
+    val appPackage: String = "",
+    /** Bytes carried so far, from the kernel's own counters. */
+    val uplinkBytes: Long = 0L,
+    val downlinkBytes: Long = 0L,
+    /**
+     * Bytes carried since the last report, which is all an UPDATE event
+     * carries: the kernel sends deltas, not totals, and the totals have to be
+     * accumulated by whoever is keeping the row.
+     */
+    val uplinkDelta: Long = 0L,
+    val downlinkDelta: Long = 0L,
+    /** Epoch millis the kernel closed it; 0 while it is still open. */
+    val closedAtMs: Long = 0L,
+    /** "tcp" / "udp", as the kernel reports it. */
+    val network: String = "",
+    /** Sniffed application protocol, when the kernel sniffed one. */
+    val protocol: String = "",
 )
+
+/** The three events the kernel pushes for one connection. */
+enum class ConnectionEventKind {
+    /** First report: the routing decision has been made. */
+    NEW,
+
+    /** It carried more traffic; the counters moved. */
+    UPDATE,
+
+    /** It ended. */
+    CLOSE,
+}
 
 /** Traffic snapshot. All values are cumulative bytes + instantaneous rate. */
 data class TrafficStats(

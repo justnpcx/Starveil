@@ -37,6 +37,10 @@ interface ProfileDao {
     @Delete
     suspend fun delete(entity: ProfileEntity)
 
+    /** Star or unstar in place; nothing else about the row changes. */
+    @Query("UPDATE profiles SET favorite = :favorite WHERE id = :id")
+    suspend fun setFavorite(id: Long, favorite: Boolean)
+
     @Query("DELETE FROM profiles WHERE id = :id")
     suspend fun deleteById(id: Long)
 

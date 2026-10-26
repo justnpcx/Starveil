@@ -142,6 +142,30 @@ class StarveilMigrationTest {
     }
 
     @Test
+    fun migration_5_to_6_stars_nothing_by_default() {
+        val name = "migration-v6-${System.nanoTime()}.db"
+
+        helper.createDatabase(name, 5).use { db ->
+            db.execSQL(
+                "INSERT INTO profiles (name, type, server, port, latencyMs, groupId, settingsJson) " +
+                    "VALUES ('node', 'VLESS', 'a.example.com', 443, -1, 0, '{}')",
+            )
+        }
+
+        helper.runMigrationsAndValidate(name, 6, true, *StarveilMigrations.ALL).use { db ->
+            assertEquals(1, db.rowCount("profiles"))
+
+            // A node that existed before favorites is not a favorite: the
+            // feature did not exist, and pinning it now would reorder a list
+            // the user never asked to reorder.
+            assertEquals(1, db.scalarInt("SELECT COUNT(*) FROM profiles WHERE favorite = 0"))
+
+            db.execSQL("UPDATE profiles SET favorite = 1 WHERE id = 1")
+            assertEquals(1, db.scalarInt("SELECT favorite FROM profiles WHERE id = 1"))
+        }
+    }
+
+    @Test
     fun the_composite_key_makes_a_re_probe_a_replace() {
         val name = "migration-pk-${System.nanoTime()}.db"
         helper.createDatabase(name, 1).use { }

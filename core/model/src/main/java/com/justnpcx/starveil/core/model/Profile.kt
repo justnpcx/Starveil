@@ -28,6 +28,11 @@ data class Profile(
      * descriptors in ProtocolRegistry).
      */
     val settings: ProfileSettings? = null,
+    /**
+     * Pinned by the user: shown first in the list, and the only thing the
+     * "Favorites" filter shows. Storage, not a score — the picker ignores it.
+     */
+    val favorite: Boolean = false,
 )
 
 enum class ProfileType {

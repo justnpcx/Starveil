@@ -21,6 +21,19 @@ interface ProfileRepository {
     suspend fun deleteById(id: Long)
 
     /**
+     * Star or unstar a node.
+     *
+     * The default is a read-modify-write through [upsert], which is correct for
+     * any implementation; the real repository overrides it with a single
+     * UPDATE so a pin does not rewrite the settings JSON.
+     */
+    suspend fun setFavorite(id: Long, favorite: Boolean) {
+        val profile = getById(id) ?: return
+        if (profile.favorite == favorite) return
+        upsert(profile.copy(favorite = favorite))
+    }
+
+    /**
      * Remove every profile in [groupId] in one statement. Used when a group is
      * deleted: a subscription's nodes are the group, so they go with it.
      */
@@ -60,6 +73,8 @@ class RoomProfileRepository @Inject constructor(
 
     override suspend fun deleteById(id: Long) = dao.deleteById(id)
 
+    override suspend fun setFavorite(id: Long, favorite: Boolean) = dao.setFavorite(id, favorite)
+
     override suspend fun deleteByGroup(groupId: Long) = dao.deleteByGroup(groupId)
 
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
@@ -83,6 +98,7 @@ internal fun ProfileEntity.toDomain(): Profile {
         latencyMs = latencyMs,
         groupId = groupId,
         country = country,
+        favorite = favorite,
         settings = SettingsJson.decode(settingsJson, profileType),
     )
 }
@@ -97,5 +113,6 @@ internal fun Profile.toEntity(settingsJson: String = SettingsJson.encode(setting
         latencyMs = latencyMs,
         groupId = groupId,
         country = country,
+        favorite = favorite,
         settingsJson = settingsJson,
     )

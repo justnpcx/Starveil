@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.kernel.libbox
 
 import com.justnpcx.starveil.core.kernel.LogRedactor
 
+import com.justnpcx.starveil.core.kernel.ConnectionEventKind
 import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.LogLevel
@@ -121,12 +122,14 @@ class StarveilCommandClientHandler(
     override fun writeGroups(groups: OutboundGroupIterator) {}
 
     /**
-     * Routing decisions, for the flow view.
+     * Routing decisions, for the flow view and the connection detail.
      *
-     * Only [EVENT_NEW] is reported. Update and close events repeat a connection
-     * already reported — they fire continuously as it carries traffic — and the
-     * decision being shown was made once, at the start. Dropping them here also
-     * keeps the volume down to one event per connection rather than a stream.
+     * All three events are reported: the flow view only needs the first one
+     * (the decision was made once, at the start), but the connection detail
+     * needs the updates and the close to show a live byte count and a row that
+     * stops saying "connected" the moment it ends. Filtering is the consumer's
+     * job — see [com.justnpcx.starveil.core.probe.KernelFlowLog], which keeps
+     * only NEW.
      *
      * The rule text is redacted because it is free-form; the destination and
      * domain are not, because they are the thing being diagnosed and a hostname
@@ -136,8 +139,34 @@ class StarveilCommandClientHandler(
         val iterator = events.iterator()
         while (iterator.hasNext()) {
             val event = iterator.next()
-            if (event.type != EVENT_NEW) continue
-            val connection = event.connection ?: continue
+            val connection = event.connection
+            // An update or a close carries only the id, the byte deltas and
+            // (for a close) the time — the kernel does not repeat the
+            // connection. A new event always carries one; without it there is
+            // nothing to report.
+            if (connection == null) {
+                if (event.type == EVENT_NEW) continue
+                onConnection(
+                    KernelConnection(
+                        id = event.id.orEmpty(),
+                        destination = "",
+                        domain = "",
+                        rule = "",
+                        outbound = "",
+                        outboundType = "",
+                        createdAtMs = 0L,
+                        event = if (event.type == EVENT_CLOSE) {
+                            ConnectionEventKind.CLOSE
+                        } else {
+                            ConnectionEventKind.UPDATE
+                        },
+                        uplinkDelta = event.uplinkDelta,
+                        downlinkDelta = event.downlinkDelta,
+                        closedAtMs = event.closedAt,
+                    ),
+                )
+                continue
+            }
             onConnection(
                 KernelConnection(
                     id = connection.id.orEmpty(),
@@ -147,9 +176,37 @@ class StarveilCommandClientHandler(
                     outbound = connection.outbound.orEmpty(),
                     outboundType = connection.outboundType.orEmpty(),
                     createdAtMs = connection.createdAt,
+                    event = when (event.type) {
+                        EVENT_NEW -> ConnectionEventKind.NEW
+                        EVENT_UPDATE -> ConnectionEventKind.UPDATE
+                        EVENT_CLOSE -> ConnectionEventKind.CLOSE
+                        // A type this build does not know is treated as an
+                        // update: it cannot be a new decision, and dropping it
+                        // would freeze a row that is still moving.
+                        else -> ConnectionEventKind.UPDATE
+                    },
+                    appPackage = connection.processInfo?.packageName().orEmpty(),
+                    uplinkBytes = connection.uplinkTotal,
+                    downlinkBytes = connection.downlinkTotal,
+                    uplinkDelta = event.uplinkDelta,
+                    downlinkDelta = event.downlinkDelta,
+                    closedAtMs = connection.closedAt.takeIf { it > 0L } ?: event.closedAt,
+                    network = connection.network.orEmpty(),
+                    protocol = connection.protocol.orEmpty(),
                 ),
             )
         }
+    }
+
+    /**
+     * The first package name the kernel attributed, or empty.
+     *
+     * An app can own more than one package; the first is the one the kernel
+     * matched, and a detail row has space for one.
+     */
+    private fun io.nekohasekai.libbox.ProcessInfo.packageName(): String {
+        val names = packageNames()
+        return if (names.hasNext()) names.next().orEmpty() else ""
     }
 
     /**
@@ -167,11 +224,13 @@ class StarveilCommandClientHandler(
         const val LEVEL_WARN = 3
 
         /**
-         * `libbox.ConnectionEventNew` — gobind does not export the Go
-         * constants, so this is the value from `command_types.go`
-         * (`ConnectionEventNew = iota`).
+         * `libbox.ConnectionEventNew/Update/Close` — gobind does not export the
+         * Go constants, so these are the values from `command_types.go`
+         * (`ConnectionEventNew = iota`, then Update, then Close).
          */
         const val EVENT_NEW = 0
+        const val EVENT_UPDATE = 1
+        const val EVENT_CLOSE = 2
 
         /**
          * A connection the app abandoned before sing-box finished establishing

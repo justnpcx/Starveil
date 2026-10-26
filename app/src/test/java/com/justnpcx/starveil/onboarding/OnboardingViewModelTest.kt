@@ -178,6 +178,7 @@ private class FakeProfiles(private val nodes: List<Profile>) : ProfileRepository
     override suspend fun getById(id: Long): Profile? = nodes.firstOrNull { it.id == id }
     override suspend fun upsert(profile: Profile): Long = notUsed()
     override suspend fun deleteById(id: Long) = notUsed()
+    override suspend fun setFavorite(id: Long, favorite: Boolean) = notUsed()
     override suspend fun deleteByGroup(groupId: Long) = notUsed()
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = notUsed()
 }

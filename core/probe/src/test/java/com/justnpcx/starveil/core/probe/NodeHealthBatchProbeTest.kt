@@ -149,6 +149,7 @@ private class BatchProfiles(private val all: List<Profile>) : ProfileRepository 
     override suspend fun getById(id: Long): Profile? = all.firstOrNull { it.id == id }
     override suspend fun upsert(profile: Profile): Long = profile.id
     override suspend fun deleteById(id: Long) = Unit
+    override suspend fun setFavorite(id: Long, favorite: Boolean) = Unit
     override suspend fun deleteByGroup(groupId: Long) = Unit
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) = Unit
 }

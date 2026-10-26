@@ -145,6 +145,7 @@ private class CountingProfileDao(private val rows: List<ProfileEntity>) : Profil
     override suspend fun delete(entity: ProfileEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
     override suspend fun deleteByGroup(groupId: Long) = error("read-only")
+    override suspend fun setFavorite(id: Long, favorite: Boolean) = error("read-only")
 }
 
 private class StubProfileDao(private val rows: List<ProfileEntity>) : ProfileDao {
@@ -160,4 +161,5 @@ private class StubProfileDao(private val rows: List<ProfileEntity>) : ProfileDao
     override suspend fun delete(entity: ProfileEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
     override suspend fun deleteByGroup(groupId: Long) = error("read-only")
+    override suspend fun setFavorite(id: Long, favorite: Boolean) = error("read-only")
 }

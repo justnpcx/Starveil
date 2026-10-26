@@ -81,6 +81,10 @@ private class MemProfiles : ProfileRepository {
         rows.remove(id)
     }
 
+    override suspend fun setFavorite(id: Long, favorite: Boolean) {
+        rows[id]?.let { rows[id] = it.copy(favorite = favorite) }
+    }
+
     override suspend fun deleteByGroup(groupId: Long) {
         rows.values.removeAll { it.groupId == groupId }
     }

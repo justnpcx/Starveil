@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.di
 
 import android.content.Context
+import com.justnpcx.starveil.core.kernel.ConnectionLog
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelPaths
@@ -9,12 +10,14 @@ import com.justnpcx.starveil.core.kernel.RealKernelBridge
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.timing.ConnectClock
 import com.justnpcx.starveil.timing.ConnectionTiming
+import com.justnpcx.starveil.core.probe.KernelConnectionLog
 import com.justnpcx.starveil.core.probe.KernelFlowLog
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import com.justnpcx.starveil.core.probe.TunnelProbe
 import com.justnpcx.starveil.core.probe.VpnServiceTunnelProbe
 import com.justnpcx.starveil.core.probe.NodeProbe
+import com.justnpcx.starveil.core.probe.StagedNodeProbe
 import com.justnpcx.starveil.core.probe.TcpNodeProbe
 import com.justnpcx.starveil.core.probe.KernelLogStream
 import dagger.Module
@@ -90,6 +93,14 @@ object KernelModule {
     fun provideFlowLog(bridge: KernelBridge): FlowLog = KernelFlowLog(bridge)
 
     /**
+     * The diagnostics screen's live table: the same kernel events, folded into
+     * one row per connection with its counters and its close time.
+     */
+    @Provides
+    @Singleton
+    fun provideConnectionLog(bridge: KernelBridge): ConnectionLog = KernelConnectionLog(bridge)
+
+    /**
      * What the leak self-check watches: whether the tunnel the Kill Switch
      * blocks with is standing. Bound here because only :app may name the
      * VpnService.
@@ -107,4 +118,15 @@ object KernelModule {
     @Singleton
     fun provideNodeProbe(dns: com.justnpcx.starveil.core.data.geo.DohResolver): NodeProbe =
         TcpNodeProbe(dns)
+
+    /**
+     * The staged diagnostic behind the node long-press menu. Bound here for the
+     * same reason as the probe above: it needs a resolver, and the feature
+     * module is not allowed to build one.
+     */
+    @Provides
+    @Singleton
+    fun provideStagedProbe(
+        dns: com.justnpcx.starveil.core.data.geo.DohResolver,
+    ): com.justnpcx.starveil.core.model.StagedProbePort = StagedNodeProbe(dns)
 }
