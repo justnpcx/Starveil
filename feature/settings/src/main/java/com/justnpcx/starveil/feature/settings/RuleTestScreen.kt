@@ -223,7 +223,26 @@ fun RuleTestScreen(
                     color = StarveilColors.errText,
                 )
 
-                is RuleTestUiState.Ready -> {
+                is RuleTestUiState.Ready -> if (current.tags.isEmpty()) {
+                    // No sets on this device: every answer would be "final",
+                    // which reads like "no rule matched" when the truth is
+                    // "there are no rules to match". Say which it is.
+                    StarveilCard {
+                        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                            Text(
+                                text = stringResource(R.string.rule_test_no_sets_title),
+                                style = StarveilType.headline,
+                                color = StarveilColors.ink,
+                            )
+                            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                            Text(
+                                text = stringResource(R.string.rule_test_no_sets),
+                                style = StarveilType.label,
+                                color = StarveilColors.ink2,
+                            )
+                        }
+                    }
+                } else {
                     Text(
                         text = stringResource(R.string.rule_test_sets, current.tags.joinToString(", ")),
                         style = StarveilType.tech,

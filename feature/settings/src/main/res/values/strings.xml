@@ -183,4 +183,6 @@
     <string name="rule_test_reason_default">Nothing matched</string>
     <string name="rule_test_entry_desc">Ask which rule wins for a domain or address</string>
     <string name="rule_test_scope">Rule packs and per-app exceptions are not part of this walk yet.</string>
+    <string name="rule_test_no_sets_title">No rule sets on this device</string>
+    <string name="rule_test_no_sets">Connect once with the mainland preset, or turn on Block ads, so the sets are downloaded. Then come back.</string>
 </resources>

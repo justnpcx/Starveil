@@ -172,4 +172,6 @@
     <string name="rule_test_reason_default">没有规则命中，走默认出口</string>
     <string name="rule_test_entry_desc">输入域名或地址，看它命中哪条规则</string>
     <string name="rule_test_scope">规则包与按应用分流暂未计入判定。</string>
+    <string name="rule_test_no_sets_title">本机还没有规则集</string>
+    <string name="rule_test_no_sets">先用「绕过中国大陆」预设连接一次，或开启「去广告」，规则集会下载到本机。之后再回来测。</string>
 </resources>
