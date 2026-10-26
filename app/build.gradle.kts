@@ -24,13 +24,28 @@ plugins {
  * [appVersionCode] is *derived* rather than written down separately. Two
  * hand-maintained numbers that must stay in step is a rule that will be broken
  * eventually, and the failure is silent: the store rejects an upload for a
- * non-increasing code long after the mistake. Deriving it means the code is
- * monotonic exactly when the name moves forward, which is the property that
- * actually matters.
+ * non-increasing code long after the mistake.
+ *
+ * The derivation is three decimal fields — major in ten-thousands, minor in
+ * hundreds, patch in units — and it is monotonic **only while minor and patch
+ * stay below 100**. 0.8.100 and 0.9.0 would both land on 900, and nothing
+ * downstream would notice until an install refused to upgrade. So the bound is
+ * a build error, not a comment: the configuration phase fails on the version
+ * that would collide, which is the only moment anyone can still choose a
+ * different number.
  */
 val appVersionName = "0.8.6"
 val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
-    major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
+    val majorPart = major.toInt()
+    val minorPart = minor.toInt()
+    val patchPart = patch.toInt()
+    require(minorPart in 0..99 && patchPart in 0..99) {
+        "versionName $appVersionName cannot be encoded monotonically: " +
+            "the code is major*10000 + minor*100 + patch, so minor ($minorPart) " +
+            "and patch ($patchPart) must both be 0..99. 0.8.100 and 0.9.0 would " +
+            "both be 900. Ship 0.${minorPart + 1}.0 instead."
+    }
+    majorPart * 10_000 + minorPart * 100 + patchPart
 }
 
 /**

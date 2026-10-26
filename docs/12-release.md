@@ -85,6 +85,7 @@ remote: - Required status check "build" is expected.
 ## 发一个版本
 
 1. **改版本号**：`app/build.gradle.kts` 的 `appVersionName`（里程碑 N → `0.N.0`；`versionCode` 自动派生）
+   - 派生式是 `major*10000 + minor*100 + patch`，所以 **minor 和 patch 都必须 < 100**。`0.8.100` 与 `0.9.0` 会撞成 `900`，配置阶段直接失败并提示改成 `0.9.0`——这是故意的，撞号只能在这一刻被发现。已发布序列 `700…714, 800…806` 严格递增，没有历史撞号。
 2. **更新 CHANGELOG**：把 `[Unreleased]` 的内容移到 `## [x.y.z] — 日期`
 3. **提交并推 main**，确认 CI 绿
 4. **打 tag 并推送**：
