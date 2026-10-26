@@ -1558,7 +1558,7 @@ val inGroup = when {
 | 点位 | 审计结果 | 处理 |
 |---|---|---|
 | `PerAppScreen` 搜索框 | 修前截 `audit_perapp.png`，整屏找不到任何一条灰色边框（`gray border: None`） | **改了**：与对话框同一套颜色 |
-| `ProfileEditorScreen` 的 `Field` | 与 PerApp 同属页面底色、同样是 `glassBorder`，且填充透明 | **改了**：同一套颜色（截图待补，见下） |
+| `ProfileEditorScreen` 的 `Field` | 与 PerApp 同属页面底色、同样是 `glassBorder`，且填充透明 | **改了**：同一套颜色（截图已补，见下） |
 
 **结论：`FieldSurface` 这个参数被删掉了。** 审计证明"页面"和"对话框"在这套调色板下是同一个问题——`glassBorder` 是白 75%，而输入框填充透明，边框是唯一的形状提示；页面底色和对话框实色面都压不住它。所以 `StarveilTextField` 现在只有一种静默边框：`ink3`。主题里的 `outline` / `glassBorder` 一个字没动，卡片边仍靠它。
 
@@ -1566,4 +1566,4 @@ val inGroup = when {
 
 - **引导页的订阅对话框**没截到：它只在首次安装出现，要 `pm clear` 才能复现，而清数据会丢掉手机上那条订阅。代码已覆盖（`OnboardingScreen` 走同一个组件），但**没有截图**。
 - **`ProfileEditorScreen` 的修后截图**：已补（`after_editor_inactive.png` / `after_editor_active.png`）。节点页 → 手动创建 → VLESS，表单里「名称」字段未激活边框 `(136,138,141)` 478 px，激活后 `(0,113,227)` 482 px。
-- **F-4 的真实流量截图**没截到：手机上的节点没能连上（首页提示「请先在节点页选择节点或分组」，选中后点连接仍未起隧道），所以只截到 `0 B/s` 的单行状态。`softWrap = false` + `maxLines = 1` 让 1003 B/s 那种断行在结构上不可能发生，但**没有那一张图**。
+- **F-4 的真实流量截图**：手机那轮节点连不上，只截到 `0 B/s`，这张仍然缺。后来在 **Fire TV（AFTKRT，1920×1080 @320dpi）** 上补了真流量对照——用 `curl` 打满上/下行，抓 `tv_up_989kbs.png`（上行 `989 KB/s`，数值+单位占 250 px，单行 y 571–649）与 `tv_down_8p5mbs.png`（下行 `8.5 MB/s`，216 px，同一行）。这两张能证明单位跟着数值走、不再掉行，但**不能替代手机那张**：电视 540 dp 宽，手机（V2238A，1080×2400）只有约 393 dp，窄列的临界宽度没被覆盖。`softWrap = false` + `maxLines = 1` 是结构约束，不是靠这两张图推出来的。
