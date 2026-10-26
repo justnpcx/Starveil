@@ -96,6 +96,7 @@ fun SettingsScreen(
     /** Opens the per-app exception list. :app owns the route. */
     onOpenPerApp: () -> Unit = {},
     onOpenKeepAlive: () -> Unit = {},
+    onOpenRuleTest: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
     /**
@@ -282,6 +283,12 @@ fun SettingsScreen(
                     onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
                 )
             }
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            EntryRow(
+                title = stringResource(R.string.rule_test_title),
+                description = stringResource(R.string.rule_test_entry_desc),
+                onClick = onOpenRuleTest,
+            )
             StarveilDivider(startInset = StarveilSpacing.lg)
             Row(
                 modifier = Modifier.padding(

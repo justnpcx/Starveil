@@ -41,6 +41,7 @@ import com.justnpcx.starveil.feature.rules.ScenesScreen
 import com.justnpcx.starveil.feature.settings.KeepAliveScreen
 import com.justnpcx.starveil.feature.settings.PerAppScreen
 import com.justnpcx.starveil.feature.settings.PrivacyScreen
+import com.justnpcx.starveil.feature.settings.RuleTestScreen
 import com.justnpcx.starveil.feature.settings.SettingsScreen
 
 /** Destinations. Adding a screen = adding one entry here + one composable below. */
@@ -63,6 +64,7 @@ enum class Destination(
 private const val PER_APP_ROUTE = "perapp"
 private const val SCENES_ROUTE = "scenes"
 private const val KEEP_ALIVE_ROUTE = "keepalive"
+private const val RULE_TEST_ROUTE = "ruletest"
 
 /** Also not a tab: the policy is read once, from the About section. */
 private const val PRIVACY_ROUTE = "privacy"
@@ -183,6 +185,7 @@ fun StarveilNavHost(
                 onRunLeakCheck = onRunLeakCheck,
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
                 onOpenKeepAlive = { navController.navigate(KEEP_ALIVE_ROUTE) },
+                onOpenRuleTest = { navController.navigate(RULE_TEST_ROUTE) },
                 onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) },
                 // A build with no DSN has no crash reporting, so the switch is
                 // hidden rather than shown doing nothing.
@@ -194,6 +197,9 @@ fun StarveilNavHost(
         }
         composable(SCENES_ROUTE) {
             ScenesScreen(onBack = { navController.popBackStack() })
+        }
+        composable(RULE_TEST_ROUTE) {
+            RuleTestScreen(onBack = { navController.popBackStack() })
         }
         composable(KEEP_ALIVE_ROUTE) {
             KeepAliveScreen(onBack = { navController.popBackStack() })

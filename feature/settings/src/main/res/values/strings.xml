@@ -163,4 +163,23 @@
     <string name="settings_github_changelog">Changelog</string>
     <string name="settings_github_issues">Report an issue</string>
     <string name="settings_link_failed">No app can open links on this device</string>
+    <string name="rule_test_title">Rule test</string>
+    <string name="rule_test_back">Back</string>
+    <string name="rule_test_intro">Type a domain or an address. The answer comes from the rule list the kernel would be given — nothing is dialled, nothing is changed.</string>
+    <string name="rule_test_field">Domain or address</string>
+    <string name="rule_test_hint">Port and path are ignored</string>
+    <string name="rule_test_loading">Loading rule sets…</string>
+    <string name="rule_test_failed">Could not load: %1$s</string>
+    <string name="rule_test_sets">Sets: %1$s</string>
+    <string name="rule_test_empty">Type a domain or an address</string>
+    <string name="rule_test_rule">First match</string>
+    <string name="rule_test_outbound">Goes to</string>
+    <string name="rule_test_reason">Why</string>
+    <string name="rule_test_outbound_proxy">Proxy</string>
+    <string name="rule_test_outbound_direct">Direct</string>
+    <string name="rule_test_outbound_reject">Blocked</string>
+    <string name="rule_test_reason_first">A rule matched</string>
+    <string name="rule_test_reason_preset">Preset fallback</string>
+    <string name="rule_test_reason_default">Nothing matched</string>
+    <string name="rule_test_entry_desc">Ask which rule wins for a domain or address</string>
 </resources>

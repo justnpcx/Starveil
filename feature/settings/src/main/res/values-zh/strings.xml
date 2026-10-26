@@ -152,4 +152,23 @@
     <string name="settings_github_changelog">更新日志</string>
     <string name="settings_github_issues">反馈问题</string>
     <string name="settings_link_failed">这台设备上没有能打开链接的应用</string>
+    <string name="rule_test_title">规则命中测试</string>
+    <string name="rule_test_back">返回</string>
+    <string name="rule_test_intro">输入域名或地址，按内核会拿到的那份规则表判定——不建立连接、不改任何东西。</string>
+    <string name="rule_test_field">域名或地址</string>
+    <string name="rule_test_hint">端口和路径会被忽略</string>
+    <string name="rule_test_loading">正在加载规则集…</string>
+    <string name="rule_test_failed">加载失败：%1$s</string>
+    <string name="rule_test_sets">已加载：%1$s</string>
+    <string name="rule_test_empty">输入域名或地址</string>
+    <string name="rule_test_rule">首条命中</string>
+    <string name="rule_test_outbound">最终出口</string>
+    <string name="rule_test_reason">为什么</string>
+    <string name="rule_test_outbound_proxy">代理</string>
+    <string name="rule_test_outbound_direct">直连</string>
+    <string name="rule_test_outbound_reject">阻断</string>
+    <string name="rule_test_reason_first">规则命中</string>
+    <string name="rule_test_reason_preset">预设兜底</string>
+    <string name="rule_test_reason_default">没有规则命中，走默认出口</string>
+    <string name="rule_test_entry_desc">输入域名或地址，看它命中哪条规则</string>
 </resources>
