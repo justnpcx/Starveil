@@ -1914,3 +1914,40 @@ grep 的模式：`secret-host|192\.168|11111111-2222|hunter2|token=abcdef|Zx9Kq2
    （I-2 要求「搜索框、清除按钮、空状态成套」）。补了尾部清除图标（有内容时才出现，带内容描述），
    设置页搜索同时受益。
 
+
+
+### I-8 实测（手机 V2238A，debug 包）
+
+Macrobenchmark 在这台手机上跑不动（`NodesScrollBenchmark` 两次都失败：一次 UiAutomation 冲突，一次进程挂住），
+沿用既定替代方法：`dumpsys gfxinfo` + 同一套 1000 节点夹具。
+
+```
+dumpsys gfxinfo com.justnpcx.starveil reset
+10 × input swipe（节点列表，1000+ 行）
+Total frames rendered: 206
+Janky frames: 1 (0.49%)
+50th percentile: 14ms
+90th percentile: 26ms
+95th percentile: 30ms
+99th percentile: 44ms
+Number Missed Vsync: 0
+Number Slow UI thread: 1
+```
+
+结论：**≥60fps 预算成立**（p50 14 ms ≈ 71 fps，jank 0.49%，missed vsync 0）。
+**120 fps 目标未达成**（p50 14 ms 对应 ~71 fps），与改动前一致，本轮没有把它变差，也没有把它变好。
+改动前后的对照没有做：基线与新包都要重装，而这台手机当时正在被使用；本轮只测了改动后的绝对值，
+如实记在这里，不当作“通过 120fps”。
+
+按压反馈 <100 ms 与触感没有仪器化测量（系统没有暴露触摸到首帧的时延），代码层面按压动画仍是 120 ms
+`StarveilMotion.press()`，状态动画 260 ms，未改。
+
+DNS p50：设备上这次采样是 193 ms（`b8-settings-dns-row.png`），远高于 §7.1 的 30 ms。这是网络到 DoH 端点的
+真实耗时，不是界面指标；界面按 30 ms 预算如实标成「高于 30 ms 预算」。
+
+
+
+**D-2 的关闭态补充取证**：同一台设备、同一张表，滚到「全部」的中段能看到 4 条 `已结束` 的连接
+（例如 `211.97.81.226:443` → `direct` → `rule_set=geoip-cn`），说明关闭事件确实把行从「进行中」翻成
+「已结束」并保留了字节/时长，没有出现「永远在连」的行。截图 `d2-connections-closed.png`。
+
