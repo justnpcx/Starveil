@@ -1591,4 +1591,35 @@ val inGroup = when {
 
 **顺带看到、未定论**：日志里还有一条 `outbound/hysteria2[proxy]: outbound packet connection to 192.168.50.1:53`——应用自己的 DNS 查询走了代理。局域网地址本应命中 `lan` 的 `ip_cidr` 规则（`localSubnets` 来自当前网络接口），没有命中。可能和 V-1 里「探针 socket 进隧道」是同一件事，也可能 `localSubnets` 在建立隧道时是空的。**没有继续查，也没有改代码。**
 
-**没做的**：没有加 sniff 规则去验证「加了就能拦」。这是改代码，且会影响所有域名类规则（去广告、geosite-cn、用户手写的域名规则），应该单独开一项、带回归再改。
+**没做的**：没有加 sniff 规则去验证「加了就能拦」。这是改代码，且会影响所有域名类规则（去广告、geosite-cn、用户手写的域名规则），应该单独开一项、带回归再改。→ **同日晚些时候已修并复测，见下一条。**
+## 2026-10-26 · 修复：路由里没有 sniff，所有域名规则都是死的
+
+**改动**：`ConfigBuilder.routeRules()` 现在把 `{"action":"sniff","sniffer":["tls","http","quic"]}` 作为 `route.rules` 的**第一条**，两条返回路径（带 mainland 与不带）都加。数值格式、预设、规则顺序、`final` 一律没动。
+
+**为什么是第一条**：`sniff` 是**非终结动作**——它读连接的头几个字节，把域名写进 metadata，然后匹配继续往下走。放第一条，后面所有 `rule_set`（ads、geosite-cn、规则包）和用户手写的 `domain` 规则才拿得到域名。只声明 `tls` / `http` / `quic` 三种带名字的协议，SSH、WireGuard 这类不会被按着头等一个永远不会出现的域名；`timeout` 用上游默认 300 ms，超时就按没嗅到处理，和加这条规则之前一样。
+
+**为什么是这些协议**：域名只出现在 TLS ClientHello、HTTP 请求行、QUIC Initial 里。`dns` / `stun` 的嗅探结果对路由没用，列进去只是给每个 UDP 包多一次解析。
+
+**单测**：新增 2 个（`sniffing comes first…`、`sniffing is there under global direct too`），改 4 个旧断言——它们原本把「第一条规则」写死成 ip_cidr / package_name，现在第一位是 sniff：
+- `route rules are emitted in order…`、`with no user rules only the local network rule is emitted`、`per-app exceptions…`：期望串前面补上 sniff。
+- `Shadowsocks config … no tls block`：原来是 `assertFalse(json.contains("\"tls\""))`，被嗅探器列表里的 `\"tls\"` 撞了个假阳性，改成检查 `\"tls\":{` 这个块。**这是测试写得太宽，不是配置回归。**
+
+`./gradlew :core:kernel:testDebugUnitTest` 全绿。
+
+**真机复测**：Fire TV（AFTKRT），`assembleRelease` 用同一把 release key **就地升级**（`firstInstallTime` 未变、订阅与设置都在，节点列表重启后回来了），隧道连上后同一个静态 `curl`：
+
+| 目标 | 修前 | 修后 |
+|---|---|---|
+| `doubleclick.net` | 301，走 `outbound/hysteria2[proxy]` | **rc=35，66 ms**，日志里**没有 outbound 行**（连接没走到任何出口） |
+| `googlesyndication.com` | 302，走 `outbound/hysteria2[proxy]` | **rc=35，95 ms**，同样没有 outbound 行 |
+| `www.cloudflare.com`（对照） | 403，走 proxy | 403，走 proxy，411 ms |
+| `www.baidu.com` HTTP | 走 proxy | `outbound/direct[direct]: outbound connection to 103.235.46.96:80` |
+| `www.baidu.com` HTTPS | 200 | 200 |
+| `www.cloudflare.com` 明文 HTTP | — | 403，170 ms（`http` 嗅探器生效） |
+
+**两个结论**：
+1. 去广告从「规则在、永不命中」变成「广告域名在建连阶段被拒」，66/95 ms 是本地拒绝的耗时，对照组要 411 ms。
+2. **`geosite-cn` 也一起活了**——百度从走代理变成 `outbound/direct`。上一条里那句「按同一机制推断也会失效」现在是实测结果，不再是推断。
+
+**没测的**：只有这两个广告域名和百度。`300 ms` 嗅探超时的边界（首包晚于 300 ms 的连接会按未嗅到处理）没构造样本。规则包（rule market）的域名规则走同一机制，逻辑上同时恢复，但没有单独验。
+

@@ -209,7 +209,31 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rulePacks: List<InstalledRulePack>,
         localSubnets: List<String>,
     ): List<Map<String, Any?>> {
-        // Per-app first, and that is a deliberate precedence: someone who says
+        // Sniffing first, and this is not a preference: every domain rule in
+        // this config is unreachable without it. A connection arriving at the
+        // tun carries a destination *address* — the app resolved the name
+        // itself, or the hijacked DNS did it on the app's behalf — so a
+        // `rule_set` of geosite type, or a user's `domain` matcher, has
+        // nothing to compare against and never matches. That is exactly the
+        // failure the ad list showed: `doubleclick.net` went out through the
+        // proxy with the reject rule sitting above it in the same list.
+        //
+        // `sniff` is a non-final action: it reads the first bytes of the
+        // connection, writes the name it finds into the metadata, and lets
+        // matching continue. Only the three protocols that carry a name are
+        // asked for — TLS ClientHello, HTTP request line, QUIC Initial — so a
+        // plain SSH or WireGuard connection is not held waiting for a name it
+        // will never send. The default timeout (300 ms) stays: it is the
+        // upstream default, and a connection whose first packet is slower
+        // than that simply proceeds unmatched, which is what happened before
+        // this rule existed.
+        val sniff = listOf(
+            linkedMapOf<String, Any?>(
+                "action" to "sniff",
+                "sniffer" to listOf("tls", "http", "quic"),
+            ),
+        )
+        // Per-app next, and that is a deliberate precedence: someone who says
         // "this app goes this way" means it more specifically than any domain
         // rule, and a bank app that reaches a rule-matched domain must still
         // take the route it was given. `package_name` is matched from the
@@ -289,14 +313,14 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // out: a missing rule set means the preset silently degrades, and the
         // rules must degrade with it.
         if (preset != RoutePreset.BYPASS_MAINLAND || mainland == null) {
-            return ads + perApp + packs + lan + userRules
+            return sniff + ads + perApp + packs + lan + userRules
         }
         // After the user's own rules and before `final`: the user's intent wins
         // over the preset, which is the only order that lets someone carve an
         // exception out of it. geosite-cn is a domain match, so a domestic
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
-        return ads + perApp + packs + lan + userRules + listOf(
+        return sniff + ads + perApp + packs + lan + userRules + listOf(
             linkedMapOf<String, Any?>(
                 "rule_set" to GEOSITE_CN_TAG,
                 "action" to "route",

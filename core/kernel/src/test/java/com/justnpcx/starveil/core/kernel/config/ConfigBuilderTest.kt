@@ -207,7 +207,9 @@ class ConfigBuilderTest {
         assertTrue(json.contains("\"type\":\"shadowsocks\""))
         assertTrue(json.contains("\"method\":\"2022-blake3-aes-128-gcm\""))
         assertTrue(json.contains("\"password\":\"pw\""))
-        assertFalse(json.contains("\"tls\""))
+        // The sniffer list names the tls protocol, so the check has to be for
+        // a tls *block*, not for the word.
+        assertFalse(json.contains("\"tls\":{"))
     }
 
     @Test
@@ -259,7 +261,8 @@ class ConfigBuilderTest {
         val json = builder.build(vlessProfile())
         assertTrue(
             json.contains(
-                "\"rules\":[{\"ip_cidr\":[\"127.0.0.0/8\",\"::1/128\",\"fe80::/10\",\"224.0.0.0/4\"]," +
+                "\"rules\":[{\"action\":\"sniff\",\"sniffer\":[\"tls\",\"http\",\"quic\"]}," +
+                    "{\"ip_cidr\":[\"127.0.0.0/8\",\"::1/128\",\"fe80::/10\",\"224.0.0.0/4\"]," +
                     "\"action\":\"route\",\"outbound\":\"direct\"}]",
             ),
         )
@@ -311,7 +314,7 @@ class ConfigBuilderTest {
         // Order is the routing decision, so it has to survive verbatim.
         assertTrue(
             json.contains(
-                "\"rules\":[" +
+                "\"rules\":[{\"action\":\"sniff\",\"sniffer\":[\"tls\",\"http\",\"quic\"]}," +
                     "{\"ip_cidr\":[\"127.0.0.0/8\",\"::1/128\",\"fe80::/10\",\"224.0.0.0/4\"]," +
                     "\"action\":\"route\",\"outbound\":\"direct\"}," +
                     "{\"domain_suffix\":[\"example.com\"],\"action\":\"route\",\"outbound\":\"direct\"}," +
@@ -907,6 +910,42 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `sniffing comes first, because every domain rule depends on it`() {
+        val json = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            preset = RoutePreset.BYPASS_MAINLAND,
+            adsPath = "/files/rulesets/geosite-ads.srs",
+        )
+        val route = json.substringAfter("\"route\":{").substringAfter("\"rules\":[")
+        val sniff = route.indexOf("\"action\":\"sniff\"")
+        val ads = route.indexOf("\"rule_set\":\"ads\"")
+        val domestic = route.indexOf("\"rule_set\":\"geosite-cn\"")
+
+        assertTrue(
+            "the route block starts with the sniff action",
+            route.startsWith("{\"action\":\"sniff\""),
+        )
+        // A tun connection carries an address, not a name. Without the sniff
+        // action the two rules below it have nothing to match, which is how
+        // the ad list ended up passing doubleclick.net straight through.
+        assertTrue("sniff precedes the ad list", sniff < ads)
+        assertTrue("sniff precedes the domestic set", sniff < domestic)
+        // Only the three protocols that carry a name are asked for.
+        assertTrue(json.contains("\"sniffer\":[\"tls\",\"http\",\"quic\"]"))
+    }
+
+    @Test
+    fun `sniffing is there under global direct too`() {
+        val json = builder.build(vlessProfile(), preset = RoutePreset.GLOBAL_DIRECT)
+        val route = json.substringAfter("\"route\":{").substringAfter("\"rules\":[")
+        assertTrue(
+            "the route block starts with the sniff action",
+            route.startsWith("{\"action\":\"sniff\""),
+        )
+    }
+
+    @Test
     fun `ads stack on global direct too`() {
         val json = builder.build(
             vlessProfile(),
@@ -1016,7 +1055,7 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun `per-app exceptions are the first rule and name the packages`() {
+    fun `per-app exceptions come straight after the sniffer and name the packages`() {
         val json = builder.build(
             vlessProfile(),
             perApp = listOf(
@@ -1028,7 +1067,8 @@ class ConfigBuilderTest {
         // iteration order.
         assertTrue(
             json.contains(
-                "\"rules\":[{\"package_name\":[\"com.example.bank\",\"com.example.broker\"]," +
+                "\"rules\":[{\"action\":\"sniff\",\"sniffer\":[\"tls\",\"http\",\"quic\"]}," +
+                    "{\"package_name\":[\"com.example.bank\",\"com.example.broker\"]," +
                     "\"action\":\"route\",\"outbound\":\"direct\"}",
             ),
         )
