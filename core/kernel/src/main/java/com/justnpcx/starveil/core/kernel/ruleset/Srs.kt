@@ -71,6 +71,7 @@ object Srs {
         var regexes = emptyList<String>()
         var networks = emptyList<String>()
         var ports = emptyList<Int>()
+        var ipRanges = emptyList<IpRange>()
         var invert = false
         while (true) {
             val itemType = input.readByte()
@@ -83,8 +84,8 @@ object Srs {
                 }
                 3 -> keywords = input.readStringList()
                 4 -> regexes = input.readStringList()
-                5 -> throw SrsFormatException(UNSUPPORTED_IP_SET)
-                6 -> throw SrsFormatException(UNSUPPORTED_IP_SET)
+                5 -> input.readIpSet() // source ip_cidr, kept only to stay in sync
+                6 -> ipRanges = input.readIpSet()
                 7 -> input.readU16Slice() // source port
                 8 -> input.readStringList() // source port range
                 9 -> ports = input.readU16Slice()
@@ -99,20 +100,71 @@ object Srs {
                 18 -> input.readStringList() // network type
                 19 -> input.readByte() // network is expensive
                 20 -> input.readByte() // network is constrained
-                21 -> throw SrsFormatException(UNSUPPORTED_IP_SET) // interface address
-                22 -> throw SrsFormatException(UNSUPPORTED_IP_SET) // default interface address
+                21 -> throw SrsFormatException(
+                    "interface address matchers are not supported by this reader",
+                )
+                22 -> throw SrsFormatException(
+                    "default interface address matchers are not supported by this reader",
+                )
                 23 -> input.readStringList() // package name regex
                 0xFF -> {
                     invert = input.readByte() != 0
-                    return SrsRule(exact, suffixes, keywords, regexes, networks, ports, invert)
+                    return SrsRule(
+                        exactDomains = exact,
+                        domainSuffixes = suffixes,
+                        domainKeywords = keywords,
+                        domainRegexes = regexes,
+                        networks = networks,
+                        ports = ports,
+                        ipRanges = ipRanges,
+                        invert = invert,
+                    )
                 }
                 else -> throw SrsFormatException("unknown rule item type $itemType")
             }
         }
     }
 
-    private const val UNSUPPORTED_IP_SET =
-        "IP sets (ip_cidr) are a separate format and are not read yet"
+    /**
+     * An IP set is a version byte, a **big-endian uint64** count (not a
+     * uvarint — the format is inconsistent here, and sing-box's own comment
+     * says so), then that many from/to pairs. Each address is a uvarint length
+     * of 4 or 16 followed by the bytes.
+     */
+    private fun SrsInput.readIpSet(): List<IpRange> {
+        val version = readByte()
+        if (version != 1) throw SrsFormatException("unknown IP set version $version")
+        val length = readU64BigEndian()
+        return List(length.toInt()) {
+            val from = readIpSetAddress()
+            val to = readIpSetAddress()
+            IpRange(from.first, from.second, to.first, to.second, from.third)
+        }
+    }
+
+    private fun SrsInput.readIpSetAddress(): Triple<Long, Long, Boolean> {
+        val length = readUvarint().toInt()
+        if (length != 4 && length != 16) {
+            throw SrsFormatException("IP address of $length bytes")
+        }
+        val bytes = readFully(length)
+        // A 4-byte address is the low half of the pair with a zero high half,
+        // so a v4 range compares as one Long. Shifting it into the high half
+        // would make every v4 lookup miss.
+        val high: Long
+        val low: Long
+        if (length == 4) {
+            high = 0L
+            low = ((bytes[0].toLong() and 0xFF) shl 24) or
+                ((bytes[1].toLong() and 0xFF) shl 16) or
+                ((bytes[2].toLong() and 0xFF) shl 8) or
+                (bytes[3].toLong() and 0xFF)
+        } else {
+            high = bytes.copyOfRange(0, 8).fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
+            low = bytes.copyOfRange(8, 16).fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
+        }
+        return Triple(high, low, length == 16)
+    }
 
     /**
      * A domain set: a succinct trie over *reversed* names.
@@ -200,8 +252,32 @@ data class SrsRule(
     val domainRegexes: List<String> = emptyList(),
     val networks: List<String> = emptyList(),
     val ports: List<Int> = emptyList(),
+    val ipRanges: List<IpRange> = emptyList(),
     val invert: Boolean = false,
 )
+
+/**
+ * One from/to pair from an IP set.
+ *
+ * IPv4 addresses land in [low] with [high] zero, so a v4 lookup is one
+ * comparison against a Long and needs no boxing. [isV6] keeps the two families
+ * from being compared to each other.
+ */
+data class IpRange(
+    val fromHigh: Long,
+    val fromLow: Long,
+    val toHigh: Long,
+    val toLow: Long,
+    val isV6: Boolean,
+) {
+    fun contains(high: Long, low: Long, isV6: Boolean): Boolean {
+        if (this.isV6 != isV6) return false
+        if (high < fromHigh || high > toHigh) return false
+        if (high == fromHigh && low < fromLow) return false
+        if (high == toHigh && low > toLow) return false
+        return true
+    }
+}
 
 class SrsFormatException(message: String) : IOException(message)
 
@@ -356,6 +432,14 @@ private class SrsInput(private val input: InputStream) {
             shift += 7
             if (shift > 63) throw SrsFormatException("uvarint is too long")
         }
+    }
+
+    /** One big-endian uint64. The IP-set count is written this way, not as a uvarint. */
+    fun readU64BigEndian(): Long {
+        val bytes = readFully(8)
+        var value = 0L
+        for (b in bytes) value = (value shl 8) or (b.toLong() and 0xFF)
+        return value
     }
 
     fun readU64Slice(): LongArray {

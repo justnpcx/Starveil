@@ -1698,3 +1698,12 @@ val inGroup = when {
 **下一步（D-1 未完）**：ip_cidr 解析（geoip-cn 要用）→ 按 `routeRules()` 产出的同一份规则表求值 → 诊断组入口 + 界面。
 
 
+**D-1 第二步：ip_cidr 解析（已完成）**
+
+格式实查自 `common/srs/ip_set.go`：版本字节（必须 1）→ **大端 uint64** 的区间数（这里不是 uvarint，sing-box 源码自己注释 "WTF why using uint64 here"）→ 每段 from/to，地址是 uvarint 长度（4 或 16）+ 字节。
+
+读成 `IpRange(fromHigh, fromLow, toHigh, toLow, isV6)`；IPv4 放低位、高位为 0，一次 Long 比较即可判定，`isV6` 防止两个地址族互相比。踩过一个坑：一开始把 4 字节地址也按 8 次移位读，结果被顶到高 32 位，所有 v4 判定都 miss。
+
+**验证**：`geoip-cn.srs`（Loyalsoldier，37 KB）→ **6742 段**，`223.5.5.5` 在集合内、`8.8.8.8` 不在。这三个断言进测试，本地用 `SRS_SAMPLE` 跑。
+
+

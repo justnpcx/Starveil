@@ -57,8 +57,22 @@ class SrsTest {
             "SRS_SAMPLE: ${File(path).name} version=${set.version} rules=${set.rules.size} " +
                 "exact=${exact.size} suffixes=${suffixes.size} keywords=${keywords.size}",
         )
-        assertTrue("no exact names", exact.isNotEmpty())
-        assertTrue("no suffixes", suffixes.isNotEmpty())
+        if (!File(path).name.contains("geoip")) {
+            assertTrue("no exact names", exact.isNotEmpty())
+            assertTrue("no suffixes", suffixes.isNotEmpty())
+        }
+        if (File(path).name.contains("geoip")) {
+            val ranges = set.rules.flatMap { it.ipRanges }
+            println("  ip ranges: ${ranges.size}")
+            assertTrue("no IP ranges", ranges.isNotEmpty())
+            fun v4(ip: String): Long {
+                val parts = ip.split('.').map { it.toLong() }
+                return (parts[0] shl 24) or (parts[1] shl 16) or (parts[2] shl 8) or parts[3]
+            }
+            fun inSet(ip: String) = ranges.any { it.contains(0L, v4(ip), false) }
+            assertTrue("223.5.5.5 is not in the CN set", inSet("223.5.5.5"))
+            assertTrue("8.8.8.8 is in the CN set", !inSet("8.8.8.8"))
+        }
         if (File(path).name.contains("ads")) {
             assertTrue(
                 "doubleclick.net is not in the ad set",
