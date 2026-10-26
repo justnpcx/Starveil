@@ -8,6 +8,76 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.8.7] — 2026-10-26
+
+### Added
+
+- **A live connection table.** Settings → Data, security and diagnostics →
+  Connection details. One row per connection the kernel decided: time, app,
+  domain, node, rule, bytes, duration, and whether it is still open. The
+  kernel's events carry byte *deltas*, not totals, and an update event carries
+  no connection object at all, so the table folds NEW/UPDATE/CLOSE into one
+  row and accumulates the counters itself. Filters: app, node, rule, and a
+  Live/All switch. The latency column is the exit node's measured latency —
+  the kernel records no round-trip time per connection, and the screen says so.
+- **A per-query DNS log.** The aggregate ring now has a 100-entry companion
+  that keeps the name, the resolver, the duration and the outcome. The screen
+  says "GeoIP probe, not tunnel DNS" before it shows a number, because the ring
+  is fed by the app's own DoH lookups for node hostnames, not by the tunnel.
+  Export is a preview then a copy: domains and timings, never the resolver.
+- **A staged node test.** Long-press a node → Staged test. DNS, TCP, TLS and
+  HTTP, always four rows, each with a duration or a stated reason it does not
+  apply: UDP protocols are not probed with TCP, REALITY is not probed with a
+  plain TLS handshake, and no proxy protocol here is HTTP. Diagnosis only —
+  the health score is not touched.
+- **A diagnostic bundle** for a GitHub issue. Versions, counts, DNS, the leak
+  result and the last 100 log lines — never a link, password, UUID, token,
+  subscription URL, node address or API token. Exact values are removed first,
+  then the shapes; the preview is the only thing between the bundle and the
+  clipboard, and nothing is uploaded.
+- **Search in Settings.** Filters the four groups by their titles and
+  descriptions, plus the words people actually type ("kill", "vpn", "backup").
+- **Favorites.** Pin a node from its long-press menu; pinned nodes sort first
+  and the Favorites chip shows only them. Schema v6 adds `profiles.favorite`.
+
+### Changed
+
+- **The home health card is a summary again.** Availability plus one sentence,
+  with the curve one tap away and a legend that separates availability, latency
+  EMA and loss dots. An empty reachable set says why in words instead of
+  leaving a row of red dots to be read as "the tunnel is broken".
+- **Scenes**: the empty state is a card with an example and a centred button,
+  and creating a scene is a sheet whose save button sits above the keyboard.
+  Wi-Fi names can be picked from the networks the device knows when the SSID is
+  readable, with the text field still the whole input when it is not.
+- **Rules**: the four matchers sit in two rows instead of a scrolling row with
+  a fade, and the value field carries an example and a hint per matcher —
+  written from the fields the config builder actually emits, so `domain` is
+  exact and `domain_suffix` needs no leading dot. A rule can be moved to the
+  top or the bottom in one action; a 35-rule list needed 34 taps before.
+- **Settings' DNS row is one line of state** against the project's 30 ms p50
+  budget, and taps through to the aggregate and the per-query log.
+- **The exit line names both numbers** ("Exit IP … · round trip … ms") and
+  taps through to address, round trip and measured-at. A first-connect hint
+  ("tap the ring") appears once, in the slot that already existed, so showing
+  and hiding it cannot move the ring.
+- **Two nodes with the same name are told apart** by a host:port suffix, only
+  when the names actually collide.
+- **A selected node that is down says so** inline ("selected, unreachable").
+
+### Fixed
+
+- **The staged test reported "stuck at TLS" for nodes with no TLS.** A VLESS
+  node with `security=none` was handshaken with a port that has no TLS, and
+  the node was blamed for it.
+- **Search fields had no clear button at all.** The node list passed an
+  `onClear` the shared field never used; the only way out of a long query was
+  the keyboard's backspace.
+- **The rule test screen rendered its title twice** (app bar and page header).
+- **Selecting a node changed the row's height.** The "selected, unreachable"
+  warning pushed the second line onto a third one; it is one text now, with the
+  warning as a red span, so the row height does not move.
+
 ## [0.8.6] — 2026-10-26
 
 ### Fixed
