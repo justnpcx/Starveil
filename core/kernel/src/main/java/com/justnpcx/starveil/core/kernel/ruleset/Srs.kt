@@ -134,7 +134,13 @@ object Srs {
     private fun SrsInput.readIpSet(): List<IpRange> {
         val version = readByte()
         if (version != 1) throw SrsFormatException("unknown IP set version $version")
+        // The count is a uint64 rather than a uvarint, so it does not go
+        // through readCount — and that is exactly how it slipped past the
+        // bound. Same limit, same reason: this number decides an allocation.
         val length = readU64BigEndian()
+        if (length < 0 || length > MAX_COUNT) {
+            throw SrsFormatException("IP range count " + length + " is out of range")
+        }
         return List(length.toInt()) {
             val from = readIpSetAddress()
             val to = readIpSetAddress()
