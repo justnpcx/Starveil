@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Singleton
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 /**
@@ -274,7 +275,16 @@ class ConnectionController @Inject constructor(
         // Blackhole, not a blocking config: the tun stays up and the kernel
         // stops reading it. Starting a second kernel is what timed out on the
         // cache database (9930507's logs), and it also cost a teardown.
-        val result = kernel.blockKeepingTunnel()
+        // One retry, because the first attempt can lose a race: the kernel is
+        // still tearing the old config down when the blackhole is asked for,
+        // and the failure is a refused start rather than a policy decision.
+        // Seen on the phone — the first switch to "always block" reported
+        // that nothing was blocked, and the second one worked.
+        var result = kernel.blockKeepingTunnel()
+        if (result.isFailure) {
+            delay(BLOCK_RETRY_DELAY_MS)
+            result = kernel.blockKeepingTunnel()
+        }
         return ConnectionOutcome.Blocked(
             started = result.isSuccess,
             reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() },
@@ -357,3 +367,6 @@ class ConnectionController @Inject constructor(
         return result
     }
 }
+
+/** How long to wait before asking for the blackhole a second time. */
+private const val BLOCK_RETRY_DELAY_MS = 250L
