@@ -330,10 +330,19 @@ private class Trie(
                 }
                 continue
             }
-            key.add(labels[bmIdx - nodeId])
+            val labelIndex = bmIdx - nodeId
+            if (labelIndex < 0 || labelIndex >= labels.size) {
+                throw SrsFormatException(
+                    "malformed domain set: label " + labelIndex + " of " + labels.size,
+                )
+            }
+            key.add(labels[labelIndex])
             val nextNodeId = countZeros(bmIdx + 1)
             val nextBmIdx = select(nextNodeId - 1) + 1
             if (bit(leaves, nextNodeId)) result += key.toString()
+            if (depth > MAX_TRIE_DEPTH) {
+                throw SrsFormatException("malformed domain set: trie deeper than " + MAX_TRIE_DEPTH)
+            }
             if ((depth + 1) * 2 > stack.size) stack = stack.copyOf(stack.size * 2)
             stack[depth * 2] = nextNodeId
             stack[depth * 2 + 1] = nextBmIdx
@@ -372,12 +381,15 @@ private class Trie(
         }
         var remaining = index - ranks[low]
         var word = labelBitmap[low]
-        while (true) {
-            val next = java.lang.Long.numberOfTrailingZeros(word)
-            if (remaining == 0) return low * 64 + next
+        // A word has 64 bits, so a valid request is found within 64 steps. A
+        // malformed bitmap must fail here rather than spin: this runs inside a
+        // connect, and a hang is worse than an error.
+        repeat(64) {
+            if (remaining == 0) return low * 64 + java.lang.Long.numberOfTrailingZeros(word)
             remaining--
             word = word and (word - 1)
         }
+        throw SrsFormatException("malformed domain set: bit " + index + " is not in the bitmap")
     }
 }
 
@@ -402,6 +414,13 @@ private class ByteArrayBuilder {
  * fixed-width slices, and length-prefixed strings.
  */
 private const val MAX_COUNT = 1_000_000L
+
+/**
+ * The longest name a domain set can hold, in bytes. A real one is under 64;
+ * this only has to be large enough to be obviously generous and small enough
+ * that a corrupt file cannot grow the walk without bound.
+ */
+private const val MAX_TRIE_DEPTH = 4096
 
 private class SrsInput(private val input: InputStream) {
 

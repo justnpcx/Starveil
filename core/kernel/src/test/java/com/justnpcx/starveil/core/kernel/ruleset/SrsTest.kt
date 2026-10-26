@@ -57,6 +57,17 @@ class SrsTest {
     }
 
     @Test
+    fun `a truncated domain set fails as a format error, not a crash`() {
+        // Cut the fixture in half: the zlib stream ends mid-matcher, which is
+        // what a half-finished download looks like.
+        val full = fixture("domain-small.srs")
+        val cut = full.copyOf(full.size / 2)
+
+        val thrown = runCatching { Srs.read(cut) }.exceptionOrNull()
+        assertTrue("expected an IO failure, got " + thrown, thrown is java.io.IOException)
+    }
+
+    @Test
     fun `a file that is not a rule set is rejected by its header`() {
         val thrown = runCatching { Srs.read("not a rule set".toByteArray()) }
             .exceptionOrNull()
