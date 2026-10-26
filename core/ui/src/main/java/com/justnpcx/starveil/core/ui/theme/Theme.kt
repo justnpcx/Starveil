@@ -151,8 +151,44 @@ private fun ColorScheme.withPalette(p: StarveilPalette): ColorScheme = copy(
     surfaceContainerHigh = p.surfaceSolid,
     surfaceContainerHighest = p.surfaceSolid,
     surfaceContainerLow = p.surfaceSolid,
+    surfaceContainerLowest = p.surfaceSolid,
+    surfaceBright = p.surfaceSolid,
+    surfaceDim = p.bg,
+    // Every tonal container, mapped explicitly. This palette has no tonal
+    // steps: a container is the resolved material and its text is ink. Left
+    // alone, Material fills them from its own baseline scheme, which is the
+    // lavender one — that is how the scenes FAB came out pale purple while
+    // every other surface in the app was blue. Mapping them here means a
+    // Material component added later cannot reintroduce a second hue; it can
+    // only look like the rest of the app.
+    primaryContainer = p.surfaceSolid,
+    onPrimaryContainer = p.ink,
+    secondaryContainer = p.surfaceSolid,
+    onSecondaryContainer = p.ink,
+    tertiaryContainer = p.surfaceSolid,
+    onTertiaryContainer = p.ink,
+    errorContainer = p.surfaceSolid,
+    onErrorContainer = p.errText,
+    // The fixed roles are the same containers under another name; leaving them
+    // unset would let a chip or a badge fall back to the baseline scheme.
+    primaryFixed = p.surfaceSolid,
+    primaryFixedDim = p.surfaceSolid,
+    onPrimaryFixed = p.ink,
+    onPrimaryFixedVariant = p.ink2,
+    secondaryFixed = p.surfaceSolid,
+    secondaryFixedDim = p.surfaceSolid,
+    onSecondaryFixed = p.ink,
+    onSecondaryFixedVariant = p.ink2,
+    tertiaryFixed = p.surfaceSolid,
+    tertiaryFixedDim = p.surfaceSolid,
+    onTertiaryFixed = p.ink,
+    onTertiaryFixedVariant = p.ink2,
+    // No elevation tint: a raised surface in this design is the same material
+    // with a shadow, not the accent mixed into it.
+    surfaceTint = Color.Transparent,
+    scrim = Color.Black,
     outline = p.glassBorder,
-    outlineVariant = p.hairline,
+    outlineVariant = p.divider,
     error = p.errText,
     onError = Color.White,
     // Snackbars float over the page, so they are the one place a surface is a
