@@ -75,6 +75,75 @@ class SrsTest {
         assertTrue(thrown!!.message!!.contains("not a rule-set file"))
     }
 
+    // ---- malformed input ------------------------------------------------
+    //
+    // Each of these is a file a truncated download or a corrupt CDN copy could
+    // produce. None of them may allocate on an unverified number, spin, or
+    // throw anything other than a format/IO error.
+
+    private fun varint(value: Long): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        var rest = value
+        while (true) {
+            val byte = (rest and 0x7F).toInt()
+            rest = rest shr 7
+            if (rest != 0L) out.write(byte or 0x80) else { out.write(byte); break }
+        }
+        return out.toByteArray()
+    }
+
+    /** "SRS" + version + zlib(body). */
+    private fun envelope(body: ByteArray): ByteArray {
+        val deflated = java.io.ByteArrayOutputStream().apply {
+            java.util.zip.DeflaterOutputStream(this).use { it.write(body) }
+        }.toByteArray()
+        return byteArrayOf(0x53, 0x52, 0x53, 3) + deflated
+    }
+
+    private fun expectFormatError(bytes: ByteArray, why: String) {
+        val thrown = runCatching { Srs.read(bytes) }.exceptionOrNull()
+        assertTrue(why + " — got " + thrown, thrown is SrsFormatException)
+    }
+
+    @Test
+    fun `an unknown rule type is refused`() {
+        expectFormatError(envelope(byteArrayOf(1, 9)), "rule type 9")
+    }
+
+    @Test
+    fun `an unknown rule item type is refused`() {
+        expectFormatError(envelope(byteArrayOf(1, 0, 99.toByte())), "item type 99")
+    }
+
+    @Test
+    fun `a string list that claims more entries than exist is refused`() {
+        val body = byteArrayOf(1, 0, 3) + varint(500_000_000L)
+        expectFormatError(envelope(body), "500 million keywords")
+    }
+
+    @Test
+    fun `an IP set that claims more ranges than exist is refused`() {
+        // version 1, then a uint64 count of 500 million, big-endian.
+        val count = ByteArray(8).also { it[0] = 0x1D; it[1] = 0xCD.toByte(); it[2] = 0x65 }
+        val body = byteArrayOf(1, 0, 6) + byteArrayOf(1) + count
+        expectFormatError(envelope(body), "500 million IP ranges")
+    }
+
+    @Test
+    fun `an IP address that is neither 4 nor 16 bytes is refused`() {
+        val count = ByteArray(8).also { it[7] = 1 }
+        val body = byteArrayOf(1, 0, 6) + byteArrayOf(1) + count + varint(5) + ByteArray(5)
+        expectFormatError(envelope(body), "a 5-byte address")
+    }
+
+    @Test
+    fun `a rule-set whose header version is in the future is refused`() {
+        val deflated = java.io.ByteArrayOutputStream().apply {
+            java.util.zip.DeflaterOutputStream(this).use { it.write(byteArrayOf(0)) }
+        }.toByteArray()
+        expectFormatError(byteArrayOf(0x53, 0x52, 0x53, 99) + deflated, "version 99")
+    }
+
     /**
      * The real thing, when one is on disk: @@SRS_SAMPLE=/path/to/x.srs ./gradlew
      * :core:kernel:testDebugUnitTest --tests "*SrsTest*"@@. Skipped otherwise,
