@@ -1623,3 +1623,5 @@ val inGroup = when {
 
 **没测的**：只有这两个广告域名和百度。`300 ms` 嗅探超时的边界（首包晚于 300 ms 的连接会按未嗅到处理）没构造样本。规则包（rule market）的域名规则走同一机制，逻辑上同时恢复，但没有单独验。
 
+**发布验证（v0.8.6）**：Release workflow 由 tag 触发直接发布（run `40280974995`），三个 ABI 的 APK 都在，`draft=false`。`apksigner verify` 的证书 SHA-256 是 `f904a417…0b268c`，与 release key 一致；`aapt2` 读出 `versionCode=806 versionName=0.8.6`。电视上换装这份官方包（就地升级）后复测：对照 `www.cloudflare.com` 403，`doubleclick.net` rc=35 / 47 ms——修复在发布产物里同样生效，不只是本地那版。
+
