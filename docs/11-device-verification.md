@@ -1679,7 +1679,7 @@ val inGroup = when {
 
 ### D-1 第一步：`.srs` 解析器（已完成，可单测）
 
-**位置**：`core/kernel/.../ruleset/Srs.kt`。格式实查自 `sing-box/common/srs/binary.go` 与 `sing/common/domain/{set,matcher}.go`（本机 `/root/sing-box` + Go module cache，不是凭记忆）。
+**位置**：`core/kernel/.../ruleset/Srs.kt`。格式实查自 `sing-box/common/srs/binary.go` 与 `sing/common/domain/{set,matcher}.go`（本机的 sing-box 源码树与 Go module cache，不是凭记忆）。
 
 **读出来的东西**：规则类型、domain 集、domain_keyword、domain_regex、network、port、invert。**没读**：`ip_cidr` / `source_ip_cidr`——那是另一套前缀压缩格式，遇到会抛 `SrsFormatException("IP sets … not read yet")`，不猜、不静默跳过；geoip 留给 D-1 的下一步。
 
