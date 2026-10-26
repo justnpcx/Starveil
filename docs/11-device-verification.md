@@ -1716,7 +1716,7 @@ val inGroup = when {
 | `c1_chip_resting.png` | C-1 | 「全部」芯片静止态：白胶囊 + accent 描边 |
 | `c1_chip_pressed.png` | C-1 | 同一芯片按住 900ms：灰色涟漪**填满胶囊且左右两端跟着圆弧走**，四角无矩形溢出 |
 | `c2_scenes_fab.png` | C-2 | 场景页 FAB 放大：玻璃圆盘 + accent 环 + 墨色加号 |
-| `s1_settings_scroll.png` | S-1 | 设置页从顶部滚到底部的 6 帧，四个组标题依次出现 |
+| ~~`s1_settings_scroll.png`~~ | S-1 | **已删除：这份素材无效。** 抽帧取错了区间，6 帧实际是「规则命中测试」页 5 帧 + 节点页 1 帧，里面没有设置页。S-1 的整页滚动**仍未取证** |
 | `x1_five_screens.png` | X-1 | 场景 / 规则命中测试 / 节点 / 日志 / 首页 五屏，无淡紫 |
 | `d1_doubleclick_reject.png` | D-1 | `doubleclick.net` → `rule_set=ads` → 阻断 |
 | `d1_baidu_direct.png` | D-1 | 切到「绕过中国大陆」后 `www.baidu.com` → `rule_set=geosite-cn` → 直连（预设兜底） |
