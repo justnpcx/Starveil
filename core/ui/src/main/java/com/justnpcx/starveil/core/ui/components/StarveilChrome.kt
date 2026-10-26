@@ -83,6 +83,9 @@ fun StarveilIconAction(
     Box(
         modifier = modifier
             .size(48.dp)
+            // A 48dp square is the touch target, not the shape: without the
+            // clip the ripple fills the square and the corners show.
+            .clip(CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -147,6 +150,7 @@ fun StarveilSearchField(
             Box(
                 modifier = Modifier
                     .size(32.dp)
+                    .clip(CircleShape)
                     .clickable(role = Role.Button, onClick = { onValueChange("") }),
                 contentAlignment = Alignment.Center,
             ) {

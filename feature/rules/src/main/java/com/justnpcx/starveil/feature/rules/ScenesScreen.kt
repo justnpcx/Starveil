@@ -204,7 +204,7 @@ private fun SceneCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    StarveilCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    StarveilCard(onClick = onClick) {
         Row(
             modifier = Modifier.padding(StarveilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,

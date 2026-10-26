@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -37,6 +39,13 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 @Composable
 fun StarveilCard(
     modifier: Modifier = Modifier,
+    /**
+     * Makes the whole card one target. The click lives here rather than in the
+     * caller's modifier because the card's 22dp corners are only in this chain:
+     * a caller's `.clickable` runs before the clip, so its ripple fills the
+     * bounding rectangle and the corners leak.
+     */
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -50,7 +59,14 @@ fun StarveilCard(
             )
             .clip(StarveilShapes.card)
             .background(StarveilColors.surfaceGlass)
-            .border(1.dp, StarveilColors.glassBorder, StarveilShapes.card),
+            .border(1.dp, StarveilColors.glassBorder, StarveilShapes.card)
+            .then(
+                if (onClick == null) {
+                    Modifier
+                } else {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                },
+            ),
         content = content,
     )
 }

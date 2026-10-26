@@ -555,7 +555,7 @@ private fun CurrentNodeCard(
     onOpen: () -> Unit,
     onAutoSelect: () -> Unit,
 ) {
-    StarveilCard(modifier = Modifier.clickable(role = Role.Button, onClick = onOpen)) {
+    StarveilCard(onClick = onOpen) {
         Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // The name carries its country's flag as a leading emoji; set it
