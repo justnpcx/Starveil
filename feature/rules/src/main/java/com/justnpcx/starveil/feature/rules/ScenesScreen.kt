@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +57,7 @@ import com.justnpcx.starveil.core.ui.components.ChipSurface
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
+import com.justnpcx.starveil.core.ui.components.StarveilFab
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
@@ -106,14 +106,16 @@ fun ScenesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            // The same disc as the Nodes and Rules screens. Material's own FAB
+            // takes primaryContainer, which this palette does not map, so it
+            // came out lavender — the one colour the 03 language never uses.
+            StarveilFab(
+                contentDescription = stringResource(R.string.scenes_add),
                 onClick = {
                     editing = null
                     showDialog = true
                 },
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.scenes_add))
-            }
+            )
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
