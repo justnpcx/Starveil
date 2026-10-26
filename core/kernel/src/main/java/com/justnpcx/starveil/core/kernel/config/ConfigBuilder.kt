@@ -198,7 +198,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      * is the form the route rule action table actually defines. Blocking
      * stays `reject`, which is real and carries no outbound.
      */
-    private fun routeRules(
+    internal fun routeRules(
         rules: List<Rule>,
         finalTag: String,
         proxyTag: String,
