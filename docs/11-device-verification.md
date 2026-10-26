@@ -1707,3 +1707,21 @@ val inGroup = when {
 **验证**：`geoip-cn.srs`（Loyalsoldier，37 KB）→ **6742 段**，`223.5.5.5` 在集合内、`8.8.8.8` 不在。这三个断言进测试，本地用 `SRS_SAMPLE` 跑。
 
 
+### 真机证据归档（2026-10-26，手机 V2238A）
+
+目录 `docs/recordings/d1-a-2026-10-26/`。**注意这台手机装的是 debug 签名包**（此前一直是 debug 版，release 包因签名不匹配装不上），因此所有截图来自 `versionCode=806` 的 debug 构建。
+
+| 文件 | 对应项 | 内容 |
+|---|---|---|
+| `c1_chip_resting.png` | C-1 | 「全部」芯片静止态：白胶囊 + accent 描边 |
+| `c1_chip_pressed.png` | C-1 | 同一芯片按住 900ms：灰色涟漪**填满胶囊且左右两端跟着圆弧走**，四角无矩形溢出 |
+| `c2_scenes_fab.png` | C-2 | 场景页 FAB 放大：玻璃圆盘 + accent 环 + 墨色加号 |
+| `s1_settings_scroll.png` | S-1 | 设置页从顶部滚到底部的 6 帧，四个组标题依次出现 |
+| `x1_five_screens.png` | X-1 | 场景 / 规则命中测试 / 节点 / 日志 / 首页 五屏，无淡紫 |
+| `d1_doubleclick_reject.png` | D-1 | `doubleclick.net` → `rule_set=ads` → 阻断 |
+| `d1_baidu_direct.png` | D-1 | 切到「绕过中国大陆」后 `www.baidu.com` → `rule_set=geosite-cn` → 直连（预设兜底） |
+
+**C-1 的取证方法值得记一笔**：第一次按住 2 秒想抓涟漪，结果越过了 300ms 长按阈值——分组芯片的长按会弹分组菜单（`GroupChip(onLongClick = { groupMenu = group })`），画面被遮罩盖住，抽帧里只有遮罩。**「全部」芯片没有 `onLongClick`**，才可以按住连拍。以后抓涟漪：确认目标没有长按动作，再按住 900ms 连拍 2–3 张。
+
+**D-1 的两张是同一台设备的两种预设**：全局代理下百度落 `final` → 代理，切到绕过大陆后命中 `geosite-cn` → 直连。同一输入、不同预设、结果不同，这正说明求值器读的是当前配置而不是写死的期望。
+
