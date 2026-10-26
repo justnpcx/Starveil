@@ -454,7 +454,7 @@ QUIC 窗口（默认已 8 MB/20 MB）、强制带宽提示（服务端不接受�
 | DNS 缓存 p50 < 30 ms | 尚无埋点 |
 | 操作反馈 < 100 ms | 未逐屏测 |
 | R8 混淆后的运行时回归 | 2026-10-17 开启 R8，尚未在真机跑过 |
-| 去广告 | 规则已生成（`geosite-category-ads-all` → reject），未在真机上看过拦截效果 |
+| 去广告 | 2026-10-26 在电视上验过：**不通过**（广告域名照常走代理），见文末「去广告真机验证」 |
 
 已通过但值得记一笔的：**按地区分组**。三个节点名都不含地区，GeoIP 从地址解析出
 `US`，节点前显示 🇺🇸，点「按地区」生成「美国」组。也就是说这条链路是「地址 → 国家
@@ -1567,3 +1567,28 @@ val inGroup = when {
 - **引导页的订阅对话框**没截到：它只在首次安装出现，要 `pm clear` 才能复现，而清数据会丢掉手机上那条订阅。代码已覆盖（`OnboardingScreen` 走同一个组件），但**没有截图**。
 - **`ProfileEditorScreen` 的修后截图**：已补（`after_editor_inactive.png` / `after_editor_active.png`）。节点页 → 手动创建 → VLESS，表单里「名称」字段未激活边框 `(136,138,141)` 478 px，激活后 `(0,113,227)` 482 px。
 - **F-4 的真实流量截图**：手机那轮节点连不上，只截到 `0 B/s`，这张仍然缺。后来在 **Fire TV（AFTKRT，1920×1080 @320dpi）** 上补了真流量对照——用 `curl` 打满上/下行，抓 `tv_up_989kbs.png`（上行 `989 KB/s`，数值+单位占 250 px，单行 y 571–649）与 `tv_down_8p5mbs.png`（下行 `8.5 MB/s`，216 px，同一行）。这两张能证明单位跟着数值走、不再掉行，但**不能替代手机那张**：电视 540 dp 宽，手机（V2238A，1080×2400）只有约 393 dp，窄列的临界宽度没被覆盖。`softWrap = false` + `maxLines = 1` 是结构约束，不是靠这两张图推出来的。
+
+## 2026-10-26 · 去广告真机验证（不通过）
+
+**设备与包**：Fire TV Stick 4K Max（AFTKRT），Starveil 0.8.5（versionCode 805），隧道已连（hysteria2）。分流预设「Bypass mainland China」，`Block ads` 开关为开（`tv_rules_ads_on.png`）。
+
+**测法**：设备上推了一个静态 `curl`，用 `--resolve` 直接给域名指定真实 IP——设备 shell 没有 `/etc/resolv.conf`，这样绕开 DNS，只测路由判定。对照组是同一时刻、同一条隧道的普通域名。
+
+| 目标 | IP | 结果 |
+|---|---|---|
+| `doubleclick.net`（广告） | 74.125.137.102 | **301**，走 `outbound/hysteria2[proxy]` |
+| `googlesyndication.com`（广告） | 142.251.45.4 | **302**，走 `outbound/hysteria2[proxy]` |
+| `www.cloudflare.com`（对照） | 104.16.132.229 | 403，走 `outbound/hysteria2[proxy]` |
+
+三个都是真实 HTTP 响应，没有一个是 reject。日志原文（`tv_logs_ads_proxied.png`）：
+
+    INFO outbound/hysteria2[proxy]: outbound connection to 74.125.137.102:443
+    INFO outbound/hysteria2[proxy]: outbound connection to 142.251.45.4:443
+
+**结论：规则在，但没有生效。** 不是「开关没开」，也不是「规则集没下载」——规则集缺失时 `ConfigBuilder` 会把 `ads` 整条从 config 里删掉，而这里连 reject 都没有，说明规则存在、只是没命中。
+
+**为什么没命中（代码层）**：`ConfigBuilder` 生成的 `route.rules` 里没有任何 `{"action": "sniff"}`，`tunInbound()` 也没有 `sniff` 字段。tun 收到的连接只有目标 IP，而 `ads` 是 `rule_set`（geosite 域名集）——**域名匹配不到 IP 连接，规则永远不会命中**。同一份配置里 `geosite-cn`（「国内域名直连」）依赖同样的机制，受同一问题影响；能生效的只有 `geoip-cn` 这种按 IP 的规则。
+
+**顺带看到、未定论**：日志里还有一条 `outbound/hysteria2[proxy]: outbound packet connection to 192.168.50.1:53`——应用自己的 DNS 查询走了代理。局域网地址本应命中 `lan` 的 `ip_cidr` 规则（`localSubnets` 来自当前网络接口），没有命中。可能和 V-1 里「探针 socket 进隧道」是同一件事，也可能 `localSubnets` 在建立隧道时是空的。**没有继续查，也没有改代码。**
+
+**没做的**：没有加 sniff 规则去验证「加了就能拦」。这是改代码，且会影响所有域名类规则（去广告、geosite-cn、用户手写的域名规则），应该单独开一项、带回归再改。
