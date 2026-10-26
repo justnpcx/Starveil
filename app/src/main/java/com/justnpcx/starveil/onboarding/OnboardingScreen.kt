@@ -45,7 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
-import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
 import com.justnpcx.starveil.core.subscription.DocumentFormat
@@ -163,8 +162,7 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
                     value = subscriptionDraft,
                     onValueChange = { subscriptionDraft = it },
                     label = stringResource(R.string.onboarding_subscription_hint),
-                    surface = FieldSurface.Dialog,
-                )
+                                    )
             },
             confirmButton = {
                 TextButton(

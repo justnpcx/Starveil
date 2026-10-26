@@ -59,7 +59,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
-import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
 import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.model.FlowOutcome
@@ -621,8 +620,7 @@ private fun RuleDialog(
                     value = value,
                     onValueChange = { value = it },
                     label = stringResource(R.string.rules_value_label),
-                    surface = FieldSurface.Dialog,
-                    modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     text = stringResource(R.string.rules_action_label),
@@ -866,8 +864,7 @@ private fun AllFlowDialog(
                     value = query,
                     onValueChange = { query = it },
                     label = stringResource(R.string.rules_flow_search_hint),
-                    surface = FieldSurface.Dialog,
-                    modifier = Modifier
+                                        modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
                 )

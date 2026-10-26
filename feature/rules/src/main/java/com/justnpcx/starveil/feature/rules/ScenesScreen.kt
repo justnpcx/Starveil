@@ -47,7 +47,6 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
-import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.RoutePreset
@@ -294,8 +293,7 @@ private fun SceneDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = stringResource(R.string.scenes_name),
-                    surface = FieldSurface.Dialog,
-                    modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier.fillMaxWidth(),
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
@@ -325,8 +323,7 @@ private fun SceneDialog(
                         value = ssids,
                         onValueChange = { ssids = it },
                         label = stringResource(R.string.scenes_ssids),
-                        surface = FieldSurface.Dialog,
-                        supportingText = stringResource(R.string.scenes_ssids_hint),
+                                                supportingText = stringResource(R.string.scenes_ssids_hint),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

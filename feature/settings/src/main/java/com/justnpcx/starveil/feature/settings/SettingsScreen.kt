@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
-import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.LocalApi
@@ -686,8 +685,7 @@ private fun PassphraseDialog(
                     value = value,
                     onValueChange = { value = it },
                     label = stringResource(R.string.backup_passphrase),
-                    surface = FieldSurface.Dialog,
-                    visualTransformation = PasswordVisualTransformation(),
+                                        visualTransformation = PasswordVisualTransformation(),
                     supportingText = stringResource(R.string.backup_passphrase_min, MIN_PASSPHRASE),
                 )
             }

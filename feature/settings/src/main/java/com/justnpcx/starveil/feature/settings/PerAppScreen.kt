@@ -17,7 +17,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
@@ -81,11 +81,10 @@ fun PerAppScreen(
                     bottom = StarveilSpacing.sm,
                 ),
             )
-            OutlinedTextField(
+            StarveilTextField(
                 value = state.query,
                 onValueChange = viewModel::setQuery,
-                singleLine = true,
-                label = { Text(stringResource(R.string.per_app_search)) },
+                label = stringResource(R.string.per_app_search),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = StarveilSpacing.lg),

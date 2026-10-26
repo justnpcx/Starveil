@@ -11,7 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilSwitch
 import androidx.compose.material3.Scaffold
@@ -446,13 +446,12 @@ private fun Field(
     error: EditorError? = null,
     onValueChange: (String) -> Unit,
 ) {
-    OutlinedTextField(
+    StarveilTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(stringResource(label)) },
+        label = stringResource(label),
         isError = error != null,
-        supportingText = error?.let { { Text(stringResource(it.messageRes())) } },
-        singleLine = true,
+        supportingText = error?.let { stringResource(it.messageRes()) },
         modifier = Modifier.fillMaxWidth(),
     )
 }

@@ -10,30 +10,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 
 /**
- * Where the field is drawn, which decides what its resting border can be.
- *
- * The palette's [StarveilColors.glassBorder] is white at 75%: right for a card
- * edge sitting on the page, invisible for a field whose only outline is that
- * border and whose fill is transparent. Dialogs sit on `surfaceSolid`, a near
- * white, so a white border there is not a border at all — the field looks like
- * a gap until it is focused and the accent appears.
- */
-enum class FieldSurface {
-    /** On the page or inside a glass card. */
-    Page,
-
-    /** On a dialog's solid surface. */
-    Dialog,
-}
-
-/**
  * The one text field in this app.
  *
  * Material's defaults paint the resting border with `outline`, which this theme
- * maps to the glass border; that is correct for cards and wrong for every field
- * drawn on a solid surface. Rather than override the theme (which would change
- * every card edge), the field takes its resting colour from where it sits —
- * the same split [StarveilChip] already makes for dialog chips.
+ * maps to the glass border — white at 75%. That is right for a card edge, which
+ * has a fill behind it, and wrong for a field, whose fill is transparent: the
+ * border is the only thing saying "this is a field", and white on a light page
+ * or a near-white dialog says nothing. Measured on the phone: a resting field
+ * showed no border pixels at all, focused it showed a full blue outline.
+ *
+ * So the resting border is ink, everywhere. The theme itself is left alone
+ * because every card edge depends on that white.
  *
  * Error colours are deliberately left to Material: the theme already maps them
  * to the palette's error, and a second definition here would drift.
@@ -44,7 +31,6 @@ fun StarveilTextField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
-    surface: FieldSurface = FieldSurface.Page,
     singleLine: Boolean = true,
     minLines: Int = 1,
     isError: Boolean = false,
@@ -67,10 +53,7 @@ fun StarveilTextField(
         supportingText = supportingText?.let { text -> { Text(text) } },
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = StarveilColors.accent,
-            unfocusedBorderColor = when (surface) {
-                FieldSurface.Dialog -> StarveilColors.ink3
-                FieldSurface.Page -> StarveilColors.glassBorder
-            },
+            unfocusedBorderColor = StarveilColors.ink3,
             focusedLabelColor = StarveilColors.accentText,
             unfocusedLabelColor = StarveilColors.ink2,
             cursorColor = StarveilColors.accent,

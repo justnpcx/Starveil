@@ -11,7 +11,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
-import com.justnpcx.starveil.core.ui.components.FieldSurface
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
@@ -810,8 +809,7 @@ private fun GroupNameDialog(
                 value = name,
                 onValueChange = { name = it },
                 label = stringResource(R.string.profiles_group_name_label),
-                surface = FieldSurface.Dialog,
-                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {
@@ -856,8 +854,7 @@ private fun ImportDialog(
                         hint = null
                     },
                     label = stringResource(R.string.profiles_import_hint),
-                    surface = FieldSurface.Dialog,
-                    singleLine = false,
+                                        singleLine = false,
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
