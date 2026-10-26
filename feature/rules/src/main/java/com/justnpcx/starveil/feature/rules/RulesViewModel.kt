@@ -229,16 +229,32 @@ class RulesViewModel @Inject constructor(
      * value — swapping equal values would be a no-op.
      */
     fun move(rule: Rule, up: Boolean) {
+        val index = uiState.value.rules.indexOfFirst { it.id == rule.id }
+        if (index < 0) return
+        moveTo(rule, if (up) index - 1 else index + 1)
+    }
+
+    /**
+     * Put [rule] at the top or the bottom in one action.
+     *
+     * Twenty rules and a rule at the bottom is nineteen taps with the arrows;
+     * the arrows stay because they are what an eye looks for, and these two are
+     * what a long list actually needs. Same renumber as [move]: the stored
+     * order values are rewritten from the new positions, so rules that shared
+     * an order cannot end up in an ambiguous state.
+     */
+    fun moveToTop(rule: Rule) = moveTo(rule, 0)
+
+    fun moveToBottom(rule: Rule) = moveTo(rule, uiState.value.rules.lastIndex)
+
+    private fun moveTo(rule: Rule, target: Int) {
         viewModelScope.launch {
             val ordered = uiState.value.rules.toMutableList()
             val index = ordered.indexOfFirst { it.id == rule.id }
-            if (index < 0) return@launch
-            val target = if (up) index - 1 else index + 1
-            if (target !in ordered.indices) return@launch
+            if (index < 0 || target !in ordered.indices || index == target) return@launch
 
-            val moved = ordered[index]
-            ordered[index] = ordered[target]
-            ordered[target] = moved
+            val moved = ordered.removeAt(index)
+            ordered.add(target, moved)
 
             ordered.forEachIndexed { position, item ->
                 if (item.order != position) repository.upsert(item.copy(order = position))

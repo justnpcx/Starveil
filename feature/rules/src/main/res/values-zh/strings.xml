@@ -123,4 +123,6 @@
     <string name="rules_value_hint_keyword">匹配任何包含这段文字的域名。</string>
     <string name="rules_value_example_cidr">192.168.1.0/24</string>
     <string name="rules_value_hint_cidr">单个地址或 CIDR 网段，例如 10.0.0.5 或 10.0.0.0/8。</string>
+    <string name="rules_move_top">置顶</string>
+    <string name="rules_move_bottom">置底</string>
 </resources>

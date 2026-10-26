@@ -233,6 +233,8 @@ fun RulesScreen(
                                     onDelete = { pendingDelete = rule },
                                     onMoveUp = { viewModel.move(rule, up = true) },
                                     onMoveDown = { viewModel.move(rule, up = false) },
+                                    onMoveTop = { viewModel.moveToTop(rule) },
+                                    onMoveBottom = { viewModel.moveToBottom(rule) },
                                 )
                             }
                             // The rule that is always there and never shown as a
@@ -429,6 +431,8 @@ private fun RuleRow(
     onDelete: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
+    onMoveTop: () -> Unit,
+    onMoveBottom: () -> Unit,
 ) {
     Column {
         Row(
@@ -486,6 +490,28 @@ private fun RuleRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(StarveilSpacing.xs))
                     .clickable(role = Role.Button, onClick = onDelete)
+                    .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+            )
+            // The arrows move one place; a rule at the bottom of a long list
+            // needs nineteen of them. These two are the one-action version,
+            // and they are disabled at the ends rather than hidden so the row
+            // does not change width as the rule moves.
+            Text(
+                text = stringResource(R.string.rules_move_top),
+                style = StarveilType.label,
+                color = if (canMoveUp) StarveilColors.accent else StarveilColors.ink3.copy(alpha = 0.4f),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(StarveilSpacing.xs))
+                    .clickable(enabled = canMoveUp, role = Role.Button, onClick = onMoveTop)
+                    .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+            )
+            Text(
+                text = stringResource(R.string.rules_move_bottom),
+                style = StarveilType.label,
+                color = if (canMoveDown) StarveilColors.accent else StarveilColors.ink3.copy(alpha = 0.4f),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(StarveilSpacing.xs))
+                    .clickable(enabled = canMoveDown, role = Role.Button, onClick = onMoveBottom)
                     .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
             )
             Spacer(modifier = Modifier.weight(1f))

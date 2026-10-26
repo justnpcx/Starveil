@@ -96,6 +96,31 @@ class RulesViewModelTest {
     }
 
     @Test
+    fun `move to top and bottom are one action and renumber`() = runBlocking {
+        val repository = FakeRules().apply {
+            seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY, order = 0))
+            seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 1))
+            seed(Rule(id = 3L, matcher = RuleMatcher(MatcherKind.DOMAIN, "c"), action = RuleAction.PROXY, order = 2))
+        }
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        val last = repository.ordered().last()
+        viewModel.moveToTop(last)
+        yield()
+        assertEquals(listOf("c", "a", "b"), repository.ordered().map { it.matcher.value })
+        assertEquals(listOf(0, 1, 2), repository.ordered().map { it.order })
+
+        val first = repository.ordered().first()
+        viewModel.moveToBottom(first)
+        yield()
+        assertEquals(listOf("a", "b", "c"), repository.ordered().map { it.matcher.value })
+        assertEquals(listOf(0, 1, 2), repository.ordered().map { it.order })
+        job.cancel()
+    }
+
+    @Test
     fun `a blank value is not stored`() = runBlocking {
         val repository = FakeRules()
         val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)

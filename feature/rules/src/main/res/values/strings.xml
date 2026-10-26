@@ -129,4 +129,6 @@
     <string name="rules_value_hint_keyword">Matches any domain that contains this text.</string>
     <string name="rules_value_example_cidr">192.168.1.0/24</string>
     <string name="rules_value_hint_cidr">An address or a CIDR block, e.g. 10.0.0.5 or 10.0.0.0/8.</string>
+    <string name="rules_move_top">Move to top</string>
+    <string name="rules_move_bottom">Move to bottom</string>
 </resources>
