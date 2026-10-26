@@ -1993,3 +1993,41 @@ DNS p50：设备上这次采样是 193 ms（`b8-settings-dns-row.png`），远�
   测试节点也清掉了：Local-Test、Dup-Test、SameName×2 以及几条导入后名字为空的残留，共 10 条，
   全部走长按 → 删除 → 确认；首页回到「未选择节点」，节点页只剩 1000 条基准夹具（全部超时、默认折叠）。
 
+
+
+## 0.8.7 正式包（release）真机验证 — 2026-10-27
+
+**发布**：tag `v0.8.7` → Release 工作流 `40356557904` 成功，GitHub Releases 上是三个 ABI：
+
+| 资产 | 大小 |
+|---|---|
+| `starveil-v0.8.7-arm64-v8a.apk` | 31.5 MB |
+| `starveil-v0.8.7-armeabi-v7a.apk` | 31.5 MB |
+| `starveil-v0.8.7-x86_64.apk` | 33.0 MB |
+
+**包本身**（`apksigner verify --print-certs` + `aapt2 dump badging`）：
+
+- 签名 `CN=Starveil, O=justnpcx, C=CN`，SHA-256 `f904a417…0b268c` —— 与 `docs/12-release.md` 记的 release 证书一致。
+- `versionCode=807`、`versionName=0.8.7`、minSdk 29、targetSdk 35。
+- 31.5 MB 对 debug 的 75 MB：R8 生效了，这正是需要真机验证的原因（混淆/裁剪最容易打断 Room、Hilt、JNI）。
+
+**安装**：debug 签名包与 release 签名不兼容，先 `pm uninstall` 再装（数据清空，正好是干净状态）。vivo 的
+「未知来源」安全确认照例要点勾 + 继续安装。
+
+**验证结果**（截图在 `docs/recordings/release-0.8.7-2026-10-27/`）：
+
+| 项 | 结果 |
+|---|---|
+| 冷启动 | 进入引导「欢迎使用 Starveil」，`开始` / `跳过` 都在；跳过导入后直接进首页 |
+| 首页 | 「未连接」+「点按圆环连接」提示；「未选择节点」 |
+| 设置 | 搜索框在顶部；诊断组里 `导出诊断包`、`连接明细`、`DNS 日志` 都在；DNS 行是一行状态 |
+| 节点页 | `收藏` 芯片、一次性长按提示、空状态 |
+| 规则页 | 三个预设 + 自定义分段正常 |
+| 连接明细 | 空态 → 连上后出现实时行（`aps.amap.com` → direct → `rule_set=geosite-cn`，6.7 KB，1m 7s） |
+| DNS 日志 | 「GeoIP 探针采样，非隧道 DNS」+ 空态 |
+| 内核 | VPN 授权 → `已连接`；出口 `69.63.200.132`、往返 374 ms；健康采样 4/5 次 |
+| 崩溃 | `logcat` 无 FATAL / AndroidRuntime / JNI 错误；进程存活（pid 6600） |
+
+连接用的是本地 xray 测试服务端（`192.168.50.218:8443`，VLESS 无 TLS），只为验证「正式包里内核能起来」；
+验证完已断开、删掉测试节点、停掉服务端。**这台机器现在装的是 0.8.7 正式包，数据为空**。
+
