@@ -32,6 +32,31 @@ class SrsTest {
     }
 
     @Test
+    fun `a corrupt file claiming a huge list is refused, not allocated`() {
+        // "SRS", version 3, then zlib(1 rule, default type, keyword item with a
+        // count of 500 million and nothing behind it). Allocating on that count
+        // would be an OOM; the reader has to refuse it.
+        val body = java.io.ByteArrayOutputStream().apply {
+            write(1) // one rule
+            write(0) // default rule
+            write(3) // domain_keyword item
+            var value = 500_000_000L
+            while (true) {
+                val byte = (value and 0x7F).toInt()
+                value = value shr 7
+                if (value != 0L) write(byte or 0x80) else { write(byte); break }
+            }
+        }.toByteArray()
+        val deflated = java.io.ByteArrayOutputStream().apply {
+            java.util.zip.DeflaterOutputStream(this).use { it.write(body) }
+        }.toByteArray()
+        val file = byteArrayOf(0x53, 0x52, 0x53, 3) + deflated
+
+        val thrown = runCatching { Srs.read(file) }.exceptionOrNull()
+        assertTrue("expected a format error, got " + thrown, thrown is SrsFormatException)
+    }
+
+    @Test
     fun `a file that is not a rule set is rejected by its header`() {
         val thrown = runCatching { Srs.read("not a rule set".toByteArray()) }
             .exceptionOrNull()

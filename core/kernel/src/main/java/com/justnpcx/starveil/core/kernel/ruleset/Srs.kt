@@ -401,6 +401,8 @@ private class ByteArrayBuilder {
  * The byte reader the format is written against: LEB128 counts, big-endian
  * fixed-width slices, and length-prefixed strings.
  */
+private const val MAX_COUNT = 1_000_000L
+
 private class SrsInput(private val input: InputStream) {
 
     fun stream(): InputStream = input
@@ -443,7 +445,7 @@ private class SrsInput(private val input: InputStream) {
     }
 
     fun readU64Slice(): LongArray {
-        val count = readUvarint().toInt()
+        val count = readCount()
         val bytes = readFully(count * 8)
         val result = LongArray(count)
         for (i in 0 until count) {
@@ -457,7 +459,7 @@ private class SrsInput(private val input: InputStream) {
     }
 
     fun readU16Slice(): List<Int> {
-        val count = readUvarint().toInt()
+        val count = readCount()
         val bytes = readFully(count * 2)
         return List(count) { i ->
             ((bytes[i * 2].toInt() and 0xFF) shl 8) or (bytes[i * 2 + 1].toInt() and 0xFF)
@@ -465,14 +467,31 @@ private class SrsInput(private val input: InputStream) {
     }
 
     fun readByteSlice(): ByteArray {
-        val count = readUvarint().toInt()
+        val count = readCount()
         return readFully(count)
+    }
+
+    /**
+     * A count, checked before it is used to allocate.
+     *
+     * Every length in this format is a uvarint, and a corrupt or hostile file
+     * can claim two billion entries; allocating on that number turns a bad
+     * download into an OOM in the middle of a connect. The real sets are far
+     * below the cap (geosite-cn is 18k names, geoip-cn 6.7k ranges), so a
+     * million is 50x headroom and still bounds the allocation.
+     */
+    private fun readCount(): Int {
+        val count = readUvarint()
+        if (count < 0 || count > MAX_COUNT) {
+            throw SrsFormatException("entry count " + count + " is out of range")
+        }
+        return count.toInt()
     }
 
     fun readString(): String = String(readByteSlice(), Charsets.UTF_8)
 
     fun readStringList(): List<String> {
-        val count = readUvarint().toInt()
+        val count = readCount()
         return List(count) { readString() }
     }
 }
