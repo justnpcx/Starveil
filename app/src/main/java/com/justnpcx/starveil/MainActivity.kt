@@ -235,7 +235,10 @@ class MainActivity : ComponentActivity() {
 private fun StarveilBottomBar(navController: androidx.navigation.NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val hairline = StarveilColors.hairline
+    // The bar's separation from the page is a rule, not an edge highlight:
+    // white 75% on the chrome is brighter than the chrome and reads as a gap.
+    // Same token as a card's internal rules, for the same reason.
+    val hairline = StarveilColors.divider
     val accent = StarveilColors.accent
 
     Column(
