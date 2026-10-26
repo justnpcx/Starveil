@@ -55,5 +55,19 @@
     <string name="dashboard_notice_kernel_refused_reason">内核启动失败：%1$s</string>
     <string name="dashboard_mode_auto">自动</string>
     <string name="dashboard_mode_manual">手动</string>
-    <string name="dashboard_exit">出口 %1$s · %2$d ms</string>
+    <string name="dashboard_exit">出口 IP %1$s · 往返时延 %2$d ms</string>
+<string name="dashboard_first_connect_hint">点按圆环连接</string>
+    <string name="dashboard_health_collecting">正在采样：%1$d / %2$d 次。够画出形状时才显示曲线。</string>
+    <string name="dashboard_health_all_unreachable">该时间窗内 %1$d 次探测全部不可达，没有可画的延迟样本。</string>
+    <string name="dashboard_health_summary">延迟 EMA %1$d ms · %2$d / %3$d 次可达</string>
+    <string name="dashboard_health_details_title">节点健康</string>
+    <string name="dashboard_health_legend_availability">在线率——探测有回应的比例。</string>
+    <string name="dashboard_health_legend_ema">延迟 EMA——只对成功回来的探测做平滑。</string>
+    <string name="dashboard_health_legend_loss">丢包点——每次没有回应的探测画一个点，不参与延迟曲线。</string>
+    <string name="dashboard_exit_details_title">出口</string>
+    <string name="dashboard_exit_address">出口 IP</string>
+    <string name="dashboard_exit_rtt">往返时延</string>
+    <string name="dashboard_exit_rtt_value">%1$d ms</string>
+    <string name="dashboard_exit_measured">检测时间</string>
+    <string name="dashboard_exit_note">往返时延包含一次第三方请求的 DNS、连接与 TLS 耗时，不是 ping。</string>
 </resources>

@@ -66,6 +66,12 @@ data class DashboardUiState(
 
     /** What the exit looks like from outside, or null until it has been asked. */
     val exit: com.justnpcx.starveil.core.data.network.ExitInfo? = null,
+
+    /**
+     * False only on an install that has never had a tunnel up. The ring's
+     * hint is shown exactly then.
+     */
+    val everConnected: Boolean = false,
     val isBusy: Boolean = false,
     /** What to tell the user, as data. See [DashboardNotice]. */
     val notice: DashboardNotice? = null,
@@ -353,6 +359,12 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update { it.copy(leakDetected = record.leaking) }
             }
         }
+        // Whether the ring still needs explaining.
+        scope.launch {
+            preferences.hasConnectedOnce.collect { ever ->
+                _uiState.update { it.copy(everConnected = ever) }
+            }
+        }
     }
 
     /**
@@ -543,6 +555,8 @@ class DashboardViewModel @Inject constructor(
                         notice = null,
                     )
                 }
+                // The ring's first-connect hint is answered for good now.
+                preferences.markConnectedOnce()
                 startStatsLoop()
                 // The tunnel exists; whether it carries anything is a separate
                 // question, and the one the user finds out about the hard way.

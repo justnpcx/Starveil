@@ -11,6 +11,6 @@
     <string name="logs_no_matches_body">Nothing matches the current search or level filter.</string>
 
     <!-- Export: copies the visible lines to the clipboard. -->
-    <string name="logs_copy">Copy</string>
+    <string name="logs_copy">Copy shown</string>
     <string name="logs_copied">Copied</string>
 </resources>

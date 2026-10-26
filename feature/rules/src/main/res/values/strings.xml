@@ -111,10 +111,22 @@
     <string name="scenes_ssids_hint">Comma separated. Empty matches any Wi-Fi.</string>
     <string name="scenes_preset">Routing preset</string>
     <string name="scenes_target">Node</string>
-    <string name="scenes_target_keep">Keep the current one</string>
+    <string name="scenes_target_keep">Keep the current node</string>
     <string name="scenes_save">Save</string>
     <string name="scenes_cancel">Cancel</string>
     <string name="scenes_permission_title">Wi-Fi names need location permission</string>
     <string name="scenes_permission_body">Used only to read the name of the network you are on, so a scene can match it. Nothing is recorded, and nothing leaves the phone. Without it, scenes can still match mobile data or any Wi-Fi.</string>
     <string name="scenes_permission_grant">Allow</string>
+<string name="scenes_empty_example">Home Wi-Fi → Bypass mainland</string>
+    <string name="scenes_empty_action">Create the first scene</string>
+    <string name="scenes_name_example">Home</string>
+    <string name="scenes_ssids_known">Networks this device knows</string>
+<string name="rules_value_example_domain">www.example.com</string>
+    <string name="rules_value_hint_domain">Matches this host exactly. There are no wildcards here: *.example.com is not a pattern.</string>
+    <string name="rules_value_example_suffix">example.com</string>
+    <string name="rules_value_hint_suffix">Matches this domain and every subdomain. No leading dot needed.</string>
+    <string name="rules_value_example_keyword">google</string>
+    <string name="rules_value_hint_keyword">Matches any domain that contains this text.</string>
+    <string name="rules_value_example_cidr">192.168.1.0/24</string>
+    <string name="rules_value_hint_cidr">An address or a CIDR block, e.g. 10.0.0.5 or 10.0.0.0/8.</string>
 </resources>

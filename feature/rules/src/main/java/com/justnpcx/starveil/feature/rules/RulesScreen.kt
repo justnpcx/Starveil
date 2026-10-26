@@ -573,54 +573,78 @@ private fun RuleDialog(
                     text = stringResource(R.string.rules_match_label),
                     style = StarveilType.label,
                 )
-                // The four matchers do not fit on a phone. The row scrolls, but
-                // nothing said so — the fourth chip was simply cut off. A fade
-                // at the edge is the hint, and it only appears while there is
-                // more to the right, so a wide screen shows no affordance it
-                // does not need.
-                val matcherScroll = rememberScrollState()
-                // Read outside the draw block: StarveilColors is a composable
-                // lookup, and drawWithContent is not a composable scope.
-                val fadeTo = StarveilColors.surfaceSolid
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .drawWithContent {
-                            drawContent()
-                            if (matcherScroll.canScrollForward) {
-                                val fade = MATCHER_FADE.toPx()
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, fadeTo),
-                                        startX = size.width - fade,
-                                        endX = size.width,
-                                    ),
-                                )
+                // Four matchers, two rows, all visible. They used to sit in a
+                // horizontal scroll with a fade, and the fourth — the one most
+                // people wanted — was the one behind the fade. A fifth kind
+                // would go back to a scrolling row; see the commit that added
+                // this.
+                if (MatcherKind.entries.size <= 4) {
+                    Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                        MatcherKind.entries.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                            ) {
+                                pair.forEach { candidate ->
+                                    StarveilChip(
+                                        label = kindLabel(candidate),
+                                        selected = kind == candidate,
+                                        onClick = { kind = candidate },
+                                        surface = ChipSurface.Dialog,
+                                    )
+                                }
                             }
-                        },
-                ) {
-                    Row(
+                        }
+                    }
+                } else {
+                    val matcherScroll = rememberScrollState()
+                    val fadeTo = StarveilColors.surfaceSolid
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(matcherScroll)
-                            .padding(end = StarveilSpacing.sm),
-                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                            .drawWithContent {
+                                drawContent()
+                                if (matcherScroll.canScrollForward) {
+                                    val fade = MATCHER_FADE.toPx()
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(Color.Transparent, fadeTo),
+                                            startX = size.width - fade,
+                                            endX = size.width,
+                                        ),
+                                    )
+                                }
+                            },
                     ) {
-                        MatcherKind.entries.forEach { candidate ->
-                            StarveilChip(
-                                label = kindLabel(candidate),
-                                selected = kind == candidate,
-                                onClick = { kind = candidate },
-                                surface = ChipSurface.Dialog,
-                            )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(matcherScroll)
+                                .padding(end = StarveilSpacing.sm),
+                            horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                        ) {
+                            MatcherKind.entries.forEach { candidate ->
+                                StarveilChip(
+                                    label = kindLabel(candidate),
+                                    selected = kind == candidate,
+                                    onClick = { kind = candidate },
+                                    surface = ChipSurface.Dialog,
+                                )
+                            }
                         }
                     }
                 }
+                // The example and the hint follow the matcher: "example.com"
+                // means one thing to `domain` (that host, exactly) and another
+                // to `domain_suffix` (that host and everything under it), and
+                // the field alone made the user guess which.
                 StarveilTextField(
                     value = value,
                     onValueChange = { value = it },
                     label = stringResource(R.string.rules_value_label),
-                                        modifier = Modifier.fillMaxWidth(),
+                    placeholder = valueExample(kind),
+                    supportingText = valueHint(kind),
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     text = stringResource(R.string.rules_action_label),
@@ -975,6 +999,34 @@ private const val PAUSE_AFTER_SCROLL_MS = 900L
 
 /** The same shape the log viewer uses, so two lists of times read alike. */
 private val FLOW_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+
+/**
+ * The example for the value field, per matcher.
+ *
+ * These are not decoration: `domain` is an exact host and `domain_suffix` is
+ * that host plus everything under it, so the same string means two different
+ * matches. The examples come from the fields sing-box actually receives (see
+ * `ConfigBuilder`, which writes `kind.wireName to listOf(value)`).
+ */
+@Composable
+private fun valueExample(kind: MatcherKind): String = stringResource(
+    when (kind) {
+        MatcherKind.DOMAIN -> R.string.rules_value_example_domain
+        MatcherKind.DOMAIN_SUFFIX -> R.string.rules_value_example_suffix
+        MatcherKind.DOMAIN_KEYWORD -> R.string.rules_value_example_keyword
+        MatcherKind.IP_CIDR -> R.string.rules_value_example_cidr
+    },
+)
+
+@Composable
+private fun valueHint(kind: MatcherKind): String = stringResource(
+    when (kind) {
+        MatcherKind.DOMAIN -> R.string.rules_value_hint_domain
+        MatcherKind.DOMAIN_SUFFIX -> R.string.rules_value_hint_suffix
+        MatcherKind.DOMAIN_KEYWORD -> R.string.rules_value_hint_keyword
+        MatcherKind.IP_CIDR -> R.string.rules_value_hint_cidr
+    },
+)
 
 @Composable
 private fun kindLabel(kind: MatcherKind): String = stringResource(

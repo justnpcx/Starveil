@@ -105,10 +105,22 @@
     <string name="scenes_ssids_hint">用逗号分隔。留空表示任意 Wi-Fi。</string>
     <string name="scenes_preset">路由预设</string>
     <string name="scenes_target">节点</string>
-    <string name="scenes_target_keep">保持当前</string>
+    <string name="scenes_target_keep">保持当前节点不变</string>
     <string name="scenes_save">保存</string>
     <string name="scenes_cancel">取消</string>
     <string name="scenes_permission_title">读取 Wi-Fi 名称需要位置权限</string>
     <string name="scenes_permission_body">仅用于识别你当前连接的 Wi-Fi 名称，供场景匹配。不记录、不上传，也不采集位置轨迹。拒绝后场景仍可按移动数据或「任意 Wi-Fi」触发。</string>
     <string name="scenes_permission_grant">允许</string>
+<string name="scenes_empty_example">连上家里 Wi-Fi → 绕过中国大陆</string>
+    <string name="scenes_empty_action">新建第一个场景</string>
+    <string name="scenes_name_example">家里</string>
+    <string name="scenes_ssids_known">这台设备知道的网络</string>
+<string name="rules_value_example_domain">www.example.com</string>
+    <string name="rules_value_hint_domain">只匹配这个域名本身。这里没有通配符，*.example.com 不是有效写法。</string>
+    <string name="rules_value_example_suffix">example.com</string>
+    <string name="rules_value_hint_suffix">匹配这个域名及其所有子域名。不需要写前导点。</string>
+    <string name="rules_value_example_keyword">google</string>
+    <string name="rules_value_hint_keyword">匹配任何包含这段文字的域名。</string>
+    <string name="rules_value_example_cidr">192.168.1.0/24</string>
+    <string name="rules_value_hint_cidr">单个地址或 CIDR 网段，例如 10.0.0.5 或 10.0.0.0/8。</string>
 </resources>

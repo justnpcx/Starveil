@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.feature.rules
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,11 +11,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,12 +62,14 @@ import com.justnpcx.starveil.core.model.SceneTarget
 import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.ui.components.ChipSurface
+import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.components.StarveilFab
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
+import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /**
@@ -154,9 +164,15 @@ fun ScenesScreen(
             }
 
             if (state.isEmpty) {
-                EmptyState(
-                    title = stringResource(R.string.scenes_empty_title),
-                    body = stringResource(R.string.scenes_empty_body),
+                // A definition is not an example. The card shows the shape of a
+                // scene with a real preset, and the button is where the eye
+                // already is — the FAB alone left the middle of the screen
+                // saying nothing and the only way forward in a corner.
+                SceneEmptyState(
+                    onCreate = {
+                        editing = null
+                        showDialog = true
+                    },
                 )
             } else {
                 LazyColumn(
@@ -182,11 +198,19 @@ fun ScenesScreen(
     }
 
     if (showDialog) {
-        SceneDialog(
+        SceneSheet(
             initial = editing,
             profiles = state.profiles,
             groups = state.groups,
             ssidReadable = ssidReadable,
+            knownSsids = remember(state.scenes, ssidReadable, context) {
+                buildList {
+                    if (ssidReadable) currentSsid(context)?.let { add(it) }
+                    state.scenes.forEach { scene ->
+                        (scene.trigger as? SceneTrigger.Wifi)?.ssids?.forEach { add(it) }
+                    }
+                }.distinct()
+            },
             onDismiss = { showDialog = false },
             onSave = { scene ->
                 viewModel.save(scene)
@@ -258,12 +282,76 @@ private fun RoutePreset.labelRes(): Int = when (this) {
     RoutePreset.GLOBAL_DIRECT -> R.string.rules_preset_direct_title
 }
 
+/**
+ * The empty state: one example, one button.
+ *
+ * "A scene applies a route preset when the network matches" is a definition,
+ * and a definition is not a starting point. The example uses the preset the
+ * app actually ships as its default, so what it describes is what the first
+ * scene will do.
+ */
 @Composable
-private fun SceneDialog(
+private fun SceneEmptyState(onCreate: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(StarveilSpacing.lg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        StarveilCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(StarveilSpacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.scenes_empty_title),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                Text(
+                    text = stringResource(R.string.scenes_empty_body),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                Text(
+                    text = stringResource(R.string.scenes_empty_example),
+                    style = StarveilType.tech,
+                    color = StarveilColors.accentText,
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+                StarveilButton(
+                    text = stringResource(R.string.scenes_empty_action),
+                    onClick = onCreate,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Creating or editing a scene, as a sheet.
+ *
+ * A five-group form in a centred dialog put the keyboard on top of the save
+ * button. A sheet that takes most of the screen, scrolls its fields and keeps
+ * the buttons in a footer above the keyboard is the same form with room to
+ * fill it in.
+ *
+ * "Keep the current node" is spelled out: "keep" alone did not say what was
+ * being kept. Wi-Fi names can be picked from the networks this device already
+ * knows about when the SSID is readable — the current network, and the ones
+ * other scenes use — and the text field stays for anything else, which is also
+ * the whole input when the permission is missing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SceneSheet(
     initial: Scene?,
     profiles: List<Profile>,
     groups: List<ProxyGroup>,
     ssidReadable: Boolean,
+    knownSsids: List<String>,
     onDismiss: () -> Unit,
     onSave: (Scene) -> Unit,
 ) {
@@ -279,23 +367,45 @@ private fun SceneDialog(
     var preset by remember { mutableStateOf(initial?.preset ?: RoutePreset.BYPASS_MAINLAND) }
     var target by remember { mutableStateOf(initial?.target) }
 
-    AlertDialog(
+    fun chosenSsids(): List<String> = ssids.split(',', '，').map { it.trim() }.filter { it.isNotEmpty() }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
+        containerColor = StarveilColors.surfaceSolid,
+        shape = StarveilShapes.sheet,
+        dragHandle = null,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.94f)
+                .imePadding()
+                .navigationBarsPadding(),
+        ) {
             Text(
-                stringResource(if (initial == null) R.string.scenes_new else R.string.scenes_edit),
+                text = stringResource(if (initial == null) R.string.scenes_new else R.string.scenes_edit),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.pageMargin,
+                    end = StarveilSpacing.pageMargin,
+                    top = StarveilSpacing.xl,
+                    bottom = StarveilSpacing.md,
+                ),
             )
-        },
-        text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = StarveilSpacing.pageMargin),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
                 StarveilTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = stringResource(R.string.scenes_name),
-                                        modifier = Modifier.fillMaxWidth(),
+                    placeholder = stringResource(R.string.scenes_name_example),
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
@@ -325,9 +435,38 @@ private fun SceneDialog(
                         value = ssids,
                         onValueChange = { ssids = it },
                         label = stringResource(R.string.scenes_ssids),
-                                                supportingText = stringResource(R.string.scenes_ssids_hint),
+                        supportingText = stringResource(R.string.scenes_ssids_hint),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (ssidReadable && knownSsids.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.scenes_ssids_known),
+                            style = StarveilType.tech,
+                            color = StarveilColors.ink2,
+                        )
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                        ) {
+                            knownSsids.forEach { ssid ->
+                                val selected = chosenSsids().any { it.equals(ssid, ignoreCase = true) }
+                                StarveilChip(
+                                    label = ssid,
+                                    selected = selected,
+                                    surface = ChipSurface.Dialog,
+                                    onClick = {
+                                        val current = chosenSsids()
+                                        ssids = if (selected) {
+                                            current.filterNot { it.equals(ssid, ignoreCase = true) }
+                                                .joinToString(", ")
+                                        } else {
+                                            (current + ssid).joinToString(", ")
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Text(
@@ -372,39 +511,69 @@ private fun SceneDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank(),
-                onClick = {
-                    onSave(
-                        Scene(
-                            id = initial?.id ?: System.currentTimeMillis(),
-                            name = name.trim(),
-                            trigger = if (mobile) {
-                                SceneTrigger.Mobile
-                            } else {
-                                SceneTrigger.Wifi(
-                                    ssids.split(',', '，')
-                                        .map { it.trim() }
-                                        .filter { it.isNotEmpty() },
-                                )
-                            },
-                            preset = preset,
-                            target = target,
-                        ),
-                    )
-                },
+            // Outside the scroll area and above the keyboard: the one control
+            // the form exists for is never the thing that has to be scrolled to.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        top = StarveilSpacing.md,
+                        bottom = StarveilSpacing.lg,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.scenes_save))
+                StarveilButton(
+                    text = stringResource(R.string.scenes_save),
+                    enabled = name.isNotBlank(),
+                    onClick = {
+                        onSave(
+                            Scene(
+                                id = initial?.id ?: System.currentTimeMillis(),
+                                name = name.trim(),
+                                trigger = if (mobile) {
+                                    SceneTrigger.Mobile
+                                } else {
+                                    SceneTrigger.Wifi(chosenSsids())
+                                },
+                                preset = preset,
+                                target = target,
+                            ),
+                        )
+                    },
+                )
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.scenes_cancel))
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.scenes_cancel))
-            }
-        },
-    )
+        }
+    }
+}
+
+/**
+ * The network the phone is on now, or null.
+ *
+ * Deprecated and still the only way to read an SSID without a system app:
+ * Android 13's transport info carries it only when the caller holds location,
+ * which is the same condition this checks. A failure returns null, which the
+ * sheet reads as "no suggestions" rather than as an error.
+ */
+@SuppressLint("MissingPermission")
+private fun currentSsid(context: android.content.Context): String? {
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) !=
+        PackageManager.PERMISSION_GRANTED
+    ) {
+        return null
+    }
+    return runCatching {
+        val manager = context.applicationContext.getSystemService(android.net.wifi.WifiManager::class.java)
+            ?: return null
+        @Suppress("DEPRECATION")
+        val raw = manager.connectionInfo?.ssid ?: return null
+        raw.removeSurrounding("\"").takeIf { it.isNotBlank() && it != android.net.wifi.WifiManager.UNKNOWN_SSID }
+    }.getOrNull()
 }
 
 @Composable

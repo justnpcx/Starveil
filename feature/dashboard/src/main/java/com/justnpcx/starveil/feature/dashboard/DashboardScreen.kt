@@ -85,6 +85,8 @@ fun DashboardScreen(
     // The notice whose details are open, if any. Held here rather than in the
     // view model: it is whether a dialog is showing, not what the app knows.
     var details by remember { mutableStateOf<DashboardNotice?>(null) }
+    var healthOpen by remember { mutableStateOf(false) }
+    var exitOpen by remember { mutableStateOf(false) }
 
     // A persistent notice is a condition that lasts until something changes —
     // it gets the fixed slot. Everything else is a one-off confirmation and
@@ -157,6 +159,21 @@ fun DashboardScreen(
                     .height(CONTEXT_SLOT_HEIGHT),
                 contentAlignment = Alignment.Center,
             ) {
+                // The hint lives in the slot that already exists for one line
+                // of state explanation, so showing and hiding it cannot move
+                // the ring, the rates, or anything below.
+                val firstConnectHint = !state.everConnected &&
+                    state.coreState == ConnectionState.DISCONNECTED &&
+                    noticeText == null
+                if (firstConnectHint) {
+                    Text(
+                        text = stringResource(R.string.dashboard_first_connect_hint),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (persistent && noticeText != null) {
                     val expandable = notice is DashboardNotice.KernelRefused
                     Text(
@@ -198,17 +215,14 @@ fun DashboardScreen(
             // "collecting" in words until there is a shape worth drawing.
             state.health?.let { health ->
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                NodeHealthSection(
+                // A summary, not the chart: a curve with three reachable
+                // samples reads as "broken" at a glance even when the tunnel is
+                // fine. The chart is one tap away, with the sentence that says
+                // what each mark on it means.
+                NodeHealthSummary(
                     health = health,
-                    // weight() inside a scrolling column gets no height at all,
-                    // so in landscape the card was composed and invisible — the
-                    // dashboard looked like it had no health section on a TV.
-                    modifier = if (landscape) {
-                        Modifier.fillMaxWidth()
-                    } else {
-                        Modifier.weight(1f, fill = false).fillMaxWidth()
-                    },
-                    chartHeight = if (landscape) 160.dp else null,
+                    onClick = { healthOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -218,6 +232,9 @@ fun DashboardScreen(
             // exactly like one that works until this line says so.
             state.exit?.let { exit ->
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                // The only visible evidence that the tunnel is not silently
+                // falling back to the local connection, so it stays on the page
+                // and it says what the number is.
                 Text(
                     text = stringResource(
                         R.string.dashboard_exit,
@@ -226,7 +243,11 @@ fun DashboardScreen(
                     ),
                     style = StarveilType.tech,
                     color = StarveilColors.ink2,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(StarveilSpacing.xs))
+                        .clickable(role = Role.Button) { exitOpen = true }
+                        .padding(vertical = StarveilSpacing.xs),
                 )
             }
 
@@ -241,6 +262,18 @@ fun DashboardScreen(
 
         details?.let { notice ->
             FailureDetailsDialog(notice = notice, onDismiss = { details = null })
+        }
+
+        if (healthOpen) {
+            state.health?.let { health ->
+                NodeHealthDetailsDialog(health = health, onDismiss = { healthOpen = false })
+            }
+        }
+
+        if (exitOpen) {
+            state.exit?.let { exit ->
+                ExitDetailsDialog(exit = exit, onDismiss = { exitOpen = false })
+            }
         }
     }
 }
@@ -289,17 +322,25 @@ private fun FailureDetailsDialog(notice: DashboardNotice, onDismiss: () -> Unit)
 }
 
 /**
- * §7.2's health history, in a glass card: the curve, its availability, and the
- * line that says what the area is.
+ * The health card as a summary.
+ *
+ * A diagnostic chart does not belong on the home screen: with three reachable
+ * samples it is a flat line and a row of red dots, which reads as "the tunnel
+ * is broken" while the tunnel is fine. The home screen answers "am I
+ * protected, where, how fast"; the curve answers "how has this node been
+ * behaving", and that is one tap away.
+ *
+ * The summary still refuses to flatter a node: an empty reachable set says so
+ * in words, and it says why — too few samples, or every probe unreachable.
  */
 @Composable
-private fun NodeHealthSection(
+private fun NodeHealthSummary(
     health: NodeHealth,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Non-null only in landscape, where weight() has no bounded height. */
-    chartHeight: Dp? = null,
 ) {
-    StarveilCard(modifier = modifier) {
+    val reachable = health.samples.count { it.reachable }
+    StarveilCard(onClick = onClick, modifier = modifier) {
         Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
             Row(
                 modifier = Modifier
@@ -316,9 +357,6 @@ private fun NodeHealthSection(
                     modifier = Modifier.weight(1f),
                 )
                 if (!health.collecting) {
-                    // The bar's colour is the band; the number makes it readable
-                    // without having to judge a shade — and colour alone is not
-                    // a signal for everyone.
                     Text(
                         text = stringResource(
                             R.string.dashboard_health_availability,
@@ -333,29 +371,140 @@ private fun NodeHealthSection(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-            val reachable = health.samples.filter { it.reachable }
-            NodeHealthChart(
-                health = health,
-                height = chartHeight,
-                contentDescription = if (reachable.isEmpty()) {
-                    stringResource(R.string.dashboard_health_chart_empty)
-                } else {
-                    stringResource(
-                        R.string.dashboard_health_chart_desc,
-                        reachable.size,
-                        reachable.minOf { it.latencyMs },
-                        reachable.maxOf { it.latencyMs },
+            Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+            Text(
+                text = when {
+                    health.collecting -> stringResource(
+                        R.string.dashboard_health_collecting,
+                        health.samples.size,
+                        NodeHealth.MIN_SAMPLES,
+                    )
+                    reachable == 0 -> stringResource(
+                        R.string.dashboard_health_all_unreachable,
+                        health.samples.size,
+                    )
+                    else -> stringResource(
+                        R.string.dashboard_health_summary,
+                        health.emaMs ?: 0L,
+                        reachable,
+                        health.samples.size,
                     )
                 },
-                modifier = if (chartHeight == null) {
-                    // The chart absorbs whatever the fixed blocks left.
-                    Modifier.fillMaxWidth().heightIn(min = HEALTH_MIN_HEIGHT)
-                } else {
-                    Modifier.fillMaxWidth()
-                },
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+/**
+ * The curve, and what its three marks mean.
+ *
+ * The legend is the point of the dialog: "availability", "latency EMA" and
+ * "loss dots" are three different measurements, and a user who reads them as
+ * one line will think a node with 3% availability is a node that is fast.
+ */
+@Composable
+private fun NodeHealthDetailsDialog(health: NodeHealth, onDismiss: () -> Unit) {
+    val reachable = health.samples.filter { it.reachable }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dashboard_health_details_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                NodeHealthChart(
+                    health = health,
+                    contentDescription = if (reachable.isEmpty()) {
+                        stringResource(R.string.dashboard_health_chart_empty)
+                    } else {
+                        stringResource(
+                            R.string.dashboard_health_chart_desc,
+                            reachable.size,
+                            reachable.minOf { it.latencyMs },
+                            reachable.maxOf { it.latencyMs },
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = HEALTH_MIN_HEIGHT),
+                )
+                if (reachable.isEmpty()) {
+                    Text(
+                        text = stringResource(
+                            R.string.dashboard_health_all_unreachable,
+                            health.samples.size,
+                        ),
+                        style = StarveilType.label,
+                        color = StarveilColors.errText,
+                    )
+                }
+                HealthLegend(stringResource(R.string.dashboard_health_legend_availability))
+                HealthLegend(stringResource(R.string.dashboard_health_legend_ema))
+                HealthLegend(stringResource(R.string.dashboard_health_legend_loss))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dashboard_failure_close))
+            }
+        },
+    )
+}
+
+@Composable
+private fun HealthLegend(text: String) {
+    Text(text = text, style = StarveilType.tech, color = StarveilColors.ink2)
+}
+
+/**
+ * What the exit line measured, in full.
+ *
+ * The number on the home screen is one line and has to stay one line; this is
+ * where "which address, how long, and when" lives. The round trip includes DNS
+ * and TLS, which is why it is called a round trip and not a ping.
+ */
+@Composable
+private fun ExitDetailsDialog(
+    exit: com.justnpcx.starveil.core.data.network.ExitInfo,
+    onDismiss: () -> Unit,
+) {
+    val time = remember(exit.atEpochMs) {
+        java.text.SimpleDateFormat("HH:mm:ss", Locale.US).format(java.util.Date(exit.atEpochMs))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dashboard_exit_details_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                DetailLine(stringResource(R.string.dashboard_exit_address), exit.address)
+                DetailLine(
+                    stringResource(R.string.dashboard_exit_rtt),
+                    stringResource(R.string.dashboard_exit_rtt_value, exit.rttMs),
+                )
+                DetailLine(stringResource(R.string.dashboard_exit_measured), time)
+                Text(
+                    text = stringResource(R.string.dashboard_exit_note),
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink3,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dashboard_failure_close))
+            }
+        },
+    )
+}
+
+@Composable
+private fun DetailLine(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(text = label, style = StarveilType.label, color = StarveilColors.ink2)
+        Text(text = value, style = StarveilType.tech, color = StarveilColors.ink)
     }
 }
 
