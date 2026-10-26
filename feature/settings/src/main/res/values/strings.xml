@@ -12,12 +12,12 @@
     <string name="kill_switch_always_desc">Block all traffic and show an explicit blocked state.</string>
     <!-- The second lock: the system's always-on VPN, which survives a crash. -->
     <string name="kill_switch_system_link">Open system VPN settings</string>
-    <string name="kill_switch_system_desc">The modes above are enforced by this app: they pause when the process ends and resume the next time Starveil starts. For a lock that never pauses, turn on “Always-on VPN” and “Block connections without VPN” for Starveil in the system settings — the system then blocks traffic until Starveil is running again.</string>
+    <string name="kill_switch_system_desc">Pauses with the process, resumes on the next start. For a lock that never pauses, use “Always-on VPN” in system settings.</string>
 
     <string name="auto_reconnect_title">Auto-reconnect</string>
     <string name="auto_reconnect_desc">Bring the tunnel back up if it drops unexpectedly. Retries once per drop.</string>
     <string name="auto_switch_title">Switch node on drop</string>
-    <string name="auto_switch_desc">When the tunnel drops, reconnect through the next-best node instead of the one that just failed. Groups already pick for themselves, so this only applies to a single node.</string>
+    <string name="auto_switch_desc">On a drop, reconnect through the next-best node. Single nodes only.</string>
 
     <string name="per_app_entry_title">Per-app routing</string>
     <string name="per_app_entry_desc">Send individual apps direct, or through a specific node.</string>
@@ -63,7 +63,7 @@
     <!-- Developer options: the local Clash-compatible API. Off by default. -->
     <string name="settings_developer_title">Developer options</string>
     <string name="settings_local_api_title">Local API</string>
-    <string name="settings_local_api_desc">Clash-compatible, loopback only (%1$s). Every request needs the token below.</string>
+    <string name="settings_local_api_desc">Clash-compatible, loopback only (%1$s). Needs the token below.</string>
     <string name="settings_local_api_address">Listening on %1$s — not reachable from other devices.</string>
     <string name="settings_local_api_copy">Copy token</string>
     <string name="settings_local_api_reset">Reset token</string>
@@ -150,16 +150,17 @@
     <string name="keepalive_details_body">Where most ROMs keep the background and power switches for one app.</string>
     <string name="keepalive_action_open">Open</string>
     <string name="settings_group_connection">Connection</string>
-    <string name="settings_group_per_app">Per-app routing</string>
-    <string name="settings_group_keepalive">Background</string>
-    <string name="settings_group_backup">Backup</string>
-    <string name="settings_group_leak_check">Leak self-check</string>
-    <string name="settings_group_developer">Developer options</string>
+    <string name="settings_group_routing">Routing and background</string>
+    <string name="settings_group_diagnostics">Data, security and diagnostics</string>
     <string name="settings_group_about">About</string>
     <string name="settings_version_title">Starveil</string>
     <string name="settings_dns_metrics_title">DNS sampling</string>
-    <string name="settings_dns_metrics_desc">Time every lookup and keep the last 512. 4 KB, on unless turned off.</string>
+    <string name="settings_dns_metrics_desc">Times every lookup, keeps the last 512.</string>
     <string name="settings_dns_metrics_empty">No samples yet.</string>
     <string name="settings_dns_metrics_stats">%1$d samples · p50 %2$d ms · p95 %3$d ms · fallback %4$d%% · cache %5$d%%</string>
     <string name="settings_dns_metrics_clear">Clear samples</string>
+    <string name="settings_github_repo">GitHub repository</string>
+    <string name="settings_github_changelog">Changelog</string>
+    <string name="settings_github_issues">Report an issue</string>
+    <string name="settings_link_failed">No app can open links on this device</string>
 </resources>

@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -219,8 +220,12 @@ fun SettingsScreen(
             )
         }
 
-        // ---- Per-app routing -----------------------------------------------
-        StarveilGroupHeader(stringResource(R.string.settings_group_per_app))
+        // ---- Routing and background ----------------------------------------
+        // One group, because the two entries answer one question: what happens
+        // to traffic this app is not sending through the tunnel, and what keeps
+        // the tunnel alive. Two groups of one row each was two captions and a
+        // screenful of air.
+        StarveilGroupHeader(stringResource(R.string.settings_group_routing))
         SettingsCard {
             EntryRow(
                 title = stringResource(R.string.per_app_entry_title),
@@ -231,11 +236,7 @@ fun SettingsScreen(
                 },
                 onClick = onOpenPerApp,
             )
-        }
-
-        // ---- Keep-alive -----------------------------------------------------
-        StarveilGroupHeader(stringResource(R.string.settings_group_keepalive))
-        SettingsCard {
+            StarveilDivider(startInset = StarveilSpacing.lg)
             EntryRow(
                 title = stringResource(R.string.keepalive_entry_title),
                 description = stringResource(R.string.keepalive_entry_desc),
@@ -243,8 +244,12 @@ fun SettingsScreen(
             )
         }
 
-        // ---- Backup ---------------------------------------------------------
-        StarveilGroupHeader(stringResource(R.string.settings_group_backup))
+        // ---- Data, security and diagnostics --------------------------------
+        // Everything that answers "what is going on": the backup file, the leak
+        // self-check, the DNS numbers and the local API. The new diagnostics
+        // from this task book belong here too, so they do not start a fifth
+        // group of their own.
+        StarveilGroupHeader(stringResource(R.string.settings_group_diagnostics))
         SettingsCard {
             Row(
                 modifier = Modifier.padding(
@@ -278,11 +283,7 @@ fun SettingsScreen(
                     onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
                 )
             }
-        }
-
-        // ---- Leak self-check ------------------------------------------------
-        StarveilGroupHeader(stringResource(R.string.settings_group_leak_check))
-        SettingsCard {
+            StarveilDivider(startInset = StarveilSpacing.lg)
             Row(
                 modifier = Modifier.padding(
                     start = StarveilSpacing.lg,
@@ -305,11 +306,7 @@ fun SettingsScreen(
                 )
             }
             Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-        }
-
-        // ---- Developer options ---------------------------------------------
-        StarveilGroupHeader(stringResource(R.string.settings_group_developer))
-        SettingsCard {
+            StarveilDivider(startInset = StarveilSpacing.lg)
             // The ring only changes while something resolves, so the row reads
             // it on a slow tick rather than making every lookup flow into the
             // UI: a settings screen has no business observing the DNS path.
@@ -451,6 +448,35 @@ fun SettingsScreen(
                 LinkText(
                     text = stringResource(R.string.settings_privacy),
                     onClick = onOpenPrivacy,
+                )
+            }
+            // The repository, not a marketing page: the changelog is the same
+            // file the release notes are cut from, and the issue tracker is
+            // where a diagnostic bundle is meant to end up. All three leave for
+            // the system browser — an in-app WebView would need its own
+            // permission surface and would be the one place in this app that
+            // loads remote content.
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            Column(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.md,
+                    bottom = StarveilSpacing.md,
+                ),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                LinkText(
+                    text = stringResource(R.string.settings_github_repo),
+                    onClick = { openUrl(context, PROJECT_REPO) },
+                )
+                LinkText(
+                    text = stringResource(R.string.settings_github_changelog),
+                    onClick = { openUrl(context, PROJECT_CHANGELOG) },
+                )
+                LinkText(
+                    text = stringResource(R.string.settings_github_issues),
+                    onClick = { openUrl(context, PROJECT_ISSUES) },
                 )
             }
         }
@@ -949,6 +975,31 @@ private fun KillSwitchMode.descriptionRes(): Int = when (this) {
  * are for a ROM that hides it: a tap that opens the top-level settings is
  * better than a crash, and the string above tells the reader what to look for.
  */
+/**
+ * Where the project lives. Not secrets and not configuration — the same three
+ * addresses anyone reading the About card could type in.
+ */
+private const val PROJECT_REPO = "https://github.com/justnpcx/Starveil"
+private const val PROJECT_CHANGELOG = "https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md"
+private const val PROJECT_ISSUES = "https://github.com/justnpcx/Starveil/issues/new"
+
+/**
+ * Hands a URL to whatever the system uses for links.
+ *
+ * A device with no browser at all is the one case that can fail, and it fails
+ * silently unless it is caught — a link that does nothing is worse than a link
+ * that says why.
+ */
+private fun openUrl(context: Context, url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, R.string.settings_link_failed, Toast.LENGTH_SHORT).show()
+    }
+}
+
 private fun openSystemVpnSettings(context: Context) {
     val actions = listOf(
         Settings.ACTION_VPN_SETTINGS,

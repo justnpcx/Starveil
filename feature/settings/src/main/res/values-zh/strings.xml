@@ -12,12 +12,12 @@
     <string name="kill_switch_always_desc">阻断全部流量，并显示明确的阻断状态。</string>
     <!-- 第二道锁：系统级“始终开启的 VPN”，进程被杀也有效 -->
     <string name="kill_switch_system_link">打开系统 VPN 设置</string>
-    <string name="kill_switch_system_desc">上面的模式由应用自己执行：进程结束时暂停，Starveil 下次启动时恢复。要让锁全程不停，请在系统设置里为 Starveil 打开「始终开启的 VPN」和「阻止未经过 VPN 的连接」——此后系统会在 Starveil 未运行时阻断流量，直到重新打开它。</string>
+    <string name="kill_switch_system_desc">进程结束时暂停，下次启动恢复。要全程不中断，用系统设置里的「始终开启的 VPN」。</string>
 
     <string name="auto_reconnect_title">自动重连</string>
     <string name="auto_reconnect_desc">意外断开时重新建立隧道。每次断开重试一次。</string>
     <string name="auto_switch_title">断开时切换节点</string>
-    <string name="auto_switch_desc">隧道断开时改用次优节点重连，而不是刚失败的那个。分组本身会自己挑节点，所以这只对单个节点生效。</string>
+    <string name="auto_switch_desc">断开时改用次优节点重连，仅对单个节点生效。</string>
 
     <string name="per_app_entry_title">按应用分流</string>
     <string name="per_app_entry_desc">让单个应用直连，或走指定节点。</string>
@@ -62,7 +62,7 @@
     <!-- 开发者选项：本地 Clash 兼容 API，默认关闭 -->
     <string name="settings_developer_title">开发者选项</string>
     <string name="settings_local_api_title">本地 API</string>
-    <string name="settings_local_api_desc">兼容 Clash 的接口，仅监听本机（%1$s）。每个请求都要带下面的 Token。</string>
+    <string name="settings_local_api_desc">仅监听本机（%1$s），每个请求都要带 Token。</string>
     <string name="settings_local_api_address">正在监听 %1$s，其他设备无法访问。</string>
     <string name="settings_local_api_copy">复制 Token</string>
     <string name="settings_local_api_reset">重置 Token</string>
@@ -139,16 +139,17 @@
     <string name="keepalive_details_body">多数 ROM 把单个应用的后台与耗电开关放在这里。</string>
     <string name="keepalive_action_open">去设置</string>
     <string name="settings_group_connection">连接</string>
-    <string name="settings_group_per_app">按应用分流</string>
-    <string name="settings_group_keepalive">后台保活</string>
-    <string name="settings_group_backup">备份</string>
-    <string name="settings_group_leak_check">泄漏自检</string>
-    <string name="settings_group_developer">开发者选项</string>
+    <string name="settings_group_routing">路由与后台</string>
+    <string name="settings_group_diagnostics">数据、安全与诊断</string>
     <string name="settings_group_about">关于</string>
     <string name="settings_version_title">Starveil</string>
     <string name="settings_dns_metrics_title">DNS 采样</string>
-    <string name="settings_dns_metrics_desc">记录每次解析耗时，保留最近 512 次。占 4 KB，默认开启。</string>
+    <string name="settings_dns_metrics_desc">记录每次解析耗时，保留最近 512 次。</string>
     <string name="settings_dns_metrics_empty">暂无样本。</string>
     <string name="settings_dns_metrics_stats">%1$d 次 · p50 %2$d ms · p95 %3$d ms · 回退 %4$d%% · 缓存 %5$d%%</string>
     <string name="settings_dns_metrics_clear">清除样本</string>
+    <string name="settings_github_repo">GitHub 仓库</string>
+    <string name="settings_github_changelog">更新日志</string>
+    <string name="settings_github_issues">反馈问题</string>
+    <string name="settings_link_failed">这台设备上没有能打开链接的应用</string>
 </resources>

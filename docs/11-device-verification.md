@@ -1625,3 +1625,31 @@ val inGroup = when {
 
 **发布验证（v0.8.6）**：Release workflow 由 tag 触发直接发布（run `40280974995`），三个 ABI 的 APK 都在，`draft=false`。`apksigner verify` 的证书 SHA-256 是 `f904a417…0b268c`，与 release key 一致；`aapt2` 读出 `versionCode=806 versionName=0.8.6`。电视上换装这份官方包（就地升级）后复测：对照 `www.cloudflare.com` 403，`doubleclick.net` rc=35 / 47 ms——修复在发布产物里同样生效，不只是本地那版。
 
+## 2026-10-26 · 0.8.6 任务书 A 节（修复）
+
+**开工实查的基线**：`7de4142`（任务书写的 `0028b17` 已不是 HEAD——它之后多了发布 0.8.6、发布验证文档、versionCode 单调性校验三个提交）。以下所有改动基于 `7de4142`。
+
+| 项 | 改动 | 实查依据 |
+|---|---|---|
+| C-1 | `StarveilChip` 的 modifier 链在 `combinedClickable` 前加 `clip(CircleShape)` | 原来只有 `Surface(shape = CircleShape)` 裁自己的背景，不裁点击修饰符画的涟漪；48dp 最小触摸高度让矩形包围盒的四个角露在胶囊外 |
+| C-2 | 场景页 FAB 换成 `StarveilFab` | 原 `FloatingActionButton` 不传颜色，取 `primaryContainer`，而 `withPalette` 没映射它 → Material 默认淡紫 |
+| C-3 | 新增 `divider` 令牌（ink 10%），`StarveilDivider` 与节点行底线改用它 | `hairline` 是白 75%，比 68% 白的卡面更亮，读成"行间空隙"而不是分隔线 |
+| S-1 | 设置页 7 组压成 4 组 | 按应用/后台保活合成「路由与后台」一张卡两行；备份、泄漏自检、DNS、本地 API 合进「数据、安全与诊断」；「开发者选项」标题消失 |
+| S-2 | 四条说明缩短（见下表） | Kill Switch 系统说明中文版 70 字占 4 行 |
+| S-3 | 关于卡加 GitHub 仓库 / 更新日志 / 反馈问题三行 | 主代码里原本搜不到任何 `github.com/justnpcx` 链接 |
+
+### S-2 文案改前改后（中文）
+
+| 键 | 改前 | 改后 |
+|---|---|---|
+| `kill_switch_system_desc` | 上面的模式由应用自己执行：进程结束时暂停，Starveil 下次启动时恢复。要让锁全程不停，请在系统设置里为 Starveil 打开「始终开启的 VPN」和「阻止未经过 VPN 的连接」——此后系统会在 Starveil 未运行时阻断流量，直到重新打开它。（约 110 字） | 进程结束时暂停，下次启动恢复。要全程不中断，用系统设置里的「始终开启的 VPN」。（41 字） |
+| `auto_switch_desc` | 隧道断开时改用次优节点重连，而不是刚失败的那个。分组本身会自己挑节点，所以这只对单个节点生效。（48 字） | 断开时改用次优节点重连，仅对单个节点生效。（24 字） |
+| `settings_local_api_desc` | 兼容 Clash 的接口，仅监听本机（%1$s）。每个请求都要带下面的 Token。（35 字） | 仅监听本机（%1$s），每个请求都要带 Token。（24 字） |
+| `settings_dns_metrics_desc` | 记录每次解析耗时，保留最近 512 次。占 4 KB，默认开启。（30 字） | 记录每次解析耗时，保留最近 512 次。（21 字） |
+
+未改的说明都在两行以内（`auto_reconnect_desc` 25 字、`backup_explainer` 28 字、`per_app_entry_desc` 15 字、`keepalive_entry_desc` 13 字、三条 Kill Switch 模式说明 7–28 字）。
+
+**语义核对**：`kill_switch_system_desc` 的新文案没有把"暂停"写成"永久失效"，也没有把系统锁写成应用内开关——0.8.5 的 `KillSwitch` 持久化是"进程被杀后下次启动恢复"，与"进程结束时暂停"一致；系统那一半仍然只通过链接交给系统设置。
+
+**验证状态**：代码 + 资源改动，`./gradlew :app:assembleDebug` 通过。**真机截图未取**——手机本轮不在线（adb 只有电视），任务书要求手机截图，因此 C-1..C-3、S-1..S-3 的验收项均**未关闭**，等手机上线补。
+
