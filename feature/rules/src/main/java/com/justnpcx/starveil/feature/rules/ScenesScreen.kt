@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -119,6 +121,8 @@ fun ScenesScreen(
 
     Scaffold(
         // No FAB: the add action belongs to the page, not to a floating disc.
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (!state.isEmpty) {
@@ -379,7 +383,7 @@ private fun SceneSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = StarveilColors.surfaceSolid,
+        containerColor = StarveilColors.card,
         shape = StarveilShapes.sheet,
         dragHandle = null,
     ) {

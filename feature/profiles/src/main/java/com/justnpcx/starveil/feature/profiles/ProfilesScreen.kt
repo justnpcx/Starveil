@@ -41,6 +41,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -271,6 +272,9 @@ fun ProfilesScreen(
     Scaffold(
         // Transparent: the ambient gradient behind the app is the page.
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        // The shell owns the window insets; a nested Scaffold adding them again
+        // would push the list down by a status bar.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -322,6 +326,8 @@ fun ProfilesScreen(
                     // of the list is exactly the wrong shape for it — the user
                     // tapped a button and watched the list, not the header.
                     AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
                         onDismissRequest = viewModel::dismissMessage,
                         title = { Text(stringResource(R.string.profiles_group_by_region)) },
                         text = { Text(message.text()) },
@@ -622,6 +628,8 @@ fun ProfilesScreen(
         val group = state.groups.firstOrNull { it.id == menuGroup.id } ?: menuGroup
         val inUse = state.selectedGroupId == group.id
         AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
             onDismissRequest = { groupMenu = null },
             title = { Text(group.name) },
             text = {
@@ -723,7 +731,7 @@ fun ProfilesScreen(
     rowMenu?.let { profile ->
         ModalBottomSheet(
             onDismissRequest = { rowMenu = null },
-            containerColor = StarveilColors.surfaceSolid,
+            containerColor = StarveilColors.card,
             // Same top corners as the add sheet. Without this the menu sheet
             // took Material's default 28dp radius and the two sheets on one
             // screen disagreed.
@@ -783,6 +791,8 @@ fun ProfilesScreen(
 
     nodeToDelete?.let { profile ->
         AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
             onDismissRequest = { nodeToDelete = null },
             title = { Text(stringResource(R.string.profiles_node_delete_title)) },
             text = { Text(stringResource(R.string.profiles_node_delete_body, profile.name)) },
@@ -809,6 +819,8 @@ fun ProfilesScreen(
 
     if (pickingProtocol) {
         AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
             onDismissRequest = { pickingProtocol = false },
             title = { Text(stringResource(R.string.profiles_new_node_title)) },
             text = {
@@ -847,6 +859,8 @@ fun ProfilesScreen(
 
     groupToDelete?.let { group ->
         AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
             onDismissRequest = { groupToDelete = null },
             title = { Text(stringResource(R.string.profiles_group_delete_title)) },
             text = {
@@ -902,6 +916,8 @@ fun ProfilesScreen(
 
     movingProfile?.let { profile ->
         AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
             onDismissRequest = { movingProfile = null },
             title = { Text(stringResource(R.string.profiles_group_move_title, profile.name)) },
             text = {
@@ -948,6 +964,8 @@ private fun GroupNameDialog(
 ) {
     var name by remember(initial) { mutableStateOf(initial) }
     AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -977,6 +995,8 @@ private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
     var copied by remember { mutableStateOf(false) }
 
     AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.profiles_share_title, target.name)) },
         text = {
@@ -1656,6 +1676,8 @@ private fun formatBytes(bytes: Long): String {
 private fun StagedProbeDialog(state: StagedProbeUiState, onDismiss: () -> Unit) {
     if (state is StagedProbeUiState.Idle) return
     AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
         onDismissRequest = onDismiss,
         title = {
             Text(

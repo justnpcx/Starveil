@@ -94,6 +94,7 @@ import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.MonoFamily
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
+import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import java.time.Instant
 import java.time.ZoneId
@@ -286,6 +287,8 @@ fun RulesScreen(
 
     pendingDelete?.let { rule ->
         AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
             onDismissRequest = { pendingDelete = null },
             title = { Text(stringResource(R.string.rules_delete)) },
             text = { Text("${kindLabel(rule.matcher.kind)}: ${rule.matcher.value}") },
@@ -345,6 +348,8 @@ private fun RuleMarketDialog(
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rules_market_title)) },
         text = {
@@ -590,6 +595,8 @@ private fun RuleDialog(
     var action by remember { mutableStateOf(initial?.action ?: RuleAction.PROXY) }
 
     AlertDialog(
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.dialog,
         onDismissRequest = onDismiss,
         title = {
             Text(stringResource(if (initial == null) R.string.rules_add_title else R.string.rules_edit_title))
