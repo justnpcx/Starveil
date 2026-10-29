@@ -300,7 +300,10 @@ class ProfilesViewModel @Inject constructor(
      * never both be set.
      */
     fun selectGroup(group: ProxyGroup) {
-        viewModelScope.launch { preferences.setSelectedGroupId(group.id) }
+        viewModelScope.launch {
+            preferences.setNodeSelectionMode(NodeSelectionMode.MANUAL)
+            preferences.setSelectedGroupId(group.id)
+        }
     }
 
     fun stopUsingGroup() {
