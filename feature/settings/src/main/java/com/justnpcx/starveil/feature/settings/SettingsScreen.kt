@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,14 +57,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.LocalApi
 import java.text.DateFormat
@@ -74,9 +78,11 @@ import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInstaller
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
+import com.justnpcx.starveil.core.ui.R as UiR
+import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilGroupHeader
+import com.justnpcx.starveil.core.ui.components.StarveilSegmented
 import com.justnpcx.starveil.core.ui.components.EmptyState
-import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
 import com.justnpcx.starveil.core.ui.components.StarveilSearchField
 import com.justnpcx.starveil.core.ui.components.StarveilSwitch
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
@@ -167,6 +173,15 @@ fun SettingsScreen(
     fun matches(texts: List<String>): Boolean =
         q.isBlank() || texts.any { it.contains(q, ignoreCase = true) }
 
+    val showAppearance = matches(
+        listOf(
+            stringResource(R.string.appearance_title),
+            stringResource(R.string.appearance_system),
+            stringResource(R.string.appearance_light),
+            stringResource(R.string.appearance_dark),
+            "appearance", "theme", "dark", "light",
+        ),
+    )
     val showConnection = matches(
         listOf(
             stringResource(R.string.settings_group_connection),
@@ -230,7 +245,7 @@ fun SettingsScreen(
         ),
     )
     val nothingMatches = q.isNotBlank() &&
-        !showConnection && !showRouting && !showDiagnostics && !showAbout
+        !showAppearance && !showConnection && !showRouting && !showDiagnostics && !showAbout
 
     LaunchedEffect(updateState) {
         val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
@@ -264,6 +279,36 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_search_empty_title),
                 body = stringResource(R.string.settings_search_empty_body, q),
             )
+        }
+
+        // ---- Appearance ----------------------------------------------------
+        if (showAppearance) {
+            StarveilGroupHeader(stringResource(R.string.appearance_title))
+            SettingsCard {
+                Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                    StarveilSegmented(
+                        options = listOf(
+                            stringResource(R.string.appearance_system),
+                            stringResource(R.string.appearance_light),
+                            stringResource(R.string.appearance_dark),
+                        ),
+                        selectedIndex = when (state.themeMode) {
+                            ThemeMode.SYSTEM -> 0
+                            ThemeMode.LIGHT -> 1
+                            ThemeMode.DARK -> 2
+                        },
+                        onSelect = { index ->
+                            viewModel.setThemeMode(
+                                when (index) {
+                                    0 -> ThemeMode.SYSTEM
+                                    1 -> ThemeMode.LIGHT
+                                    else -> ThemeMode.DARK
+                                },
+                            )
+                        },
+                    )
+                }
+            }
         }
 
         // ---- Connection ----------------------------------------------------
@@ -541,69 +586,80 @@ fun SettingsScreen(
         if (showAbout) {
         StarveilGroupHeader(stringResource(R.string.settings_group_about))
         SettingsCard {
-            ValueRow(
-                title = stringResource(R.string.settings_version_title),
-                value = appVersion.orEmpty(),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Image(
+                    painter = painterResource(UiR.drawable.ic_starveil_mark),
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_version_title),
+                        style = StarveilType.headline,
+                        color = StarveilColors.ink,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_brand_tagline),
+                        style = StarveilType.label.copy(fontSize = 12.sp),
+                        color = StarveilColors.ink2,
+                    )
+                }
+                Text(
+                    text = appVersion.orEmpty(),
+                    style = StarveilType.log,
+                    color = StarveilColors.ink2,
+                )
+            }
             StarveilDivider(startInset = StarveilSpacing.lg)
-            ValueRow(
+            AboutValueRow(
                 title = stringResource(R.string.settings_kernel_title),
-                // The core names itself as \`1.14.3-<commit>\`; the commit is a
-                // build detail, and this row is a version.
                 value = state.kernelVersion.takeIf { it.isNotBlank() }
                     ?.substringBefore('-')
                     ?: stringResource(R.string.settings_kernel_unknown),
             )
             StarveilDivider(startInset = StarveilSpacing.lg)
             Row(
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    top = StarveilSpacing.md,
-                    bottom = StarveilSpacing.md,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
-                LinkText(
+                StarveilButton(
                     text = stringResource(R.string.update_check),
+                    onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
                     enabled = updateState !is UpdateUiState.Checking &&
                         updateState !is UpdateUiState.Downloading,
-                    onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
+                    secondary = true,
+                    modifier = Modifier.weight(1f),
                 )
-                LinkText(
+                StarveilButton(
                     text = stringResource(R.string.settings_privacy),
                     onClick = onOpenPrivacy,
+                    secondary = true,
+                    modifier = Modifier.weight(1f),
                 )
             }
-            // The repository, not a marketing page: the changelog is the same
-            // file the release notes are cut from, and the issue tracker is
-            // where a diagnostic bundle is meant to end up. All three leave for
-            // the system browser — an in-app WebView would need its own
-            // permission surface and would be the one place in this app that
-            // loads remote content.
             StarveilDivider(startInset = StarveilSpacing.lg)
-            Column(
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    top = StarveilSpacing.md,
-                    bottom = StarveilSpacing.md,
-                ),
-                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                LinkText(
-                    text = stringResource(R.string.settings_github_repo),
-                    onClick = { openUrl(context, PROJECT_REPO) },
-                )
-                LinkText(
-                    text = stringResource(R.string.settings_github_changelog),
-                    onClick = { openUrl(context, PROJECT_CHANGELOG) },
-                )
-                LinkText(
-                    text = stringResource(R.string.settings_github_issues),
-                    onClick = { openUrl(context, PROJECT_ISSUES) },
-                )
-            }
+            AboutLinkRow(
+                title = stringResource(R.string.settings_github_repo),
+                onClick = { openUrl(context, PROJECT_REPO) },
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            AboutLinkRow(
+                title = stringResource(R.string.settings_github_changelog),
+                onClick = { openUrl(context, PROJECT_CHANGELOG) },
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            AboutLinkRow(
+                title = stringResource(R.string.settings_github_issues),
+                onClick = { openUrl(context, PROJECT_ISSUES) },
+            )
         }
 
         }
@@ -970,6 +1026,53 @@ private fun ValueRow(title: String, value: String) {
             text = value,
             style = StarveilType.log,
             color = StarveilColors.ink2,
+        )
+    }
+}
+
+
+/** A 48dp read-only row: title on the left, value on the right. */
+@Composable
+private fun AboutValueRow(title: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .padding(horizontal = StarveilSpacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = StarveilType.body,
+            color = StarveilColors.ink,
+            modifier = Modifier.weight(1f),
+        )
+        Text(text = value, style = StarveilType.log, color = StarveilColors.ink2)
+    }
+}
+
+/** A 48dp row that opens the system browser. */
+@Composable
+private fun AboutLinkRow(title: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = StarveilSpacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = StarveilType.body,
+            color = StarveilColors.ink,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = StarveilIcons.Chevron,
+            contentDescription = null,
+            tint = StarveilColors.ink2,
+            modifier = Modifier.size(18.dp),
         )
     }
 }

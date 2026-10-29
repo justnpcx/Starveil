@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_title">设置</string>
+    <string name="settings_brand_tagline">星光为路 · 薄纱为盾</string>
+    <string name="appearance_title">外观</string>
+    <string name="appearance_system">跟随系统</string>
+    <string name="appearance_light">白天</string>
+    <string name="appearance_dark">黑夜</string>
+
+
 
 
     <string name="kill_switch_title">Kill Switch</string>
@@ -227,7 +234,7 @@
     <string name="diagnostics_preview_copy">复制</string>
     <string name="diagnostics_preview_cancel">取消</string>
 <string name="settings_dns_log_title">DNS 日志</string>
-    <string name="settings_dns_log_ok">p50 %1$d ms · 在 30 ms 预算内 · %2$d 次</string>
+    <string name="settings_dns_log_ok">p50 %1$d ms · 低于 30 ms 预算 · %2$d 次</string>
     <string name="settings_dns_log_slow">p50 %1$d ms · 高于 30 ms 预算 · %2$d 次</string>
 <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_empty_title">没有匹配的设置</string>

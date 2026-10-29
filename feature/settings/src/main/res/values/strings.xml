@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_title">Settings</string>
+    <string name="settings_brand_tagline">Starlight for the road · gauze for the shield</string>
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_system">Follow system</string>
+    <string name="appearance_light">Day</string>
+    <string name="appearance_dark">Night</string>
+
+
 
 
     <string name="kill_switch_title">Kill Switch</string>

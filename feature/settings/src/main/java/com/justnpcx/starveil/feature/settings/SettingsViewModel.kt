@@ -23,6 +23,7 @@ import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,6 +44,8 @@ data class SettingsUiState(
     val killSwitchMode: KillSwitchMode = KillSwitchMode.OFF,
     val autoReconnect: Boolean = true,
     val autoSwitchOnDrop: Boolean = true,
+    /** Light, dark, or follow the system. */
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     /**
      * The core's own version string, e.g. `1.14.3-647c447`. Empty until the
@@ -117,6 +120,11 @@ class SettingsViewModel @Inject constructor(
 
     private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val update: StateFlow<UpdateUiState> = _update.asStateFlow()
+
+    /** Persist the appearance choice. The whole app re-themes above this. */
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { preferences.setThemeMode(mode) }
+    }
 
     fun checkForUpdates(currentVersion: String) {
         if (_update.value is UpdateUiState.Checking || _update.value is UpdateUiState.Downloading) return
@@ -231,15 +239,17 @@ class SettingsViewModel @Inject constructor(
 
     private val preferencesState = combine(
         preferences.killSwitchMode,
+        preferences.themeMode,
         // Paired so the typed three-argument combine stays available; the two
         // reconnect switches are read together and always shown together.
         combine(preferences.autoReconnect, preferences.autoSwitchOnDrop) { reconnect, switch ->
             reconnect to switch
         },
         preferences.lastLeakCheck,
-    ) { mode, reconnect, leak ->
+    ) { mode, theme, reconnect, leak ->
         SettingsUiState(
             killSwitchMode = mode,
+            themeMode = theme,
             autoReconnect = reconnect.first,
             autoSwitchOnDrop = reconnect.second,
             lastLeakCheck = leak,
