@@ -24,6 +24,7 @@ import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.NodeStatus
 import com.justnpcx.starveil.core.ui.components.LatencySparkline
 import com.justnpcx.starveil.core.ui.components.StarveilCard
@@ -33,6 +34,7 @@ import com.justnpcx.starveil.core.ui.components.StarveilChipRow
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
 import com.justnpcx.starveil.core.ui.components.StarveilSearchField
+import com.justnpcx.starveil.core.ui.components.StarveilStar
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
@@ -230,6 +232,18 @@ fun ProfilesScreen(
     // neither. Only the colliding names get a suffix, so the ordinary row is
     // unchanged: the last label of the host plus the port is short enough to
     // sit beside the name and specific enough to tell the two apart.
+    // Only groups that actually hold nodes get a chip. A subscription that
+    // refreshed to empty used to leave a chip pointing at nothing.
+    val nonEmptyGroups = remember(state.groups, state.profiles) {
+        state.groups.filter { group ->
+            val region = group.region
+            if (region != null) {
+                state.profiles.any { NodeRegions.resolve(it.name, it.country) == region }
+            } else {
+                state.profiles.any { it.groupId == group.id }
+            }
+        }
+    }
     val disambiguators = remember(state.profiles) {
         state.profiles
             .groupBy { it.displayName() }
@@ -345,7 +359,7 @@ fun ProfilesScreen(
                         viewModel.filterByGroup(null)
                     },
                 )
-                state.groups.forEach { group ->
+                nonEmptyGroups.forEach { group ->
                     GroupChip(
                         label = group.name,
                         selected = state.groupFilter == group.id,
@@ -1183,6 +1197,7 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
  * curve beside a name needs the vertical room a row does not have — hence the
  * spec's 72dp minimum.
  */
+
 @Composable
 private fun NodeRow(
     profile: Profile,
@@ -1197,24 +1212,13 @@ private fun NodeRow(
     onTestClick: () -> Unit,
 ) {
     val reading = latencyReading(profile, health)
-    val wash = StarveilColors.accentWash
     val accent = StarveilColors.accent
     val line = StarveilColors.divider
+    val status = health?.status ?: NodeStatus.UNTESTED
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .drawBehind {
-                // The selected row is marked twice: a cyan rule on its leading
-                // edge and a 12% wash behind it. One cue alone is not enough on
-                // a list where the row above is also a row.
-                if (selected) {
-                    drawRect(color = wash)
-                    drawRect(
-                        color = accent,
-                        topLeft = Offset.Zero,
-                        size = Size(2.dp.toPx(), size.height),
-                    )
-                }
                 if (showDivider) {
                     drawLine(
                         color = line,
@@ -1228,82 +1232,60 @@ private fun NodeRow(
                 onClick = onClick,
                 onLongClick = onLongClick,
                 role = Role.Button,
-                // Long-press is invisible to a screen reader unless it is
-                // named; without this the action simply does not exist there.
                 onLongClickLabel = stringResource(R.string.profiles_node_long_press),
             )
             .heightIn(min = NODE_ROW_MIN_HEIGHT)
-            // The FAB floats over this list's bottom-right corner, so the row
-            // reserves its footprint on the right: 56dp of button plus the
-            // 16dp it sits from the screen edge. Without the gutter a row's
-            // latency — the one number on the right — passes under the button
-            // as the list scrolls, and "under the button" means unreadable and
-            // untappable at the same time.
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .then(
+                if (selected) {
+                    Modifier.border(1.dp, accent, RoundedCornerShape(12.dp))
+                } else {
+                    Modifier
+                },
+            )
+            // The FAB floats over the list's bottom-right corner; the row keeps
+            // its number out from under it.
             .padding(
-                start = StarveilSpacing.lg,
-                top = StarveilSpacing.md,
+                start = 10.dp,
+                top = 12.dp,
                 end = FAB_GUTTER,
-                bottom = StarveilSpacing.md,
+                bottom = 12.dp,
             ),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // The name and the number share a baseline: they are the row's two
-            // readings, and a number that floats at the top-right of the row is
-            // the thing this replaces.
-            Row(modifier = Modifier.fillMaxWidth()) {
-                // A fixed slot: a star that appears and disappears would shift
-                // every name on the list when one node is pinned. A Box of a
-                // fixed size rather than a Text, because a baseline-aligned
-                // empty Text still contributes a baseline to the row and made
-                // every row taller than it was.
-                Box(
-                    modifier = Modifier.size(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (profile.favorite) {
-                        Text(
-                            text = "★",
-                            style = StarveilType.tech,
-                            color = StarveilColors.accentText,
-                        )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                // A fixed slot for the favourite mark, so a pinned row does not
+                // shift every name on the list.
+                Box(modifier = Modifier.size(16.dp), contentAlignment = Alignment.Center) {
+                    if (profile.favorite && !selected) {
+                        Text(text = "★", style = StarveilType.tech, color = accent)
                     }
                 }
-                StatusDot(
-                    status = health?.status ?: NodeStatus.UNTESTED,
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                )
+                // The leading mark is the state, unless this row is the target:
+                // then it is the brand star, and the state moves to the right.
+                if (selected) {
+                    StarveilStar(size = 13.dp)
+                } else {
+                    StatusDot(status = status)
+                }
                 Spacer(modifier = Modifier.width(StarveilSpacing.sm))
                 Text(
-                    // The flag is part of the display name and sits on the same
-                    // baseline as the rest of it.
                     text = profile.displayName(),
                     style = StarveilType.headline,
                     color = StarveilColors.ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .alignByBaseline(),
+                    modifier = Modifier.weight(1f),
                 )
                 if (disambiguator != null) {
-                    // Part of the name's own line, so it survives the title's
-                    // ellipsis: two rows that both read "HY2+Rea…" are told
-                    // apart by "hk1:443" / "jp2:443", not by where the dots fell.
                     Text(
                         text = " · " + disambiguator,
                         style = StarveilType.tech,
-                        color = StarveilColors.ink3,
+                        color = StarveilColors.ink2,
                         maxLines = 1,
-                        modifier = Modifier.alignByBaseline(),
                     )
                 }
-                Spacer(modifier = Modifier.width(StarveilSpacing.md))
-                // A fixed column, right-aligned: the unit must never be clipped
-                // by a long node name, and the column must not jump when a
-                // reading changes width. The number is the node's own
-                // measurement, so tapping it measures *this* node — testing the
-                // selected one from here would measure a different node than the
-                // one under the finger.
+                Spacer(modifier = Modifier.width(StarveilSpacing.sm))
                 Row(
                     modifier = Modifier
                         .width(LATENCY_COLUMN_WIDTH)
@@ -1311,52 +1293,42 @@ private fun NodeRow(
                         .clickable(role = Role.Button, onClick = onTestClick)
                         .padding(horizontal = StarveilSpacing.xs),
                     horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = when (reading) {
-                            is LatencyReading.Value -> reading.ms.toString()
-                            LatencyReading.Timeout ->
-                                stringResource(R.string.profiles_latency_timeout)
-                            LatencyReading.Untested ->
-                                stringResource(R.string.profiles_latency_untested)
-                        },
-                        modifier = Modifier.alignByBaseline(),
-                        style = if (reading is LatencyReading.Value) {
-                            StarveilType.numInline
-                        } else {
-                            StarveilType.tech
-                        },
-                        // Dimmed, not red, when there is no reading: the status
-                        // dot already says "down", and colouring the number too
-                        // would be the same signal twice.
-                        color = if (reading is LatencyReading.Value) {
-                            StarveilColors.ink
-                        } else {
-                            StarveilColors.ink3
-                        },
-                        maxLines = 1,
-                    )
-                    if (reading is LatencyReading.Value) {
-                        Text(
-                            text = " ms",
+                    when (reading) {
+                        is LatencyReading.Value -> {
+                            Text(
+                                text = reading.ms.toString(),
+                                style = StarveilType.numInline,
+                                color = StarveilColors.ink,
+                                maxLines = 1,
+                            )
+                            Text(
+                                text = " ms",
+                                style = StarveilType.tech,
+                                color = StarveilColors.ink2,
+                                maxLines = 1,
+                            )
+                        }
+                        LatencyReading.Timeout -> Text(
+                            text = stringResource(R.string.profiles_latency_timeout),
+                            style = StarveilType.tech,
+                            color = StarveilColors.err,
+                            maxLines = 1,
+                        )
+                        LatencyReading.Untested -> Text(
+                            text = stringResource(R.string.profiles_latency_untested),
                             style = StarveilType.tech,
                             color = StarveilColors.ink2,
-                            modifier = Modifier.alignByBaseline(),
                             maxLines = 1,
                         )
                     }
                 }
             }
             Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-            // One Text, not a Row of five: when the children stopped fitting,
-                // the last one was pushed onto a second line and the row grew the
-                // moment a node was selected. A single string ellipsises at the
-                // end instead, and the warning keeps its colour through a span.
-                // Group first (what the user filed it under), then the protocol
-                // in the mono face, then the address.
             val secondary = buildAnnotatedString {
-                if (selected && health?.status == NodeStatus.DOWN) {
-                    withStyle(SpanStyle(color = StarveilColors.errText)) {
+                if (selected && status == NodeStatus.DOWN) {
+                    withStyle(SpanStyle(color = StarveilColors.err)) {
                         append(stringResource(R.string.profiles_selected_unreachable))
                     }
                     append(" · ")
@@ -1372,17 +1344,16 @@ private fun NodeRow(
             Text(
                 text = secondary,
                 style = StarveilType.label,
-                color = StarveilColors.ink3,
+                color = StarveilColors.ink2,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp),
+                    .padding(start = 24.dp),
             )
         }
     }
 }
-
 /**
  * The status dot (§6.3): green, grey, red.
  *
@@ -1391,21 +1362,28 @@ private fun NodeRow(
  */
 @Composable
 private fun StatusDot(status: NodeStatus, modifier: Modifier = Modifier) {
-    val color = when (status) {
-        NodeStatus.UP -> StarveilColors.ok
-        NodeStatus.DOWN -> StarveilColors.err
-        NodeStatus.UNTESTED -> StarveilColors.ink3
-    }
     val description = when (status) {
         NodeStatus.UP -> stringResource(R.string.profiles_status_up)
         NodeStatus.DOWN -> stringResource(R.string.profiles_status_down)
         NodeStatus.UNTESTED -> stringResource(R.string.profiles_status_untested)
     }
+    // Untested is hollow: a filled grey dot reads as a verdict, and "nobody has
+    // measured this" is the absence of one.
+    if (status == NodeStatus.UNTESTED) {
+        Box(
+            modifier = modifier
+                .size(STATUS_DOT_SIZE)
+                .clip(CircleShape)
+                .border(1.5.dp, StarveilColors.ringOff, CircleShape)
+                .semantics { contentDescription = description },
+        )
+        return
+    }
     Box(
         modifier = modifier
             .size(STATUS_DOT_SIZE)
             .clip(CircleShape)
-            .background(color)
+            .background(if (status == NodeStatus.UP) StarveilColors.accent else StarveilColors.err)
             .semantics { contentDescription = description },
     )
 }

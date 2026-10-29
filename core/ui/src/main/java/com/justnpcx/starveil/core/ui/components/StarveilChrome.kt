@@ -24,6 +24,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -112,20 +117,25 @@ fun StarveilSearchField(
     placeholder: String,
     modifier: Modifier = Modifier,
 ) {
+    var focused by remember { mutableStateOf(false) }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .clip(StarveilShapes.search)
-            .background(StarveilColors.surfaceThin)
-            .border(1.dp, StarveilColors.glassBorder, StarveilShapes.search)
+            .background(StarveilColors.card)
+            .border(
+                1.dp,
+                if (focused) StarveilColors.accent else StarveilColors.line,
+                StarveilShapes.search,
+            )
             .padding(horizontal = StarveilSpacing.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = StarveilIcons.Search,
             contentDescription = null,
-            tint = StarveilColors.ink3,
+            tint = StarveilColors.ink2,
             modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.width(StarveilSpacing.md))
@@ -145,7 +155,9 @@ fun StarveilSearchField(
                 cursorBrush = SolidColor(StarveilColors.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focused = it.isFocused },
             )
         }
         // A clear button, because a search field without one leaves the only
@@ -160,24 +172,7 @@ fun StarveilSearchField(
                 Icon(
                     imageVector = StarveilIcons.Close,
                     contentDescription = stringResource(R.string.core_search_clear),
-                    tint = StarveilColors.ink3,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-        if (value.isNotEmpty()) {
-            Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable(role = Role.Button, onClick = { onValueChange("") }),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = StarveilIcons.Close,
-                    contentDescription = null,
-                    tint = StarveilColors.ink3,
+                    tint = StarveilColors.ink2,
                     modifier = Modifier.size(16.dp),
                 )
             }
