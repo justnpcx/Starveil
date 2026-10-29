@@ -16,7 +16,12 @@ import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
@@ -42,6 +47,12 @@ sealed interface ConnectionTarget {
 private val Context.starveilDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "starveil_preferences",
 )
+
+/**
+ * The old onboarding flag. The preference is gone from the API; this name is
+ * kept only so an install that still has the value can delete it once.
+ */
+private val LEGACY_ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
 
 /**
  * Typed user preferences, backed by DataStore. Feature modules depend on
@@ -303,6 +314,19 @@ class DataStorePreferencesRepository @Inject constructor(
 ) : PreferencesRepository {
 
     private val dataStore = context.starveilDataStore
+
+    init {
+        // One-time purge of the orphaned value left by builds that had the
+        // onboarding screen. It is read once per process and written only when
+        // the key is actually present, so a clean install pays one read.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching {
+                if (dataStore.data.first().contains(LEGACY_ONBOARDING_DONE)) {
+                    dataStore.edit { it.remove(LEGACY_ONBOARDING_DONE) }
+                }
+            }
+        }
+    }
 
     private object Keys {
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
