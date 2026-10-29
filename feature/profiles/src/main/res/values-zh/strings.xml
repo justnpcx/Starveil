@@ -17,6 +17,23 @@
     <string name="profiles_add_clipboard">从剪贴板导入</string>
     <string name="profiles_add_scan">扫描二维码</string>
     <string name="profiles_add_subscription">添加订阅</string>
+    <string name="profiles_fab_add_node">添加节点</string>
+    <string name="profiles_fab_import">导入订阅</string>
+    <string name="profiles_fab_scene">新建场景</string>
+    <string name="profiles_dialog_import_title">导入订阅</string>
+    <string name="profiles_dialog_subscription_hint">订阅链接</string>
+    <string name="profiles_dialog_add_node_title">添加节点</string>
+    <string name="profiles_dialog_paste_link">粘贴链接</string>
+    <string name="profiles_dialog_manual">手动填写</string>
+    <string name="profiles_dialog_link_hint">节点链接</string>
+    <string name="profiles_dialog_cancel">取消</string>
+    <string name="profiles_dialog_import">导入</string>
+    <string name="profiles_dialog_add">添加</string>
+    <string name="profiles_dialog_continue">继续</string>
+    <string name="profiles_dialog_scene_title">新建场景</string>
+    <string name="profiles_dialog_scene_name">场景名</string>
+    <string name="profiles_dialog_create">创建</string>
+
     <string name="profiles_test_selected">测试所选节点</string>
     <string name="profiles_new_node_title">选择协议</string>
     <string name="profiles_row_edit">编辑</string>

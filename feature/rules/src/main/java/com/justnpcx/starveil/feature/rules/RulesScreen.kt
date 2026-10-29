@@ -85,8 +85,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
-import com.justnpcx.starveil.core.ui.components.StarveilFab
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
 import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
 import com.justnpcx.starveil.core.ui.components.StarveilSwitch
@@ -149,6 +149,17 @@ fun RulesScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.sm),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                StarveilButton(
+                    text = stringResource(R.string.rules_add),
+                    onClick = { showAdd = true },
+                )
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // Room for the FAB: without it the last line of the empty state
@@ -157,7 +168,7 @@ fun RulesScreen(
                     start = StarveilSpacing.pageMargin,
                     top = StarveilSpacing.xs,
                     end = StarveilSpacing.pageMargin,
-                    bottom = StarveilSpacing.fabClearance,
+                    bottom = StarveilSpacing.xl,
                 ),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
             ) {
@@ -249,14 +260,6 @@ fun RulesScreen(
                 }
             }
         }
-
-        StarveilFab(
-            contentDescription = stringResource(R.string.rules_add),
-            onClick = { showAdd = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(StarveilSpacing.lg),
-        )
 
         SnackbarHost(
             hostState = snackbar,

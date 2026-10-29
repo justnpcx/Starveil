@@ -21,6 +21,23 @@
     <string name="profiles_add_clipboard">Import from clipboard</string>
     <string name="profiles_add_scan">Scan QR code</string>
     <string name="profiles_add_subscription">Add subscription</string>
+    <string name="profiles_fab_add_node">Add node</string>
+    <string name="profiles_fab_import">Import subscription</string>
+    <string name="profiles_fab_scene">New scene</string>
+    <string name="profiles_dialog_import_title">Import subscription</string>
+    <string name="profiles_dialog_subscription_hint">Subscription URL</string>
+    <string name="profiles_dialog_add_node_title">Add node</string>
+    <string name="profiles_dialog_paste_link">Paste a link</string>
+    <string name="profiles_dialog_manual">Fill in manually</string>
+    <string name="profiles_dialog_link_hint">Node link</string>
+    <string name="profiles_dialog_cancel">Cancel</string>
+    <string name="profiles_dialog_import">Import</string>
+    <string name="profiles_dialog_add">Add</string>
+    <string name="profiles_dialog_continue">Continue</string>
+    <string name="profiles_dialog_scene_title">New scene</string>
+    <string name="profiles_dialog_scene_name">Scene name</string>
+    <string name="profiles_dialog_create">Create</string>
+
     <string name="profiles_test_selected">Test the selected node</string>
     <string name="profiles_new_node_title">Which protocol?</string>
     <string name="profiles_row_edit">Edit</string>

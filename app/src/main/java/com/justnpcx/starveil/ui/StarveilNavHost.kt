@@ -65,6 +65,7 @@ enum class Destination(
 /** Not a tab: reached from Settings, which is where the exception list lives. */
 private const val PER_APP_ROUTE = "perapp"
 private const val SCENES_ROUTE = "scenes"
+private const val SCENES_NEW_ROUTE = "scenes/new?name={name}"
 private const val KEEP_ALIVE_ROUTE = "keepalive"
 private const val RULE_TEST_ROUTE = "ruletest"
 private const val CONNECTIONS_ROUTE = "connections"
@@ -175,6 +176,9 @@ fun StarveilNavHost(
                 onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
                 incomingLink = pendingLink,
                 onLinkHandled = { deepLinks.consume() },
+                onNewScene = { name ->
+                    navController.navigate("scenes/new?name=" + android.net.Uri.encode(name))
+                },
             )
         }
         composable(Destination.RULES.route) {
@@ -203,6 +207,17 @@ fun StarveilNavHost(
         }
         composable(SCENES_ROUTE) {
             ScenesScreen()
+        }
+        composable(
+            route = SCENES_NEW_ROUTE,
+            arguments = listOf(
+                navArgument("name") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+        ) { entry ->
+            ScenesScreen(draftName = entry.arguments?.getString("name"))
         }
         composable(RULE_TEST_ROUTE) {
             RuleTestScreen()

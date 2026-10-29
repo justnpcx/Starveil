@@ -65,7 +65,8 @@ import kotlinx.coroutines.launch
 
 /** Routes that belong to the drawer, and therefore carry the shell's top bar. */
 private val SHELL_ROUTES = setOf(
-    "dashboard", "profiles", "rules", "logs", "settings", "scenes", "ruletest",
+    "dashboard", "profiles", "rules", "logs", "settings", "scenes",
+    "scenes/new?name={name}", "ruletest",
 )
 
 /**
@@ -93,7 +94,7 @@ fun StarveilShell(
         "rules" -> stringResource(R.string.nav_rules)
         "logs" -> stringResource(R.string.nav_logs)
         "settings" -> stringResource(R.string.nav_settings)
-        "scenes" -> stringResource(R.string.nav_scenes)
+        "scenes", "scenes/new?name={name}" -> stringResource(R.string.nav_scenes)
         "ruletest" -> stringResource(R.string.nav_diagnostics)
         else -> stringResource(R.string.nav_home)
     }

@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,7 +67,6 @@ import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
-import com.justnpcx.starveil.core.ui.components.StarveilFab
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
@@ -82,12 +82,26 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScenesScreen(
+    /** A name from the Nodes page's "new scene" dialog, or null. */
+    draftName: String? = null,
     viewModel: ScenesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editing by remember { mutableStateOf<Scene?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    // Arrived from the Nodes page with a name already typed: open the existing
+    // editor on a draft, so the trigger and preset are chosen in one place.
+    LaunchedEffect(draftName) {
+        val name = draftName?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        editing = Scene(
+            id = 0L,
+            name = name,
+            trigger = SceneTrigger.Wifi(),
+            preset = RoutePreset.BYPASS_MAINLAND,
+        )
+        showDialog = true
+    }
     var ssidReadable by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -104,22 +118,25 @@ fun ScenesScreen(
     }
 
     Scaffold(
-        // The title is the shell's; this page only owns its list and its add
-        // action.
-        floatingActionButton = {
-            // The same disc as the Nodes and Rules screens. Material's own FAB
-            // takes primaryContainer, which this palette does not map, so it
-            // came out lavender — the one colour the 03 language never uses.
-            StarveilFab(
-                contentDescription = stringResource(R.string.scenes_add),
-                onClick = {
-                    editing = null
-                    showDialog = true
-                },
-            )
-        },
+        // No FAB: the add action belongs to the page, not to a floating disc.
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (!state.isEmpty) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    StarveilButton(
+                        text = stringResource(R.string.scenes_add),
+                        onClick = {
+                            editing = null
+                            showDialog = true
+                        },
+                    )
+                }
+            }
             if (!ssidReadable) {
                 // The rationale, in the place the feature lives: what the
                 // permission is for, what happens without it, and no claim that
