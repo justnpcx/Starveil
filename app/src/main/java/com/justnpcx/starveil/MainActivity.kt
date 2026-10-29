@@ -65,7 +65,6 @@ import com.justnpcx.starveil.core.probe.LeakCheckRunner
 import com.justnpcx.starveil.core.probe.NodeHealthSampler
 import com.justnpcx.starveil.core.probe.NodeLatencyTester
 import com.justnpcx.starveil.deeplink.DeepLinkInbox
-import com.justnpcx.starveil.onboarding.OnboardingScreen
 import com.justnpcx.starveil.ui.StarveilNavHost
 import com.justnpcx.starveil.ui.StarveilShell
 import com.justnpcx.starveil.ui.Destination
@@ -135,10 +134,6 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            // null until the flag is read: showing the tabs first and then
-            // replacing them with onboarding would flash the wrong screen.
-            val onboardingDone by preferences.onboardingDone
-                .collectAsStateWithLifecycle(initialValue = null)
             val themeMode by preferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             val systemDark = isSystemInDarkTheme()
@@ -165,41 +160,33 @@ class MainActivity : ComponentActivity() {
             }
 
             StarveilTheme(darkTheme = dark) {
-                when (onboardingDone) {
-                    null -> Box(modifier = Modifier.fillMaxSize())
-                    // Behind the same gradient as the rest of the app, so the
-                    // first screen is not the one flat page in it.
-                    false -> StarveilBackground { OnboardingScreen() }
-                    true -> {
-                        val navController = rememberNavController()
-                        val snackbarHostState = remember { SnackbarHostState() }
-                        StarveilBackground {
-                            StarveilShell(
-                                navController = navController,
-                                darkTheme = dark,
-                                onToggleTheme = {
-                                    // From "follow system", the button pins the
-                                    // opposite of what is on screen. From a pin,
-                                    // it flips the pin.
-                                    val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
-                                    lifecycleScope.launch { preferences.setThemeMode(next) }
-                                },
-                                snackbarHost = {
-                                    UndoSnackbarHost(
-                                        requests = undoBus,
-                                        hostState = snackbarHostState,
-                                    )
-                                },
-                            ) { innerPadding ->
-                                StarveilNavHost(
-                                    navController = navController,
-                                    latencyTester = latencyTester,
-                                    leakCheckRunner = leakCheckRunner,
-                                    deepLinks = deepLinks,
-                                    modifier = Modifier.padding(innerPadding),
-                                )
-                            }
-                        }
+                val navController = rememberNavController()
+                val snackbarHostState = remember { SnackbarHostState() }
+                StarveilBackground {
+                    StarveilShell(
+                        navController = navController,
+                        darkTheme = dark,
+                        onToggleTheme = {
+                            // From "follow system", the button pins the
+                            // opposite of what is on screen. From a pin, it
+                            // flips the pin.
+                            val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
+                            lifecycleScope.launch { preferences.setThemeMode(next) }
+                        },
+                        snackbarHost = {
+                            UndoSnackbarHost(
+                                requests = undoBus,
+                                hostState = snackbarHostState,
+                            )
+                        },
+                    ) { innerPadding ->
+                        StarveilNavHost(
+                            navController = navController,
+                            latencyTester = latencyTester,
+                            leakCheckRunner = leakCheckRunner,
+                            deepLinks = deepLinks,
+                            modifier = Modifier.padding(innerPadding),
+                        )
                     }
                 }
             }

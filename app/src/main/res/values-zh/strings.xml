@@ -47,45 +47,4 @@
     <string name="scene_applied_body">%1$s：已切换到 %2$s。</string>
 
     <!-- 首次启动引导：仅一次，可跳过 -->
-    <string name="onboarding_skip">跳过</string>
-    <string name="onboarding_welcome_title">欢迎使用 Starveil</string>
-    <string name="onboarding_welcome_body">一条说实话的隧道：走了什么、拦了什么、到底多快，都看得见。</string>
-    <string name="onboarding_start">开始</string>
-    <string name="onboarding_import_title">导入一个节点</string>
-    <string name="onboarding_import_body">分享链接或订阅地址，两种都认得。</string>
-    <string name="onboarding_detected">剪贴板里有一条订阅链接</string>
-    <string name="onboarding_import_clipboard">从剪贴板导入</string>
-    <string name="onboarding_import_clipboard_desc">使用剪贴板当前内容</string>
-    <string name="onboarding_scan">扫描二维码</string>
-    <string name="onboarding_scan_desc">用相机扫分享链接</string>
-    <string name="onboarding_add_subscription">添加订阅</string>
-    <string name="onboarding_add_subscription_desc">粘贴服务商给的地址</string>
-    <string name="onboarding_subscription_hint">https://…</string>
-    <string name="onboarding_import_button">导入</string>
-    <string name="onboarding_cancel">取消</string>
-    <string name="onboarding_imported">已导入 %1$d 个节点</string>
-    <string name="onboarding_imported_skipped">已导入 %1$d 个节点，跳过 %2$d 个</string>
-    <string name="onboarding_failure_nothing">没有可导入的内容</string>
-    <string name="onboarding_failure_link">这条分享链接无法解析</string>
-    <string name="onboarding_failure_network">网络错误</string>
-    <string name="onboarding_failure_http">HTTP %1$d</string>
-    <string name="onboarding_failure_yaml_line">YAML 第 %1$d 行格式错误</string>
-    <string name="onboarding_failure_json_line">JSON 第 %1$d 行格式错误</string>
-    <string name="onboarding_failure_document">订阅内容无法解析</string>
-    <string name="onboarding_failure_no_nodes">订阅里没有可用节点</string>
-    <string name="onboarding_failure_save">节点保存失败</string>
-    <string name="onboarding_import_failed">导入失败：%1$s</string>
-    <string name="onboarding_connect_title">连接</string>
-    <string name="onboarding_connect_body">从刚导入的节点里挑一个最健康的。</string>
-    <string name="onboarding_connect_button">自动选择并连接</string>
-    <string name="onboarding_connected">已连接到 %1$s</string>
-    <string name="onboarding_connected_unknown">已连接</string>
-    <string name="onboarding_no_nodes">还没有节点。返回上一步导入一个。</string>
-    <string name="onboarding_consent_denied">需要授予 VPN 权限才能连接。</string>
-    <string name="onboarding_connect_failed">连接失败：%1$s</string>
-    <string name="onboarding_connect_failed_unknown">连接失败。</string>
-    <string name="onboarding_retry">重试</string>
-    <string name="onboarding_done">完成</string>
-    <string name="onboarding_back">返回</string>
-    <string name="onboarding_scan_prompt">扫描分享链接或订阅地址</string>
 </resources>
