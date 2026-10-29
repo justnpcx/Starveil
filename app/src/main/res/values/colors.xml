@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- The launch window: pearl in the light table, #131314 in values-night. -->
-    <color name="window_background">#F7F5F0</color>
-</resources>
