@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    C2 "the star in the gauze". The in-app mark, 100x100, full bleed: the
+    launcher's mask provides the corners, so there is no rounded rectangle and
+    no fake border here. One file, used by the drawer and by About.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path android:pathData="M50,3 C54,38 62,46 97,50 C62,54 54,62 50,97 C46,62 38,54 3,50 C38,46 46,38 50,3 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="3"
+                android:startY="3"
+                android:endX="97"
+                android:endY="97">
+                <item android:offset="0" android:color="#FF4285F4" />
+                <item android:offset="0.55" android:color="#FF7C6CF0" />
+                <item android:offset="1" android:color="#FFE85D9E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <group>
+        <clip-path android:pathData="M50,3 C54,38 62,46 97,50 C62,54 54,62 50,97 C46,62 38,54 3,50 C38,46 46,38 50,3 Z" />
+        <group
+            android:pivotX="50"
+            android:pivotY="50"
+            android:rotation="-24">
+            <path
+                android:fillColor="#33FFFFFF"
+                android:pathData="M-10,36 H110 V45 H-10 Z" />
+            <path
+                android:fillColor="#21FFFFFF"
+                android:pathData="M-10,55 H110 V68 H-10 Z" />
+            <path
+                android:fillColor="#1F1B2350"
+                android:pathData="M-10,76 H110 V102 H-10 Z" />
+        </group>
+    </group>
+    <path
+        android:fillColor="#FFFBEB"
+        android:pathData="M50,41.5 C50.7,47.8 52.2,49.3 58.5,50 C52.2,50.7 50.7,52.2 50,58.5 C49.3,52.2 47.8,50.7 41.5,50 C47.8,49.3 49.3,47.8 50,41.5 Z" />
+</vector>
