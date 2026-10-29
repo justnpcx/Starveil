@@ -57,6 +57,11 @@
     <string name="dashboard_mode_manual">手动</string>
     <string name="dashboard_exit">出口 IP %1$s · 往返时延 %2$d ms</string>
 <string name="dashboard_first_connect_hint">点按圆环连接</string>
+    <string name="dashboard_hint_connect">点按连接</string>
+    <string name="dashboard_hint_disconnect">点按断开</string>
+    <string name="dashboard_hint_connecting">正在建立隧道</string>
+    <string name="dashboard_hint_blocked">点按重试</string>
+
     <string name="dashboard_health_collecting">正在采样：%1$d / %2$d 次。够画出形状时才显示曲线。</string>
     <string name="dashboard_health_all_unreachable">该时间窗内 %1$d 次探测全部不可达，没有可画的延迟样本。</string>
     <string name="dashboard_health_summary">延迟 EMA %1$d ms · %2$d / %3$d 次可达</string>

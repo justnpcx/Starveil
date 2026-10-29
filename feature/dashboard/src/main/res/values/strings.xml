@@ -63,6 +63,11 @@
     <string name="dashboard_mode_manual">Manual</string>
     <string name="dashboard_exit">Exit IP %1$s · round trip %2$d ms</string>
 <string name="dashboard_first_connect_hint">Tap the ring to connect</string>
+    <string name="dashboard_hint_connect">Tap to connect</string>
+    <string name="dashboard_hint_disconnect">Tap to disconnect</string>
+    <string name="dashboard_hint_connecting">Bringing the tunnel up</string>
+    <string name="dashboard_hint_blocked">Tap to retry</string>
+
     <string name="dashboard_health_collecting">Sampling: %1$d of %2$d probes. The curve appears when there is a shape to draw.</string>
     <string name="dashboard_health_all_unreachable">%1$d probes in this window, none reachable — there is no latency sample to draw.</string>
     <string name="dashboard_health_summary">Latency EMA %1$d ms · %2$d of %3$d probes reachable</string>

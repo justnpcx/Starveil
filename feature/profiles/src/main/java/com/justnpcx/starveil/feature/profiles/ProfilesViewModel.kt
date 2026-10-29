@@ -10,6 +10,7 @@ import com.justnpcx.starveil.core.data.geo.CountryResolver
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.GroupMode
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.NodeSelectionMode
 import com.justnpcx.starveil.core.model.NodeRegions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
@@ -283,7 +284,13 @@ class ProfilesViewModel @Inject constructor(
     }
 
     fun select(id: Long) {
-        viewModelScope.launch { preferences.setSelectedProfileId(id) }
+        viewModelScope.launch {
+            // Picking a node by hand is what "manual" means. Writing it here
+            // keeps the dashboard's segmented control honest even when the
+            // choice was made on this screen.
+            preferences.setNodeSelectionMode(NodeSelectionMode.MANUAL)
+            preferences.setSelectedProfileId(id)
+        }
     }
 
     /**

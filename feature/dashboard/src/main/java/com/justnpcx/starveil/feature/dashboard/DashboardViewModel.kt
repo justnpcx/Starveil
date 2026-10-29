@@ -14,6 +14,7 @@ import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.NodeHealth
+import com.justnpcx.starveil.core.model.NodeSelectionMode
 import com.justnpcx.starveil.core.model.STICKINESS_MARGIN
 import com.justnpcx.starveil.core.model.pickerPolicySummary
 import com.justnpcx.starveil.core.model.RecommendationReason
@@ -57,6 +58,8 @@ data class DashboardUiState(
      * session's pick, and after a restart the honest answer is "manual".
      */
     val autoPickedName: String? = null,
+    /** Whether the picker may move the selection. Persisted. */
+    val selectionMode: NodeSelectionMode = NodeSelectionMode.AUTO,
     /**
      * The selected node's health over the sampling window (§7.2), or null when
      * the target is a group — a group has no single curve. A selected node with
@@ -232,6 +235,14 @@ class DashboardViewModel @Inject constructor(
                         EXIT_IDLE_TICK_MS
                     },
                 )
+            }
+        }
+
+        // The mode is persisted; a restart keeps the segmented control's
+        // promise instead of quietly reverting to auto.
+        scope.launch {
+            preferences.nodeSelectionMode.collect { mode ->
+                _uiState.update { it.copy(selectionMode = mode) }
             }
         }
 
@@ -413,7 +424,10 @@ class DashboardViewModel @Inject constructor(
             }
 
             is DropRecovery.Decision.Reconnect -> {
+                // A manual selection is the user's decision; a drop may
+                // reconnect, but it may not overrule that decision.
                 val pick = decision.switchedTo
+                    ?.takeIf { _uiState.value.selectionMode == NodeSelectionMode.AUTO }
                 if (pick != null) {
                     // Claim the change before it is delivered: otherwise the
                     // target collector sees a target it did not act on and
@@ -451,6 +465,7 @@ class DashboardViewModel @Inject constructor(
     fun autoSelect() {
         if (_uiState.value.isBusy) return
         scope.launch {
+            preferences.setNodeSelectionMode(NodeSelectionMode.AUTO)
             val pick = recovery.autoPick() ?: run {
                 _uiState.update { it.copy(notice = DashboardNotice.NoTarget) }
                 return@launch
@@ -490,6 +505,18 @@ class DashboardViewModel @Inject constructor(
             // The result is the card itself — new name, new latency. This flag
             // only turns the badge from "manual" to "auto".
             _uiState.update { it.copy(autoPickedName = winner?.displayName().orEmpty()) }
+        }
+    }
+
+    /**
+     * Switch the auto/manual mode. Choosing auto picks now, so the control does
+     * what it says rather than only changing a label.
+     */
+    fun setSelectionMode(mode: NodeSelectionMode) {
+        if (_uiState.value.selectionMode == mode) return
+        scope.launch {
+            preferences.setNodeSelectionMode(mode)
+            if (mode == NodeSelectionMode.AUTO) autoSelect()
         }
     }
 

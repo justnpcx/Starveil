@@ -34,6 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -48,7 +52,9 @@ import com.justnpcx.starveil.core.kernel.TrafficStats
 import com.justnpcx.starveil.core.model.AvailabilityBand
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
+import com.justnpcx.starveil.core.model.NodeSelectionMode
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
+import com.justnpcx.starveil.core.ui.components.StarveilSegmented
 import com.justnpcx.starveil.core.ui.components.ConnectionCoreGeometry
 import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
@@ -122,8 +128,15 @@ fun DashboardScreen(
                 // Fixed in every state: everything below is measured from this
                 // box, so a state change must not move any of it.
                 diameter = ConnectionCoreGeometry.diameterDp.dp,
-                // 18 dp of the ring's inset is empty; the numbers move into it.
-                bottomTrim = 18.dp,
+                hint = stringResource(
+                    when (state.coreState) {
+                        ConnectionState.DISCONNECTED -> R.string.dashboard_hint_connect
+                        ConnectionState.CONNECTING -> R.string.dashboard_hint_connecting
+                        ConnectionState.CONNECTED -> R.string.dashboard_hint_disconnect
+                        ConnectionState.BLOCKED -> R.string.dashboard_hint_blocked
+                        ConnectionState.WARNING -> R.string.dashboard_hint_disconnect
+                    },
+                ),
                 label = stringResource(
                     when (state.coreState) {
                         ConnectionState.DISCONNECTED -> R.string.dashboard_state_disconnected
@@ -202,12 +215,9 @@ fun DashboardScreen(
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
                 health = state.health,
-                // A mode, not a button: "auto" only while the node in force is
-                // the one the picker chose.
-                autoSelected = state.autoPickedName != null &&
-                    state.autoPickedName == state.selectedNodeName,
+                mode = state.selectionMode,
                 onOpen = onOpenNodes,
-                onAutoSelect = viewModel::autoSelect,
+                onModeChange = viewModel::setSelectionMode,
             )
 
             // §7.2: the selected node's health over the window. Only for a
@@ -696,70 +706,75 @@ private fun formatScaledParts(value: Double, units: List<String>): RateParts {
  * an edge above the health curve. The badge sits in the name's row — it
  * modifies the node, so it belongs to that line.
  */
+
 @Composable
 private fun CurrentNodeCard(
     name: String,
     health: NodeHealth?,
-    autoSelected: Boolean,
+    mode: NodeSelectionMode,
     onOpen: () -> Unit,
-    onAutoSelect: () -> Unit,
+    onModeChange: (NodeSelectionMode) -> Unit,
 ) {
+    val veil = StarveilColors.veil
     StarveilCard(onClick = onOpen) {
-        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // The name carries its country's flag as a leading emoji; set it
-                // at 22sp and the rest at the row's own size, so the flag is an
-                // element rather than the first glyph of a word.
-                NodeName(name = name, modifier = Modifier.weight(1f))
-                Spacer(modifier = Modifier.width(StarveilSpacing.md))
-                // A status, not a control: it says how the node in force got
-                // here. The pick is a link below, where it reads as an action.
-                StarveilBadge(
-                    text = stringResource(
-                        if (autoSelected) R.string.dashboard_mode_auto else R.string.dashboard_mode_manual,
-                    ),
-                )
-            }
-            Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                // Latency only: availability is 100% for the node you are
-                // connected to, so repeating it here says nothing. The health
-                // card keeps it, where it is the window's summary.
-                Column(modifier = Modifier.weight(1f)) {
-                    health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
-                        Row(verticalAlignment = Alignment.Bottom) {
+        Box {
+            // The gauze: 115 degrees, transparent 30 / veil 10 / transparent 34,
+            // clipped by the card's own shape and painted behind the text.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .drawBehind {
+                        val period = 74.dp.toPx()
+                        val band = 10.dp.toPx()
+                        rotate(degrees = 25f) {
+                            var x = -size.height
+                            while (x < size.width + size.height) {
+                                drawRect(
+                                    color = veil,
+                                    topLeft = Offset(x, -size.height),
+                                    size = Size(band, size.height * 3f),
+                                )
+                                x += period
+                            }
+                        }
+                    },
+            )
+            Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        NodeName(name = name)
+                        health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
                             Text(
-                                text = stringResource(R.string.dashboard_latency_label),
-                                style = StarveilType.tech,
+                                text = stringResource(R.string.dashboard_latency_label) + " " + latency + " ms",
+                                style = StarveilType.label,
                                 color = StarveilColors.ink2,
-                            )
-                            Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-                            Text(
-                                text = latency.toString(),
-                                style = StarveilType.numInline,
-                                color = StarveilColors.ink,
-                            )
-                            Text(
-                                text = " ms",
-                                style = StarveilType.tech,
-                                color = StarveilColors.ink2,
+                                modifier = Modifier.padding(top = 2.dp),
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                    Text(
+                        text = stringResource(
+                            if (mode == NodeSelectionMode.AUTO) {
+                                R.string.dashboard_mode_auto
+                            } else {
+                                R.string.dashboard_mode_manual
+                            },
+                        ),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                    )
                 }
-                // The one action on the card, as a link: it changes the node,
-                // and the result is the row above it.
-                Text(
-                    text = stringResource(R.string.dashboard_auto_select),
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(StarveilSpacing.xs))
-                        .clickable(role = Role.Button, onClick = onAutoSelect)
-                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                StarveilSegmented(
+                    options = listOf(
+                        stringResource(R.string.dashboard_mode_auto),
+                        stringResource(R.string.dashboard_mode_manual),
+                    ),
+                    selectedIndex = if (mode == NodeSelectionMode.AUTO) 0 else 1,
+                    onSelect = { index ->
+                        onModeChange(if (index == 0) NodeSelectionMode.AUTO else NodeSelectionMode.MANUAL)
+                    },
                 )
             }
         }

@@ -11,6 +11,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.justnpcx.starveil.core.ui.theme.StarveilBrand
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilMotion
 import com.justnpcx.starveil.core.ui.theme.StarveilType
@@ -63,48 +66,34 @@ enum class ConnectionState {
 }
 
 /**
- * ConnectionCore — the ring, and the one control on the dashboard.
+ * ConnectionCore — the ring, and the one control on the home screen.
  *
- * The ring is a 4dp stroke: the accent gradient when the tunnel is carrying, a
- * cyan sweep while it connects, the idle grey when it is off, amber when it is
- * up but silent, red when it is blocked.
+ * 204dp, always. The ring is the page's anchor: the rates, the connection card
+ * and the health card are measured from it, so a state change may move exactly
+ * one thing — the colour.
  *
- * **The size never changes.** Not on a state change, not while connecting, not
- * for a warning. The ring is the anchor the whole page is measured from — the
- * rates below it, the node card, the health card — and a ring that grows by 6%
- * moves every one of them. A state change moves exactly one thing: the colour.
+ * Inside the ring, top to bottom: the star, the state word, and one line that
+ * says what a tap will do. Connected draws the brand gradient; disconnected
+ * draws the same shape hollow in [StarveilColors.ringOff].
  */
 @Composable
 fun ConnectionCore(
     state: ConnectionState,
     onClick: () -> Unit,
-    /** Required: this is the screen's primary control (design system §6.1). */
+    /** Required: this is the screen's primary control. */
     contentDescription: String,
-    /**
-     * The state, drawn inside the ring. The ring is the only control on the
-     * screen, so its centre is the one place the state cannot be missed.
-     */
+    /** The state, drawn inside the ring. */
     label: String,
     modifier: Modifier = Modifier,
-    /** The ring's diameter. Fixed at 240dp in every state. */
+    /** One line under the state: what the next tap does. */
+    hint: String? = null,
+    /** The ring's diameter. Fixed at 204dp in every state. */
     diameter: Dp = CORE_SIZE,
-    /**
-     * How much of the box's bottom the drawing may overflow.
-     *
-     * The ring sits [RING_INSET] inside its box, so without this the layout
-     * carries ~22 dp of empty space under the circle and the next block starts
-     * too far away.
-     */
+    /** How much of the box's bottom the drawing may overflow. */
     bottomTrim: Dp = 0.dp,
-    /**
-     * A connect or disconnect is in flight. Drawn as the same sweep as
-     * CONNECTING and the tap is ignored.
-     */
+    /** A connect or disconnect is in flight. */
     busy: Boolean = false,
 ) {
-    // Ambient loops are decoration, and decoration must not burn frames behind
-    // a paused or covered screen (§5.5). Gating the *spec* rather than the
-    // value is what actually stops the animation.
     val lifecycleOwner = LocalLifecycleOwner.current
     var resumed by remember {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
@@ -139,9 +128,6 @@ fun ConnectionCore(
         )
     }
 
-    // The sweep runs once, on arrival at CONNECTED. Keyed on the state so a
-    // recomposition cannot restart it; a ring that sweeps every time the rates
-    // tick would be the busiest thing on the screen.
     val sweep = remember { Animatable(0f) }
     var lastState by remember { mutableStateOf(state) }
     LaunchedEffect(state) {
@@ -153,8 +139,6 @@ fun ConnectionCore(
         sweep.animateTo(1f, tween(durationMillis = StarveilMotion.CONNECT_SWEEP_MS, easing = FastOutSlowInEasing))
     }
 
-    // Haptics ride the *transition*, not the press: the state change is what
-    // the user is waiting on.
     val haptics = LocalHapticFeedback.current
     var previous by remember { mutableStateOf(state) }
     LaunchedEffect(state) {
@@ -172,12 +156,10 @@ fun ConnectionCore(
 
     val rotation = if (state == ConnectionState.CONNECTING) spin.value else 0f
 
-    // Resolved before the Canvas: the token getters are @Composable reads, and
-    // a DrawScope lambda is not a composable context.
     val accent = StarveilColors.accent
     val warnColor = StarveilColors.warn
     val errColor = StarveilColors.err
-    val idleRing = StarveilColors.ringIdle
+    val idleRing = StarveilColors.ringOff
 
     Box(
         modifier = modifier
@@ -191,29 +173,17 @@ fun ConnectionCore(
             ) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .size(diameter),
-        ) {
+        Canvas(modifier = Modifier.align(Alignment.TopCenter).size(diameter)) {
             val stroke = Stroke(width = RING_STROKE.toPx(), cap = StrokeCap.Round)
             val outer = size.minDimension / 2
-            val ringRadius = outer - RING_INSET.toPx()
-
+            val ringRadius = outer - RING_STROKE.toPx() / 2
             val statusColor = when (state) {
                 ConnectionState.WARNING -> warnColor
                 ConnectionState.BLOCKED -> errColor
                 else -> null
             }
 
-            // No glow. A halo was how the previous face said "connected"; on a
-            // light page it reads as a smudge, and the accent line already says
-            // it. State is colour and the word in the middle, nothing else.
-
             when {
-                // Idle: a line, not a dimmed accent. A gradient ring on an idle
-                // app would make the accent mean "this exists" rather than
-                // "this is working".
                 state == ConnectionState.DISCONNECTED ->
                     drawCircle(color = idleRing, radius = ringRadius, style = stroke)
 
@@ -221,29 +191,26 @@ fun ConnectionCore(
                     drawCircle(color = statusColor, radius = ringRadius, style = stroke)
 
                 else -> {
-                    // One blue line, the whole way round. The ring is a state
-                    // indicator, not a decoration.
-                    drawCircle(color = accent, radius = ringRadius, style = stroke)
+                    // The brand gradient, laid across the ring's bounding box.
+                    drawCircle(
+                        brush = Brush.linearGradient(
+                            colors = StarveilBrand.colors,
+                            start = Offset.Zero,
+                            end = Offset(size.width, size.height),
+                        ),
+                        radius = ringRadius,
+                        style = stroke,
+                    )
 
                     if (state == ConnectionState.CONNECTING) {
-                        // The charge arc: a bright run of the same gradient,
-                        // rotating. It says "being drawn", which the colour
-                        // alone cannot.
                         drawArc(
                             brush = Brush.sweepGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    accent,
-                                    Color.Transparent,
-                                ),
+                                colors = listOf(Color.Transparent, Color.White, Color.Transparent),
                                 center = center,
                             ),
                             startAngle = rotation - 90f,
                             sweepAngle = 100f,
                             useCenter = false,
-                            // The arc has to sit on the ring, not on the canvas
-                            // edge: drawArc's default radius is the canvas's,
-                            // which is RING_INSET wider than the ring.
                             topLeft = Offset(center.x - ringRadius, center.y - ringRadius),
                             size = Size(ringRadius * 2, ringRadius * 2),
                             style = stroke,
@@ -251,9 +218,8 @@ fun ConnectionCore(
                     }
 
                     if (sweep.value > 0f && sweep.value < 1f) {
-                        // The one-shot success sweep, fading as it completes.
                         drawArc(
-                            color = accent.copy(alpha = 1f - sweep.value),
+                            color = Color.White.copy(alpha = 1f - sweep.value),
                             startAngle = -90f + 360f * sweep.value,
                             sweepAngle = 120f,
                             useCenter = false,
@@ -266,37 +232,40 @@ fun ConnectionCore(
             }
         }
 
-        Text(
-            text = label,
-            style = StarveilType.ringWord,
-            // Blocked borrows the ring's colour: the state is a warning, and
-            // colour is the part that reads before the word does. Every other
-            // state uses ink, so the word is legible without a plate.
-            color = if (state == ConnectionState.BLOCKED) StarveilColors.errText else StarveilColors.ink,
-            textAlign = TextAlign.Center,
-            // The box is trimmed at the bottom, so its centre is above the
-            // ring's; move the word back onto the ring's centre line.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.offset(y = bottomTrim / 2),
-        )
+        ) {
+            StarveilStar(
+                filled = state == ConnectionState.CONNECTED || state == ConnectionState.WARNING,
+                size = 30.dp,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = label,
+                style = StarveilType.ringWord,
+                color = if (state == ConnectionState.BLOCKED) StarveilColors.err else StarveilColors.ink,
+                textAlign = TextAlign.Center,
+            )
+            if (hint != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = hint,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
 }
 
 /** The ring's diameter. Fixed: the page is measured from this box. */
-private val CORE_SIZE = 240.dp
+private val CORE_SIZE = 204.dp
 
-/** 4dp, and a stroke that does not scale with the diameter. */
-private val RING_STROKE = 4.dp
+/** 5dp, as the task book draws it. */
+private val RING_STROKE = 5.dp
 
-/** How far the ring sits inside its box. */
-private val RING_INSET = 22.dp
-
-/**
- * Whether the system is animating at all.
- *
- * An `infiniteRepeatable` tween is scaled by the animator duration scale, so
- * with animations switched off its period collapses to zero and the loop
- * becomes a busy loop burning frames.
- */
 @Composable
 private fun rememberAnimationsEnabled(): Boolean {
     val context = LocalContext.current
@@ -311,18 +280,15 @@ private fun rememberAnimationsEnabled(): Boolean {
 
 /**
  * The ring's geometry, as a function rather than a constant buried in a
- * composable.
- *
- * Two facts live here and both are contracts the rest of the dashboard depends
- * on: the size never varies with state, and there is exactly one size.
+ * composable. The size never varies with state.
  */
 object ConnectionCoreGeometry {
 
     /** The stroke, in dp. */
-    const val strokeDp = 4f
+    const val strokeDp = 5f
 
     /** The diameter, in dp. */
-    const val diameterDp = 240f
+    const val diameterDp = 204f
 
     /** The diameter for a given available height — always the same. */
     @Suppress("UNUSED_PARAMETER")
