@@ -547,12 +547,13 @@ fun ProfilesScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     AddPill(
-                        label = stringResource(R.string.profiles_fab_scene),
-                        icon = StarveilIcons.Route,
+                        label = stringResource(R.string.profiles_fab_add_node),
+                        icon = StarveilIcons.Add,
                     ) {
                         addOpen = false
-                        sceneName = ""
-                        sceneDialog = true
+                        linkText = ""
+                        addNodeManual = false
+                        addNodeDialog = true
                     }
                     AddPill(
                         label = stringResource(R.string.profiles_fab_import),
@@ -563,13 +564,12 @@ fun ProfilesScreen(
                         importDialog = true
                     }
                     AddPill(
-                        label = stringResource(R.string.profiles_fab_add_node),
-                        icon = StarveilIcons.Add,
+                        label = stringResource(R.string.profiles_fab_scene),
+                        icon = StarveilIcons.Route,
                     ) {
                         addOpen = false
-                        linkText = ""
-                        addNodeManual = false
-                        addNodeDialog = true
+                        sceneName = ""
+                        sceneDialog = true
                     }
                 }
             }
