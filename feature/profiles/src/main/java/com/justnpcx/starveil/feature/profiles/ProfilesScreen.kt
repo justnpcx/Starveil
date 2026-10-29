@@ -237,6 +237,9 @@ fun ProfilesScreen(
     // refreshed to empty used to leave a chip pointing at nothing.
     val nonEmptyGroups = remember(state.groups, state.profiles) {
         state.groups.filter { group ->
+            // A subscription is not a chip: it is a source, and the task book
+            // removed its page. Its nodes still appear under All.
+            if (group.subscriptionUrl != null) return@filter false
             val region = group.region
             if (region != null) {
                 state.profiles.any { NodeRegions.resolve(it.name, it.country) == region }
