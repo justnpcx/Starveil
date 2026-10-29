@@ -152,6 +152,7 @@ fun ScenesScreen(
                         Text(
                             text = stringResource(R.string.scenes_permission_title),
                             style = StarveilType.headline,
+                            color = StarveilColors.ink,
                         )
                         Text(
                             text = stringResource(R.string.scenes_permission_body),
@@ -246,7 +247,7 @@ private fun SceneCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = scene.name, style = StarveilType.headline)
+                Text(text = scene.name, style = StarveilType.headline, color = StarveilColors.ink)
                 Text(
                     text = sceneSummary(scene, profiles, groups),
                     style = StarveilType.label,
@@ -484,6 +485,7 @@ private fun SceneSheet(
                 Text(
                     text = stringResource(R.string.scenes_preset),
                     style = StarveilType.label,
+                    color = StarveilColors.ink,
                 )
                 listOf(
                     RoutePreset.BYPASS_MAINLAND,
@@ -500,6 +502,7 @@ private fun SceneSheet(
                 Text(
                     text = stringResource(R.string.scenes_target),
                     style = StarveilType.label,
+                    color = StarveilColors.ink,
                 )
                 Column(modifier = Modifier.heightIn(max = 220.dp)) {
                     RadioRow(
@@ -595,6 +598,6 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onClick)
-        Text(text = label, style = StarveilType.label)
+        Text(text = label, style = StarveilType.label, color = StarveilColors.ink)
     }
 }

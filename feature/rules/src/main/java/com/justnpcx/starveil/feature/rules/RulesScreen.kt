@@ -905,6 +905,7 @@ private fun AllFlowDialog(
                     Text(
                         text = stringResource(R.string.rules_flow_title),
                         style = StarveilType.title,
+                        color = StarveilColors.ink,
                         modifier = Modifier.weight(1f),
                     )
                     if (paused) {
@@ -978,6 +979,7 @@ private fun DenseFlowRow(record: FlowRecord, onClick: () -> Unit) {
         Text(
             text = record.label,
             style = StarveilType.label,
+            color = StarveilColors.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1.2f),
