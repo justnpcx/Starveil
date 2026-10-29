@@ -24,7 +24,6 @@ import com.justnpcx.starveil.core.ui.components.StarveilChipRow
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.components.StarveilFab
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
-import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
 import com.justnpcx.starveil.core.ui.components.StarveilSearchField
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
@@ -288,45 +287,6 @@ fun ProfilesScreen(
     }
 
     Scaffold(
-        topBar = {
-            StarveilPageHeader(title = stringResource(R.string.profiles_title)) {
-                    // Whole-list test, as an icon: the text button cost a row
-                    // above the list for something used occasionally.
-                    StarveilIconAction(
-                        icon = StarveilIcons.Refresh,
-                        contentDescription = stringResource(R.string.profiles_test_selected),
-                        onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } },
-                    )
-                    // Group actions are not filters, so they do not belong in
-                    // the filter row: that row is now only "which nodes".
-                    Box {
-                        StarveilIconAction(
-                            icon = StarveilIcons.More,
-                            contentDescription = stringResource(R.string.profiles_group_actions),
-                            onClick = { showGroupMenu = true },
-                        )
-                        DropdownMenu(
-                            expanded = showGroupMenu,
-                            onDismissRequest = { showGroupMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.profiles_group_new)) },
-                                onClick = {
-                                    showGroupMenu = false
-                                    creatingGroup = true
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.profiles_group_by_region)) },
-                                onClick = {
-                                    showGroupMenu = false
-                                    viewModel.groupByRegion()
-                                },
-                            )
-                        }
-                    }
-            }
-        },
         // Transparent: the ambient gradient behind the app is the page.
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -338,6 +298,47 @@ fun ProfilesScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Page actions live in the page now: the top bar carries only the
+            // drawer, the title and the theme switch.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = StarveilSpacing.xs),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StarveilIconAction(
+                    icon = StarveilIcons.Refresh,
+                    contentDescription = stringResource(R.string.profiles_test_selected),
+                    onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } },
+                )
+                Box {
+                    StarveilIconAction(
+                        icon = StarveilIcons.More,
+                        contentDescription = stringResource(R.string.profiles_group_actions),
+                        onClick = { showGroupMenu = true },
+                    )
+                    DropdownMenu(
+                        expanded = showGroupMenu,
+                        onDismissRequest = { showGroupMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profiles_group_new)) },
+                            onClick = {
+                                showGroupMenu = false
+                                creatingGroup = true
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profiles_group_by_region)) },
+                            onClick = {
+                                showGroupMenu = false
+                                viewModel.groupByRegion()
+                            },
+                        )
+                    }
+                }
+            }
             state.message?.let { message ->
                 if (message is ProfilesMessage.NoRegionsFound) {
                     // A dialog, not the banner. "By region" is the one action

@@ -37,7 +37,6 @@ import com.justnpcx.starveil.core.model.AppLogLine
 import com.justnpcx.starveil.core.ui.components.EmptyState
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilChipRow
-import com.justnpcx.starveil.core.ui.components.StarveilPageHeader
 import com.justnpcx.starveil.core.ui.components.StarveilSearchField
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -80,7 +79,14 @@ fun LogsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        StarveilPageHeader(title = stringResource(R.string.logs_title)) {
+        // The title moved to the shell's top bar; the copy action stays with
+        // the list it copies.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.xs),
+            horizontalArrangement = Arrangement.End,
+        ) {
             Text(
                 text = stringResource(if (showCopied) R.string.logs_copied else R.string.logs_copy),
                 style = StarveilType.label,

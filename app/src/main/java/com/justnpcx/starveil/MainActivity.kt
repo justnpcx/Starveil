@@ -67,6 +67,7 @@ import com.justnpcx.starveil.core.probe.NodeLatencyTester
 import com.justnpcx.starveil.deeplink.DeepLinkInbox
 import com.justnpcx.starveil.onboarding.OnboardingScreen
 import com.justnpcx.starveil.ui.StarveilNavHost
+import com.justnpcx.starveil.ui.StarveilShell
 import com.justnpcx.starveil.ui.Destination
 import com.justnpcx.starveil.core.ui.snackbar.UndoSnackbarHost
 import com.justnpcx.starveil.ui.AppUndoBus
@@ -173,21 +174,16 @@ class MainActivity : ComponentActivity() {
                         val navController = rememberNavController()
                         val snackbarHostState = remember { SnackbarHostState() }
                         StarveilBackground {
-                            Scaffold(
-                                modifier = Modifier.fillMaxSize(),
-                                // Transparent: the ambient gradient is painted
-                                // once behind this Scaffold, and a container
-                                // colour here would cover it.
-                                containerColor = Color.Transparent,
-                                // The bottom bar owns the navigation inset (it
-                                // pads itself), so the content must not also be
-                                // inset by it: Scaffold would add both, and
-                                // every floating button ended up ~40dp higher
-                                // than its 16dp margin.
-                                contentWindowInsets = WindowInsets.safeDrawing.only(
-                                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
-                                ),
-                                bottomBar = { StarveilBottomBar(navController) },
+                            StarveilShell(
+                                navController = navController,
+                                darkTheme = dark,
+                                onToggleTheme = {
+                                    // From "follow system", the button pins the
+                                    // opposite of what is on screen. From a pin,
+                                    // it flips the pin.
+                                    val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
+                                    lifecycleScope.launch { preferences.setThemeMode(next) }
+                                },
                                 snackbarHost = {
                                     UndoSnackbarHost(
                                         requests = undoBus,
@@ -240,100 +236,6 @@ class MainActivity : ComponentActivity() {
         val accepted = deepLinks.offer(intent.dataString)
         if (!accepted && intent.dataString != null) {
             KernelDiagnostics.log("ignored a link this app cannot parse")
-        }
-    }
-}
-
-@Composable
-private fun StarveilBottomBar(navController: androidx.navigation.NavHostController) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-    // The bar's separation from the page is a rule, not an edge highlight:
-    // white 75% on the chrome is brighter than the chrome and reads as a gap.
-    // Same token as a card's internal rules, for the same reason.
-    val hairline = StarveilColors.divider
-    val accent = StarveilColors.accent
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            // The bar is drawn edge to edge, so it has to clear the system
-            // navigation inset itself: without this the labels sit under the
-            // gesture handle and a tap in that strip goes to the system.
-            .navigationBarsPadding()
-            // The page colour, then the chrome material over it. The pair is
-            // the degraded form §5 allows: Compose has no backdrop blur, so a
-            // translucent bar over scrolling text would smear rather than
-            // frost. Two paints give the same slightly-lifted surface with the
-            // text kept out of it.
-            .background(StarveilColors.bg)
-            .background(StarveilColors.surfaceChrome)
-            .drawBehind {
-                // The bar's only separation from the page is this line. A
-                // shadow would be the one soft edge in an app that has none.
-                drawLine(
-                    color = hairline,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            },
-    ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Destination.entries.forEach { destination ->
-                val selected =
-                    currentDestination?.hierarchy?.any { it.route == destination.route } == true
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        // The platform's minimum, so a tab is a target rather
-                        // than a label.
-                        .heightIn(min = 56.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Tab,
-                        ) {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                        .padding(vertical = StarveilSpacing.sm),
-                ) {
-                    // The dot is the selection cue, and it is cyan: the one
-                    // place the accent appears in the chrome. It sits above the
-                    // glyph and holds its slot when unselected, so neither the
-                    // icon nor the label moves between tabs.
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(if (selected) accent else Color.Transparent),
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                    Icon(
-                        imageVector = destination.icon,
-                        contentDescription = null,
-                        tint = if (selected) StarveilColors.ink else StarveilColors.ink3,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                    Text(
-                        text = stringResource(destination.labelRes),
-                        style = StarveilType.tech,
-                        color = if (selected) StarveilColors.ink else StarveilColors.ink3,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
         }
     }
 }

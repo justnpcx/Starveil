@@ -224,6 +224,87 @@ object StarveilIcons {
         }
     }
 
+    /** Menu: the drawer's handle. */
+    val Menu: ImageVector by lazy {
+        strokeIcon("Line.Menu") {
+            iconPath {
+                moveTo(4f, 6f)
+                horizontalLineTo(20f)
+            }
+            iconPath {
+                moveTo(4f, 12f)
+                horizontalLineTo(20f)
+            }
+            iconPath {
+                moveTo(4f, 18f)
+                horizontalLineTo(20f)
+            }
+        }
+    }
+
+    /** Moon: shown while the app is light, to switch it to dark. */
+    val Moon: ImageVector by lazy {
+        strokeIcon("Line.Moon") {
+            iconPath {
+                moveTo(20.5f, 14.8f)
+                curveTo(19.2f, 15.9f, 17.6f, 16.5f, 15.8f, 16.5f)
+                curveTo(11.4f, 16.5f, 7.9f, 13f, 7.9f, 8.6f)
+                curveTo(7.9f, 6.8f, 8.5f, 5.2f, 9.6f, 3.9f)
+                curveTo(5.9f, 5.1f, 3.2f, 8.5f, 3.2f, 12.6f)
+                curveTo(3.2f, 17.5f, 7.2f, 21.5f, 12.1f, 21.5f)
+                curveTo(16.1f, 21.5f, 19.5f, 18.7f, 20.5f, 14.8f)
+                close()
+            }
+        }
+    }
+
+    /** Sun: shown while the app is dark, to switch it to light. */
+    val Sun: ImageVector by lazy {
+        strokeIcon("Line.Sun") {
+            iconPath {
+                moveTo(16.5f, 12f)
+                curveTo(16.5f, 14.49f, 14.49f, 16.5f, 12f, 16.5f)
+                curveTo(9.51f, 16.5f, 7.5f, 14.49f, 7.5f, 12f)
+                curveTo(7.5f, 9.51f, 9.51f, 7.5f, 12f, 7.5f)
+                curveTo(14.49f, 7.5f, 16.5f, 9.51f, 16.5f, 12f)
+                close()
+            }
+            iconPath { moveTo(12f, 2.5f); verticalLineTo(5f) }
+            iconPath { moveTo(12f, 19f); verticalLineTo(21.5f) }
+            iconPath { moveTo(2.5f, 12f); horizontalLineTo(5f) }
+            iconPath { moveTo(19f, 12f); horizontalLineTo(21.5f) }
+            iconPath { moveTo(5.3f, 5.3f); lineTo(7f, 7f) }
+            iconPath { moveTo(17f, 17f); lineTo(18.7f, 18.7f) }
+            iconPath { moveTo(18.7f, 5.3f); lineTo(17f, 7f) }
+            iconPath { moveTo(7f, 17f); lineTo(5.3f, 18.7f) }
+        }
+    }
+
+    /** External: opens in the system browser. */
+    val External: ImageVector by lazy {
+        strokeIcon("Line.External") {
+            iconPath {
+                moveTo(14f, 4f)
+                horizontalLineTo(20f)
+                verticalLineTo(10f)
+            }
+            iconPath {
+                moveTo(20f, 4f)
+                lineTo(11f, 13f)
+            }
+            iconPath {
+                moveTo(18f, 14f)
+                verticalLineTo(19f)
+                curveTo(18f, 19.55f, 17.55f, 20f, 17f, 20f)
+                horizontalLineTo(5f)
+                curveTo(4.45f, 20f, 4f, 19.55f, 4f, 19f)
+                verticalLineTo(7f)
+                curveTo(4f, 6.45f, 4.45f, 6f, 5f, 6f)
+                horizontalLineTo(10f)
+            }
+        }
+    }
+
     /** Chevron: the disclosure marker on a row that opens something. */
     val Chevron: ImageVector by lazy {
         strokeIcon("Line.Chevron") {

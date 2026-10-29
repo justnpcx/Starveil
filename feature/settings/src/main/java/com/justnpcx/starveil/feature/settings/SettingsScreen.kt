@@ -248,8 +248,6 @@ fun SettingsScreen(
             // reach them.
             .verticalScroll(rememberScrollState()),
     ) {
-        StarveilPageHeader(title = stringResource(R.string.settings_title))
-
         StarveilSearchField(
             value = query,
             onValueChange = { query = it },

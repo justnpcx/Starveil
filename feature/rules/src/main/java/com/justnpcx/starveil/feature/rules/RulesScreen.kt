@@ -149,8 +149,6 @@ fun RulesScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            StarveilPageHeader(title = stringResource(R.string.rules_title))
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // Room for the FAB: without it the last line of the empty state

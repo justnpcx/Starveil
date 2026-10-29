@@ -7,6 +7,27 @@
     <string name="nav_rules">规则</string>
     <string name="nav_logs">日志</string>
     <string name="nav_settings">设置</string>
+    <string name="nav_scenes">场景</string>
+    <string name="nav_diagnostics">诊断自检</string>
+
+    <!-- Drawer. -->
+    <string name="drawer_open">打开导航</string>
+    <string name="drawer_group_pages">页面</string>
+    <string name="drawer_group_settings">设置与诊断</string>
+    <string name="drawer_group_about">关于</string>
+    <string name="brand_tagline">星光为路 · 薄纱为盾</string>
+    <string name="theme_to_dark">切换到深色</string>
+    <string name="theme_to_light">切换到浅色</string>
+    <string name="drawer_github">GitHub 仓库</string>
+    <string name="drawer_changelog">更新日志</string>
+    <string name="drawer_issues">反馈问题</string>
+
+    <!-- Appearance. -->
+    <string name="appearance_title">外观</string>
+    <string name="appearance_system">跟随系统</string>
+    <string name="appearance_light">白天</string>
+    <string name="appearance_dark">黑夜</string>
+
 
 
     <!-- Quick-settings tile. The label is the app name; the subtitle is the state. -->

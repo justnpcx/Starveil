@@ -202,10 +202,10 @@ fun StarveilNavHost(
             PerAppScreen(onBack = { navController.popBackStack() })
         }
         composable(SCENES_ROUTE) {
-            ScenesScreen(onBack = { navController.popBackStack() })
+            ScenesScreen()
         }
         composable(RULE_TEST_ROUTE) {
-            RuleTestScreen(onBack = { navController.popBackStack() })
+            RuleTestScreen()
         }
         composable(CONNECTIONS_ROUTE) {
             ConnectionsScreen(onBack = { navController.popBackStack() })

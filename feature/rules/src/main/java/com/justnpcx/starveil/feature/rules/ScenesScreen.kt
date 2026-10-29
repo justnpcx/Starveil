@@ -82,7 +82,6 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScenesScreen(
-    onBack: () -> Unit,
     viewModel: ScenesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,16 +104,8 @@ fun ScenesScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.scenes_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.scenes_back))
-                    }
-                },
-            )
-        },
+        // The title is the shell's; this page only owns its list and its add
+        // action.
         floatingActionButton = {
             // The same disc as the Nodes and Rules screens. Material's own FAB
             // takes primaryContainer, which this palette does not map, so it

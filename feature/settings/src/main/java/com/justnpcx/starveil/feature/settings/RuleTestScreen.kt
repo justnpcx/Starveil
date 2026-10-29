@@ -158,31 +158,17 @@ class RuleTestViewModel @Inject constructor(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RuleTestScreen(
-    onBack: () -> Unit,
     viewModel: RuleTestViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.rule_test_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(StarveilIcons.Back, contentDescription = stringResource(R.string.rule_test_back))
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = StarveilSpacing.pageMargin),
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = StarveilSpacing.pageMargin),
+    ) {
             Text(
                 text = stringResource(R.string.rule_test_intro),
                 style = StarveilType.label,
@@ -268,7 +254,6 @@ fun RuleTestScreen(
                 }
             }
         }
-    }
 }
 
 @Composable
