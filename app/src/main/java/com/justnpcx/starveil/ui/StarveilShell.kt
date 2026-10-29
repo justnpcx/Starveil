@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,6 +84,13 @@ fun StarveilShell(
     snackbarHost: @Composable () -> Unit,
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    // The shell owns back: Navigation's own callback would pop the current
+    // graph before this one sees the press.
+    DisposableEffect(navController) {
+        navController.enableOnBackPressed(false)
+        onDispose { navController.enableOnBackPressed(true) }
+    }
+
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val entry by navController.currentBackStackEntryAsState()
@@ -97,21 +105,6 @@ fun StarveilShell(
         "scenes", "scenes/new?name={name}" -> stringResource(R.string.nav_scenes)
         "ruletest" -> stringResource(R.string.nav_diagnostics)
         else -> stringResource(R.string.nav_home)
-    }
-
-    // Back closes the drawer first; then a non-home page goes home; only the
-    // home page lets the system take the press and leave the app.
-    BackHandler(enabled = drawerState.isOpen || (route != null && route != "dashboard")) {
-        if (drawerState.isOpen) {
-            scope.launch { drawerState.close() }
-        } else if (route != null && route !in SHELL_ROUTES) {
-            navController.popBackStack()
-        } else {
-            navController.navigate("dashboard") {
-                popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                launchSingleTop = true
-            }
-        }
     }
 
     ModalNavigationDrawer(
@@ -135,9 +128,11 @@ fun StarveilShell(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets.safeDrawing.only(
-                WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
-            ),
+            // Zero: the shell's top bar handles the status bar for the pages
+            // it frames, and a secondary page's own top bar handles it for the
+            // pages it does not. Applying the inset here as well would double
+            // it on both.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 if (showTopBar) {
                     StarveilTopBar(
@@ -149,7 +144,26 @@ fun StarveilShell(
                 }
             },
             snackbarHost = snackbarHost,
-            content = content,
+            content = { padding ->
+                content(padding)
+                // Registered after the NavHost, so it is the callback the
+                // dispatcher consults first. Back closes the drawer; on any
+                // page other than the home page it goes home; on the home page
+                // it is disabled and the system leaves the app.
+                BackHandler(enabled = drawerState.isOpen || route != "dashboard") {
+                    if (drawerState.isOpen) {
+                        scope.launch { drawerState.close() }
+                    } else {
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            },
         )
     }
 }
@@ -253,25 +267,25 @@ private fun StarveilDrawer(
                 label = stringResource(R.string.nav_home),
                 icon = StarveilIcons.Dashboard,
                 selected = currentRoute == "dashboard",
-                onClick = { onNavigate("dashboard") },
+                onClick = { onNavigate("home") },
             )
             DrawerRow(
                 label = stringResource(R.string.nav_nodes),
                 icon = StarveilIcons.Nodes,
                 selected = currentRoute == "profiles",
-                onClick = { onNavigate("profiles") },
+                onClick = { onNavigate("nodes") },
             )
             DrawerRow(
                 label = stringResource(R.string.nav_rules),
                 icon = StarveilIcons.Route,
                 selected = currentRoute == "rules",
-                onClick = { onNavigate("rules") },
+                onClick = { onNavigate("rules_tab") },
             )
             DrawerRow(
                 label = stringResource(R.string.nav_logs),
                 icon = StarveilIcons.Terminal,
                 selected = currentRoute == "logs",
-                onClick = { onNavigate("logs") },
+                onClick = { onNavigate("logs_tab") },
             )
 
             DrawerGroup(stringResource(R.string.drawer_group_settings))
@@ -279,19 +293,19 @@ private fun StarveilDrawer(
                 label = stringResource(R.string.nav_settings),
                 icon = StarveilIcons.Settings,
                 selected = currentRoute == "settings",
-                onClick = { onNavigate("settings") },
+                onClick = { onNavigate("settings_tab") },
             )
             DrawerRow(
                 label = stringResource(R.string.nav_scenes),
                 icon = StarveilIcons.Route,
                 selected = currentRoute == "scenes",
-                onClick = { onNavigate("scenes") },
+                onClick = { onNavigate("scenes_tab") },
             )
             DrawerRow(
                 label = stringResource(R.string.nav_diagnostics),
                 icon = StarveilIcons.Terminal,
                 selected = currentRoute == "ruletest",
-                onClick = { onNavigate("ruletest") },
+                onClick = { onNavigate("diagnostics") },
             )
 
             DrawerGroup(stringResource(R.string.drawer_group_about))

@@ -19,6 +19,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import com.justnpcx.starveil.BuildConfig
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.kernel.vpn.starveilVpnConsent
@@ -142,7 +143,7 @@ fun StarveilNavHost(
     val pendingLink by deepLinks.pending.collectAsStateWithLifecycle()
     LaunchedEffect(pendingLink) {
         if (pendingLink == null) return@LaunchedEffect
-        navController.navigate(Destination.PROFILES.route) {
+        navController.navigate("nodes") {
             // The tab bar's own rule: one entry per tab, state restored. A
             // link tapped while on Settings must not stack a second Nodes.
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -153,14 +154,15 @@ fun StarveilNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = Destination.DASHBOARD.route,
+        startDestination = "home",
         modifier = modifier,
     ) {
+        navigation(startDestination = Destination.DASHBOARD.route, route = "home") {
         composable(Destination.DASHBOARD.route) {
             DashboardScreen(
                 requestVpnConsent = requestVpnConsent,
                 onOpenNodes = {
-                    navController.navigate(Destination.PROFILES.route) {
+                    navController.navigate("nodes") {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
@@ -168,6 +170,9 @@ fun StarveilNavHost(
                 },
             )
         }
+        }
+
+        navigation(startDestination = Destination.PROFILES.route, route = "nodes") {
         composable(Destination.PROFILES.route) {
             ProfilesScreen(
                 onTestLatency = onTestLatency,
@@ -181,19 +186,28 @@ fun StarveilNavHost(
                 },
             )
         }
+        }
+
+        navigation(startDestination = Destination.RULES.route, route = "rules_tab") {
         composable(Destination.RULES.route) {
             RulesScreen(
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
-                onOpenScenes = { navController.navigate(SCENES_ROUTE) },
+                onOpenScenes = { navController.navigate("scenes_tab") },
             )
         }
+        }
+
+        navigation(startDestination = Destination.LOGS.route, route = "logs_tab") {
         composable(Destination.LOGS.route) { LogsScreen() }
+        }
+
+        navigation(startDestination = Destination.SETTINGS.route, route = "settings_tab") {
         composable(Destination.SETTINGS.route) {
             SettingsScreen(
                 onRunLeakCheck = onRunLeakCheck,
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
                 onOpenKeepAlive = { navController.navigate(KEEP_ALIVE_ROUTE) },
-                onOpenRuleTest = { navController.navigate(RULE_TEST_ROUTE) },
+                onOpenRuleTest = { navController.navigate("diagnostics") },
                 onOpenConnections = { navController.navigate(CONNECTIONS_ROUTE) },
                 onOpenDnsLog = { navController.navigate(DNS_LOG_ROUTE) },
                 onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) },
@@ -205,6 +219,9 @@ fun StarveilNavHost(
         composable(PER_APP_ROUTE) {
             PerAppScreen(onBack = { navController.popBackStack() })
         }
+        }
+
+        navigation(startDestination = SCENES_ROUTE, route = "scenes_tab") {
         composable(SCENES_ROUTE) {
             ScenesScreen()
         }
@@ -219,9 +236,14 @@ fun StarveilNavHost(
         ) { entry ->
             ScenesScreen(draftName = entry.arguments?.getString("name"))
         }
+        }
+
+        navigation(startDestination = RULE_TEST_ROUTE, route = "diagnostics") {
         composable(RULE_TEST_ROUTE) {
             RuleTestScreen()
         }
+        }
+
         composable(CONNECTIONS_ROUTE) {
             ConnectionsScreen(onBack = { navController.popBackStack() })
         }
