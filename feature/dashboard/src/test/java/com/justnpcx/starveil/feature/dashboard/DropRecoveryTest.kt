@@ -145,7 +145,6 @@ private class DropFakePrefs : PreferencesRepository {
     override val subscribedRulePacks: Flow<Set<String>> get() = dropNotUsed()
     override val localApiEnabled: Flow<Boolean> get() = dropNotUsed()
     override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
-    override val onboardingDone: Flow<Boolean> get() = dropNotUsed()
     override val killSwitchMode: Flow<KillSwitchMode> get() = dropNotUsed()
     override val selectedGroupId: Flow<Long> get() = dropNotUsed()
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = dropNotUsed()
@@ -165,7 +164,6 @@ private class DropFakePrefs : PreferencesRepository {
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) = dropNotUsed()
     override suspend fun setLocalApiEnabled(enabled: Boolean) = dropNotUsed()
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
-    override suspend fun setOnboardingDone(done: Boolean) = dropNotUsed()
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = dropNotUsed()
     override suspend fun setScenes(scenes: List<Scene>) = dropNotUsed()
     override suspend fun recordManualPresetChange(atEpochMs: Long) = dropNotUsed()

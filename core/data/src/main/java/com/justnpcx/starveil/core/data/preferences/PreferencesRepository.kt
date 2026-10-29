@@ -144,14 +144,6 @@ interface PreferencesRepository {
     val dnsMetricsEnabled: Flow<Boolean>
 
     /**
-     * Whether the three-step onboarding has been completed or skipped.
-     *
-     * One flag, written by either ending: "skip" is an answer, and asking
-     * again after it is exactly the behaviour the screen promises not to have.
-     */
-    val onboardingDone: Flow<Boolean>
-
-    /**
      * Scenes, in the order the user arranged them.
      *
      * The order is the priority: the first scene whose trigger matches is the
@@ -273,8 +265,6 @@ interface PreferencesRepository {
 
     suspend fun setDnsMetricsEnabled(enabled: Boolean)
 
-    suspend fun setOnboardingDone(done: Boolean)
-
     suspend fun setScenes(scenes: List<Scene>)
 
     suspend fun recordManualPresetChange(atEpochMs: Long)
@@ -322,7 +312,6 @@ class DataStorePreferencesRepository @Inject constructor(
         val BLOCK_ADS = booleanPreferencesKey("block_ads")
         val RULE_PACKS = stringPreferencesKey("subscribed_rule_packs")
         val LOCAL_API = booleanPreferencesKey("local_api_enabled")
-        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
 
         val DNS_METRICS = booleanPreferencesKey("dns_metrics_enabled")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
@@ -490,13 +479,6 @@ class DataStorePreferencesRepository @Inject constructor(
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.LOCAL_API] ?: false }
 
-    // Absent means "not answered yet". An install that predates this flag sees
-    // the screen once — there is no earlier marker to tell it apart from a
-    // first launch — and one tap on Skip is the whole cost.
-    override val onboardingDone: Flow<Boolean> = dataStore.data
-        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
-        .map { prefs -> prefs[Keys.ONBOARDING_DONE] ?: false }
-
     override suspend fun setRoutePreset(preset: RoutePreset) {
         dataStore.edit { it[Keys.ROUTE_PRESET] = preset.name }
     }
@@ -524,10 +506,6 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {
         dataStore.edit { it[Keys.DNS_METRICS] = enabled }
-    }
-
-    override suspend fun setOnboardingDone(done: Boolean) {
-        dataStore.edit { it[Keys.ONBOARDING_DONE] = done }
     }
 
     override suspend fun setAutoReconnect(enabled: Boolean) {

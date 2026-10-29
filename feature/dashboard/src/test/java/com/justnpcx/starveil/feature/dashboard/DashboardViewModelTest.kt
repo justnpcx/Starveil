@@ -803,7 +803,6 @@ private class FakePreferences(
     override val subscribedRulePacks: Flow<Set<String>> = rulePacks
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
     override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
-    override val onboardingDone: Flow<Boolean> = flowOf(true)
     // Real rather than notUsed(): the connect path reads it on every build.
     private val perAppRoutesFlow = MutableStateFlow<Map<String, AppRoute>>(emptyMap())
     override val perAppRoutes: Flow<Map<String, AppRoute>> = perAppRoutesFlow
@@ -854,7 +853,6 @@ private class FakePreferences(
     }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
-    override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { notUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { notUsed() }

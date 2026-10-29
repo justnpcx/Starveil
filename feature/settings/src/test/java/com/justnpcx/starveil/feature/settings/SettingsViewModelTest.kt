@@ -188,7 +188,6 @@ private class FakePreferences : PreferencesRepository {
     private val localApi = MutableStateFlow(false)
     override val localApiEnabled: Flow<Boolean> = localApi
     override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
-    override val onboardingDone: Flow<Boolean> = flowOf(true)
     override val killSwitchMode: Flow<KillSwitchMode> = flowOf(KillSwitchMode.OFF)
     override val lastLeakCheck: Flow<LeakCheckRecord> = flowOf(LeakCheckRecord())
 
@@ -198,7 +197,6 @@ private class FakePreferences : PreferencesRepository {
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { localApi.value = enabled }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
-    override suspend fun setOnboardingDone(done: Boolean) { notUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = notUsed()
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = notUsed()

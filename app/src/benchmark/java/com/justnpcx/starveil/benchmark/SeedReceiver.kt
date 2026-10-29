@@ -63,10 +63,6 @@ class SeedReceiver : BroadcastReceiver() {
         val now = System.currentTimeMillis()
 
         runBlocking {
-            // Onboarding is part of the fixture: a freshly installed benchmark
-            // build opens on the welcome screen, where a tap on the tab bar
-            // does nothing and the measured scroll moves no frames at all.
-            entry.preferences().setOnboardingDone(true)
             // One transaction for the lot. A thousand nodes and six thousand
             // samples is a few seconds of work when it is one commit, and more
             // than a broadcast's budget when it is seven thousand.

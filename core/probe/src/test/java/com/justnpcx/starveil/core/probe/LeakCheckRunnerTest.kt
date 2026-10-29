@@ -158,7 +158,6 @@ private class LeakFakePreferences(private val mode: KillSwitchMode) : Preference
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
     override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
-    override val onboardingDone: Flow<Boolean> = flowOf(true)
     override val lastLeakCheck: Flow<LeakCheckRecord> get() = leakNotUsed()
     override val scenes: Flow<List<Scene>> = flowOf(emptyList())
     override suspend fun setScenes(scenes: List<Scene>) { leakNotUsed() }
@@ -176,7 +175,6 @@ private class LeakFakePreferences(private val mode: KillSwitchMode) : Preference
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { leakNotUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { leakNotUsed() }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
-    override suspend fun setOnboardingDone(done: Boolean) { leakNotUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) { leakNotUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { leakNotUsed() }
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) { leakNotUsed() }

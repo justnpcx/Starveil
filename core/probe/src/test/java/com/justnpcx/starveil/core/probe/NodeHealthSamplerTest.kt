@@ -204,7 +204,6 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override val subscribedRulePacks: Flow<Set<String>> = flowOf(emptySet())
     override val localApiEnabled: Flow<Boolean> = flowOf(false)
     override val dnsMetricsEnabled: Flow<Boolean> = flowOf(true)
-    override val onboardingDone: Flow<Boolean> = flowOf(true)
     override val killSwitchMode: Flow<KillSwitchMode> get() = samplerNotUsed()
     override val selectedGroupId: Flow<Long> get() = samplerNotUsed()
     override val connectionTarget: Flow<ConnectionTarget> get() = samplerNotUsed()
@@ -225,7 +224,6 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { samplerNotUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { samplerNotUsed() }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
-    override suspend fun setOnboardingDone(done: Boolean) { samplerNotUsed() }
     override suspend fun setAutoReconnect(enabled: Boolean) = samplerNotUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = samplerNotUsed()
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = samplerNotUsed()
