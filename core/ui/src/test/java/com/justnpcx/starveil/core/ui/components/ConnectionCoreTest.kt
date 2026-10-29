@@ -36,18 +36,18 @@ class ConnectionCoreGeometryTest {
     }
 
     @Test
-    fun `the ring's stroke is 4dp`() {
+    fun `the ring's stroke is 5dp`() {
         // The spec's weight. A stroke that scaled with the diameter would make
         // a larger ring a different weight of line.
-        assertEquals(4f, ConnectionCoreGeometry.strokeDp)
+        assertEquals(5f, ConnectionCoreGeometry.strokeDp)
     }
 
     @Test
-    fun `the ring is 240dp on every screen`() {
+    fun `the ring is 204dp on every screen`() {
         // One size. The design is measured from this box, so a ring that grows
         // with the viewport makes the layout different on every device.
-        assertEquals(240f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 900f))
-        assertEquals(240f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 700f))
+        assertEquals(204f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 900f))
+        assertEquals(204f, ConnectionCoreGeometry.diameterFor(availableHeightDp = 700f))
     }
 }
 

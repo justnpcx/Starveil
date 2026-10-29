@@ -9,92 +9,82 @@ import org.junit.Test
 /**
  * WCAG contrast, measured rather than eyeballed.
  *
- * "Looks fine on my screen" is how a palette ends up with dim grey text on a
- * black page that disappears outdoors — and this design is built out of text,
- * hairlines and one accent, so text contrast is not a detail of it, it is most
- * of the interface.
- *
- * The numbers are the standard ones: 4.5:1 for body text (AA), 3:1 for a
- * graphic that carries meaning.
+ * The task book's section 10 list, in both modes. Every pair is body text, so
+ * the threshold is 4.5:1; the graphic checks are 3:1.
  */
 class ContrastTest {
 
-    private val p = GlassPalette
+    private val palettes = listOf("light" to LightPalette, "dark" to DarkPalette)
 
     @Test
-    fun `body text meets AA on the page`() {
-        assertAtLeast(4.5, p.ink, p.bg, "ink on bg")
-        // ink2 is every description line in the app, so it is body text and
-        // gets no large-text exemption.
-        assertAtLeast(4.5, p.ink2, p.bg, "ink2 on bg")
-    }
-
-    @Test
-    fun `body text meets AA on a glass card`() {
-        // A card is one step off the page and carries the same text.
-        assertAtLeast(4.5, p.ink, p.surfaceGlass, "ink on surfaceGlass")
-        assertAtLeast(4.5, p.ink2, p.surfaceGlass, "ink2 on surfaceGlass")
+    fun `body text meets AA on the page and on a card`() {
+        for ((name, p) in palettes) {
+            assertAtLeast(4.5, p.ink, p.bg, name + ": ink on bg")
+            assertAtLeast(4.5, p.ink, p.card, name + ": ink on card")
+            assertAtLeast(4.5, p.ink2, p.bg, name + ": ink2 on bg")
+            assertAtLeast(4.5, p.ink2, p.card, name + ": ink2 on card")
+        }
     }
 
     @Test
     fun `the accent is readable as text`() {
-        // Text in the accent uses its text grade: #0071E3 is 4.01:1 on this
-        // page, which is a mark's contrast, not a paragraph's.
-        assertAtLeast(4.5, p.accentText, p.bg, "accentText on bg")
-        assertAtLeast(4.5, p.accentText, p.surfaceGlass, "accentText on surfaceGlass")
+        for ((name, p) in palettes) {
+            assertAtLeast(4.5, p.accent, p.bg, name + ": accent on bg")
+            assertAtLeast(4.5, p.accent, p.card, name + ": accent on card")
+        }
     }
 
     @Test
-    fun `the accent is a line before it is a fill`() {
-        // WCAG 1.4.11: a graphic that carries meaning needs 3:1 against what is
-        // behind it. The ring, the selected chip's edge and the navigation dot
-        // are graphics.
-        assertAtLeast(3.0, p.accent, p.bg, "accent on bg")
-        assertAtLeast(3.0, p.err, p.bg, "err dot on bg")
+    fun `selected text is readable on the selected fill`() {
+        for ((name, p) in palettes) {
+            assertAtLeast(4.5, p.selInk, p.selBg, name + ": selInk on selBg")
+        }
     }
 
     @Test
     fun `status colours are readable as text`() {
-        // The availability percentage is drawn in its band's colour, and the
-        // notice line uses these as text. Small labels, so 4.5:1.
-        assertAtLeast(4.5, p.ok, p.bg, "ok on bg")
-        assertAtLeast(4.5, p.errText, p.bg, "errText on bg")
-        assertAtLeast(4.5, p.warn, p.bg, "warn on bg")
+        for ((name, p) in palettes) {
+            assertAtLeast(4.5, p.err, p.card, name + ": err on card")
+            assertAtLeast(4.5, p.warn, p.bg, name + ": warn on bg")
+            assertAtLeast(4.5, p.warn, p.card, name + ": warn on card")
+            assertAtLeast(4.5, p.ok, p.bg, name + ": ok on bg")
+        }
     }
 
     @Test
-    fun `a selected row's text stays readable on its wash`() {
-        // The wash is the one tinted fill in the design (the accent at 12% over
-        // the page), so it has to keep the row's own text above AA — otherwise
-        // selecting a node would make it harder to read.
-        val wash = blend(p.accent.copy(alpha = 0.10f), p.bg)
-        assertAtLeast(4.5, p.ink, wash, "ink on the selected wash")
-        assertAtLeast(4.5, p.ink2, wash, "ink2 on the selected wash")
+    fun `marks clear the graphic threshold`() {
+        for ((name, p) in palettes) {
+            assertAtLeast(3.0, p.accent, p.bg, name + ": accent mark on bg")
+            assertAtLeast(3.0, p.err, p.bg, name + ": err dot on bg")
+        }
     }
 
     @Test
-    fun `ink3 is allowed to be low contrast`() {
-        // Recorded, not asserted: ink3 is placeholders and timestamps, which
-        // WCAG treats leniently and which would stop reading as secondary if
-        // they were lifted to AA. The number is here so a future change to it
-        // is a deliberate one.
-        val ratio = contrast(p.ink3, p.bg)
-        println("CONTRAST_INK3=${"%.2f".format(ratio)}")
-        assertTrue("ink3 should still be visible at all", ratio > 1.8)
+    fun `report every measured ratio`() {
+        for ((name, p) in palettes) {
+            val pairs = listOf(
+                "ink on bg" to (p.ink to p.bg),
+                "ink on card" to (p.ink to p.card),
+                "ink2 on bg" to (p.ink2 to p.bg),
+                "ink2 on card" to (p.ink2 to p.card),
+                "accent on bg" to (p.accent to p.bg),
+                "selInk on selBg" to (p.selInk to p.selBg),
+                "err on card" to (p.err to p.card),
+                "warn on bg" to (p.warn to p.bg),
+                "warn on card" to (p.warn to p.card),
+            )
+            for ((what, colors) in pairs) {
+                val key = "CONTRAST_" + name.uppercase() + "_" + what.replace(' ', '_')
+                println(key + "=" + "%.2f".format(contrast(colors.first, colors.second)))
+            }
+        }
     }
-
-    /** [foreground] at [alpha] composited over [background]. */
-    private fun blend(foreground: Color, background: Color): Color = Color(
-        red = foreground.red * foreground.alpha + background.red * (1 - foreground.alpha),
-        green = foreground.green * foreground.alpha + background.green * (1 - foreground.alpha),
-        blue = foreground.blue * foreground.alpha + background.blue * (1 - foreground.alpha),
-    )
 
     private fun assertAtLeast(minimum: Double, foreground: Color, background: Color, what: String) {
         val ratio = contrast(foreground, background)
         assertTrue(
-            "$what: ${"%.2f".format(ratio)}:1 is below $minimum:1 " +
-                "(fg=${foreground.hex()}, bg=${background.hex()})",
+            what + ": " + "%.2f".format(ratio) + ":1 is below " + minimum + ":1 " +
+                "(fg=" + foreground.hex() + ", bg=" + background.hex() + ")",
             ratio >= minimum,
         )
     }
