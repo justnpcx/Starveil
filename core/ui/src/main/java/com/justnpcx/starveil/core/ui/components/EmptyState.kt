@@ -36,7 +36,7 @@ fun EmptyState(
             .padding(StarveilSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
     ) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium)
+        Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         Text(
             text = body,
             style = MaterialTheme.typography.bodyMedium,

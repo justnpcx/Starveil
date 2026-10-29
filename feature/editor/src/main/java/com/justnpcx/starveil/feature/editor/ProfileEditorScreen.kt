@@ -82,6 +82,7 @@ fun ProfileEditorScreen(
                     if (state.missing) R.string.editor_missing else R.string.editor_title_new,
                     type.displayName(),
                 ),
+                color = StarveilColors.ink,
                 modifier = Modifier.padding(padding).padding(StarveilSpacing.lg),
             )
             return@Scaffold
@@ -341,6 +342,7 @@ private fun ProtocolFields(
         ProfileType.OTHER -> Text(
             text = stringResource(R.string.editor_missing),
             style = StarveilType.label,
+            color = StarveilColors.ink,
         )
     }
 }
@@ -437,6 +439,7 @@ private fun Section(title: String) {
     Text(
         text = title,
         style = StarveilType.headline,
+        color = StarveilColors.ink,
         modifier = Modifier.padding(top = StarveilSpacing.md),
     )
 }
@@ -467,6 +470,7 @@ private fun Toggle(label: Int, checked: Boolean, onCheckedChange: (Boolean) -> U
         Text(
             text = stringResource(label),
             style = StarveilType.label,
+            color = StarveilColors.ink,
             modifier = Modifier.weight(1f),
         )
         StarveilSwitch(checked = checked, onCheckedChange = onCheckedChange)

@@ -58,6 +58,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
             Text(
                 text = stringResource(R.string.privacy_intro),
                 style = StarveilType.body,
+                color = StarveilColors.ink,
             )
             PolicySection(R.string.privacy_data_title, R.string.privacy_data_body)
             PolicySection(R.string.privacy_crash_title, R.string.privacy_crash_body)
@@ -77,6 +78,7 @@ private fun PolicySection(title: Int, body: Int) {
         Text(
             text = stringResource(title),
             style = StarveilType.headline,
+            color = StarveilColors.ink,
         )
         Text(
             text = stringResource(body),

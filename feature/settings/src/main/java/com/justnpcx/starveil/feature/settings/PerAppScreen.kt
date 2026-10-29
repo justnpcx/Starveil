@@ -149,6 +149,7 @@ private fun AppRow(
             Text(
                 text = app.label,
                 style = StarveilType.body,
+                color = StarveilColors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -234,6 +235,7 @@ private fun TargetOption(
         Text(
             text = label,
             style = StarveilType.body,
+            color = StarveilColors.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

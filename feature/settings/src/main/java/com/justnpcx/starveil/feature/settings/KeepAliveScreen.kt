@@ -161,6 +161,7 @@ private fun KeepAliveRow(
                 Text(
                     text = title,
                     style = StarveilType.headline,
+                    color = StarveilColors.ink,
                     modifier = Modifier.weight(1f),
                 )
                 if (status != null) {

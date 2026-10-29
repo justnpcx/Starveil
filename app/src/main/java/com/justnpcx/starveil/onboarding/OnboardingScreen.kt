@@ -226,6 +226,7 @@ private fun WelcomeStep(onNext: () -> Unit) {
         Text(
             text = stringResource(R.string.onboarding_welcome_title),
             style = StarveilType.headline,
+            color = StarveilColors.ink,
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(StarveilSpacing.sm))
@@ -258,6 +259,7 @@ private fun ImportStep(
         Text(
             text = stringResource(R.string.onboarding_import_title),
             style = StarveilType.headline,
+            color = StarveilColors.ink,
         )
         Text(
             text = stringResource(R.string.onboarding_import_body),
@@ -341,6 +343,7 @@ private fun ConnectStep(
         Text(
             text = stringResource(R.string.onboarding_connect_title),
             style = StarveilType.headline,
+            color = StarveilColors.ink,
         )
         Text(
             text = stringResource(R.string.onboarding_connect_body),
