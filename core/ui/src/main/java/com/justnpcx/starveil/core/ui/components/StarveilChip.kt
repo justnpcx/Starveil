@@ -74,20 +74,18 @@ fun StarveilChip(
     val description = stateDescription
 
     val fill: Color = when {
-        !enabled -> StarveilColors.surfaceGlass
-        surface == ChipSurface.Dialog && selected -> StarveilColors.accentWash
-        surface == ChipSurface.Dialog -> StarveilColors.bg
-        else -> StarveilColors.surfaceGlass
+        !enabled -> StarveilColors.card
+        selected -> StarveilColors.selBg
+        else -> StarveilColors.card
     }
     val edge: Color = when {
-        !enabled -> StarveilColors.hairline
-        selected -> StarveilColors.accent
-        surface == ChipSurface.Dialog -> StarveilColors.ink3
-        else -> StarveilColors.glassBorder
+        !enabled -> StarveilColors.line
+        selected -> StarveilColors.selBg
+        else -> StarveilColors.chipB
     }
     val content: Color = when {
-        !enabled -> StarveilColors.ink3
-        selected -> StarveilColors.accentText
+        !enabled -> StarveilColors.ink2
+        selected -> StarveilColors.selInk
         else -> StarveilColors.ink2
     }
 
