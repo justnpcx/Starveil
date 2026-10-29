@@ -34,37 +34,38 @@ val SansFamily = FontFamily.SansSerif
  */
 object StarveilType {
 
-    /** The dashboard's rate. The one place the display face is 54sp. */
+    /** The dashboard's rate. Mono and tabular, so the digits never jitter. */
     val display = TextStyle(
-        fontFamily = SansFamily,
-        fontWeight = FontWeight.Light,
-        fontSize = 54.sp,
-        lineHeight = 58.sp,
+        fontFamily = MonoFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
         letterSpacing = (-1).sp,
+        fontFeatureSettings = "tnum",
     )
 
     /** The word inside the ring. */
     val ringWord = TextStyle(
         fontFamily = SansFamily,
-        fontWeight = FontWeight.Light,
-        fontSize = 30.sp,
-        lineHeight = 38.sp,
-        letterSpacing = 0.5.sp,
+        fontWeight = FontWeight.Bold,
+        fontSize = 26.sp,
+        lineHeight = 32.sp,
+        letterSpacing = 0.2.sp,
     )
 
     /** A page's own title. */
     val title = TextStyle(
         fontFamily = SansFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 26.sp,
-        lineHeight = 34.sp,
-        letterSpacing = (-0.3).sp,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (-0.2).sp,
     )
 
     /** A section heading, or the main line of a row. */
     val headline = TextStyle(
         fontFamily = SansFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 17.sp,
         lineHeight = 24.sp,
     )
@@ -73,16 +74,16 @@ object StarveilType {
     val body = TextStyle(
         fontFamily = SansFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        lineHeight = 22.sp,
+        fontSize = 14.sp,
+        lineHeight = 21.sp,
     )
 
     /** The line under a heading. */
     val label = TextStyle(
         fontFamily = SansFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 19.sp,
+        fontSize = 12.5.sp,
+        lineHeight = 18.sp,
     )
 
     /**
@@ -103,11 +104,12 @@ object StarveilType {
 
     /** A number inside a list: latency, counts. */
     val numInline = TextStyle(
-        fontFamily = SansFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = MonoFamily,
+        fontWeight = FontWeight.Medium,
         fontSize = 20.sp,
         lineHeight = 26.sp,
         letterSpacing = (-0.2).sp,
+        fontFeatureSettings = "tnum",
     )
 
     /** A log line: the tech face at reading size. */

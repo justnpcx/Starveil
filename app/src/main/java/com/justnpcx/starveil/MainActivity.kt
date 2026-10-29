@@ -57,6 +57,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.ui.components.StarveilBackground
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
@@ -137,20 +138,32 @@ class MainActivity : ComponentActivity() {
             // replacing them with onboarding would flash the wrong screen.
             val onboardingDone by preferences.onboardingDone
                 .collectAsStateWithLifecycle(initialValue = null)
+            val themeMode by preferences.themeMode
+                .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val systemDark = isSystemInDarkTheme()
+            val dark = when (themeMode) {
+                ThemeMode.SYSTEM -> systemDark
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
 
-            // One theme, and it is light: both system bars are transparent over
-            // the page, with dark icons. `auto` would follow the system and
-            // leave dark icons on a dark bar for anyone who runs their phone in
-            // dark mode, which this app does not.
-            LaunchedEffect(Unit) {
-                val style = SystemBarStyle.light(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT,
-                )
+            // Both bars are transparent over the page. The icon grade flips with
+            // the palette: dark glyphs on the light page, light glyphs on the
+            // dark one. Leaving it fixed is how a dark theme ends up with
+            // invisible status icons.
+            LaunchedEffect(dark) {
+                val style = if (dark) {
+                    SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT,
+                    )
+                }
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
-            StarveilTheme {
+            StarveilTheme(darkTheme = dark) {
                 when (onboardingDone) {
                     null -> Box(modifier = Modifier.fillMaxSize())
                     // Behind the same gradient as the rest of the app, so the

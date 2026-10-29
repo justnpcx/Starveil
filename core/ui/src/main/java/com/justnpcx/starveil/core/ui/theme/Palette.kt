@@ -4,128 +4,162 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * The palette. One instance, one set of names.
+ * The palette: two modes, one set of role names.
  *
- * Starveil has one face: frosted glass. A light, slightly cool page, a
- * translucent white material one layer above it, and a single blue spent on
- * selected marks, switches and status. Nothing glows, nothing is pure black,
- * and no surface is fully opaque — every card shows a little of what is under
- * it, which is what keeps a full screen of text from reading as a glare.
+ * The task book's token table is the only source of these values. A screen asks
+ * for a role (`ink`, `card`, `selBg`) and never for a hex; the mode is decided
+ * once, above the whole app.
  *
- * There is no second palette and no branch on "which theme". The indirection
- * that remains (a CompositionLocal, so Material components resolve the same
- * values) exists for the components, not for a choice the user can make.
- *
- * Every value below was read from the 03 mockup in the design demo — its own
- * background gradient, the card's 68% white and 18px backdrop blur, the 75%
- * white edge, and the two blues the mockup actually uses (#0071E3 for marks,
- * #0066CC for accent-coloured text). The exceptions are called out one by one:
- * `warn`, and the text grades that had to be darkened to clear 4.5:1 here.
+ * The old glass-era names are kept as aliases at the bottom of this file. They
+ * are not a second palette: each one resolves to one of the roles above, so the
+ * screens that still spell `surfaceGlass` cannot drift away from `card`.
  */
 @Immutable
 data class StarveilPalette(
-    /** The page's flat base. The gradient is painted on top of it. */
+    /** True for the dark table. */
+    val dark: Boolean,
+    /** The page. */
     val bg: Color,
-    /** The ambient gradient, 160 degrees, cool to warm. */
-    val bgTop: Color,
-    val bgMid: Color,
-    val bgBottom: Color,
-    /** A glass card: 68% white, one step above the page. */
-    val surfaceGlass: Color,
-    /** Thinner material: inputs, flag chips, small wells. */
-    val surfaceThin: Color,
-    /** The navigation bar's material. */
-    val surfaceChrome: Color,
-    /**
-     * The same material with the transparency resolved. A dialog or a menu sits
-     * over a dim scrim, and 68% white over a scrim is grey — so anything that
-     * floats above a dimmed page uses this instead of [surfaceGlass].
-     */
-    val surfaceSolid: Color,
-    /** The 1dp highlight edge that gives a glass card its shape. */
-    val glassBorder: Color,
-    /** The 1dp highlight edge that gives a glass card its shape. */
-    val hairline: Color,
-    /**
-     * A rule drawn **inside** a card.
-     *
-     * Not [hairline]: that is white at 75%, which is brighter than the 68%
-     * white card it would sit on, so it reads as a gap between rows rather than
-     * a separator. Ink at 10% is darker than the card in both directions and
-     * stays a hairline. The white value keeps its one job — the card's own
-     * edge, where a highlight is what makes the glass read as glass.
-     */
-    val divider: Color,
+    /** A card, a dialog, a menu, a sheet. Opaque by design. */
+    val card: Color,
     /** Primary text. */
     val ink: Color,
-    /** Secondary text: labels, descriptions. */
+    /** Secondary text, icons, labels. */
     val ink2: Color,
-    /** Tertiary: placeholders, timestamps, unselected icons. */
-    val ink3: Color,
-    /** The one accent: selected marks, switches, status dots. */
+    /** A rule between rows. */
+    val line: Color,
+    /** The outline of an unselected chip. */
+    val chipB: Color,
+    /** The functional accent, safe as text. */
     val accent: Color,
-    /** The accent as text. A shade darker, because 4.01:1 is not 4.5:1. */
-    val accentText: Color,
-    /** Online, healthy: text, dots and the ring's healthy state. */
-    val ok: Color,
-    /** Attention. Not in the demo; fixed at 4.68:1 on the page. */
-    val warn: Color,
-    /** Failure, as a dot or a line. */
+    /** The fill behind a selected pill/segment. */
+    val selBg: Color,
+    /** The text on [selBg]. */
+    val selInk: Color,
+    /** The trough of a segmented control. */
+    val segBg: Color,
+    /** The drawer's surface. */
+    val drawer: Color,
+    /** Failure, as a dot, a line or text. */
     val err: Color,
-    /** Failure as text, darkened to clear 4.5:1. */
-    val errText: Color,
-    /**
-     * The tint of every shadow the app draws. One value, because a shadow is
-     * part of the material and not a per-component decision.
-     */
+    /** Healthy. */
+    val ok: Color,
+    /** Attention. */
+    val warn: Color,
+    /** The ring when nothing is connected. */
+    val ringOff: Color,
+    /** The gauze woven across the connection card. */
+    val veil: Color,
+    /** Page bloom: pink, blue, purple. Static, never animated. */
+    val washPink: Color,
+    val washBlue: Color,
+    val washPurple: Color,
+    /** The tint every shadow is drawn in. */
     val shadowTint: Color,
 ) {
-    /** A divider, at the width the design calls a hairline. */
+    /** A hairline is one pixel at every density. */
     val hairlineWidth = 1f
 
-    /** A selected row's wash: the accent at 10%, the only tinted fill allowed. */
-    val accentWash: Color get() = accent.copy(alpha = 0.10f)
-
-    /** The health curve's fill: the demo's 14%, under a 1.5dp line. */
+    /** The health curve's fill. */
     val curveFillAlpha = 0.14f
 
-    /** The ambient washes that make the material visible: blue, green, amber. */
-    val washes: List<Color> get() = listOf(WASH_BLUE, WASH_GREEN, WASH_AMBER)
+    /** The three blooms, in paint order. */
+    val washes: List<Color> get() = listOf(washPink, washBlue, washPurple)
+
+    // ---- Legacy role names, each mapped to exactly one token above ----------
+
+    /** @deprecated The card is opaque now; use [card]. */
+    val surfaceGlass: Color get() = card
+
+    /** @deprecated Inputs and wells use the segment trough; use [segBg]. */
+    val surfaceThin: Color get() = segBg
+
+    /** @deprecated The drawer is the only chrome surface; use [drawer]. */
+    val surfaceChrome: Color get() = drawer
+
+    /** @deprecated Floating surfaces are cards; use [card]. */
+    val surfaceSolid: Color get() = card
+
+    /** @deprecated A card's edge is the line token; use [line]. */
+    val glassBorder: Color get() = line
+
+    /** @deprecated Use [line]. */
+    val hairline: Color get() = line
+
+    /** @deprecated Use [line]. */
+    val divider: Color get() = line
+
+    /** @deprecated Tertiary text is the secondary grade; use [ink2]. */
+    val ink3: Color get() = ink2
+
+    /** @deprecated Accent text is the accent; use [accent]. */
+    val accentText: Color get() = accent
+
+    /** @deprecated Failure text is the failure colour; use [err]. */
+    val errText: Color get() = err
+
+    /** @deprecated The idle ring is [ringOff]. */
+    val ringIdle: Color get() = ringOff
+
+    /** A selected row's wash, now the selected fill. */
+    val accentWash: Color get() = selBg
+
+    /** The page is flat; kept so old call sites still compile. */
+    val bgTop: Color get() = bg
+    val bgMid: Color get() = bg
+    val bgBottom: Color get() = bg
 }
 
-private val WASH_BLUE = Color(0xFF5AA0FF).copy(alpha = 0.28f)
-private val WASH_GREEN = Color(0xFF50D2AA).copy(alpha = 0.22f)
-private val WASH_AMBER = Color(0xFFFFAA5A).copy(alpha = 0.20f)
-
-/** The palette. There is one. */
-val GlassPalette = StarveilPalette(
-    bg = Color(0xFFE9EDF2),
-    bgTop = Color(0xFFE8EEF5),
-    bgMid = Color(0xFFEEF3EE),
-    bgBottom = Color(0xFFF3ECE4),
-    surfaceGlass = Color(0xFFFFFFFF).copy(alpha = 0.68f),
-    surfaceThin = Color(0xFFFFFFFF).copy(alpha = 0.55f),
-    surfaceChrome = Color(0xFFFFFFFF).copy(alpha = 0.60f),
-    surfaceSolid = Color(0xFFF6F8FA),
-    glassBorder = Color(0xFFFFFFFF).copy(alpha = 0.75f),
-    hairline = Color(0xFFFFFFFF).copy(alpha = 0.75f),
-    // Ink at 10%: measured on the card it lands around #DCDFE3 against a
-    // #F4F6F9 card, a step you can see without it becoming a table rule.
-    divider = Color(0xFF1D1D1F).copy(alpha = 0.10f),
-    ink = Color(0xFF1D1D1F),
-    // The demo's 60% and 42% are Apple's own secondary and tertiary grades;
-    // both land under AA on this page, so each is lifted one notch — 62% and
-    // 48% — which keeps the step between them and puts ink2 at 4.59:1.
-    ink2 = Color(0xFF1D1D1F).copy(alpha = 0.62f),
-    ink3 = Color(0xFF1D1D1F).copy(alpha = 0.48f),
-    accent = Color(0xFF0071E3),
-    accentText = Color(0xFF0066CC),
-    // The demo's status dot is a brighter green (#30A46C), but on this page
-    // that is 2.68:1 — under the 3:1 a graphic that carries meaning needs. One
-    // green, at 4.58:1, for text and dots alike.
-    ok = Color(0xFF1D7A3A),
+/** The light table, exactly as the task book lists it. */
+val LightPalette = StarveilPalette(
+    dark = false,
+    bg = Color(0xFFF6F7F9),
+    card = Color(0xFFFFFFFF),
+    ink = Color(0xFF1F1F1F),
+    ink2 = Color(0xFF444746),
+    line = Color(0xFFE7E8E9),
+    chipB = Color(0xFFC4C7C5),
+    accent = Color(0xFF0B57D0),
+    selBg = Color(0xFFD3E3FD),
+    selInk = Color(0xFF0B57D0),
+    segBg = Color(0xFFEEF2F7),
+    drawer = Color(0xFFFFFFFF),
+    err = Color(0xFFB3261E),
+    ok = Color(0xFF137333),
     warn = Color(0xFFAC4D00),
-    err = Color(0xFFE5484D),
-    errText = Color(0xFFBE3238),
+    ringOff = Color(0xFFC4C7C5),
+    veil = Color(0x177C6CF0),
+    washPink = Color(0x1AE85D9E),
+    washBlue = Color(0x1A4285F4),
+    washPurple = Color(0x147C6CF0),
     shadowTint = Color(0xFF1F2687),
 )
+
+/** The dark table. Not pure black: the page is #131314, the card #1E1F20. */
+val DarkPalette = StarveilPalette(
+    dark = true,
+    bg = Color(0xFF131314),
+    card = Color(0xFF1E1F20),
+    ink = Color(0xFFE3E3E3),
+    ink2 = Color(0xFFC4C7C5),
+    line = Color(0xFF3F4446),
+    chipB = Color(0xFF5F6368),
+    accent = Color(0xFFA8C7FA),
+    selBg = Color(0xFF004A77),
+    selInk = Color(0xFFC2E7FF),
+    segBg = Color(0xFF28292A),
+    drawer = Color(0xFF1E1F20),
+    err = Color(0xFFF2B8B5),
+    ok = Color(0xFF81C995),
+    // Measured 10.92:1 on bg / 9.71:1 on card, so the candidate stands.
+    warn = Color(0xFFFFB59E),
+    ringOff = Color(0xFF5F6368),
+    veil = Color(0x12A8C7FA),
+    washPink = Color(0x1FE85D9E),
+    washBlue = Color(0x1F4285F4),
+    washPurple = Color(0x247C6CF0),
+    shadowTint = Color(0xFF000000),
+)
+
+/** The default palette. The theme always provides one explicitly. */
+val GlassPalette = LightPalette

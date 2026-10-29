@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.NodeSelectionMode
+import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Scene
 import com.justnpcx.starveil.core.model.LeakCheckRecord
@@ -236,6 +238,23 @@ interface PreferencesRepository {
     suspend fun setAutoReconnect(enabled: Boolean)
 
     suspend fun setAutoSwitchOnDrop(enabled: Boolean)
+
+    /**
+     * Light, dark, or follow the system.
+     *
+     * A default implementation keeps every test fake source-compatible; the
+     * DataStore repository is the one that actually stores it.
+     */
+    val themeMode: Flow<ThemeMode>
+        get() = kotlinx.coroutines.flow.flowOf(ThemeMode.SYSTEM)
+
+    suspend fun setThemeMode(mode: ThemeMode) = Unit
+
+    /** Whether the picker may move the selected node. Persisted. */
+    val nodeSelectionMode: Flow<NodeSelectionMode>
+        get() = kotlinx.coroutines.flow.flowOf(NodeSelectionMode.AUTO)
+
+    suspend fun setNodeSelectionMode(mode: NodeSelectionMode) = Unit
     suspend fun setBypassMainland(enabled: Boolean)
 
     suspend fun setRoutePreset(preset: RoutePreset)
@@ -321,6 +340,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val MANUAL_PRESET_AT = longPreferencesKey("manual_preset_at")
         val HAS_CONNECTED_ONCE = booleanPreferencesKey("has_connected_once")
         val NODE_HINT_SEEN = booleanPreferencesKey("node_hint_seen")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val NODE_SELECTION_MODE = stringPreferencesKey("node_selection_mode")
     }
 
     override val autoReconnect: Flow<Boolean> = dataStore.data
@@ -332,6 +353,22 @@ class DataStorePreferencesRepository @Inject constructor(
     override val autoSwitchOnDrop: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.AUTO_SWITCH_ON_DROP] ?: true }
+
+    override val themeMode: Flow<ThemeMode> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> ThemeMode.fromStorage(prefs[Keys.THEME_MODE]) }
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    override val nodeSelectionMode: Flow<NodeSelectionMode> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> NodeSelectionMode.fromStorage(prefs[Keys.NODE_SELECTION_MODE]) }
+
+    override suspend fun setNodeSelectionMode(mode: NodeSelectionMode) {
+        dataStore.edit { it[Keys.NODE_SELECTION_MODE] = mode.name }
+    }
 
     override val bypassMainland: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
