@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.ConnectionDetail
+import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
@@ -81,8 +82,9 @@ fun ConnectionsScreen(
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
+            StarveilTopAppBar(
                 title = { Text(stringResource(R.string.connections_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

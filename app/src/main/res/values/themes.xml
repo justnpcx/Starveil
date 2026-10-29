@@ -1,10 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
         Minimal Activity theme: window background only. All visual identity
-        lives in the Compose design system (:core:ui StarveilTheme).
+        lives in the Compose design system (:core:ui StarveilTheme). The pearl
+        background means the launch window does not flash black before the
+        first frame; values-night flips it for a device in dark mode.
     -->
     <style name="Theme.Starveil" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>

@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.Profile
@@ -54,8 +55,9 @@ fun PerAppScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
+            StarveilTopAppBar(
                 title = { Text(stringResource(R.string.per_app_title)) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {

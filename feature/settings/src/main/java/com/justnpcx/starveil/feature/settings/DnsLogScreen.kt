@@ -38,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.data.geo.DnsEntry
 import com.justnpcx.starveil.core.data.geo.DnsOutcome
+import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
@@ -71,8 +72,9 @@ fun DnsLogScreen(
     var copied by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
+            StarveilTopAppBar(
                 title = { Text(stringResource(R.string.dns_log_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

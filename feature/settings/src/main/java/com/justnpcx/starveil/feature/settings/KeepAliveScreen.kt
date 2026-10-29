@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -66,8 +67,9 @@ fun KeepAliveScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
+            StarveilTopAppBar(
                 title = { Text(stringResource(R.string.keepalive_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

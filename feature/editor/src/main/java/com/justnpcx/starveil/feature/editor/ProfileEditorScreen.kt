@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilSwitch
@@ -58,8 +59,9 @@ fun ProfileEditorScreen(
 
     val form = state.form
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
+            StarveilTopAppBar(
                 title = {
                     Text(
                         stringResource(
