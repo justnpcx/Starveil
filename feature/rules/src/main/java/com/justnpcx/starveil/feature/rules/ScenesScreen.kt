@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -665,7 +666,16 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        // Bound to the tokens rather than left to Material's default: the two
+        // must not be able to disagree after a library bump.
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = StarveilColors.accent,
+                unselectedColor = StarveilColors.ink2,
+            ),
+        )
         Text(text = label, style = StarveilType.label, color = StarveilColors.ink)
     }
 }
