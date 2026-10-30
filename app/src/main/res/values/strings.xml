@@ -37,12 +37,12 @@
     <string name="nav_privacy">Privacy</string>
 
     <!-- The hub: one row per destination the bar does not list. -->
-    <string name="hub_scenes_sub">Automation presets and scene switching</string>
-    <string name="hub_logs_sub">Connection log and recent flows</string>
+    <string name="hub_scenes_sub">Presets and scene switching</string>
+    <string name="hub_logs_sub">Log and recent flows</string>
     <string name="hub_diagnostics_title">Diagnostics</string>
-    <string name="hub_diagnostics_sub">DNS, probes and connectivity checks</string>
-    <string name="hub_settings_sub">Appearance, connection, security and backup</string>
-    <string name="hub_about_sub">Version, features, privacy and licences</string>
+    <string name="hub_diagnostics_sub">DNS, probes and connectivity</string>
+    <string name="hub_settings_sub">Appearance, connection, backup</string>
+    <string name="hub_about_sub">Version, features, licences</string>
 
     <!-- About. -->
     <string name="about_name">Starveil 星纱</string>
