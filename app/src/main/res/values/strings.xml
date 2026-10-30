@@ -17,21 +17,50 @@
     <string name="nav_settings">Settings</string>
     <string name="nav_scenes">Scenes</string>
     <string name="nav_diagnostics">Diagnostics</string>
+    <string name="nav_more">More</string>
+    <string name="nav_about">About</string>
+    <string name="nav_back">Back</string>
+    <!-- The navigation bar's spoken state, appended to the item's name. -->
+    <string name="nav_item_selected">Selected</string>
+    <string name="nav_item_unselected">Not selected</string>
 
-    <!-- Drawer. -->
-    <string name="drawer_open">Open navigation</string>
-    <string name="drawer_status_connected">Connected · %1$s</string>
-    <string name="drawer_status_unknown_node">a node</string>
-    <string name="drawer_status_offline">Not connected</string>
-    <string name="drawer_group_pages">Pages</string>
-    <string name="drawer_group_settings">Settings and diagnostics</string>
-    <string name="drawer_group_about">About</string>
-    <string name="brand_tagline">Starlight for the road · gauze for the shield</string>
+    <!-- The one global action in the top bar. -->
     <string name="theme_to_dark">Switch to dark</string>
     <string name="theme_to_light">Switch to light</string>
-    <string name="drawer_github">GitHub repository</string>
-    <string name="drawer_changelog">Changelog</string>
-    <string name="drawer_issues">Report an issue</string>
+
+    <!-- Titles of the pages the bar frames. They live here because the bar
+         draws them: a page no longer carries a title of its own. -->
+    <string name="nav_per_app">Per-app routing</string>
+    <string name="nav_keep_alive">Keep alive</string>
+    <string name="nav_connections">Connections</string>
+    <string name="nav_dns_log">DNS log</string>
+    <string name="nav_privacy">Privacy</string>
+
+    <!-- The hub: one row per destination the bar does not list. -->
+    <string name="hub_scenes_sub">Automation presets and scene switching</string>
+    <string name="hub_logs_sub">Connection log and recent flows</string>
+    <string name="hub_diagnostics_title">Diagnostics</string>
+    <string name="hub_diagnostics_sub">DNS, probes and connectivity checks</string>
+    <string name="hub_settings_sub">Appearance, connection, security and backup</string>
+    <string name="hub_about_sub">Version, features, privacy and licences</string>
+
+    <!-- About. -->
+    <string name="about_name">Starveil 星纱</string>
+    <string name="about_version_line">Version %1$s</string>
+    <string name="about_update_title">Check for updates</string>
+    <string name="about_update_checking">Checking…</string>
+    <string name="about_update_latest">Up to date</string>
+    <string name="about_update_available">%1$s available</string>
+    <string name="about_update_failed">Check failed</string>
+    <string name="about_update_ready">Ready to install</string>
+    <string name="about_features_title">What it does</string>
+    <string name="about_features_body">Starveil routes this device through a node you choose, and keeps the decision legible.\n\n· Nodes arrive by QR code, clipboard, subscription or by hand.\n· Rules decide what goes through the tunnel and what goes direct; the rules page shows what the kernel actually did, next to the rules you wrote.\n· Scenes switch the policy on a Wi-Fi name or a mobile network.\n· The home page shows the state, the rate, the exit address and a health curve for the node in force.\n· Everything local: no account, no analytics, one optional crash report.</string>
+    <string name="about_privacy_title">Privacy policy</string>
+    <string name="about_licences_title">Open-source licences</string>
+    <string name="about_licences_body">Starveil is licensed under the GNU General Public License v3.0. Its source is published, and a modified version must stay open too.\n\nIt embeds a self-maintained sing-box fork (GPL-3.0), which is the tunnel itself.\n\nIt also links AndroidX and Jetpack Compose (Apache-2.0), Hilt and Dagger (Apache-2.0), Room and SQLCipher (Apache-2.0 / BSD-style), ZXing (Apache-2.0) and Sentry (MIT). The full texts ship with their libraries.</string>
+    <string name="about_footer_kernel">Kernel sing-box %1$s · this app is open source under GPL-3.0</string>
+    <string name="about_footer_copyright">© 2026 justnpcx</string>
+    <string name="about_close">Close</string>
 
     <!-- Appearance. -->
     <string name="appearance_title">Appearance</string>
