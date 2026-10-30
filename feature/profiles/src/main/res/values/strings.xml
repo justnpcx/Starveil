@@ -41,7 +41,13 @@
     <string name="add_link_hint">vless://… one per line</string>
     <string name="add_detected">Detected %1$d</string>
     <string name="add_action_import">Import</string>
+    <string name="add_cancel">Cancel</string>
     <string name="add_clipboard_title">%1$d node links on the clipboard</string>
+    <string name="add_clipboard_subscription_title">A subscription is on the clipboard</string>
+    <string name="add_clipboard_form_title">Import from clipboard</string>
+    <string name="add_clipboard_form_paste">Paste</string>
+    <string name="add_clipboard_form_formats">vless, vmess, trojan, ss, hysteria2 and tuic links, one per line — or a subscription URL.</string>
+    <string name="profiles_refreshed">Refreshed · latency updated</string>
     <string name="add_panel_label_batch">Batch import</string>
     <string name="add_subscription_done">Imported %1$s · %2$d new nodes</string>
     <string name="add_view">View</string>

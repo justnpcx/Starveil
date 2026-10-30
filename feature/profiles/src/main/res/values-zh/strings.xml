@@ -39,7 +39,13 @@
     <string name="add_link_hint">vless://… 每行一条</string>
     <string name="add_detected">识别到 %1$d 个</string>
     <string name="add_action_import">导入</string>
+    <string name="add_cancel">取消</string>
     <string name="add_clipboard_title">剪贴板里有 %1$d 个节点链接</string>
+    <string name="add_clipboard_subscription_title">剪贴板里有 1 条订阅</string>
+    <string name="add_clipboard_form_title">从剪贴板导入</string>
+    <string name="add_clipboard_form_paste">粘贴</string>
+    <string name="add_clipboard_form_formats">支持 vless、vmess、trojan、ss、hysteria2、tuic 链接，每行一条；也可以填订阅地址。</string>
+    <string name="profiles_refreshed">已刷新 · 延迟已更新</string>
     <string name="add_panel_label_batch">批量导入</string>
     <string name="add_subscription_done">已导入订阅 %1$s · 新增 %2$d 个节点</string>
     <string name="add_view">查看</string>

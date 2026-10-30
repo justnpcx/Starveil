@@ -61,29 +61,6 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
  * a dialog to a page was the step count the user complained about.
  */
 
-/** The button: 56dp, 16dp corners, the brand gradient, a white glyph. */
-@Composable
-fun StarveilAddFab(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(56.dp)
-            .clip(StarveilShapes.fab)
-            .background(Brush.linearGradient(StarveilBrand.colors))
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = StarveilIcons.Add,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
 /**
  * The panel itself.
  *
@@ -122,17 +99,6 @@ fun StarveilAddSheet(
             content = content,
         )
     }
-}
-
-/** A heading inside the panel. One line, secondary weight. */
-@Composable
-fun AddPanelLabel(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = StarveilType.label,
-        color = StarveilColors.ink2,
-        modifier = modifier.padding(top = StarveilSpacing.md, bottom = StarveilSpacing.sm),
-    )
 }
 
 /**
@@ -266,29 +232,42 @@ fun AddSuggestionCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(StarveilShapes.card)
-            .background(StarveilColors.selBg)
+            .background(StarveilColors.card)
+            .border(1.dp, StarveilColors.line, StarveilShapes.card)
             .padding(horizontal = StarveilSpacing.md, vertical = StarveilSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = StarveilIcons.Clipboard,
-            contentDescription = null,
-            tint = StarveilColors.selInk,
-            modifier = Modifier.size(22.dp),
-        )
+        // The glyph sits on the pale accent, not on the card: the card is the
+        // same surface as the sheet, and a block of colour is what makes the
+        // suggestion read as something the app found rather than something the
+        // user opened.
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(StarveilColors.accentSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = StarveilIcons.Link,
+                contentDescription = null,
+                tint = StarveilColors.accent,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         Spacer(modifier = Modifier.width(StarveilSpacing.md))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = StarveilType.body, color = StarveilColors.selInk)
+            Text(text = title, style = StarveilType.body, color = StarveilColors.ink)
             Text(
                 text = detail,
                 style = StarveilType.label,
-                color = StarveilColors.selInk.copy(alpha = 0.85f),
+                color = StarveilColors.ink2,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-        StarveilButton(text = action, onClick = onAction, secondary = true)
+        StarveilButton(text = action, onClick = onAction)
     }
 }
 
