@@ -1849,7 +1849,7 @@ private const val NAME_PREFIX_CHARS = 12
 /** How much of a host survives before the middle of it is elided. */
 private const val HOST_CHARS = 20
 
-/** "api.justnpc.com" -> "api.ju…c.com": the tail is the part that differs. */
+/** "a-very-long-subdomain.example.com" -> "a-very-lon…ample.com". */
 internal fun middleEllipsis(text: String, max: Int = HOST_CHARS): String =
     if (text.length <= max) text else text.take(max / 2) + "…" + text.takeLast(max - max / 2 - 1)
 

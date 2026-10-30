@@ -66,7 +66,7 @@ class DisambiguationTest {
 
     @Test
     fun `a short host is left alone`() {
-        assertEquals("api.justnpc.com", middleEllipsis("api.justnpc.com"))
+        assertEquals("a.example.com", middleEllipsis("a.example.com"))
     }
 
     @Test
