@@ -18,6 +18,17 @@ interface ProfileRepository {
     fun observeByGroup(groupId: Long): Flow<List<Profile>>
     suspend fun getById(id: Long): Profile?
     suspend fun upsert(profile: Profile): Long
+
+    /**
+     * Store several profiles at once.
+     *
+     * The default delegates to [upsert] in sequence; the Room implementation
+     * issues one batch INSERT to SQLite, avoiding per-row transaction overhead.
+     */
+    suspend fun upsertAll(profiles: List<Profile>): List<Long> {
+        return profiles.map { upsert(it) }
+    }
+
     suspend fun deleteById(id: Long)
 
     /**
@@ -31,6 +42,15 @@ interface ProfileRepository {
         val profile = getById(id) ?: return
         if (profile.favorite == favorite) return
         upsert(profile.copy(favorite = favorite))
+    }
+
+    /**
+     * Update country code in place without rewriting settings JSON.
+     */
+    suspend fun setCountry(id: Long, country: String) {
+        val profile = getById(id) ?: return
+        if (profile.country == country) return
+        upsert(profile.copy(country = country))
     }
 
     /**
@@ -73,7 +93,22 @@ class RoomProfileRepository @Inject constructor(
 
     override suspend fun deleteById(id: Long) = dao.deleteById(id)
 
+    override suspend fun upsertAll(profiles: List<Profile>): List<Long> {
+        if (profiles.isEmpty()) return emptyList()
+        val entities = profiles.map { profile ->
+            val settingsJson = when {
+                profile.settings != null -> SettingsJson.encode(profile.settings)
+                profile.id != 0L -> dao.getById(profile.id)?.settingsJson ?: EMPTY_SETTINGS
+                else -> EMPTY_SETTINGS
+            }
+            profile.toEntity(settingsJson = settingsJson)
+        }
+        return dao.upsertAll(entities)
+    }
+
     override suspend fun setFavorite(id: Long, favorite: Boolean) = dao.setFavorite(id, favorite)
+
+    override suspend fun setCountry(id: Long, country: String) = dao.setCountry(id, country)
 
     override suspend fun deleteByGroup(groupId: Long) = dao.deleteByGroup(groupId)
 

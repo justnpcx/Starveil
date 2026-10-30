@@ -31,6 +31,9 @@ interface ProfileDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: ProfileEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entities: List<ProfileEntity>): List<Long>
+
     @Update
     suspend fun update(entity: ProfileEntity)
 
@@ -40,6 +43,10 @@ interface ProfileDao {
     /** Star or unstar in place; nothing else about the row changes. */
     @Query("UPDATE profiles SET favorite = :favorite WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
+
+    /** Update country in place; nothing else about the row changes. */
+    @Query("UPDATE profiles SET country = :country WHERE id = :id")
+    suspend fun setCountry(id: Long, country: String)
 
     @Query("DELETE FROM profiles WHERE id = :id")
     suspend fun deleteById(id: Long)
@@ -51,6 +58,6 @@ interface ProfileDao {
     @Transaction
     suspend fun replaceGroup(groupId: Long, entities: List<ProfileEntity>) {
         deleteByGroup(groupId)
-        for (entity in entities) upsert(entity)
+        upsertAll(entities)
     }
 }

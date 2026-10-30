@@ -3,6 +3,15 @@ package com.justnpcx.starveil.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.DrawerValue
@@ -55,9 +65,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -165,7 +178,29 @@ fun StarveilShell(
             },
             snackbarHost = snackbarHost,
             content = { padding ->
-                content(padding)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    content(padding)
+
+                    val showCapsule = route in setOf("dashboard", "profiles", "rules")
+                    if (showCapsule) {
+                        FloatingCapsuleNav(
+                            currentRoute = route,
+                            onNavigate = { target ->
+                                navController.navigate(target) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                                .padding(bottom = 12.dp),
+                        )
+                    }
+                }
                 // Registered after the NavHost, so it is the callback the
                 // dispatcher consults first. Back closes the drawer; on any
                 // page other than the home page it goes home; on the home page
@@ -479,5 +514,109 @@ interface DrawerStatusEntryPoint {
     fun kernel(): KernelBridge
     fun preferences(): PreferencesRepository
     fun profiles(): ProfileRepository
+}
+
+/**
+ * Modern floating capsule navigation bar.
+ *
+ * Sits at bottom center over the primary views (Home, Nodes, Rules).
+ * Compact 44dp height, dynamic pill expansion on the active item,
+ * leaves full corner clearance for FAB and preserves one-handed reachability.
+ */
+@Composable
+private fun FloatingCapsuleNav(
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .shadow(
+                elevation = 12.dp,
+                shape = CircleShape,
+                spotColor = StarveilColors.shadowTint.copy(alpha = 0.20f),
+                ambientColor = StarveilColors.shadowTint.copy(alpha = 0.12f),
+            ),
+        shape = CircleShape,
+        color = StarveilColors.card,
+        border = BorderStroke(1.dp, StarveilColors.line),
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 6.dp, vertical = 4.dp)
+                .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            CapsuleNavItem(
+                icon = StarveilIcons.Home,
+                label = stringResource(R.string.nav_home),
+                selected = currentRoute == "dashboard",
+                onClick = { onNavigate("home") },
+            )
+            CapsuleNavItem(
+                icon = StarveilIcons.Nodes,
+                label = stringResource(R.string.nav_nodes),
+                selected = currentRoute == "profiles",
+                onClick = { onNavigate("nodes") },
+            )
+            CapsuleNavItem(
+                icon = StarveilIcons.Route,
+                label = stringResource(R.string.nav_rules),
+                selected = currentRoute == "rules",
+                onClick = { onNavigate("rules_tab") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CapsuleNavItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Row(
+        modifier = Modifier
+            .height(36.dp)
+            .clip(CircleShape)
+            .background(if (selected) StarveilColors.selBg else Color.Transparent)
+            .clickable(
+                role = Role.Tab,
+                onClick = {
+                    if (!selected) {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
+                    }
+                },
+            )
+            .padding(horizontal = if (selected) 14.dp else 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (selected) StarveilColors.selInk else StarveilColors.ink2,
+            modifier = Modifier.size(20.dp),
+        )
+        AnimatedVisibility(
+            visible = selected,
+            enter = fadeIn() + expandHorizontally(),
+            exit = fadeOut() + shrinkHorizontally(),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = label,
+                    style = StarveilType.label.copy(fontWeight = FontWeight.SemiBold),
+                    color = StarveilColors.selInk,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 

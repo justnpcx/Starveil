@@ -208,26 +208,44 @@ class DashboardViewModel @Inject constructor(
      */
     private val trafficWatch = TrafficWatch()
     private var trafficWatchJob: Job? = null
+    private var exitProbeJob: Job? = null
 
-    init {
-        // The exit is a fact about the outside world, so it is asked for on a
-        // slow loop while the tunnel is up — never on a timer that runs while
-        // disconnected, because that is a request the user did not ask for.
-        scope.launch {
-            while (true) {
+    @Volatile
+    private var screenVisible = true
+
+    /**
+     * Pauses telemetry loops (stats polling and exit IP probing) when the screen
+     * is not visible or app is in background, preventing cellular radio wakeups.
+     */
+    fun onScreenVisible() {
+        if (screenVisible) return
+        screenVisible = true
+        if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
+            startStatsLoop()
+            startExitProbeLoop()
+        }
+    }
+
+    fun onScreenHidden() {
+        if (!screenVisible) return
+        screenVisible = false
+        statsJob?.cancel()
+        statsJob = null
+        exitProbeJob?.cancel()
+        exitProbeJob = null
+    }
+
+    private fun startExitProbeLoop() {
+        exitProbeJob?.cancel()
+        exitProbeJob = scope.launch {
+            while (isActive && screenVisible) {
                 if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
                     exitProbe.probe()?.let { info ->
                         _uiState.update { it.copy(exit = info) }
                     }
                 } else if (_uiState.value.exit != null) {
-                    // An exit address under a disconnected tunnel reads as
-                    // "you are still going out that way". The number is only
-                    // true while the tunnel is the thing carrying traffic.
                     _uiState.update { it.copy(exit = null) }
                 }
-                // Ticking faster while disconnected costs nothing (no request)
-                // and means the first probe happens right after a connect,
-                // rather than up to half a minute later.
                 delay(
                     if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
                         EXIT_REFRESH_MS
@@ -237,6 +255,12 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    init {
+        // The exit is a fact about the outside world, asked on a slow loop while
+        // connected and foregrounded — paused during backgrounding.
+        startExitProbeLoop()
 
         // The mode is persisted; a restart keeps the segmented control's
         // promise instead of quietly reverting to auto.
@@ -715,8 +739,9 @@ class DashboardViewModel @Inject constructor(
 
     private fun startStatsLoop() {
         statsJob?.cancel()
+        if (!screenVisible) return
         statsJob = scope.launch {
-            while (isActive) {
+            while (isActive && screenVisible) {
                 delay(1000)
                 val stats = kernel.queryStats()
                 _uiState.update { state ->
@@ -732,6 +757,7 @@ class DashboardViewModel @Inject constructor(
 
     override fun onCleared() {
         statsJob?.cancel()
+        exitProbeJob?.cancel()
         trafficWatchJob?.cancel()
         scope.cancel()
         super.onCleared()

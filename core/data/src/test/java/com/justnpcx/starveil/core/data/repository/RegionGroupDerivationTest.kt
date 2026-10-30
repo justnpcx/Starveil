@@ -141,11 +141,13 @@ private class CountingProfileDao(private val rows: List<ProfileEntity>) : Profil
 
     override suspend fun getById(id: Long): ProfileEntity? = rows.firstOrNull { it.id == id }
     override suspend fun upsert(entity: ProfileEntity): Long = error("read-only")
+    override suspend fun upsertAll(entities: List<ProfileEntity>): List<Long> = error("read-only")
     override suspend fun update(entity: ProfileEntity) = error("read-only")
     override suspend fun delete(entity: ProfileEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
     override suspend fun deleteByGroup(groupId: Long) = error("read-only")
     override suspend fun setFavorite(id: Long, favorite: Boolean) = error("read-only")
+    override suspend fun setCountry(id: Long, country: String) = error("read-only")
 }
 
 private class StubProfileDao(private val rows: List<ProfileEntity>) : ProfileDao {
@@ -157,9 +159,11 @@ private class StubProfileDao(private val rows: List<ProfileEntity>) : ProfileDao
         rows.filter { it.groupId == groupId }.map { it.id }
     override suspend fun getById(id: Long): ProfileEntity? = rows.firstOrNull { it.id == id }
     override suspend fun upsert(entity: ProfileEntity): Long = error("read-only")
+    override suspend fun upsertAll(entities: List<ProfileEntity>): List<Long> = error("read-only")
     override suspend fun update(entity: ProfileEntity) = error("read-only")
     override suspend fun delete(entity: ProfileEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
     override suspend fun deleteByGroup(groupId: Long) = error("read-only")
     override suspend fun setFavorite(id: Long, favorite: Boolean) = error("read-only")
+    override suspend fun setCountry(id: Long, country: String) = error("read-only")
 }

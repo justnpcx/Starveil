@@ -43,6 +43,8 @@ data class ProfilesUiState(
     val profiles: List<Profile> = emptyList(),
     /** Every group, for the filter chips. */
     val groups: List<ProxyGroup> = emptyList(),
+    /** Groups that actually contain nodes (unfiltered), for the chip row. */
+    val nonEmptyGroups: List<ProxyGroup> = emptyList(),
     /** null = show every group. */
     val groupFilter: Long? = null,
     /** Whether any node exists at all, filtered or not. */
@@ -234,7 +236,7 @@ class ProfilesViewModel @Inject constructor(
             profiles.observeAll().collect { list ->
                 list.filter { it.country == null }.forEach { profile ->
                     val country = countryResolver.countryOf(profile.server) ?: return@forEach
-                    profiles.upsert(profile.copy(country = country))
+                    profiles.setCountry(profile.id, country)
                 }
             }
         }
@@ -291,9 +293,19 @@ class ProfilesViewModel @Inject constructor(
         // stable, so the order inside each half is the one the list already
         // had.
         val visible = inGroup.filterBy(query).sortedByDescending { it.favorite }
+        val activeGroups = groupList.filter { group ->
+            if (group.subscriptionUrl != null) return@filter false
+            val region = group.region
+            if (region != null) {
+                list.any { NodeRegions.resolve(it.name, it.country) == region }
+            } else {
+                list.any { it.groupId == group.id }
+            }
+        }
         ProfilesUiState(
             profiles = visible,
             groups = groupList,
+            nonEmptyGroups = activeGroups,
             groupFilter = filter,
             hasProfiles = list.isNotEmpty(),
             // Two ways to end up with nothing, and they need different

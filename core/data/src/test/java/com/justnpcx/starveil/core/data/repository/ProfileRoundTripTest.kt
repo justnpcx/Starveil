@@ -56,6 +56,9 @@ private class FakeProfileDao : ProfileDao {
         return id
     }
 
+    override suspend fun upsertAll(entities: List<ProfileEntity>): List<Long> =
+        entities.map { upsert(it) }
+
     override suspend fun update(entity: ProfileEntity) {
         rows[entity.id] = entity
     }
@@ -66,6 +69,10 @@ private class FakeProfileDao : ProfileDao {
 
     override suspend fun setFavorite(id: Long, favorite: Boolean) {
         rows[id]?.let { rows[id] = it.copy(favorite = favorite) }
+    }
+
+    override suspend fun setCountry(id: Long, country: String) {
+        rows[id]?.let { rows[id] = it.copy(country = country) }
     }
 
     override suspend fun deleteById(id: Long) {

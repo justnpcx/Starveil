@@ -121,6 +121,34 @@ class ProfilesViewModelTest {
     }
 
     @Test
+    fun `filtering by one group preserves non-empty groups for all groups with nodes`() = runBlocking {
+        val groupA = ProxyGroup(id = 10L, name = "Group A")
+        val groupB = ProxyGroup(id = 20L, name = "Group B")
+        val emptyGroup = ProxyGroup(id = 30L, name = "Empty Group")
+        val groups = FakeGroups(listOf(groupA, groupB, emptyGroup))
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "one").copy(groupId = groupA.id),
+                profile(TWO, "two").copy(groupId = groupB.id),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        // Unfiltered: groupA and groupB are non-empty, emptyGroup is excluded
+        assertEquals(listOf(groupA.id, groupB.id), viewModel.uiState.value.nonEmptyGroups.map { it.id })
+
+        // Filter by groupA: groupB must still be in nonEmptyGroups so its chip does not vanish!
+        viewModel.filterByGroup(groupA.id)
+        yield()
+
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+        assertEquals(listOf(groupA.id, groupB.id), viewModel.uiState.value.nonEmptyGroups.map { it.id })
+        job.cancel()
+    }
+
+    @Test
     fun `filtering by a region group lists that region's nodes, not the group's own`() = runBlocking {
         // A region group owns no nodes by design — membership is derived from
         // name and country, so filtering by its id would always come out empty

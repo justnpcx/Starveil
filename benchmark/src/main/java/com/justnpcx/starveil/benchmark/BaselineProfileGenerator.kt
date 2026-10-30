@@ -31,11 +31,32 @@ class BaselineProfileGenerator {
         startActivityAndWait()
         device.waitForIdle()
 
-        // Every destination, in the order the bottom bar offers them. Home is
-        // the start destination and is already on screen.
-        listOf("Nodes", "Rules", "Logs", "Settings", "Home").forEach { tab ->
-            device.findObject(By.text(tab))?.click()
-            device.wait(Until.hasObject(By.text(tab)), TIMEOUT_MS)
+        // Every destination, in both English and Chinese locales.
+        // Tries the direct visible navigation item first (capsule), then drawer for deeper pages.
+        val destinations = listOf(
+            "Nodes" to "节点",
+            "Rules" to "规则",
+            "Logs" to "日志",
+            "Settings" to "设置",
+            "Home" to "首页",
+        )
+        destinations.forEach { (en, zh) ->
+            val direct = device.findObject(By.text(en))
+                ?: device.findObject(By.text(zh))
+                ?: device.findObject(By.desc(en))
+                ?: device.findObject(By.desc(zh))
+            if (direct != null) {
+                direct.click()
+            } else {
+                // Open drawer for items not in the floating capsule (e.g. Logs, Settings)
+                val menuButton = device.findObject(By.descContains("drawer"))
+                    ?: device.findObject(By.descContains("Menu"))
+                    ?: device.findObject(By.descContains("menu"))
+                menuButton?.click()
+                device.waitForIdle()
+                val drawerItem = device.findObject(By.text(en)) ?: device.findObject(By.text(zh))
+                drawerItem?.click()
+            }
             device.waitForIdle()
         }
     }

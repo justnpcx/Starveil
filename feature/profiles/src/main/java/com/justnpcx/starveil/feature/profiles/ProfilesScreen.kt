@@ -285,21 +285,9 @@ fun ProfilesScreen(
     // neither. Only the colliding names get a suffix, so the ordinary row is
     // unchanged: the last label of the host plus the port is short enough to
     // sit beside the name and specific enough to tell the two apart.
-    // Only groups that actually hold nodes get a chip. A subscription that
-    // refreshed to empty used to leave a chip pointing at nothing.
-    val nonEmptyGroups = remember(state.groups, state.profiles) {
-        state.groups.filter { group ->
-            // A subscription is not a chip: it is a source, and the task book
-            // removed its page. Its nodes still appear under All.
-            if (group.subscriptionUrl != null) return@filter false
-            val region = group.region
-            if (region != null) {
-                state.profiles.any { NodeRegions.resolve(it.name, it.country) == region }
-            } else {
-                state.profiles.any { it.groupId == group.id }
-            }
-        }
-    }
+    // Only groups that actually hold nodes get a chip. Computed in ViewModel
+    // from the unfiltered node pool so selecting a chip does not make other chips vanish.
+    val nonEmptyGroups = state.nonEmptyGroups
     // Two nodes can share a display name, and two more can share the first
     // dozen characters of one — which is what the list actually shows, because
     // the title is one line with an ellipsis. Both cases need a suffix, so the
@@ -515,8 +503,10 @@ fun ProfilesScreen(
                     val timedOut = remember(state.profiles, state.health) {
                         state.profiles.filter { state.health[it.id]?.status == NodeStatus.DOWN }
                     }
-                    val shown = if (showTimedOut) state.profiles else
-                        state.profiles.filterNot { state.health[it.id]?.status == NodeStatus.DOWN }
+                    val shown = remember(state.profiles, state.health, showTimedOut) {
+                        if (showTimedOut) state.profiles else
+                            state.profiles.filterNot { state.health[it.id]?.status == NodeStatus.DOWN }
+                    }
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),

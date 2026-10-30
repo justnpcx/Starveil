@@ -133,12 +133,28 @@ class NodesScrollBenchmark {
      */
     private fun openNodesTab() {
         repeat(3) { attempt ->
-            // Through the shell, like a person with adb would: UiDevice.click()
-            // on this ROM lands in the app's window but never reaches the
-            // Compose tab, while `input tap` at the same coordinates does.
-            val x = device.displayWidth * 3 / 10
-            val y = (device.displayHeight * 0.97f).toInt()
-            device.executeShellCommand("input tap $x $y")
+            val direct = device.findObject(By.text("Nodes"))
+                ?: device.findObject(By.text("节点"))
+                ?: device.findObject(By.desc("Nodes"))
+                ?: device.findObject(By.desc("节点"))
+            if (direct != null) {
+                direct.click()
+            } else {
+                val menuButton = device.findObject(By.descContains("drawer"))
+                    ?: device.findObject(By.descContains("Menu"))
+                    ?: device.findObject(By.descContains("menu"))
+                if (menuButton != null) {
+                    menuButton.click()
+                    device.waitForIdle()
+                    val drawerNode = device.findObject(By.text("Nodes")) ?: device.findObject(By.text("节点"))
+                    drawerNode?.click()
+                } else {
+                    // Fallback to coordinates
+                    val x = device.displayWidth * 5 / 10
+                    val y = (device.displayHeight * 0.95f).toInt()
+                    device.executeShellCommand("input tap $x $y")
+                }
+            }
             device.waitForIdle()
             repeat(25) {
                 if (device.hasObject(By.textContains("·"))) return

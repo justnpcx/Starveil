@@ -184,7 +184,7 @@ fun RulesScreen(
                     start = StarveilSpacing.pageMargin,
                     top = StarveilSpacing.xs,
                     end = StarveilSpacing.pageMargin,
-                    bottom = StarveilSpacing.xl + WindowInsets.navigationBars
+                    bottom = StarveilSpacing.fabClearance + WindowInsets.navigationBars
                         .asPaddingValues().calculateBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
