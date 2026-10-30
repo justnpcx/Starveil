@@ -25,6 +25,13 @@
     <string name="add_tile_clipboard_empty">No usable link on the clipboard</string>
     <string name="add_tile_manual">Manually</string>
     <string name="add_tile_manual_sub">Fill in each field</string>
+    <string name="add_row_subscription_url">Subscription URL</string>
+    <string name="add_row_subscription_name">Name (optional)</string>
+    <string name="add_link_hint">vless://… one per line</string>
+    <string name="add_detected">Detected %1$d</string>
+    <string name="add_action_import">Import</string>
+    <string name="add_clipboard_title">%1$d node links on the clipboard</string>
+    <string name="add_panel_label_batch">Batch import</string>
     <string name="add_row_paste">Paste a link</string>
     <string name="add_row_paste_sub">Several at once, one per line</string>
     <string name="add_row_subscription">Import a subscription</string>
@@ -71,6 +78,7 @@
     <string name="profiles_msg_added">Added %1$s</string>
     <string name="profiles_msg_imported">Imported %1$d nodes</string>
     <string name="profiles_msg_imported_skipped">Imported %1$d nodes, %2$d skipped</string>
+    <string name="profiles_msg_imported_partial">Added %1$d nodes, %2$d lines failed</string>
     <string name="profiles_msg_import_failed">Import failed: %1$s</string>
     <string name="profiles_msg_refreshed">Refreshed: %1$d nodes</string>
     <string name="profiles_msg_refreshed_skipped">Refreshed: %1$d nodes, %2$d skipped</string>

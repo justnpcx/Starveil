@@ -23,6 +23,13 @@
     <string name="add_tile_clipboard_empty">剪贴板里没有可用链接</string>
     <string name="add_tile_manual">手动添加</string>
     <string name="add_tile_manual_sub">逐项填写</string>
+    <string name="add_row_subscription_url">订阅地址</string>
+    <string name="add_row_subscription_name">名称（选填）</string>
+    <string name="add_link_hint">vless://… 每行一条</string>
+    <string name="add_detected">识别到 %1$d 个</string>
+    <string name="add_action_import">导入</string>
+    <string name="add_clipboard_title">剪贴板里有 %1$d 个节点链接</string>
+    <string name="add_panel_label_batch">批量导入</string>
     <string name="add_row_paste">粘贴链接</string>
     <string name="add_row_paste_sub">支持多行，一次多条</string>
     <string name="add_row_subscription">导入订阅</string>
@@ -65,6 +72,7 @@
     <string name="profiles_msg_added">已添加 %1$s</string>
     <string name="profiles_msg_imported">已导入 %1$d 个节点</string>
     <string name="profiles_msg_imported_skipped">已导入 %1$d 个节点，跳过 %2$d 个</string>
+    <string name="profiles_msg_imported_partial">已导入 %1$d 个节点，%2$d 行失败</string>
     <string name="profiles_msg_import_failed">导入失败：%1$s</string>
     <string name="profiles_msg_refreshed">已刷新：%1$d 个节点</string>
     <string name="profiles_msg_refreshed_skipped">已刷新：%1$d 个节点，跳过 %2$d 个</string>

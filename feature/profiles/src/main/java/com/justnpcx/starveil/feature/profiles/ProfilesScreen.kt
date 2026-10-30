@@ -216,6 +216,13 @@ fun ProfilesScreen(
     // creating siblings, and importing a node is several channels into one
     // destination.
     var addPanel by remember { mutableStateOf(false) }
+    // Read once when the panel opens, never in the background: Android 10+
+    // only hands the clipboard to a focused app, and a proxy client has no
+    // business polling what the user copied.
+    var clipboardText by remember { mutableStateOf<String?>(null) }
+    val clipboardPreview = remember(clipboardText) {
+        clipboardText?.let { viewModel.preview(it) }?.takeIf { !it.isEmpty }
+    }
     var showGroupMenu by remember { mutableStateOf(false) }
     // Scanning: ZXing's capture activity, embedded, so no Play Services and no
     // network round trip.
@@ -533,28 +540,38 @@ fun ProfilesScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            StarveilAddFab(onClick = { addPanel = true })
+            StarveilAddFab(
+                onClick = {
+                    clipboardText = readClipboardText(context)
+                    addPanel = true
+                },
+            )
         }
     }
 
     StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
         ProfilesAddPanel(
+            clipboard = clipboardPreview,
+            previewOf = viewModel::preview,
             onScan = {
                 addPanel = false
                 scanLauncher.launch(scanOptions)
             },
             onClipboard = {
                 addPanel = false
-                val text = readClipboardText(context)
-                if (text == null) {
-                    viewModel.postMessage(context.getString(R.string.profiles_import_clipboard_empty))
-                } else {
-                    viewModel.import(text)
-                }
+                clipboardText?.let(viewModel::importMany)
             },
             onManual = {
                 addPanel = false
                 pickingProtocol = true
+            },
+            onImportLinks = { text ->
+                addPanel = false
+                viewModel.importMany(text)
+            },
+            onImportSubscription = { url, name ->
+                addPanel = false
+                viewModel.importSubscription(url, name)
             },
         )
     }
@@ -1038,6 +1055,8 @@ private fun ProfilesMessage.text(): String = when (this) {
         } else {
             stringResource(R.string.profiles_msg_imported_skipped, count, dropped)
         }
+    is ProfilesMessage.ImportedPartially ->
+        stringResource(R.string.profiles_msg_imported_partial, count, failures.size)
     is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, failure.text())
     is ProfilesMessage.Refreshed ->
         if (dropped == 0) {

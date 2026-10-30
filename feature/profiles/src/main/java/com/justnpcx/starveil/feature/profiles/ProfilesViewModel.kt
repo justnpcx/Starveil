@@ -17,6 +17,7 @@ import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
+import com.justnpcx.starveil.core.subscription.LinkPreview
 import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
@@ -98,6 +99,17 @@ sealed interface ProfilesMessage {
 
     /** [dropped] counts subscription entries that produced no node. */
     data class ImportedNodes(val count: Int, val dropped: Int = 0) : ProfilesMessage
+
+    /**
+     * A pasted block where some lines worked.
+     *
+     * Both halves are reported: "5 added" alone hides the two that did not, and
+     * a failure message alone hides the five that did.
+     */
+    data class ImportedPartially(
+        val count: Int,
+        val failures: List<ImportFailure>,
+    ) : ProfilesMessage
     data class ImportFailed(val failure: ImportFailure) : ProfilesMessage
     data class Refreshed(val count: Int, val dropped: Int = 0) : ProfilesMessage
     data class RefreshFailed(val reason: SubscriptionFailure) : ProfilesMessage
@@ -491,6 +503,53 @@ class ProfilesViewModel @Inject constructor(
      */
     fun restore(profile: Profile) {
         viewModelScope.launch { profiles.upsert(profile) }
+    }
+
+    /**
+     * What [text] would bring in, without importing anything.
+     *
+     * Pure: it parses, it does not touch the database. The add panel uses it
+     * both to describe the clipboard and to decide whether the clipboard tile
+     * is live.
+     */
+    fun preview(text: String): LinkPreview = importer.preview(text)
+
+    /**
+     * Imports every line of a pasted block.
+     *
+     * The result is a count plus the lines that failed, because a pasted block
+     * is all-or-nothing only in the worst case: one broken link must not throw
+     * away the other four.
+     */
+    fun importMany(text: String) {
+        viewModelScope.launch {
+            importing.value = true
+            val outcome = importer.importMany(text)
+            message.value = when {
+                outcome.added > 0 && outcome.failures.isEmpty() ->
+                    ProfilesMessage.ImportedNodes(outcome.added)
+                outcome.added > 0 ->
+                    ProfilesMessage.ImportedPartially(outcome.added, outcome.failures)
+                else -> ProfilesMessage.ImportFailed(
+                    outcome.failures.firstOrNull() ?: ImportFailure.NothingToImport,
+                )
+            }
+            importing.value = false
+        }
+    }
+
+    /** Imports a subscription, under [name] when the user gave one. */
+    fun importSubscription(url: String, name: String) {
+        viewModelScope.launch {
+            importing.value = true
+            message.value = when (val outcome = importer.import(url, name)) {
+                is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
+                is ImportOutcome.AddedSubscription ->
+                    ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
+                is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.failure)
+            }
+            importing.value = false
+        }
     }
 
     /** Paste a share link, or a subscription URL. */
