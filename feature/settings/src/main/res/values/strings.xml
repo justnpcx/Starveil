@@ -171,6 +171,10 @@
     <string name="settings_github_changelog">Changelog</string>
     <string name="settings_github_issues">Report an issue</string>
     <string name="settings_link_failed">No app can open links on this device</string>
+    <string name="rule_test_paste">Paste from the clipboard</string>
+    <string name="rule_test_try">Try</string>
+    <string name="rule_test_placeholder">The verdict appears here, with the rule it matched and where that traffic goes.</string>
+    <string name="rule_test_sets_label">Rule sets</string>
     <string name="rule_test_title">Diagnostics</string>
     <string name="rule_test_back">Back</string>
     <string name="rule_test_intro">Type a domain or an address. The answer comes from the rule list the kernel would be given — nothing is dialled, nothing is changed.</string>

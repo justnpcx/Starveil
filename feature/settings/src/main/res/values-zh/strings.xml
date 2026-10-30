@@ -160,6 +160,10 @@
     <string name="settings_github_changelog">更新日志</string>
     <string name="settings_github_issues">反馈问题</string>
     <string name="settings_link_failed">这台设备上没有能打开链接的应用</string>
+    <string name="rule_test_paste">从剪贴板粘贴</string>
+    <string name="rule_test_try">试试</string>
+    <string name="rule_test_placeholder">判定结果会显示命中规则与走向。</string>
+    <string name="rule_test_sets_label">规则包</string>
     <string name="rule_test_title">诊断自检</string>
     <string name="rule_test_back">返回</string>
     <string name="rule_test_intro">输入域名或地址，按内核会拿到的那份规则表判定——不建立连接、不改任何东西。</string>
