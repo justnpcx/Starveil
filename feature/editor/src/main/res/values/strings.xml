@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="editor_paste_hint">Paste a link to fill the form</string>
+    <string name="editor_paste_fill">Fill</string>
+    <string name="editor_paste_filled">Filled from the link ✓</string>
+    <string name="editor_paste_undo">Undo</string>
+    <string name="editor_paste_failed">That link could not be read</string>
+    <string name="editor_advanced">Advanced</string>
+    <string name="editor_missing_field">Still missing: %1$s</string>
     <string name="editor_title_new">New %1$s node</string>
     <string name="editor_title_edit">Edit %1$s node</string>
     <string name="editor_save">Save</string>

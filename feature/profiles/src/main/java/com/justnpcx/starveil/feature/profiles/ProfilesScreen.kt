@@ -242,7 +242,6 @@ fun ProfilesScreen(
     // The menu's delete is a tap, not a gesture: confirm it. The swipe keeps
     // its instant delete + undo, because a swipe cannot be a stray tap.
     var nodeToDelete by remember { mutableStateOf<Profile?>(null) }
-    var pickingProtocol by remember { mutableStateOf(false) }
     // One entry point, one panel. The same button opens the same sheet on the
     // rules and scenes pages; only the sheet's content differs. The old
     // speed-dial of pills was the wrong model: a FAB that fans out is for
@@ -592,7 +591,7 @@ fun ProfilesScreen(
             },
             onManual = {
                 addPanel = false
-                pickingProtocol = true
+                onNewNode(ProfileType.VLESS)
             },
             onImportLinks = { text ->
                 addPanel = false
@@ -799,34 +798,6 @@ fun ProfilesScreen(
             },
             dismissButton = {
                 TextButton(onClick = { nodeToDelete = null }) {
-                    Text(stringResource(R.string.profiles_group_cancel))
-                }
-            },
-        )
-    }
-
-    if (pickingProtocol) {
-        AlertDialog(
-            containerColor = StarveilColors.card,
-            shape = StarveilShapes.dialog,
-            onDismissRequest = { pickingProtocol = false },
-            title = { Text(stringResource(R.string.profiles_new_node_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    ProfileType.entries.filter { it != ProfileType.OTHER }.forEach { type ->
-                        TextButton(
-                            onClick = {
-                                pickingProtocol = false
-                                onNewNode(type)
-                            },
-                        ) {
-                            Text(type.editorLabel())
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { pickingProtocol = false }) {
                     Text(stringResource(R.string.profiles_group_cancel))
                 }
             },

@@ -1,5 +1,23 @@
 package com.justnpcx.starveil.feature.editor
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
+import com.justnpcx.starveil.core.ui.components.StarveilButton
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -88,35 +106,77 @@ fun ProfileEditorScreen(
             return@Scaffold
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(StarveilSpacing.lg),
-            verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-        ) {
-            BasicFields(form, state.errors, viewModel::update)
+        val requesters = remember {
+            EditorField.entries.associateWith { FocusRequester() }
+        }
+        var advancedOpen by rememberSaveable { mutableStateOf(false) }
+        val errors = form.validate()
 
-            if (form.supportsSecurity) {
-                Section(stringResource(R.string.editor_section_security))
-                SecurityFields(form, state.errors, viewModel::update)
-            }
-            if (form.supportsTransport) {
-                Section(stringResource(R.string.editor_section_transport))
-                TransportFields(form, viewModel::update)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            CompositionLocalProvider(LocalFieldFocus provides requesters) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(StarveilSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                ) {
+                    // The protocol is a chip in a row, not a page: switching it
+                    // swaps the field set and leaves the three shared fields
+                    // alone.
+                    ProtocolChips(selected = form.type, onSelect = viewModel::setType)
+
+                    PasteLinkRow(
+                        autofilled = state.autofilled,
+                        onPaste = viewModel::pasteLink,
+                        onUndo = viewModel::undoAutofill,
+                    )
+
+                    BasicFields(form, state.errors, viewModel::update)
+                    Section(stringResource(R.string.editor_section_protocol, form.type.displayName()))
+                    ProtocolFields(form, state.errors, viewModel::update)
+
+                    // Everything a working link already carries is behind one
+                    // row: the common case is name, address, port and a
+                    // credential, and a wall of transport options in front of
+                    // that is what made this page feel long.
+                    if (form.supportsSecurity || form.supportsTransport) {
+                        AdvancedHeader(
+                            open = advancedOpen,
+                            onToggle = { advancedOpen = !advancedOpen },
+                        )
+                        AnimatedVisibility(visible = advancedOpen) {
+                            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                                if (form.supportsSecurity) {
+                                    Section(stringResource(R.string.editor_section_security))
+                                    SecurityFields(form, state.errors, viewModel::update)
+                                }
+                                if (form.supportsTransport) {
+                                    Section(stringResource(R.string.editor_section_transport))
+                                    TransportFields(form, viewModel::update)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            Section(stringResource(R.string.editor_section_protocol, type.displayName()))
-            ProtocolFields(form, state.errors, viewModel::update)
-
-            Button(
-                onClick = viewModel::save,
-                enabled = !state.saving,
-                modifier = Modifier.fillMaxWidth().padding(top = StarveilSpacing.lg),
-            ) {
-                Text(stringResource(R.string.editor_save))
-            }
+            // Sticky: the save action does not scroll away, and the line beside
+            // it says what is still missing instead of greying the button out
+            // and saying nothing.
+            SaveBar(
+                missing = errors.keys.firstOrNull(),
+                saving = state.saving,
+                onSave = {
+                    val first = EditorField.entries.firstOrNull { it in errors }
+                    if (first == null) {
+                        viewModel.save()
+                    } else {
+                        if (first in ADVANCED_FIELDS) advancedOpen = true
+                        runCatching { requesters[first]?.requestFocus() }
+                    }
+                },
+            )
         }
     }
 }
@@ -451,14 +511,212 @@ private fun Field(
     error: EditorError? = null,
     onValueChange: (String) -> Unit,
 ) {
+    // The focus target is looked up from the label, so a field can be scrolled
+    // to and focused without threading a requester through every call site.
+    val requester = fieldFor(label)?.let { LocalFieldFocus.current[it] }
     StarveilTextField(
         value = value,
         onValueChange = onValueChange,
         label = stringResource(label),
         isError = error != null,
         supportingText = error?.let { stringResource(it.messageRes()) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (requester != null) Modifier.focusRequester(requester) else Modifier),
     )
+}
+
+/** Which field a given label renders, for the focus lookup. */
+private fun fieldFor(label: Int): EditorField? = when (label) {
+    R.string.editor_field_server -> EditorField.SERVER
+    R.string.editor_field_port -> EditorField.PORT
+    R.string.editor_field_uuid -> EditorField.UUID
+    R.string.editor_field_password -> EditorField.PASSWORD
+    R.string.editor_field_reality_public_key -> EditorField.REALITY_PUBLIC_KEY
+    R.string.editor_field_method -> EditorField.METHOD
+    R.string.editor_field_alter_id -> EditorField.ALTER_ID
+    R.string.editor_field_up_mbps -> EditorField.UP_MBPS
+    R.string.editor_field_down_mbps -> EditorField.DOWN_MBPS
+    R.string.editor_field_wg_private_key -> EditorField.WG_PRIVATE_KEY
+    R.string.editor_field_wg_address -> EditorField.WG_ADDRESS
+    R.string.editor_field_wg_peer_public_key -> EditorField.WG_PEER_PUBLIC_KEY
+    R.string.editor_field_wg_peer_endpoint -> EditorField.WG_PEER_ENDPOINT
+    R.string.editor_field_wg_peer_port -> EditorField.WG_PEER_PORT
+    R.string.editor_field_wg_mtu -> EditorField.WG_MTU
+    else -> null
+}
+
+/** The fields that live behind "advanced", so a failed save can open the drawer. */
+private val ADVANCED_FIELDS = setOf(
+    EditorField.REALITY_PUBLIC_KEY,
+)
+
+/** Where each field's focus target lives, provided once for the whole form. */
+private val LocalFieldFocus = androidx.compose.runtime.compositionLocalOf<
+    Map<EditorField, FocusRequester>,
+    > { emptyMap() }
+
+/** All protocols as one chip row. Switching only swaps the field set. */
+@Composable
+private fun ProtocolChips(selected: ProfileType, onSelect: (ProfileType) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+    ) {
+        ProfileType.entries.filter { it != ProfileType.OTHER }.forEach { type ->
+            StarveilChip(
+                label = type.displayName(),
+                selected = type == selected,
+                onClick = { onSelect(type) },
+            )
+        }
+    }
+}
+
+/**
+ * Paste a link, fill the form.
+ *
+ * Once it has filled, the input collapses into a one-line receipt with an undo:
+ * a paste that silently rewrote six fields is a paste the user will want to
+ * take back.
+ */
+@Composable
+private fun PasteLinkRow(
+    autofilled: Boolean,
+    onPaste: (String) -> Boolean,
+    onUndo: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf("") }
+    var rejected by remember { mutableStateOf(false) }
+
+    if (autofilled) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = StarveilSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.editor_paste_filled),
+                style = StarveilType.label,
+                color = StarveilColors.accent,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onUndo) { Text(stringResource(R.string.editor_paste_undo)) }
+        }
+        return
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = StarveilSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+    ) {
+        StarveilTextField(
+            value = text,
+            onValueChange = {
+                text = it
+                rejected = false
+            },
+            label = stringResource(R.string.editor_paste_hint),
+            isError = rejected,
+            supportingText = if (rejected) stringResource(R.string.editor_paste_failed) else null,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+            ),
+            modifier = Modifier.weight(1f),
+        )
+        StarveilButton(
+            text = stringResource(R.string.editor_paste_fill),
+            enabled = text.isNotBlank(),
+            onClick = {
+                if (onPaste(text)) {
+                    text = ""
+                    rejected = false
+                } else {
+                    rejected = true
+                }
+            },
+        )
+    }
+}
+
+/** The one row that hides the transport and TLS blocks. */
+@Composable
+private fun AdvancedHeader(open: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onToggle)
+            .padding(vertical = StarveilSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.editor_advanced),
+            style = StarveilType.headline,
+            color = StarveilColors.ink,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (open) StarveilIcons.Up else StarveilIcons.Chevron,
+            contentDescription = null,
+            tint = StarveilColors.ink2,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/**
+ * The save bar.
+ *
+ * The button is never disabled: a dead button with no explanation is the thing
+ * that makes a form feel broken. Pressing it with something missing scrolls to
+ * that field and focuses it.
+ */
+@Composable
+private fun SaveBar(missing: EditorField?, saving: Boolean, onSave: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(StarveilColors.card)
+            .navigationBarsPadding()
+            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+    ) {
+        Text(
+            text = missing?.let {
+                stringResource(R.string.editor_missing_field, stringResource(it.labelRes()))
+            }.orEmpty(),
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
+            modifier = Modifier.weight(1f),
+        )
+        StarveilButton(
+            text = stringResource(R.string.editor_save),
+            enabled = !saving,
+            onClick = onSave,
+        )
+    }
+}
+
+/** The label a field is known by, for the "still missing: port" line. */
+private fun EditorField.labelRes(): Int = when (this) {
+    EditorField.SERVER -> R.string.editor_field_server
+    EditorField.PORT -> R.string.editor_field_port
+    EditorField.UUID -> R.string.editor_field_uuid
+    EditorField.PASSWORD -> R.string.editor_field_password
+    EditorField.REALITY_PUBLIC_KEY -> R.string.editor_field_reality_public_key
+    EditorField.METHOD -> R.string.editor_field_method
+    EditorField.ALTER_ID -> R.string.editor_field_alter_id
+    EditorField.UP_MBPS -> R.string.editor_field_up_mbps
+    EditorField.DOWN_MBPS -> R.string.editor_field_down_mbps
+    EditorField.WG_PRIVATE_KEY -> R.string.editor_field_wg_private_key
+    EditorField.WG_ADDRESS -> R.string.editor_field_wg_address
+    EditorField.WG_PEER_PUBLIC_KEY -> R.string.editor_field_wg_peer_public_key
+    EditorField.WG_PEER_ENDPOINT -> R.string.editor_field_wg_peer_endpoint
+    EditorField.WG_PEER_PORT -> R.string.editor_field_wg_peer_port
+    EditorField.WG_MTU -> R.string.editor_field_wg_mtu
 }
 
 @Composable
