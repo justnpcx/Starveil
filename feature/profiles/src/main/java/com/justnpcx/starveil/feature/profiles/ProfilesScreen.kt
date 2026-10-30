@@ -300,14 +300,11 @@ fun ProfilesScreen(
             }
         }
     }
-    val disambiguators = remember(state.profiles) {
-        state.profiles
-            .groupBy { it.displayName() }
-            .filterValues { it.size > 1 }
-            .values
-            .flatten()
-            .associate { profile -> profile.id to shortAddress(profile.server, profile.port) }
-    }
+    // Two nodes can share a display name, and two more can share the first
+    // dozen characters of one — which is what the list actually shows, because
+    // the title is one line with an ellipsis. Both cases need a suffix, so the
+    // test is on the truncated prefix, over the rows that are on screen.
+    val disambiguators = remember(state.profiles) { disambiguate(state.profiles) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     // A Snackbar instead of a banner above the list: the banner pushed the
@@ -1371,20 +1368,32 @@ private fun NodeRow(
                 append(" · ")
                 append(profile.type.name.lowercase())
                 append(" · ")
-                append(profile.server)
-                append(":")
-                append(profile.port.toString())
+                // The host is elided in the middle, and the port is its own
+                // Text so it can never be the part that gets cut: "which port"
+                // is what tells two nodes on one host apart.
+                append(middleEllipsis(profile.server))
             }
-            Text(
-                text = secondary,
-                style = StarveilType.label,
-                color = StarveilColors.ink2,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 24.dp),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = secondary,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Text(
+                    text = ":" + profile.port,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -1456,27 +1465,6 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
         profile.latencyMs >= 0 -> LatencyReading.Value(profile.latencyMs)
         else -> LatencyReading.Untested
     }
-}
-
-/**
- * A short handle for a node whose name collides with another.
- *
- * The host's first label plus the port: "hk1.example.com:443" becomes
- * "hk1:443". The first label is the part subscription naming varies; the domain
- * is usually shared and would only repeat what the second line already says.
- */
-internal fun shortAddress(server: String, port: Int): String {
-    val isAddress = server.contains(':') || server.count { it == '.' } == 3 && server.all { it.isDigit() || it == '.' }
-    // An address has no "first label": the whole thing would be as long as the
-    // name it is trying to disambiguate. The last two groups are the part that
-    // differs between two nodes on one host, and short enough to fit.
-    val head = if (isAddress) {
-        val separator = if (server.contains(':')) ':' else '.'
-        server.split(separator).takeLast(2).joinToString(separator.toString())
-    } else {
-        server.substringBefore('.')
-    }
-    return head + ":" + port
 }
 
 /** §6.3 card metrics. */
@@ -1823,3 +1811,53 @@ private fun noteLabel(note: StageNote): String = stringResource(
 
 /** How long a freshly imported row stays highlighted. */
 private const val HIGHLIGHT_MS = 1200L
+
+/**
+ * A suffix for every node whose title would read the same as another's.
+ *
+ * The order is the one a reader would use: the port first, because two nodes on
+ * one host differ by it; then the protocol; then, when both of those are equal
+ * too, an ordinal. Only the colliding rows get a suffix.
+ */
+internal fun disambiguate(profiles: List<Profile>): Map<Long, String> {
+    val out = mutableMapOf<Long, String>()
+    profiles
+        .groupBy { it.displayName().take(NAME_PREFIX_CHARS) }
+        .filterValues { it.size > 1 }
+        .values
+        .forEach { group ->
+            if (group.map { it.port }.distinct().size == group.size) {
+                group.forEach { out[it.id] = ":" + it.port }
+                return@forEach
+            }
+            if (group.map { it.type }.distinct().size == group.size) {
+                group.forEach { out[it.id] = it.type.shortName() }
+                return@forEach
+            }
+            group.forEachIndexed { index, profile -> out[profile.id] = "#" + (index + 1) }
+        }
+    return out
+}
+
+/** Roughly what a node title shows before the ellipsis, at the list's type size. */
+private const val NAME_PREFIX_CHARS = 12
+
+/** How much of a host survives before the middle of it is elided. */
+private const val HOST_CHARS = 20
+
+/** "api.justnpc.com" -> "api.ju…c.com": the tail is the part that differs. */
+internal fun middleEllipsis(text: String, max: Int = HOST_CHARS): String =
+    if (text.length <= max) text else text.take(max / 2) + "…" + text.takeLast(max - max / 2 - 1)
+
+/** The protocol as it appears in a suffix: "HY2", "SS", "WG". */
+internal fun ProfileType.shortName(): String = when (this) {
+    ProfileType.VLESS -> "VLESS"
+    ProfileType.VMESS -> "VMess"
+    ProfileType.TROJAN -> "Trojan"
+    ProfileType.SHADOWSOCKS -> "SS"
+    ProfileType.HYSTERIA2 -> "HY2"
+    ProfileType.TUIC -> "TUIC"
+    ProfileType.WIREGUARD -> "WG"
+    ProfileType.OTHER -> "?"
+}
+
