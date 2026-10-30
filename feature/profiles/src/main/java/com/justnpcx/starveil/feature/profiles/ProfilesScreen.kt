@@ -193,6 +193,7 @@ fun ProfilesScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val probeState by probeViewModel.state.collectAsStateWithLifecycle()
     val clipboardSuggestion by viewModel.clipboardSuggestion.collectAsStateWithLifecycle()
+    val subscriptionImport by viewModel.lastSubscriptionImport.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // The second of the two moments the clipboard is read: the page coming back
     // to the foreground. Nothing polls, and Android's own "pasted from" notice
@@ -577,10 +578,22 @@ fun ProfilesScreen(
         }
     }
 
-    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
+    StarveilAddSheet(
+        visible = addPanel,
+        onDismissRequest = {
+            addPanel = false
+            viewModel.clearSubscriptionImport()
+        },
+    ) {
         ProfilesAddPanel(
             clipboard = clipboardPreview,
             previewOf = viewModel::preview,
+            subscriptionImport = subscriptionImport,
+            onViewSubscription = { groupId ->
+                addPanel = false
+                viewModel.clearSubscriptionImport()
+                viewModel.filterByGroup(groupId)
+            },
             onScan = {
                 addPanel = false
                 onScan()

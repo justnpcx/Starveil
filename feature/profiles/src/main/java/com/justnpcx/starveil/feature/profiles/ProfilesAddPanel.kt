@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.justnpcx.starveil.core.subscription.LinkPreview
 import com.justnpcx.starveil.core.ui.components.AddActionRow
 import com.justnpcx.starveil.core.ui.components.AddPanelLabel
+import com.justnpcx.starveil.core.ui.components.AddResultLine
 import com.justnpcx.starveil.core.ui.components.AddSuggestionCard
 import com.justnpcx.starveil.core.ui.components.AddTile
 import com.justnpcx.starveil.core.ui.components.AddTileRow
@@ -61,11 +62,14 @@ internal fun ProfilesAddPanel(
     clipboard: LinkPreview?,
     /** Resolves typed text without importing it, for the live count. */
     previewOf: (String) -> LinkPreview,
+    /** Set once a subscription has been imported from this panel. */
+    subscriptionImport: SubscriptionImported?,
     onScan: () -> Unit,
     onClipboard: () -> Unit,
     onManual: () -> Unit,
     onImportLinks: (String) -> Unit,
     onImportSubscription: (url: String, name: String) -> Unit,
+    onViewSubscription: (Long) -> Unit,
 ) {
     var open by remember { mutableStateOf<PanelRow?>(null) }
     var linkText by remember { mutableStateOf("") }
@@ -79,6 +83,21 @@ internal fun ProfilesAddPanel(
             color = StarveilColors.ink,
             modifier = Modifier.padding(bottom = StarveilSpacing.md),
         )
+
+        // A subscription import finishes here: the panel stays open and says
+        // what arrived, with the one action that matters next.
+        if (subscriptionImport != null) {
+            AddResultLine(
+                text = stringResource(
+                    R.string.add_subscription_done,
+                    subscriptionImport.name,
+                    subscriptionImport.count,
+                ),
+                action = stringResource(R.string.add_view),
+                onAction = { onViewSubscription(subscriptionImport.groupId) },
+            )
+            Spacer(modifier = Modifier.height(StarveilSpacing.md))
+        }
 
         if (clipboard != null) {
             AddSuggestionCard(

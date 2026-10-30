@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.feature.rules
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -81,6 +82,8 @@ import com.justnpcx.starveil.core.ui.components.EmptyState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -124,6 +127,19 @@ fun RulesScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
     var addPanel by remember { mutableStateOf(false) }
+    // The in-panel rule form. Four kinds and three actions fit in two chip
+    // rows; the rest of the editor stays behind "more settings".
+    var ruleExpanded by remember { mutableStateOf(false) }
+    var ruleKind by remember { mutableStateOf(MatcherKind.DOMAIN_SUFFIX) }
+    var ruleValue by remember { mutableStateOf("") }
+    var ruleAction by remember { mutableStateOf(RuleAction.PROXY) }
+    val highlight by viewModel.highlight.collectAsStateWithLifecycle()
+    LaunchedEffect(highlight) {
+        if (highlight != null) {
+            delay(HIGHLIGHT_MS)
+            viewModel.clearHighlight()
+        }
+    }
     var showMarket by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Rule?>(null) }
     var pendingDelete by remember { mutableStateOf<Rule?>(null) }
@@ -230,6 +246,7 @@ fun RulesScreen(
                                 RuleRow(
                                     rule = rule,
                                     position = index + 1,
+                                    highlighted = rule.id == highlight,
                                     canMoveUp = index > 0,
                                     canMoveDown = index < state.rules.lastIndex,
                                     onToggle = { viewModel.setEnabled(rule, it) },
@@ -274,23 +291,92 @@ fun RulesScreen(
         }
     }
 
-    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
+    StarveilAddSheet(
+        visible = addPanel,
+        onDismissRequest = {
+            addPanel = false
+            ruleExpanded = false
+        },
+    ) {
         Text(
             text = stringResource(R.string.add_panel_title_rule),
             style = StarveilType.title,
             color = StarveilColors.ink,
             modifier = Modifier.padding(bottom = StarveilSpacing.sm),
         )
+        // The three fields a rule needs are chips and a value; the rest of the
+        // editor is one tap away. Creating a rule used to be a dialog, which is
+        // a second surface for a form this short.
         AddActionRow(
             icon = StarveilIcons.Pencil,
             title = stringResource(R.string.add_row_new_rule),
             subtitle = stringResource(R.string.add_row_new_rule_sub),
-            onClick = {
-                addPanel = false
-                editing = null
-                showAdd = true
-            },
+            expanded = ruleExpanded,
+            onClick = { ruleExpanded = !ruleExpanded },
         )
+        AnimatedVisibility(visible = ruleExpanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                ) {
+                    MatcherKind.entries.forEach { kind ->
+                        StarveilChip(
+                            label = kindLabel(kind),
+                            selected = kind == ruleKind,
+                            onClick = { ruleKind = kind },
+                        )
+                    }
+                }
+                StarveilTextField(
+                    value = ruleValue,
+                    onValueChange = { ruleValue = it },
+                    label = stringResource(R.string.rules_field_value),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    RuleAction.entries.forEach { action ->
+                        StarveilChip(
+                            label = actionLabel(action),
+                            selected = action == ruleAction,
+                            onClick = { ruleAction = action },
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = {
+                            addPanel = false
+                            ruleExpanded = false
+                            editing = null
+                            showAdd = true
+                        },
+                    ) {
+                        Text(stringResource(R.string.rules_more))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    StarveilButton(
+                        text = stringResource(R.string.rules_save),
+                        enabled = ruleValue.isNotBlank(),
+                        onClick = {
+                            viewModel.add(ruleKind, ruleValue, ruleAction)
+                            ruleValue = ""
+                            ruleExpanded = false
+                            addPanel = false
+                        },
+                    )
+                }
+            }
+        }
         AddActionRow(
             icon = StarveilIcons.Scenes,
             title = stringResource(R.string.add_row_market),
@@ -473,8 +559,15 @@ private fun RuleRow(
     onMoveDown: () -> Unit,
     onMoveTop: () -> Unit,
     onMoveBottom: () -> Unit,
+    /** True for the row just created from the add panel. */
+    highlighted: Boolean = false,
 ) {
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(StarveilShapes.card)
+            .background(if (highlighted) StarveilColors.selBg else Color.Transparent),
+    ) {
         Row(
             modifier = Modifier.padding(
                 start = StarveilSpacing.lg,
@@ -1462,3 +1555,6 @@ private fun BeginnerCard(onCustomize: () -> Unit) {
         }
     }
 }
+
+/** How long a freshly created rule stays highlighted. */
+private const val HIGHLIGHT_MS = 1200L

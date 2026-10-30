@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
@@ -97,6 +100,8 @@ fun ScenesScreen(
     var editing by remember { mutableStateOf<Scene?>(null) }
     var showDialog by remember { mutableStateOf(false) }
     var addPanel by remember { mutableStateOf(false) }
+    var sceneExpanded by remember { mutableStateOf(false) }
+    var sceneName by remember { mutableStateOf("") }
     // Arrived from the Nodes page with a name already typed: open the existing
     // editor on a draft, so the trigger and preset are chosen in one place.
     LaunchedEffect(draftName) {
@@ -217,16 +222,52 @@ fun ScenesScreen(
             color = StarveilColors.ink,
             modifier = Modifier.padding(bottom = StarveilSpacing.sm),
         )
+        // A scene starts as a name. The trigger and the preset are chosen in
+        // the existing editor, which is where they already live — the panel
+        // only replaces the dialog that used to ask for the name.
         AddActionRow(
             icon = StarveilIcons.Scenes,
             title = stringResource(R.string.add_row_new_scene),
             subtitle = stringResource(R.string.add_row_new_scene_sub),
-            onClick = {
-                addPanel = false
-                editing = null
-                showDialog = true
-            },
+            expanded = sceneExpanded,
+            onClick = { sceneExpanded = !sceneExpanded },
         )
+        AnimatedVisibility(visible = sceneExpanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                StarveilTextField(
+                    value = sceneName,
+                    onValueChange = { sceneName = it },
+                    label = stringResource(R.string.add_scene_name),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    StarveilButton(
+                        text = stringResource(R.string.add_action_create),
+                        enabled = sceneName.isNotBlank(),
+                        onClick = {
+                            val name = sceneName.trim()
+                            addPanel = false
+                            sceneExpanded = false
+                            sceneName = ""
+                            editing = Scene(
+                                id = 0L,
+                                name = name,
+                                trigger = SceneTrigger.Wifi(),
+                                preset = RoutePreset.BYPASS_MAINLAND,
+                            )
+                            showDialog = true
+                        },
+                    )
+                }
+            }
+        }
     }
 
     if (showDialog) {

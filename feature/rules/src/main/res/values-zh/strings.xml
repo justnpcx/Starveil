@@ -8,6 +8,8 @@
     <string name="add_panel_title_scene">添加场景</string>
     <string name="add_row_new_scene">新建场景</string>
     <string name="add_row_new_scene_sub">先起名，再设触发条件</string>
+    <string name="add_scene_name">场景名</string>
+    <string name="add_action_create">创建</string>
     <string name="rules_title">规则</string>
     <string name="rules_empty_title">还没有自建规则</string>
     <string name="rules_empty_body">点右下角 + 添加规则：让匹配的流量直连、阻断，或指定节点。</string>
@@ -42,6 +44,8 @@
     <string name="rules_flow_no_match_title">没有匹配的连接</string>
     <string name="rules_flow_no_match_body">试试更短的关键词。</string>
     <string name="rules_save">保存</string>
+    <string name="rules_field_value">匹配值</string>
+    <string name="rules_more">更多设置</string>
     <string name="rules_cancel">取消</string>
 
     <string name="rules_beginner_title">新手模式</string>

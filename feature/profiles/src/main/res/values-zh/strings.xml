@@ -41,6 +41,8 @@
     <string name="add_action_import">导入</string>
     <string name="add_clipboard_title">剪贴板里有 %1$d 个节点链接</string>
     <string name="add_panel_label_batch">批量导入</string>
+    <string name="add_subscription_done">已导入订阅 %1$s · 新增 %2$d 个节点</string>
+    <string name="add_view">查看</string>
     <string name="add_clipboard_bar_title">检测到剪贴板中的节点链接</string>
     <string name="add_clipboard_bar_dismiss">关闭</string>
     <string name="add_row_paste">粘贴链接</string>

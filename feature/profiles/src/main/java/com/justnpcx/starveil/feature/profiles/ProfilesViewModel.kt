@@ -135,6 +135,13 @@ sealed interface ProfilesMessage {
  * so rather than drawing a QR code for an empty string, which would scan into
  * nothing.
  */
+/** What a subscription import brought in, for the panel's result line. */
+data class SubscriptionImported(
+    val groupId: Long,
+    val name: String,
+    val count: Int,
+)
+
 /** A clipboard payload worth offering: what it holds, and how much of it. */
 data class ClipboardSuggestion(
     val text: String,
@@ -184,6 +191,16 @@ class ProfilesViewModel @Inject constructor(
 
     /** The flow the nodes page reads for the in-page clipboard bar. */
     val clipboardSuggestion: StateFlow<ClipboardSuggestion?> = clipboard
+
+    /**
+     * The last subscription imported from the panel.
+     *
+     * The panel stays open after a subscription import — a subscription is a
+     * batch, and closing the panel would leave the user looking at a list that
+     * changed for reasons they have to reconstruct.
+     */
+    private val subscriptionImport = MutableStateFlow<SubscriptionImported?>(null)
+    val lastSubscriptionImport: StateFlow<SubscriptionImported?> = subscriptionImport
 
     /**
      * The last payload offered, by hash.
@@ -608,12 +625,25 @@ class ProfilesViewModel @Inject constructor(
             importing.value = true
             message.value = when (val outcome = importer.import(url, name)) {
                 is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
-                is ImportOutcome.AddedSubscription ->
+                is ImportOutcome.AddedSubscription -> {
+                    val group = groups.findBySubscriptionUrl(url)
+                    if (group != null) {
+                        subscriptionImport.value = SubscriptionImported(
+                            groupId = group.id,
+                            name = group.name,
+                            count = outcome.nodeCount,
+                        )
+                    }
                     ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
+                }
                 is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.failure)
             }
             importing.value = false
         }
+    }
+
+    fun clearSubscriptionImport() {
+        subscriptionImport.value = null
     }
 
     /** Paste a share link, or a subscription URL. */
