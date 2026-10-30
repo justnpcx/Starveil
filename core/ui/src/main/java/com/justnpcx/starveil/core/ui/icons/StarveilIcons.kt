@@ -315,6 +315,204 @@ object StarveilIcons {
             }
         }
     }
+
+    /**
+     * Home: a house.
+     *
+     * The dashboard used to be a ring with a ring inside it — a target, which
+     * reads as "aim" rather than "start here", and which was one of two
+     * bullseye-shaped marks in the drawer.
+     */
+    val Home: ImageVector by lazy {
+        strokeIcon("Line.Home") {
+            iconPath {
+                moveTo(3.5f, 11f)
+                lineTo(12f, 3.5f)
+                lineTo(20.5f, 11f)
+            }
+            iconPath {
+                moveTo(6f, 9.5f)
+                verticalLineTo(20f)
+                horizontalLineTo(18f)
+                verticalLineTo(9.5f)
+            }
+            iconPath {
+                moveTo(10f, 20f)
+                verticalLineTo(14.5f)
+                horizontalLineTo(14f)
+                verticalLineTo(20f)
+            }
+        }
+    }
+
+    /** Scenes: stacked layers, which is what a scene is — a set, not a route. */
+    val Scenes: ImageVector by lazy {
+        strokeIcon("Line.Scenes") {
+            iconPath {
+                moveTo(12f, 3f)
+                lineTo(21f, 7.5f)
+                lineTo(12f, 12f)
+                lineTo(3f, 7.5f)
+                close()
+            }
+            iconPath {
+                moveTo(3.5f, 12.5f)
+                lineTo(12f, 17f)
+                lineTo(20.5f, 12.5f)
+            }
+            iconPath {
+                moveTo(3.5f, 16.5f)
+                lineTo(12f, 21f)
+                lineTo(20.5f, 16.5f)
+            }
+        }
+    }
+
+    /** Diagnostics: a pulse, so it cannot be mistaken for the log's terminal. */
+    val Activity: ImageVector by lazy {
+        strokeIcon("Line.Activity") {
+            iconPath {
+                moveTo(3f, 12.5f)
+                horizontalLineTo(6.5f)
+                lineTo(9.5f, 4.5f)
+                lineTo(14f, 19.5f)
+                lineTo(16.5f, 12.5f)
+                horizontalLineTo(21f)
+            }
+        }
+    }
+
+    /** Scan: four corner brackets and a reading line. */
+    val Scan: ImageVector by lazy {
+        strokeIcon("Line.Scan") {
+            iconPath {
+                moveTo(9f, 3.5f)
+                horizontalLineTo(6f)
+                lineTo(3.5f, 6f)
+                verticalLineTo(9f)
+            }
+            iconPath {
+                moveTo(15f, 3.5f)
+                horizontalLineTo(18f)
+                lineTo(20.5f, 6f)
+                verticalLineTo(9f)
+            }
+            iconPath {
+                moveTo(20.5f, 15f)
+                verticalLineTo(18f)
+                lineTo(18f, 20.5f)
+                horizontalLineTo(15f)
+            }
+            iconPath {
+                moveTo(9f, 20.5f)
+                horizontalLineTo(6f)
+                lineTo(3.5f, 18f)
+                verticalLineTo(15f)
+            }
+            iconPath {
+                moveTo(7f, 12f)
+                horizontalLineTo(17f)
+            }
+        }
+    }
+
+    /** Clipboard: the paste target. */
+    val Clipboard: ImageVector by lazy {
+        strokeIcon("Line.Clipboard") {
+            iconPath {
+                moveTo(9f, 5f)
+                horizontalLineTo(6f)
+                lineTo(4f, 7f)
+                verticalLineTo(20f)
+                horizontalLineTo(20f)
+                verticalLineTo(7f)
+                lineTo(18f, 5f)
+                horizontalLineTo(15f)
+            }
+            iconPath {
+                moveTo(9f, 2.5f)
+                horizontalLineTo(15f)
+                verticalLineTo(6f)
+                horizontalLineTo(9f)
+                close()
+            }
+            iconPath {
+                moveTo(8f, 12f)
+                horizontalLineTo(16f)
+            }
+            iconPath {
+                moveTo(8f, 16f)
+                horizontalLineTo(13f)
+            }
+        }
+    }
+
+    /** Pencil: the manual form. */
+    val Pencil: ImageVector by lazy {
+        strokeIcon("Line.Pencil") {
+            iconPath {
+                moveTo(4f, 20f)
+                lineTo(5f, 16f)
+                lineTo(16f, 5f)
+                lineTo(19f, 8f)
+                lineTo(8f, 19f)
+                close()
+            }
+            iconPath {
+                moveTo(13.5f, 7.5f)
+                lineTo(16.5f, 10.5f)
+            }
+        }
+    }
+
+    /** Link: a pasted address. */
+    val Link: ImageVector by lazy {
+        strokeIcon("Line.Link") {
+            iconPath {
+                moveTo(10.5f, 13.5f)
+                lineTo(13.5f, 10.5f)
+            }
+            iconPath {
+                moveTo(9f, 8f)
+                lineTo(11f, 6f)
+                curveTo(12.7f, 4.3f, 15.3f, 4.3f, 17f, 6f)
+                curveTo(18.7f, 7.7f, 18.7f, 10.3f, 17f, 12f)
+                lineTo(15f, 14f)
+            }
+            iconPath {
+                moveTo(15f, 16f)
+                lineTo(13f, 18f)
+                curveTo(11.3f, 19.7f, 8.7f, 19.7f, 7f, 18f)
+                curveTo(5.3f, 16.3f, 5.3f, 13.7f, 7f, 12f)
+                lineTo(9f, 10f)
+            }
+        }
+    }
+
+    /**
+     * Star, hollow: the favourite mark.
+     *
+     * Drawn as an outline on purpose. The filled star is the brand mark and
+     * means "this is the node in use"; a second filled star on the same row
+     * said the same thing twice in two different ways.
+     */
+    val StarOutline: ImageVector by lazy {
+        strokeIcon("Line.Star") {
+            iconPath {
+                moveTo(12f, 3.6f)
+                lineTo(14.6f, 9.1f)
+                lineTo(20.6f, 9.9f)
+                lineTo(16.3f, 14f)
+                lineTo(17.3f, 20f)
+                lineTo(12f, 17.2f)
+                lineTo(6.7f, 20f)
+                lineTo(7.7f, 14f)
+                lineTo(3.4f, 9.9f)
+                lineTo(9.4f, 9.1f)
+                close()
+            }
+        }
+    }
 }
 
 /** One row of the nodes glyph: a dot and a line. */

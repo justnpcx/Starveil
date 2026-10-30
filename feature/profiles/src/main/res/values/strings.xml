@@ -17,6 +17,18 @@
     <!-- Group filter chips (a group comes from a subscription import). -->
     <string name="profiles_new_node">New node</string>
     <string name="profiles_add">Add</string>
+    <string name="add_panel_title_node">Add node</string>
+    <string name="add_tile_scan">Scan</string>
+    <string name="add_tile_scan_sub">Node QR code</string>
+    <string name="add_tile_clipboard">Clipboard</string>
+    <string name="add_tile_clipboard_sub">Link or subscription</string>
+    <string name="add_tile_clipboard_empty">No usable link on the clipboard</string>
+    <string name="add_tile_manual">Manually</string>
+    <string name="add_tile_manual_sub">Fill in each field</string>
+    <string name="add_row_paste">Paste a link</string>
+    <string name="add_row_paste_sub">Several at once, one per line</string>
+    <string name="add_row_subscription">Import a subscription</string>
+    <string name="add_row_subscription_sub">Pulls every node behind the URL</string>
     <string name="profiles_add_manual">Create manually</string>
     <string name="profiles_add_clipboard">Import from clipboard</string>
     <string name="profiles_add_scan">Scan QR code</string>

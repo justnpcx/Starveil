@@ -181,9 +181,6 @@ fun StarveilNavHost(
                 onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
                 incomingLink = pendingLink,
                 onLinkHandled = { deepLinks.consume() },
-                onNewScene = { name ->
-                    navController.navigate("scenes/new?name=" + android.net.Uri.encode(name))
-                },
             )
         }
         }

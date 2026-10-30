@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="add_panel_title_rule">添加规则</string>
+    <string name="add_row_new_rule">新建规则</string>
+    <string name="add_row_new_rule_sub">域名、IP 段或应用</string>
+    <string name="add_row_market">规则市场</string>
+    <string name="add_row_market_sub">现成的规则包</string>
+    <string name="add_panel_title_scene">添加场景</string>
+    <string name="add_row_new_scene">新建场景</string>
+    <string name="add_row_new_scene_sub">先起名，再设触发条件</string>
     <string name="rules_title">规则</string>
     <string name="rules_empty_title">还没有自建规则</string>
     <string name="rules_empty_body">点右下角 + 添加规则：让匹配的流量直连、阻断，或指定节点。</string>

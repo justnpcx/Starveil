@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -85,6 +86,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import com.justnpcx.starveil.core.ui.components.AddActionRow
+import com.justnpcx.starveil.core.ui.components.StarveilAddFab
+import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
@@ -119,6 +123,7 @@ fun RulesScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
+    var addPanel by remember { mutableStateOf(false) }
     var showMarket by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Rule?>(null) }
     var pendingDelete by remember { mutableStateOf<Rule?>(null) }
@@ -150,17 +155,6 @@ fun RulesScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.sm),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                StarveilButton(
-                    text = stringResource(R.string.rules_add),
-                    onClick = { showAdd = true },
-                )
-            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 // Room for the FAB: without it the last line of the empty state
@@ -265,6 +259,46 @@ fun RulesScreen(
         SnackbarHost(
             hostState = snackbar,
             modifier = Modifier.align(Alignment.BottomCenter),
+        )
+
+        // The same button as the nodes and scenes pages: one create entry, one
+        // panel, content swapped. The page header used to carry its own pill,
+        // which is what made the three pages look like three apps.
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(16.dp),
+        ) {
+            StarveilAddFab(onClick = { addPanel = true })
+        }
+    }
+
+    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
+        Text(
+            text = stringResource(R.string.add_panel_title_rule),
+            style = StarveilType.title,
+            color = StarveilColors.ink,
+            modifier = Modifier.padding(bottom = StarveilSpacing.sm),
+        )
+        AddActionRow(
+            icon = StarveilIcons.Pencil,
+            title = stringResource(R.string.add_row_new_rule),
+            subtitle = stringResource(R.string.add_row_new_rule_sub),
+            onClick = {
+                addPanel = false
+                editing = null
+                showAdd = true
+            },
+        )
+        AddActionRow(
+            icon = StarveilIcons.Scenes,
+            title = stringResource(R.string.add_row_market),
+            subtitle = stringResource(R.string.add_row_market_sub),
+            onClick = {
+                addPanel = false
+                showMarket = true
+            },
         )
     }
 

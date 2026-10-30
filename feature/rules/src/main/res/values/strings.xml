@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="add_panel_title_rule">Add rule</string>
+    <string name="add_row_new_rule">New rule</string>
+    <string name="add_row_new_rule_sub">Domain, IP range or app</string>
+    <string name="add_row_market">Rule market</string>
+    <string name="add_row_market_sub">Ready-made rule sets</string>
+    <string name="add_panel_title_scene">Add scene</string>
+    <string name="add_row_new_scene">New scene</string>
+    <string name="add_row_new_scene_sub">Name it, then set the trigger</string>
     <string name="rules_title">Rules</string>
     <string name="rules_empty_title">No rules of your own</string>
     <string name="rules_empty_body">Add a rule with the + button: send matching traffic direct, block it, or pick a node.</string>

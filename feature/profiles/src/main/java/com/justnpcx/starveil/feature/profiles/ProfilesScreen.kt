@@ -19,6 +19,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.justnpcx.starveil.core.ui.components.StarveilAddFab
+import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
@@ -161,8 +163,6 @@ fun ProfilesScreen(
     onTestLatency: ((String) -> Unit) -> Unit = {},
     /** Opens the editor for a brand-new node of the chosen protocol. */
     onNewNode: (ProfileType) -> Unit = {},
-    /** Opens the scene editor with [name] already filled in. */
-    onNewScene: (String) -> Unit = {},
     /** Opens the editor for an existing node. */
     onEditNode: (ProfileType, Long) -> Unit = { _, _ -> },
     /** Measures one node by id, and reports what happened. */
@@ -210,17 +210,26 @@ fun ProfilesScreen(
     // its instant delete + undo, because a swipe cannot be a stray tap.
     var nodeToDelete by remember { mutableStateOf<Profile?>(null) }
     var pickingProtocol by remember { mutableStateOf(false) }
-    // One add entry, three ways in. The pills sit above the FAB, the dialogs
-    // are centred: a bottom sheet is not what a 2025 add flow looks like.
-    var addOpen by remember { mutableStateOf(false) }
-    var importDialog by remember { mutableStateOf(false) }
-    var addNodeDialog by remember { mutableStateOf(false) }
-    var addNodeManual by remember { mutableStateOf(false) }
-    var linkText by remember { mutableStateOf("") }
-    var subscriptionUrl by remember { mutableStateOf("") }
-    var sceneDialog by remember { mutableStateOf(false) }
-    var sceneName by remember { mutableStateOf("") }
+    // One entry point, one panel. The same button opens the same sheet on the
+    // rules and scenes pages; only the sheet's content differs. The old
+    // speed-dial of pills was the wrong model: a FAB that fans out is for
+    // creating siblings, and importing a node is several channels into one
+    // destination.
+    var addPanel by remember { mutableStateOf(false) }
     var showGroupMenu by remember { mutableStateOf(false) }
+    // Scanning: ZXing's capture activity, embedded, so no Play Services and no
+    // network round trip.
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val contents = result.contents
+        if (!contents.isNullOrBlank()) viewModel.import(contents)
+    }
+    val scanOptions = remember(context) {
+        ScanOptions()
+            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            .setPrompt(context.getString(R.string.profiles_scan_prompt))
+            .setBeepEnabled(false)
+            .setOrientationLocked(false)
+    }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
@@ -514,20 +523,9 @@ fun ProfilesScreen(
         }
     }
 
-        // The add control: a scrim, three pills, and a FAB that becomes a
-        // close button. It floats over the list, so the list's last row keeps
-        // its own clearance.
-        if (addOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = if (StarveilColors.isDark) 0.55f else 0.32f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { addOpen = false },
-            )
-        }
+        // The add control: one button, and it does not fan out. The panel it
+        // opens floats over the list, so the list's last row keeps its own
+        // clearance.
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -535,87 +533,28 @@ fun ProfilesScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            AnimatedVisibility(
-                visible = addOpen,
-                enter = fadeIn(StarveilMotion.stateTransition()) +
-                    slideInVertically(StarveilMotion.stateTransition()) { it / 3 },
-                exit = fadeOut(StarveilMotion.press()) +
-                    slideOutVertically(StarveilMotion.press()) { it / 3 },
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    AddPill(
-                        label = stringResource(R.string.profiles_fab_add_node),
-                        icon = StarveilIcons.Add,
-                    ) {
-                        addOpen = false
-                        linkText = ""
-                        addNodeManual = false
-                        addNodeDialog = true
-                    }
-                    AddPill(
-                        label = stringResource(R.string.profiles_fab_import),
-                        icon = StarveilIcons.Down,
-                    ) {
-                        addOpen = false
-                        subscriptionUrl = ""
-                        importDialog = true
-                    }
-                    AddPill(
-                        label = stringResource(R.string.profiles_fab_scene),
-                        icon = StarveilIcons.Route,
-                    ) {
-                        addOpen = false
-                        sceneName = ""
-                        sceneDialog = true
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            AddFab(expanded = addOpen, onClick = { addOpen = !addOpen })
+            StarveilAddFab(onClick = { addPanel = true })
         }
     }
 
-    if (importDialog) {
-        SubscriptionDialog(
-            url = subscriptionUrl,
-            onUrlChange = { subscriptionUrl = it },
-            onDismiss = { importDialog = false },
-            onImport = {
-                importDialog = false
-                viewModel.import(it)
+    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
+        ProfilesAddPanel(
+            onScan = {
+                addPanel = false
+                scanLauncher.launch(scanOptions)
             },
-        )
-    }
-
-    if (addNodeDialog) {
-        AddNodeDialog(
-            link = linkText,
-            onLinkChange = { linkText = it },
-            manual = addNodeManual,
-            onManualChange = { addNodeManual = it },
-            onDismiss = { addNodeDialog = false },
-            onAdd = {
-                addNodeDialog = false
-                viewModel.import(it)
+            onClipboard = {
+                addPanel = false
+                val text = readClipboardText(context)
+                if (text == null) {
+                    viewModel.postMessage(context.getString(R.string.profiles_import_clipboard_empty))
+                } else {
+                    viewModel.import(text)
+                }
             },
             onManual = {
-                addNodeDialog = false
+                addPanel = false
                 pickingProtocol = true
-            },
-        )
-    }
-
-    if (sceneDialog) {
-        NewSceneDialog(
-            name = sceneName,
-            onNameChange = { sceneName = it },
-            onDismiss = { sceneDialog = false },
-            onCreate = {
-                sceneDialog = false
-                onNewScene(it)
             },
         )
     }
@@ -1809,190 +1748,3 @@ private fun noteLabel(note: StageNote): String = stringResource(
 )
 
 
-/**
- * The add button: 56dp, 16dp corners, the brand gradient, a white glyph.
- * Expanded, the glyph is a close mark and the same target collapses the stack.
- */
-@Composable
-private fun AddFab(expanded: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(56.dp)
-            .clip(StarveilShapes.fab)
-            .background(Brush.linearGradient(StarveilBrand.colors))
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = if (expanded) StarveilIcons.Close else StarveilIcons.Add,
-            contentDescription = stringResource(
-                if (expanded) R.string.profiles_dialog_cancel else R.string.profiles_add,
-            ),
-            tint = Color.White,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
-/** One of the three actions above the FAB: a card-coloured pill with a shadow. */
-@Composable
-private fun AddPill(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .heightIn(min = 44.dp)
-            .clip(CircleShape)
-            .background(StarveilColors.card)
-            .border(1.dp, StarveilColors.line, CircleShape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = StarveilColors.ink2,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = label, style = StarveilType.body, color = StarveilColors.ink)
-    }
-}
-
-/** A subscription URL, and nothing else. */
-@Composable
-private fun SubscriptionDialog(
-    url: String,
-    onUrlChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onImport: (String) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.dialog,
-        title = { Text(stringResource(R.string.profiles_dialog_import_title)) },
-        text = {
-            StarveilTextField(
-                value = url,
-                onValueChange = onUrlChange,
-                label = stringResource(R.string.profiles_dialog_subscription_hint),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                enabled = url.isNotBlank(),
-                onClick = { onImport(url.trim()) },
-            ) {
-                Text(stringResource(R.string.profiles_dialog_import))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profiles_dialog_cancel))
-            }
-        },
-    )
-}
-
-/** Add a node: paste a link, or go to the full editor. */
-@Composable
-private fun AddNodeDialog(
-    link: String,
-    onLinkChange: (String) -> Unit,
-    manual: Boolean,
-    onManualChange: (Boolean) -> Unit,
-    onDismiss: () -> Unit,
-    onAdd: (String) -> Unit,
-    onManual: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.dialog,
-        title = { Text(stringResource(R.string.profiles_dialog_add_node_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    StarveilChip(
-                        label = stringResource(R.string.profiles_dialog_paste_link),
-                        selected = !manual,
-                        onClick = { onManualChange(false) },
-                        surface = ChipSurface.Dialog,
-                    )
-                    StarveilChip(
-                        label = stringResource(R.string.profiles_dialog_manual),
-                        selected = manual,
-                        onClick = { onManualChange(true) },
-                        surface = ChipSurface.Dialog,
-                    )
-                }
-                if (!manual) {
-                    StarveilTextField(
-                        value = link,
-                        onValueChange = onLinkChange,
-                        label = stringResource(R.string.profiles_dialog_link_hint),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            if (manual) {
-                TextButton(onClick = onManual) {
-                    Text(stringResource(R.string.profiles_dialog_continue))
-                }
-            } else {
-                TextButton(enabled = link.isNotBlank(), onClick = { onAdd(link.trim()) }) {
-                    Text(stringResource(R.string.profiles_dialog_add))
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profiles_dialog_cancel))
-            }
-        },
-    )
-}
-
-/** Name first; the rest of the scene is the existing editor. */
-@Composable
-private fun NewSceneDialog(
-    name: String,
-    onNameChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onCreate: (String) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.dialog,
-        title = { Text(stringResource(R.string.profiles_dialog_scene_title)) },
-        text = {
-            StarveilTextField(
-                value = name,
-                onValueChange = onNameChange,
-                label = stringResource(R.string.profiles_dialog_scene_name),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = { onCreate(name.trim()) }) {
-                Text(stringResource(R.string.profiles_dialog_create))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profiles_dialog_cancel))
-            }
-        },
-    )
-}

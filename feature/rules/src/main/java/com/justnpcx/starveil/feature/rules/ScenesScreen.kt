@@ -65,10 +65,14 @@ import com.justnpcx.starveil.core.model.SceneTarget
 import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.ui.components.ChipSurface
+import com.justnpcx.starveil.core.ui.components.AddActionRow
+import com.justnpcx.starveil.core.ui.components.StarveilAddFab
+import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
@@ -92,6 +96,7 @@ fun ScenesScreen(
     val context = LocalContext.current
     var editing by remember { mutableStateOf<Scene?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    var addPanel by remember { mutableStateOf(false) }
     // Arrived from the Nodes page with a name already typed: open the existing
     // editor on a draft, so the trigger and preset are chosen in one place.
     LaunchedEffect(draftName) {
@@ -119,28 +124,13 @@ fun ScenesScreen(
         ssidReadable = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
-        // No FAB: the add action belongs to the page, not to a floating disc.
+        // Transparent: the shell paints the page behind every screen.
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (!state.isEmpty) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    StarveilButton(
-                        text = stringResource(R.string.scenes_add),
-                        onClick = {
-                            editing = null
-                            showDialog = true
-                        },
-                    )
-                }
-            }
             if (!ssidReadable) {
                 // The rationale, in the place the feature lives: what the
                 // permission is for, what happens without it, and no claim that
@@ -208,6 +198,35 @@ fun ScenesScreen(
                 }
             }
         }
+    }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(16.dp),
+        ) {
+            StarveilAddFab(onClick = { addPanel = true })
+        }
+    }
+
+    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
+        Text(
+            text = stringResource(R.string.add_panel_title_scene),
+            style = StarveilType.title,
+            color = StarveilColors.ink,
+            modifier = Modifier.padding(bottom = StarveilSpacing.sm),
+        )
+        AddActionRow(
+            icon = StarveilIcons.Scenes,
+            title = stringResource(R.string.add_row_new_scene),
+            subtitle = stringResource(R.string.add_row_new_scene_sub),
+            onClick = {
+                addPanel = false
+                editing = null
+                showDialog = true
+            },
+        )
     }
 
     if (showDialog) {
