@@ -58,6 +58,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.ui.R as UiR
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
+import com.justnpcx.starveil.core.ui.components.PageWash
+import com.justnpcx.starveil.core.ui.components.StarveilBackground
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -107,6 +109,10 @@ fun StarveilShell(
         else -> stringResource(R.string.nav_home)
     }
 
+    // The page's own background lives here, not in MainActivity: the wash is
+    // allowed on the home page only, and this is the one place that knows which
+    // page is showing.
+    StarveilBackground(showWash = route == "dashboard") {
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = true,
@@ -165,6 +171,7 @@ fun StarveilShell(
                 }
             },
         )
+    }
     }
 }
 
@@ -236,6 +243,10 @@ private fun StarveilDrawer(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding(),
         ) {
+            // The drawer header is the second and last surface allowed the
+            // blooms; the sheet itself is opaque, so it draws its own.
+            Box {
+                PageWash(modifier = Modifier.matchParentSize())
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -260,6 +271,7 @@ private fun StarveilDrawer(
                         color = StarveilColors.ink2,
                     )
                 }
+            }
             }
 
             DrawerGroup(stringResource(R.string.drawer_group_pages))
