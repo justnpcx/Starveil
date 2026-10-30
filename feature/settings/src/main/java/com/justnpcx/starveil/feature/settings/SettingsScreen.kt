@@ -231,21 +231,8 @@ fun SettingsScreen(
             "backup", "dns", "leak", "token", "api", "diagnostic", "log",
         ),
     )
-    val showAbout = matches(
-        listOf(
-            stringResource(R.string.settings_group_about),
-            stringResource(R.string.settings_version_title),
-            stringResource(R.string.settings_kernel_title),
-            stringResource(R.string.update_check),
-            stringResource(R.string.settings_privacy),
-            stringResource(R.string.settings_github_repo),
-            stringResource(R.string.settings_github_changelog),
-            stringResource(R.string.settings_github_issues),
-            "version", "kernel", "update", "privacy", "github", "about",
-        ),
-    )
     val nothingMatches = q.isNotBlank() &&
-        !showAppearance && !showConnection && !showRouting && !showDiagnostics && !showAbout
+        !showAppearance && !showConnection && !showRouting && !showDiagnostics
 
     LaunchedEffect(updateState) {
         val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
@@ -411,34 +398,6 @@ fun SettingsScreen(
         // group of their own.
         StarveilGroupHeader(stringResource(R.string.settings_group_diagnostics))
         SettingsCard {
-            CardHeader(
-                title = stringResource(R.string.backup_title),
-                description = stringResource(R.string.backup_explainer),
-            )
-            // Two outline buttons, not two words in a paragraph: export and
-            // restore are this card's primary actions, and a bare text link is
-            // how a secondary action is drawn.
-            Row(
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    top = StarveilSpacing.xs,
-                    bottom = StarveilSpacing.md,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                StarveilButton(
-                    text = stringResource(R.string.backup_export),
-                    secondary = true,
-                    onClick = { askingForExport = true },
-                )
-                StarveilButton(
-                    text = stringResource(R.string.backup_restore),
-                    secondary = true,
-                    onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
-                )
-            }
-            StarveilDivider(startInset = StarveilSpacing.lg)
             EntryRow(
                 title = stringResource(R.string.rule_test_title),
                 description = stringResource(R.string.rule_test_entry_desc),
@@ -571,6 +530,46 @@ fun SettingsScreen(
             }
         }
 
+        // ---- Backup --------------------------------------------------------
+        // Last, because it is the one card whose buttons leave the app: a file
+        // out and a file back in. Everything above it is a setting; this is a
+        // transfer, and it closes the page.
+        StarveilGroupHeader(stringResource(R.string.backup_title))
+        SettingsCard {
+            CardHeader(
+                title = stringResource(R.string.backup_title),
+                description = stringResource(R.string.backup_explainer),
+            )
+            // Two outline buttons, not two words in a paragraph: export and
+            // restore are this card's primary actions, and a bare text link is
+            // how a secondary action is drawn.
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.xs,
+                    bottom = StarveilSpacing.md,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                StarveilButton(
+                    text = stringResource(R.string.backup_export),
+                    secondary = true,
+                    onClick = { askingForExport = true },
+                )
+                StarveilButton(
+                    text = stringResource(R.string.backup_restore),
+                    secondary = true,
+                    onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
+                )
+            }
+        }
+
+        // The page's own breath above the navigation bar. The bar's height is
+        // already reserved by the shell; this is the 12dp the task book asks
+        // for on top of it.
+        Spacer(modifier = Modifier.height(StarveilSpacing.navContentInset))
+
         diagnostics?.let { text ->
             DiagnosticPreviewDialog(
                 text = text,
@@ -579,88 +578,6 @@ fun SettingsScreen(
                     diagnostics = null
                 },
                 onDismiss = { diagnostics = null },
-            )
-        }
-
-        }
-
-        // ---- About ----------------------------------------------------------
-        if (showAbout) {
-        StarveilGroupHeader(stringResource(R.string.settings_group_about))
-        SettingsCard {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Image(
-                    painter = painterResource(UiR.drawable.ic_starveil_mark),
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp),
-                )
-                Spacer(modifier = Modifier.width(StarveilSpacing.md))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_version_title),
-                        style = StarveilType.headline,
-                        color = StarveilColors.ink,
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_brand_tagline),
-                        style = StarveilType.label.copy(fontSize = 12.sp),
-                        color = StarveilColors.ink2,
-                    )
-                }
-                Text(
-                    text = appVersion.orEmpty(),
-                    style = StarveilType.log,
-                    color = StarveilColors.ink2,
-                )
-            }
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            AboutValueRow(
-                title = stringResource(R.string.settings_kernel_title),
-                value = state.kernelVersion.takeIf { it.isNotBlank() }
-                    ?.substringBefore('-')
-                    ?: stringResource(R.string.settings_kernel_unknown),
-            )
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                StarveilButton(
-                    text = stringResource(R.string.update_check),
-                    onClick = { viewModel.checkForUpdates(appVersion.orEmpty()) },
-                    enabled = updateState !is UpdateUiState.Checking &&
-                        updateState !is UpdateUiState.Downloading,
-                    secondary = true,
-                    modifier = Modifier.weight(1f),
-                )
-                StarveilButton(
-                    text = stringResource(R.string.settings_privacy),
-                    onClick = onOpenPrivacy,
-                    secondary = true,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            AboutLinkRow(
-                title = stringResource(R.string.settings_github_repo),
-                onClick = { openUrl(context, PROJECT_REPO) },
-            )
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            AboutLinkRow(
-                title = stringResource(R.string.settings_github_changelog),
-                onClick = { openUrl(context, PROJECT_CHANGELOG) },
-            )
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            AboutLinkRow(
-                title = stringResource(R.string.settings_github_issues),
-                onClick = { openUrl(context, PROJECT_ISSUES) },
             )
         }
 
