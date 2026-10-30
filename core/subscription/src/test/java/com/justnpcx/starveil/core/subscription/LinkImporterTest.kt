@@ -131,7 +131,7 @@ class LinkImporterTest {
 
         val outcome = import_.import("vless://uuid@h.example:443#n")
 
-        assertEquals(ImportOutcome.AddedNode("node-from-link"), outcome)
+        assertEquals(ImportOutcome.AddedNode("node-from-link", id = 1L), outcome)
         assertEquals(1, profiles.rows.size)
         assertEquals(ProfileType.VLESS, profiles.rows.values.single().type)
     }
@@ -180,6 +180,18 @@ class LinkImporterTest {
         assertEquals(2, outcome.added)
         assertEquals(listOf(ImportFailure.LinkUnparseable), outcome.failures)
         assertEquals(2, profiles.rows.size)
+    }
+
+    @Test
+    fun `the same link twice is one node, and the second says so`() = runBlocking {
+        val (import_, profiles, _) = importer()
+
+        val first = import_.import("vless://uuid@h.example:443#n")
+        val second = import_.import("vless://uuid@h.example:443#n")
+
+        assertEquals(ImportOutcome.AddedNode("node-from-link", id = 1L), first)
+        assertEquals(ImportOutcome.Duplicate("node-from-link", 1L), second)
+        assertEquals(1, profiles.rows.size)
     }
 
     @Test

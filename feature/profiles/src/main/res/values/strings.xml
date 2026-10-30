@@ -93,6 +93,8 @@
     <string name="profiles_msg_added">Added %1$s</string>
     <string name="profiles_msg_imported">Imported %1$d nodes</string>
     <string name="profiles_msg_imported_skipped">Imported %1$d nodes, %2$d skipped</string>
+    <string name="profiles_msg_exists">That node is already in the list</string>
+    <string name="profiles_msg_exists_named">%1$s is already in the list</string>
     <string name="profiles_msg_imported_partial">Added %1$d nodes, %2$d lines failed</string>
     <string name="profiles_msg_import_failed">Import failed: %1$s</string>
     <string name="profiles_msg_refreshed">Refreshed: %1$d nodes</string>

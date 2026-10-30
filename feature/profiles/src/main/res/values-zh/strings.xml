@@ -87,6 +87,8 @@
     <string name="profiles_msg_added">已添加 %1$s</string>
     <string name="profiles_msg_imported">已导入 %1$d 个节点</string>
     <string name="profiles_msg_imported_skipped">已导入 %1$d 个节点，跳过 %2$d 个</string>
+    <string name="profiles_msg_exists">该节点已存在</string>
+    <string name="profiles_msg_exists_named">%1$s 已存在</string>
     <string name="profiles_msg_imported_partial">已导入 %1$d 个节点，%2$d 行失败</string>
     <string name="profiles_msg_import_failed">导入失败：%1$s</string>
     <string name="profiles_msg_refreshed">已刷新：%1$d 个节点</string>

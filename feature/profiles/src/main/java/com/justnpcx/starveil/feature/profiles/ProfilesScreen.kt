@@ -71,6 +71,8 @@ import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -194,6 +196,17 @@ fun ProfilesScreen(
     val probeState by probeViewModel.state.collectAsStateWithLifecycle()
     val clipboardSuggestion by viewModel.clipboardSuggestion.collectAsStateWithLifecycle()
     val subscriptionImport by viewModel.lastSubscriptionImport.collectAsStateWithLifecycle()
+    val highlightedNode by viewModel.highlightedNode.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    // Point at the row the import produced: scroll to it, flash it once, then
+    // let the highlight go. Nothing is left behind afterwards.
+    LaunchedEffect(highlightedNode) {
+        val id = highlightedNode ?: return@LaunchedEffect
+        val index = state.profiles.indexOfFirst { it.id == id }
+        if (index >= 0) listState.animateScrollToItem(index)
+        delay(HIGHLIGHT_MS)
+        viewModel.clearHighlight()
+    }
     val context = LocalContext.current
     // The second of the two moments the clipboard is read: the page coming back
     // to the foreground. Nothing polls, and Android's own "pasted from" notice
@@ -493,6 +506,7 @@ fun ProfilesScreen(
                     val shown = if (showTimedOut) state.profiles else
                         state.profiles.filterNot { state.health[it.id]?.status == NodeStatus.DOWN }
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = StarveilSpacing.fabClearance),
                     ) {
@@ -509,6 +523,7 @@ fun ProfilesScreen(
                                     groupLabel = groupNames[profile.groupId]
                                         ?: stringResource(R.string.profiles_group_none),
                                     selected = profile.id == state.selectedId,
+                                    highlighted = profile.id == highlightedNode,
                                     showDivider = index != shown.lastIndex || timedOut.isNotEmpty(),
                                     onClick = { viewModel.select(profile.id) },
                                     onLongClick = {
@@ -1068,6 +1083,12 @@ private fun ProfilesMessage.text(): String = when (this) {
         } else {
             stringResource(R.string.profiles_msg_imported_skipped, count, dropped)
         }
+    is ProfilesMessage.Existing ->
+        if (name.isBlank()) {
+            stringResource(R.string.profiles_msg_exists)
+        } else {
+            stringResource(R.string.profiles_msg_exists_named, name)
+        }
     is ProfilesMessage.ImportedPartially ->
         stringResource(R.string.profiles_msg_imported_partial, count, failures.size)
     is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, failure.text())
@@ -1200,6 +1221,8 @@ private fun NodeRow(
     disambiguator: String?,
     groupLabel: String,
     selected: Boolean,
+    /** True for the row an import just created or found. */
+    highlighted: Boolean = false,
     showDivider: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -1222,6 +1245,7 @@ private fun NodeRow(
                     )
                 }
             }
+            .background(if (highlighted) StarveilColors.selBg else Color.Transparent)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -1780,3 +1804,6 @@ private fun noteLabel(note: StageNote): String = stringResource(
 )
 
 
+
+/** How long a freshly imported row stays highlighted. */
+private const val HIGHLIGHT_MS = 1200L

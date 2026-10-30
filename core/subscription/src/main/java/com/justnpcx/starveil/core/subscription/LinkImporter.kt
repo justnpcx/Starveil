@@ -6,6 +6,7 @@ import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProxyGroup
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
 
 /**
  * Resolves a share link (`vless://…`) to a [Profile]. Injected by :app from the
@@ -47,11 +48,19 @@ data class LinkPreview(
 /** The result of importing several lines at once. */
 data class BatchOutcome(
     val added: Int,
-    val failures: List<ImportFailure>,
+    /** The rows this batch created, in order. */
+    val addedIds: List<Long> = emptyList(),
+    /** Rows that were already stored, by id. */
+    val duplicates: List<Long> = emptyList(),
+    val failures: List<ImportFailure> = emptyList(),
 )
 
 sealed interface ImportOutcome {
-    data class AddedNode(val name: String) : ImportOutcome
+    /** [id] is the stored row, so the caller can point at it. */
+    data class AddedNode(val name: String, val id: Long = 0L) : ImportOutcome
+
+    /** The link resolves to a node that is already stored. */
+    data class Duplicate(val name: String, val id: Long) : ImportOutcome
 
     /** [dropped] is how many entries the subscription carried but could not be used. */
     data class AddedSubscription(val nodeCount: Int, val dropped: Int = 0) : ImportOutcome
@@ -112,15 +121,26 @@ class LinkImporter @Inject constructor(
      */
     suspend fun importMany(text: String): BatchOutcome {
         var added = 0
+        val addedIds = mutableListOf<Long>()
+        val duplicates = mutableListOf<Long>()
         val failures = mutableListOf<ImportFailure>()
         for (token in splitLinks(text)) {
             when (val outcome = import(token)) {
-                is ImportOutcome.AddedNode -> added++
+                is ImportOutcome.AddedNode -> {
+                    added++
+                    addedIds += outcome.id
+                }
+                is ImportOutcome.Duplicate -> duplicates += outcome.id
                 is ImportOutcome.AddedSubscription -> added += outcome.nodeCount
                 is ImportOutcome.Failed -> failures += outcome.failure
             }
         }
-        return BatchOutcome(added, failures)
+        return BatchOutcome(
+            added = added,
+            addedIds = addedIds,
+            duplicates = duplicates,
+            failures = failures,
+        )
     }
 
     suspend fun import(text: String, subscriptionName: String? = null): ImportOutcome {
@@ -137,9 +157,17 @@ class LinkImporter @Inject constructor(
     private suspend fun importShareLink(link: String): ImportOutcome {
         val profile = resolver.resolve(link)
             ?: return ImportOutcome.Failed(ImportFailure.LinkUnparseable)
-        profiles.upsert(profile)
-        return ImportOutcome.AddedNode(profile.name)
+        // A link pasted twice is one node, not two rows: the identity is what a
+        // user would call "the same node" — protocol, endpoint and name.
+        val existing = profiles.observeAll().first().firstOrNull { it.sameNodeAs(profile) }
+        if (existing != null) return ImportOutcome.Duplicate(existing.name, existing.id)
+        val id = profiles.upsert(profile)
+        return ImportOutcome.AddedNode(profile.name, id)
     }
+
+    /** Two profiles are the same node when a user would say so. */
+    private fun Profile.sameNodeAs(other: Profile): Boolean =
+        type == other.type && server == other.server && port == other.port && name == other.name
 
     private suspend fun importSubscription(url: String, name: String?): ImportOutcome {
         // One subscription URL is one group that refreshes. Inserting a fresh

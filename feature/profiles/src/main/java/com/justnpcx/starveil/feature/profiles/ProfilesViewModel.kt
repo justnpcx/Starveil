@@ -101,6 +101,9 @@ sealed interface ProfilesMessage {
     /** [dropped] counts subscription entries that produced no node. */
     data class ImportedNodes(val count: Int, val dropped: Int = 0) : ProfilesMessage
 
+    /** The link resolved to a node that is already in the list. */
+    data class Existing(val name: String) : ProfilesMessage
+
     /**
      * A pasted block where some lines worked.
      *
@@ -201,6 +204,19 @@ class ProfilesViewModel @Inject constructor(
      */
     private val subscriptionImport = MutableStateFlow<SubscriptionImported?>(null)
     val lastSubscriptionImport: StateFlow<SubscriptionImported?> = subscriptionImport
+
+    /**
+     * The row an import just created or found.
+     *
+     * The list is long enough that "imported" is not self-evident; the page
+     * scrolls to this row and flashes it once.
+     */
+    private val highlight = MutableStateFlow<Long?>(null)
+    val highlightedNode: StateFlow<Long?> = highlight
+
+    fun clearHighlight() {
+        highlight.value = null
+    }
 
     /**
      * The last payload offered, by hash.
@@ -606,11 +622,16 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             importing.value = true
             val outcome = importer.importMany(text)
+            // The row to point at: what was created, or — when everything was
+            // already there — the node that already existed.
+            highlight.value = outcome.addedIds.firstOrNull() ?: outcome.duplicates.firstOrNull()
             message.value = when {
                 outcome.added > 0 && outcome.failures.isEmpty() ->
                     ProfilesMessage.ImportedNodes(outcome.added)
                 outcome.added > 0 ->
                     ProfilesMessage.ImportedPartially(outcome.added, outcome.failures)
+                outcome.duplicates.isNotEmpty() ->
+                    ProfilesMessage.Existing("")
                 else -> ProfilesMessage.ImportFailed(
                     outcome.failures.firstOrNull() ?: ImportFailure.NothingToImport,
                 )
@@ -624,7 +645,14 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             importing.value = true
             message.value = when (val outcome = importer.import(url, name)) {
-                is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
+                is ImportOutcome.AddedNode -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.AddedNode(outcome.name)
+                }
+                is ImportOutcome.Duplicate -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.Existing(outcome.name)
+                }
                 is ImportOutcome.AddedSubscription -> {
                     val group = groups.findBySubscriptionUrl(url)
                     if (group != null) {
@@ -651,7 +679,14 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             importing.value = true
             message.value = when (val outcome = importer.import(text)) {
-                is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
+                is ImportOutcome.AddedNode -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.AddedNode(outcome.name)
+                }
+                is ImportOutcome.Duplicate -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.Existing(outcome.name)
+                }
                 is ImportOutcome.AddedSubscription ->
                     ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
                 is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.failure)
