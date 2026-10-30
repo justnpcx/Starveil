@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.2] — 2026-10-30
+
+Interaction and ergonomics overhaul, critical bugfixes, power saving, and database batching.
+
+### Added
+
+- **Floating capsule navigation.** A modern 44dp floating pill navigation island
+  at bottom-center across the three primary views (Dashboard, Nodes, Rules).
+  Expands active items with fluid spring animations and haptic feedback, while
+  maintaining full clearance for the corner FAB and drawer navigation.
+- **Batch database APIs.** Added `upsertAll` and single-column `setCountry` in
+  `ProfileDao` and `ProfileRepository` for high-throughput node imports and
+  in-place GeoIP updates without rewrites or UI re-render storms.
+
+### Fixed
+
+- **Group filter isolation.** Selecting a node group chip in `ProfilesScreen` no
+  longer causes other group chips to vanish; valid non-empty groups are preserved
+  globally from the unfiltered dataset.
+- **Rules list bottom clearance.** Replaced short bottom padding with
+  `StarveilSpacing.fabClearance` so the final rules card is not obscured by the
+  FAB or capsule.
+
+### Changed
+
+- **Background radio and JNI hibernation.** Dashboard ViewModel now observes
+  lifecycle transitions (`ON_START` / `ON_STOP`), immediately suspending the
+  1-second kernel JNI polling and 30-second exit probe HTTP requests when
+  backgrounded or navigated away, eliminating idle battery drain.
+- **Macrobenchmark suite.** Upgraded `BaselineProfileGenerator` and
+  `NodesScrollBenchmark` with robust bilingual UI Automator selectors and
+  capsule/drawer compatibility.
+
 ## [0.9.1] — 2026-10-30
 
 The add flow, rebuilt. 0.9.0 shipped a speed dial of pills on the nodes page and
