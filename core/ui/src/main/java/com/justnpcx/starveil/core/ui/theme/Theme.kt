@@ -56,8 +56,6 @@ object StarveilColors {
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.selInk
     val segBg: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.segBg
-    val drawer: Color
-        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.drawer
     val err: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.err
     val ok: Color
@@ -101,8 +99,6 @@ object StarveilColors {
         @Composable @ReadOnlyComposable get() = card
     val surfaceThin: Color
         @Composable @ReadOnlyComposable get() = segBg
-    val surfaceChrome: Color
-        @Composable @ReadOnlyComposable get() = drawer
     val surfaceSolid: Color
         @Composable @ReadOnlyComposable get() = card
     val glassBorder: Color

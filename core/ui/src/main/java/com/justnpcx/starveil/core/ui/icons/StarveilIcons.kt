@@ -191,6 +191,45 @@ object StarveilIcons {
         }
     }
 
+    /**
+     * More: a two-by-two grid.
+     *
+     * The destination is a page of other destinations, so the glyph is a set of
+     * places rather than the overflow dots — dots mean "the rest of this
+     * screen", and the hub is not that.
+     */
+    val Grid: ImageVector by lazy {
+        strokeIcon("Line.Grid") {
+            iconPath { roundRect(4.5f, 4.5f, 6f, 6f) }
+            iconPath { roundRect(13.5f, 4.5f, 6f, 6f) }
+            iconPath { roundRect(4.5f, 13.5f, 6f, 6f) }
+            iconPath { roundRect(13.5f, 13.5f, 6f, 6f) }
+        }
+    }
+
+    /** Logs: three lines with their bullets, not a terminal prompt. */
+    val List: ImageVector by lazy {
+        strokeIcon("Line.List") {
+            iconPath { dot(5f, 6.5f) }
+            iconPath { moveTo(9f, 6.5f); horizontalLineTo(20f) }
+            iconPath { dot(5f, 12f) }
+            iconPath { moveTo(9f, 12f); horizontalLineTo(20f) }
+            iconPath { dot(5f, 17.5f) }
+            iconPath { moveTo(9f, 17.5f); horizontalLineTo(20f) }
+        }
+    }
+
+    /** Check: the mark inside a switch's on-state thumb. */
+    val Check: ImageVector by lazy {
+        strokeIcon("Line.Check") {
+            iconPath {
+                moveTo(5f, 12.5f)
+                lineTo(10f, 17.5f)
+                lineTo(19f, 6.5f)
+            }
+        }
+    }
+
     /** Back: a chevron. */
     val Back: ImageVector by lazy {
         strokeIcon("Line.Back") {
@@ -220,24 +259,6 @@ object StarveilIcons {
                 moveTo(6f, 9f)
                 lineTo(12f, 15f)
                 lineTo(18f, 9f)
-            }
-        }
-    }
-
-    /** Menu: the drawer's handle. */
-    val Menu: ImageVector by lazy {
-        strokeIcon("Line.Menu") {
-            iconPath {
-                moveTo(4f, 6f)
-                horizontalLineTo(20f)
-            }
-            iconPath {
-                moveTo(4f, 12f)
-                horizontalLineTo(20f)
-            }
-            iconPath {
-                moveTo(4f, 18f)
-                horizontalLineTo(20f)
             }
         }
     }
@@ -540,6 +561,20 @@ private fun PathBuilder.knob(x: Float, y: Float) {
     curveTo(x + 0.97f, y - 1.75f, x + 1.75f, y - 0.97f, x + 1.75f, y)
     curveTo(x + 1.75f, y + 0.97f, x + 0.97f, y + 1.75f, x, y + 1.75f)
     curveTo(x - 0.97f, y + 1.75f, x - 1.75f, y + 0.97f, x - 1.75f, y)
+    close()
+}
+
+/** A square with softened corners, for the grid cells. */
+private fun PathBuilder.roundRect(x: Float, y: Float, w: Float, h: Float, r: Float = 1.6f) {
+    moveTo(x + r, y)
+    lineTo(x + w - r, y)
+    quadTo(x + w, y, x + w, y + r)
+    lineTo(x + w, y + h - r)
+    quadTo(x + w, y + h, x + w - r, y + h)
+    lineTo(x + r, y + h)
+    quadTo(x, y + h, x, y + h - r)
+    lineTo(x, y + r)
+    quadTo(x, y, x + r, y)
     close()
 }
 

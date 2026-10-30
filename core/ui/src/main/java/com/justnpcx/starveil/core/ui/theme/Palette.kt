@@ -47,8 +47,6 @@ data class StarveilPalette(
     val selInk: Color,
     /** The trough of a segmented control. */
     val segBg: Color,
-    /** The drawer's surface. */
-    val drawer: Color,
     /** Failure, as a dot, a line or text. */
     val err: Color,
     /** Healthy. */
@@ -102,9 +100,6 @@ data class StarveilPalette(
     /** @deprecated Inputs and wells use the segment trough; use [segBg]. */
     val surfaceThin: Color get() = segBg
 
-    /** @deprecated The drawer is the only chrome surface; use [drawer]. */
-    val surfaceChrome: Color get() = drawer
-
     /** @deprecated Floating surfaces are cards; use [card]. */
     val surfaceSolid: Color get() = card
 
@@ -151,7 +146,6 @@ val LightPalette = StarveilPalette(
     selBg = Color(0xFFD3E3FD),
     selInk = Color(0xFF0B57D0),
     segBg = Color(0xFFEEF2F7),
-    drawer = Color(0xFFFFFFFF),
     err = Color(0xFFB3261E),
     ok = Color(0xFF137333),
     warn = Color(0xFFAC4D00),
@@ -187,7 +181,6 @@ val DarkPalette = StarveilPalette(
     selBg = Color(0xFF004A77),
     selInk = Color(0xFFC2E7FF),
     segBg = Color(0xFF28292A),
-    drawer = Color(0xFF1E1F20),
     err = Color(0xFFF2B8B5),
     ok = Color(0xFF81C995),
     // Measured 10.92:1 on bg / 9.71:1 on card, so the candidate stands.

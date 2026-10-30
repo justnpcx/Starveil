@@ -32,33 +32,29 @@ class BaselineProfileGenerator {
         device.waitForIdle()
 
         // Every destination, in both English and Chinese locales.
-        // Tries the direct visible navigation item first (capsule), then drawer for deeper pages.
-        val destinations = listOf(
-            "Nodes" to "节点",
-            "Rules" to "规则",
-            "Logs" to "日志",
-            "Settings" to "设置",
-            "Home" to "首页",
-        )
-        destinations.forEach { (en, zh) ->
-            val direct = device.findObject(By.text(en))
+        //
+        // Three of them are on the bar; the logs and the settings are two rows
+        // of the hub behind its fourth item, so each is reached by opening the
+        // hub and coming back.
+        fun tap(en: String, zh: String) {
+            val node = device.findObject(By.text(en))
                 ?: device.findObject(By.text(zh))
                 ?: device.findObject(By.desc(en))
                 ?: device.findObject(By.desc(zh))
-            if (direct != null) {
-                direct.click()
-            } else {
-                // Open drawer for items not in the floating capsule (e.g. Logs, Settings)
-                val menuButton = device.findObject(By.descContains("drawer"))
-                    ?: device.findObject(By.descContains("Menu"))
-                    ?: device.findObject(By.descContains("menu"))
-                menuButton?.click()
-                device.waitForIdle()
-                val drawerItem = device.findObject(By.text(en)) ?: device.findObject(By.text(zh))
-                drawerItem?.click()
-            }
+            node?.click()
             device.waitForIdle()
         }
+
+        tap("Nodes", "节点")
+        tap("Rules", "规则")
+        tap("More", "更多")
+        tap("Logs", "日志")
+        device.pressBack()
+        device.waitForIdle()
+        tap("Settings", "设置")
+        device.pressBack()
+        device.waitForIdle()
+        tap("Home", "首页")
     }
 
     private companion object {

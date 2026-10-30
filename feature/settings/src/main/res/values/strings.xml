@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_title">Settings</string>
-    <string name="settings_brand_tagline">Starlight for the road · gauze for the shield</string>
     <string name="appearance_title">Appearance</string>
     <string name="appearance_system">Follow system</string>
     <string name="appearance_light">Day</string>
@@ -31,8 +30,6 @@
     <string name="per_app_entry_desc">Send individual apps direct, or through a specific node.</string>
     <string name="per_app_entry_count">%1$d apps have their own route</string>
     <string name="per_app_manage">Manage</string>
-    <string name="per_app_title">Per-app routing</string>
-    <string name="per_app_done">Done</string>
     <string name="per_app_close">Close</string>
     <string name="per_app_explainer">Each app can follow the tunnel, leave the device directly, or use a specific node. This is applied when the tunnel is built, so it takes effect from the next connection.</string>
     <string name="per_app_search">Search apps</string>
@@ -62,7 +59,6 @@
     <string name="leak_check_leaking">Last check: LEAK DETECTED (%1$s).</string>
     <string name="leak_check_run">Run self-check</string>
 
-    <string name="settings_kernel_title">Kernel</string>
     <!-- The core's own version string, e.g. "1.14.3-647c447". -->
     <string name="settings_kernel_version">sing-box core %1$s</string>
     <string name="settings_kernel_unknown">Version unavailable.</string>
@@ -81,7 +77,6 @@
 
     <string name="settings_about_title">About</string>
     <string name="settings_app_version">Starveil %1$s</string>
-    <string name="settings_privacy">Privacy policy</string>
 
     <!-- Update channel. The repository is private until M8, so the check
          answers "no published release" until then. -->
@@ -113,7 +108,6 @@
 
 
     <!-- Only shown when the build carries a Sentry DSN. -->
-    <string name="diagnostics_title">Diagnostics</string>
     <string name="crash_reports_title">Send crash reports</string>
     <string name="crash_reports_desc">Stack trace, app version, Android version and device model. Node addresses, links, UUIDs and keys are replaced before anything is sent. Off sends nothing.</string>
 
@@ -122,8 +116,6 @@
       the crash-reporting item in M7 will make the first one false — at which
       point this text changes with it.
     -->
-    <string name="privacy_title">Privacy</string>
-    <string name="privacy_close">Close</string>
     <string name="privacy_intro">Starveil runs on this device. This page lists everything that leaves it, and there is nothing you did not ask it to send.</string>
     <string name="privacy_data_title">What is collected</string>
     <string name="privacy_data_body">One report exists, and only when something crashes. No account, no analytics, no advertising identifier. The project runs no server of its own — the report goes to Sentry, described next.</string>
@@ -144,8 +136,6 @@
 
     <string name="keepalive_entry_title">Keep alive</string>
     <string name="keepalive_entry_desc">Stop the system from killing the tunnel in the background.</string>
-    <string name="keepalive_title">Keep alive</string>
-    <string name="keepalive_back">Back</string>
     <string name="keepalive_intro">Chinese ROMs kill background apps on their own schedule. These are the three switches where they decide not to.</string>
     <string name="keepalive_battery_title">Battery optimisation</string>
     <string name="keepalive_battery_body">Keeps the system from freezing the tunnel after the screen goes off.</string>
@@ -160,16 +150,11 @@
     <string name="settings_group_connection">Connection</string>
     <string name="settings_group_routing">Routing and background</string>
     <string name="settings_group_diagnostics">Data, security and diagnostics</string>
-    <string name="settings_group_about">About</string>
-    <string name="settings_version_title">Starveil</string>
     <string name="settings_dns_metrics_title">DNS sampling</string>
     <string name="settings_dns_metrics_desc">Times every lookup, keeps the last 512.</string>
     <string name="settings_dns_metrics_empty">No samples yet.</string>
     <string name="settings_dns_metrics_stats">%1$d samples · p50 %2$d ms · p95 %3$d ms · fallback %4$d%% · cache %5$d%%</string>
     <string name="settings_dns_metrics_clear">Clear samples</string>
-    <string name="settings_github_repo">GitHub repository</string>
-    <string name="settings_github_changelog">Changelog</string>
-    <string name="settings_github_issues">Report an issue</string>
     <string name="settings_link_failed">No app can open links on this device</string>
     <string name="rule_test_paste">Paste from the clipboard</string>
     <string name="rule_test_try">Try</string>
@@ -197,8 +182,6 @@
     <string name="rule_test_scope">Rule packs and per-app exceptions are not part of this walk yet.</string>
     <string name="rule_test_no_sets_title">No rule sets on this device</string>
     <string name="rule_test_no_sets">Connect once with the mainland preset, or turn on Block ads, so the sets are downloaded. Then come back.</string>
-<string name="connections_title">Connections</string>
-    <string name="connections_back">Back</string>
     <string name="connections_intro">Every connection the kernel decided, as it happens. No request content is kept — only who, where, which rule and which node.</string>
     <string name="connections_filter_active">Live</string>
     <string name="connections_filter_all">All</string>
@@ -220,8 +203,6 @@
     <string name="connections_no_matches_body">Widen or clear a filter.</string>
     <string name="connections_entry_title">Connection details</string>
     <string name="connections_entry_desc">Who connected where, which rule and which node</string>
-<string name="dns_log_title">DNS log</string>
-    <string name="dns_log_back">Back</string>
     <string name="dns_log_scope">GeoIP probe sampling — not tunnel DNS. These are the DoH lookups this app makes for node hostnames, not the quality of DNS inside the tunnel.</string>
     <string name="dns_log_stats">%1$d samples · p50 %2$d ms · p95 %3$d ms · fallback %4$d%% · cache %5$d%%</string>
     <string name="dns_log_empty">No samples yet.</string>

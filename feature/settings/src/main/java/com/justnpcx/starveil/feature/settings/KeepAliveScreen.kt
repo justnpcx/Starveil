@@ -31,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -47,7 +46,7 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KeepAliveScreen(onBack: () -> Unit) {
+fun KeepAliveScreen() {
     val context = LocalContext.current
     var exempt by remember {
         mutableStateOf(KeepAliveTargets.isExemptFromBatteryOptimizations(context))
@@ -66,21 +65,9 @@ fun KeepAliveScreen(onBack: () -> Unit) {
         onDispose { lifecycle.removeObserver(observer) }
     }
 
+    // No bar of its own: the shell draws the title and the arrow back.
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = {
-            StarveilTopAppBar(
-                title = { Text(stringResource(R.string.keepalive_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.keepalive_back),
-                        )
-                    }
-                },
-            )
-        },
     ) { padding ->
         Column(
             modifier = Modifier

@@ -140,20 +140,13 @@ class NodesScrollBenchmark {
             if (direct != null) {
                 direct.click()
             } else {
-                val menuButton = device.findObject(By.descContains("drawer"))
-                    ?: device.findObject(By.descContains("Menu"))
-                    ?: device.findObject(By.descContains("menu"))
-                if (menuButton != null) {
-                    menuButton.click()
-                    device.waitForIdle()
-                    val drawerNode = device.findObject(By.text("Nodes")) ?: device.findObject(By.text("节点"))
-                    drawerNode?.click()
-                } else {
-                    // Fallback to coordinates
-                    val x = device.displayWidth * 5 / 10
-                    val y = (device.displayHeight * 0.95f).toInt()
-                    device.executeShellCommand("input tap $x $y")
-                }
+                // The bar is full width with four items, so the second quarter
+                // is the nodes destination. A coordinate is the fallback of
+                // last resort: the label is always there, it is the click that
+                // can be dropped.
+                val x = device.displayWidth * 3 / 8
+                val y = (device.displayHeight * 0.95f).toInt()
+                device.executeShellCommand("input tap $x $y")
             }
             device.waitForIdle()
             repeat(25) {

@@ -42,10 +42,9 @@ fun StarveilBackground(
     /**
      * Whether the page carries the three blooms.
      *
-     * Only two surfaces are allowed to: the home page, where the card sits on
-     * something, and the drawer's header. On the six functional pages the
-     * blooms landed under inputs and behind cards and read as stains, so those
-     * pages are a flat [StarveilColors.bg].
+     * Only the home page is: it is where the connection card sits on
+     * something. On every other page the blooms landed under inputs and behind
+     * cards and read as stains, so those pages are a flat [StarveilColors.bg].
      */
     showWash: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
@@ -73,41 +72,6 @@ fun StarveilBackground(
     )
 }
 
-/**
- * The three blooms on their own, for a surface that is not the page.
- *
- * The drawer's header is the only other place they are allowed, and it needs
- * them without the page's gradient underneath.
- */
-@Composable
-fun PageWash(modifier: Modifier = Modifier) {
-    val washes = StarveilColors.washes
-    Box(
-        modifier = modifier.drawWithCache {
-            val baked = bakeWash(size, washes)
-            onDrawBehind { drawImage(baked) }
-        },
-    )
-}
-
-/** The blooms alone, into their own bitmap. */
-private fun bakeWash(size: Size, washes: List<Color>): ImageBitmap {
-    val width = size.width.toInt().coerceAtLeast(1)
-    val height = size.height.toInt().coerceAtLeast(1)
-    val bitmap = ImageBitmap(width, height)
-    CanvasDrawScope().draw(
-        density = Density(1f),
-        layoutDirection = LayoutDirection.Ltr,
-        canvas = Canvas(bitmap),
-        size = Size(width.toFloat(), height.toFloat()),
-    ) {
-        if (washes.size < 3) return@draw
-        bloom(washes[0], x = 0.12f, y = 0.06f, rx = 0.385f, ry = 0.118f)
-        bloom(washes[1], x = 0.88f, y = 0.30f, rx = 0.359f, ry = 0.130f)
-        bloom(washes[2], x = 0.70f, y = 0.92f, rx = 0.410f, ry = 0.142f)
-    }
-    return bitmap
-}
 
 /** Renders the whole page background into one bitmap. */
 private fun bakeBackground(

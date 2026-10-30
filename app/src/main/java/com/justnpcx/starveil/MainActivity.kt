@@ -178,13 +178,15 @@ class MainActivity : ComponentActivity() {
                             hostState = snackbarHostState,
                         )
                     },
-                ) { innerPadding ->
+                ) {
+                    // The shell applies its own bar insets to the content; a
+                    // second padding here would be the bars counted twice.
                     StarveilNavHost(
                         navController = navController,
                         latencyTester = latencyTester,
                         leakCheckRunner = leakCheckRunner,
                         deepLinks = deepLinks,
-                        modifier = Modifier.padding(innerPadding),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
