@@ -18,6 +18,7 @@ glance = "1.2.0"
 sentry = "8.61.0"
 snakeyaml = "2.3"
 zxing = "4.3.0"
+camerax = "1.4.2"
 sqlcipher = "4.19.1"
 # Offline IP → country, so a node can be placed without asking a server.
 ip2region = "3.3.7"
@@ -95,6 +96,10 @@ snakeyaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeyaml" 
 # QR scanning for node import. Offline (no Play Services), so it works on a
 # sideloaded build with no Google account.
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing" }
+camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 
 # Encrypted storage + backup.
 sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }

@@ -38,8 +38,16 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
 
-    // QR import. Embedded ZXing, not ML Kit: no Play Services dependency.
+    // QR import. ZXing draws a code (the share sheet) and decodes one (the
+    // scanner); CameraX supplies the frames. Decoding is on-device either way,
+    // and ZXing needs no Play Services — which matters because the target
+    // devices are Chinese ROMs without GMS, where an unbundled ML Kit model
+    // would download and then fail.
     implementation(libs.zxing.android.embedded)
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.view)
 
     implementation(project(":core:ui"))
     implementation(project(":core:model"))

@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import com.justnpcx.starveil.feature.dashboard.DashboardScreen
 import com.justnpcx.starveil.feature.logs.LogsScreen
 import com.justnpcx.starveil.feature.profiles.ProfilesScreen
+import com.justnpcx.starveil.feature.profiles.QrScannerScreen
 import com.justnpcx.starveil.feature.rules.RulesScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -65,6 +66,9 @@ enum class Destination(
 
 /** Not a tab: reached from Settings, which is where the exception list lives. */
 private const val PER_APP_ROUTE = "perapp"
+
+/** Full screen, outside the shell: no top bar over the camera preview. */
+private const val SCAN_ROUTE = "scan"
 private const val SCENES_ROUTE = "scenes"
 private const val SCENES_NEW_ROUTE = "scenes/new?name={name}"
 private const val KEEP_ALIVE_ROUTE = "keepalive"
@@ -141,6 +145,9 @@ fun StarveilNavHost(
     // until this composition exists, then the Nodes tab is where it belongs:
     // that is the screen that can show what the import did.
     val pendingLink by deepLinks.pending.collectAsStateWithLifecycle()
+    // What the scanner collected, held here for the trip back to the nodes
+    // page: the scan destination pops before the list recomposes.
+    var scannedLinks by remember { mutableStateOf<List<String>>(emptyList()) }
     LaunchedEffect(pendingLink) {
         if (pendingLink == null) return@LaunchedEffect
         navController.navigate("nodes") {
@@ -181,6 +188,19 @@ fun StarveilNavHost(
                 onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
                 incomingLink = pendingLink,
                 onLinkHandled = { deepLinks.consume() },
+                onScan = { navController.navigate(SCAN_ROUTE) },
+                scannedLinks = scannedLinks,
+                onScannedHandled = { scannedLinks = emptyList() },
+            )
+        }
+        // A full-screen destination, outside the shell: no top bar, no drawer.
+        composable(SCAN_ROUTE) {
+            QrScannerScreen(
+                onCancel = { navController.popBackStack() },
+                onDone = { links ->
+                    scannedLinks = links
+                    navController.popBackStack()
+                },
             )
         }
         }

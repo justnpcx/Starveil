@@ -15,6 +15,17 @@
     <string name="profiles_add">添加</string>
     <string name="profiles_add_manual">手动创建</string>
     <string name="profiles_add_clipboard">从剪贴板导入</string>
+    <string name="scan_close">关闭</string>
+    <string name="scan_torch_on">打开手电筒</string>
+    <string name="scan_torch_off">关闭手电筒</string>
+    <string name="scan_gallery">从相册选择</string>
+    <string name="scan_cancel">取消</string>
+    <string name="scan_done">完成（%1$d）</string>
+    <string name="scan_count">已扫 %1$d 个</string>
+    <string name="scan_permission">需要相机权限才能扫码。</string>
+    <string name="scan_subscription_confirm">这是订阅地址，转为导入订阅？</string>
+    <string name="scan_subscription_accept">导入订阅</string>
+    <string name="scan_subscription_skip">跳过</string>
     <string name="add_panel_title_node">添加节点</string>
     <string name="add_tile_scan">扫一扫</string>
     <string name="add_tile_scan_sub">节点二维码</string>

@@ -181,6 +181,14 @@ fun ProfilesScreen(
      */
     incomingLink: String? = null,
     onLinkHandled: () -> Unit = {},
+    /** Opens the full-screen scanner. */
+    onScan: () -> Unit = {},
+    /**
+     * Codes the scanner collected. A list, not a string: the scanner stays open
+     * across several codes on purpose.
+     */
+    scannedLinks: List<String> = emptyList(),
+    onScannedHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val probeState by probeViewModel.state.collectAsStateWithLifecycle()
@@ -207,6 +215,13 @@ fun ProfilesScreen(
         val link = incomingLink ?: return@LaunchedEffect
         viewModel.import(link)
         onLinkHandled()
+    }
+    // What the scanner collected, imported in one go so a batch reports a
+    // batch ("added 3") rather than three separate messages.
+    LaunchedEffect(scannedLinks) {
+        if (scannedLinks.isEmpty()) return@LaunchedEffect
+        viewModel.importMany(scannedLinks.joinToString("\n"))
+        onScannedHandled()
     }
     // Group management sits behind a long-press on a chip, because a tap has to
     // stay the filter. Three stages, like the node delete: menu, then the
@@ -242,19 +257,6 @@ fun ProfilesScreen(
         clipboardText?.let { viewModel.preview(it) }?.takeIf { !it.isEmpty }
     }
     var showGroupMenu by remember { mutableStateOf(false) }
-    // Scanning: ZXing's capture activity, embedded, so no Play Services and no
-    // network round trip.
-    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
-        val contents = result.contents
-        if (!contents.isNullOrBlank()) viewModel.import(contents)
-    }
-    val scanOptions = remember(context) {
-        ScanOptions()
-            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            .setPrompt(context.getString(R.string.profiles_scan_prompt))
-            .setBeepEnabled(false)
-            .setOrientationLocked(false)
-    }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
     val appeared = rememberAppearance()
@@ -582,7 +584,7 @@ fun ProfilesScreen(
             previewOf = viewModel::preview,
             onScan = {
                 addPanel = false
-                scanLauncher.launch(scanOptions)
+                onScan()
             },
             onClipboard = {
                 addPanel = false

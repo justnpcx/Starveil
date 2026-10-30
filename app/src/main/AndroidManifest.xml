@@ -7,6 +7,8 @@
         justified before use in a real build.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Scanning a node QR code. Decoding is on-device. -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Read only to see which Wi-Fi the phone is on, so a scene can match it.
