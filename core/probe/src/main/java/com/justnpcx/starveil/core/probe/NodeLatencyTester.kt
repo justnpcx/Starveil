@@ -29,7 +29,8 @@ import kotlinx.coroutines.flow.first
  *
  * Always returns a user-facing message, so a failed measurement is never
  * silent — "nothing happened" was the previous behaviour and read as a broken
- * button.
+ * button. It also says whether a number came back, because the page's refresh
+ * action reports "refreshed" only when there is something to show for it.
  *
  * This writes `Profile.latencyMs` (the last measured value the card shows) and
  * also appends to the health history at [WEIGHT_MANUAL] — half a background
@@ -38,6 +39,13 @@ import kotlinx.coroutines.flow.first
  * not a record of how the node behaves over time. Letting a burst of taps
  * outvote the sweep is exactly the failure the weight prevents.
  */
+/** What a measurement produced: the sentence to show, and whether it is a number. */
+data class LatencyTestResult(
+    val message: String,
+    /** True only when the probe reached the node and a latency was stored. */
+    val measured: Boolean,
+)
+
 @Singleton
 class NodeLatencyTester @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -47,9 +55,9 @@ class NodeLatencyTester @Inject constructor(
     private val health: NodeHealthRepository,
 ) {
 
-    suspend fun testSelectedNode(): String {
+    suspend fun testSelectedNode(): LatencyTestResult {
         val id = preferences.selectedProfileId.first()
-        if (id == 0L) return context.getString(R.string.latency_no_node)
+        if (id == 0L) return LatencyTestResult(context.getString(R.string.latency_no_node), false)
         return testNode(id)
     }
 
@@ -60,14 +68,15 @@ class NodeLatencyTester @Inject constructor(
      * card, and testing the *selected* node from there would quietly measure a
      * different node than the one under the finger.
      */
-    suspend fun testNode(id: Long): String {
-        val profile = profiles.getById(id) ?: return context.getString(R.string.latency_no_node)
+    suspend fun testNode(id: Long): LatencyTestResult {
+        val profile = profiles.getById(id)
+            ?: return LatencyTestResult(context.getString(R.string.latency_no_node), false)
 
         // A WireGuard endpoint speaks UDP only, so a TCP handshake to it can
         // only ever fail — reporting that as "unreachable" would be a lie
         // about a node that works.
         if (profile.type == ProfileType.WIREGUARD) {
-            return context.getString(R.string.latency_not_applicable)
+            return LatencyTestResult(context.getString(R.string.latency_not_applicable), false)
         }
 
         val nowMs = System.currentTimeMillis()
@@ -75,17 +84,20 @@ class NodeLatencyTester @Inject constructor(
             is ProbeResult.Reached -> {
                 profiles.upsert(profile.copy(latencyMs = result.latencyMs))
                 health.record(id, result.latencyMs, nowMs, WEIGHT_MANUAL)
-                context.getString(R.string.latency_measured, result.latencyMs)
+                LatencyTestResult(
+                    message = context.getString(R.string.latency_measured, result.latencyMs),
+                    measured = true,
+                )
             }
 
             ProbeResult.TimedOut -> {
                 health.record(id, LATENCY_UNREACHABLE, nowMs, WEIGHT_MANUAL)
-                context.getString(R.string.latency_timeout)
+                LatencyTestResult(context.getString(R.string.latency_timeout), false)
             }
 
             ProbeResult.Failed -> {
                 health.record(id, LATENCY_UNREACHABLE, nowMs, WEIGHT_MANUAL)
-                context.getString(R.string.latency_unreachable)
+                LatencyTestResult(context.getString(R.string.latency_unreachable), false)
             }
         }
     }
