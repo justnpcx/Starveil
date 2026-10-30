@@ -6,6 +6,80 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.1] — 2026-10-30
+
+The add flow, rebuilt. 0.9.0 shipped a speed dial of pills on the nodes page and
+a pair of header buttons on the other two; this release replaces all three with
+one panel, and works through the details the 0.9.0 screenshots turned up. The
+tunnel, the routing engine and the protocol code are untouched.
+
+### Added
+
+- **One create entry, three pages.** A 56dp gradient FAB opens the same
+  content-height sheet on Nodes, Rules and Scenes; only the sheet's content
+  changes. The node page's pill stack, the rules page's header button and the
+  scenes page's button are gone, and the node page no longer offers "new
+  scene" — a scene is not a node.
+- **Clipboard import.** The panel reads the clipboard once when it opens and
+  offers what it finds as a card at the top; the nodes page reads it once on
+  resume and shows an in-page bar. Content is deduplicated by hash, so the same
+  link is offered once. With nothing usable the tile is greyed out and says
+  why, rather than failing on tap.
+- **A full-screen scanner.** CameraX preview, a 24dp viewfinder, torch, gallery
+  decoding, and continuous scanning: it counts what it has read instead of
+  closing on the first code, flashes the frame and gives one haptic tap. A
+  scanned subscription URL asks whether to import it as a subscription.
+- **Manual add in two taps.** The protocol picker dialog is gone; the editor
+  opens directly and carries the protocol as a chip row. A "paste a link" row
+  fills every field and collapses into an undoable receipt. Transport, TLS and
+  REALITY sit behind one "advanced" row.
+- **Import feedback.** The list scrolls to the row an import produced and
+  flashes it for 1.2s. A batch reports how many landed and how many lines
+  failed; a link that resolves to a node already in the list adds nothing and
+  points at the existing row instead.
+- **Empty states with both ways in.** The nodes page centres the brand star as
+  an outline and offers "add node" and "import a subscription" — the second
+  opens the panel with the subscription row already unfolded.
+
+### Changed
+
+- The editor's save action is a sticky bar that names the first missing field
+  ("still missing: port") instead of greying the button out, and pressing it
+  scrolls to that field and focuses it.
+- Subscription imports finish inside the panel: the sheet stays open, reports
+  what arrived and offers a jump to the group. An unnamed subscription is named
+  after its host instead of every one being called "Subscription".
+- Rules can be created in the panel — type, match value and action — with the
+  full editor one row away. A new rule is highlighted in the list for 1.2s.
+- Scenes are named in the panel and then handed to the existing editor.
+- Diagnostics (renamed from "rule test") gains a paste button, three example
+  chips and a result area that fills the page instead of leaving the bottom
+  half blank.
+- Settings: the Kill Switch card and the backup card have headings, and export
+  and restore are outline buttons rather than bare text links.
+- The drawer's selected row is a pill inset 12dp on both sides; Scenes,
+  Diagnostics and Home have their own glyphs; the header carries a
+  display-only connection state.
+
+### Fixed
+
+- **Two nodes whose names differ only past the ellipsis are now
+  distinguishable.** The collision test runs on the truncated prefix, and the
+  suffix prefers the port, then the protocol, then an ordinal. The second line
+  elides the host in the middle and keeps the port as its own segment, so
+  "which port" is never the part that gets cut.
+- One filled star per row: the gradient star means "the tunnel is on this
+  node", and the favourite mark is an outline on the second line.
+- The exit row says "exit round trip … (measured through the node)"; the health
+  line says its EMA is smoothed from node probes. Three numbers, three stated
+  sources.
+- The page bloom is confined to the home page and the drawer header; the
+  connection card's gauze stops at the information area and no longer runs
+  under the segmented control.
+- The local-network note is a footer of the preset card — built in, in force
+  for every preset — instead of reading as a footnote to "Global direct".
+- Lists clear the gesture bar at the bottom.
+
 ## [0.9.0] — 2026-10-30
 
 Scheme six: the navigation and the palette are new. The tunnel, the routing
