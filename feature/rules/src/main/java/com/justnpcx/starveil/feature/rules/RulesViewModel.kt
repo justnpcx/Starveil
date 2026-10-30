@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.model.RuleMatcher
 import com.justnpcx.starveil.core.model.RulePack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -194,15 +195,30 @@ class RulesViewModel @Inject constructor(
         viewModelScope.launch { preferences.setRulePackSubscribed(id, subscribed) }
     }
 
+    /**
+     * The row to flash after a create.
+     *
+     * A rule added from the panel is appended to a list that may be long, so
+     * "saved" is not self-evident: the list has to point at the row it just
+     * gained.
+     */
+    private val _highlight = MutableStateFlow<Long?>(null)
+    val highlight: StateFlow<Long?> = _highlight
+
+    fun clearHighlight() {
+        _highlight.value = null
+    }
+
     /** Appends: the first matching rule wins, so a new one belongs last. */
     fun add(kind: MatcherKind, value: String, action: RuleAction) {
         val trimmed = value.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             val nextOrder = (uiState.value.rules.maxOfOrNull { it.order } ?: -1) + 1
-            repository.upsert(
+            val id = repository.upsert(
                 Rule(matcher = RuleMatcher(kind, trimmed), action = action, order = nextOrder),
             )
+            _highlight.value = id
         }
     }
 

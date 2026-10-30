@@ -315,6 +315,13 @@ fun SettingsScreen(
         if (showConnection) {
         StarveilGroupHeader(stringResource(R.string.settings_group_connection))
         SettingsCard {
+            // The card used to start with "Off", which is an answer to a
+            // question the card never asked.
+            CardHeader(
+                title = stringResource(R.string.kill_switch_title),
+                description = stringResource(R.string.kill_switch_card_desc),
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
             KillSwitchMode.entries.forEach { mode ->
                 RadioOption(
                     label = stringResource(mode.labelRes()),
@@ -404,20 +411,13 @@ fun SettingsScreen(
         // group of their own.
         StarveilGroupHeader(stringResource(R.string.settings_group_diagnostics))
         SettingsCard {
-            Row(
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    top = StarveilSpacing.md,
-                    bottom = StarveilSpacing.xs,
-                ),
-            ) {
-                Text(
-                    text = stringResource(R.string.backup_explainer),
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                )
-            }
+            CardHeader(
+                title = stringResource(R.string.backup_title),
+                description = stringResource(R.string.backup_explainer),
+            )
+            // Two outline buttons, not two words in a paragraph: export and
+            // restore are this card's primary actions, and a bare text link is
+            // how a secondary action is drawn.
             Row(
                 modifier = Modifier.padding(
                     start = StarveilSpacing.lg,
@@ -425,14 +425,16 @@ fun SettingsScreen(
                     top = StarveilSpacing.xs,
                     bottom = StarveilSpacing.md,
                 ),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
-                LinkText(
+                StarveilButton(
                     text = stringResource(R.string.backup_export),
+                    secondary = true,
                     onClick = { askingForExport = true },
                 )
-                LinkText(
+                StarveilButton(
                     text = stringResource(R.string.backup_restore),
+                    secondary = true,
                     onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
                 )
             }
@@ -1309,3 +1311,25 @@ private fun DiagnosticPreviewDialog(
     )
 }
 
+
+/**
+ * A card's own title and one-line explanation.
+ *
+ * A card that starts with "Off" or with a paragraph of prose is a card the
+ * reader has to reverse-engineer; the settings that matter each get a heading.
+ */
+@Composable
+private fun CardHeader(title: String, description: String) {
+    Column(
+        modifier = Modifier.padding(
+            start = StarveilSpacing.lg,
+            end = StarveilSpacing.lg,
+            top = StarveilSpacing.md,
+            bottom = StarveilSpacing.sm,
+        ),
+        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
+    ) {
+        Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
+        Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
+    }
+}

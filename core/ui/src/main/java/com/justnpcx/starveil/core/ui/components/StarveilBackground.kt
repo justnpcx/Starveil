@@ -39,6 +39,15 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 @Composable
 fun StarveilBackground(
     modifier: Modifier = Modifier,
+    /**
+     * Whether the page carries the three blooms.
+     *
+     * Only two surfaces are allowed to: the home page, where the card sits on
+     * something, and the drawer's header. On the six functional pages the
+     * blooms landed under inputs and behind cards and read as stains, so those
+     * pages are a flat [StarveilColors.bg].
+     */
+    showWash: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val top = StarveilColors.bgTop
@@ -51,11 +60,53 @@ fun StarveilBackground(
             .drawWithCache {
                 // Keyed on size: the cache block re-runs when the page resizes
                 // and not once per frame.
-                val baked = bakeBackground(size, top, mid, bottom, washes)
+                val baked = bakeBackground(
+                    size = size,
+                    top = top,
+                    mid = mid,
+                    bottom = bottom,
+                    washes = if (showWash) washes else emptyList(),
+                )
                 onDrawBehind { drawImage(baked) }
             },
         content = content,
     )
+}
+
+/**
+ * The three blooms on their own, for a surface that is not the page.
+ *
+ * The drawer's header is the only other place they are allowed, and it needs
+ * them without the page's gradient underneath.
+ */
+@Composable
+fun PageWash(modifier: Modifier = Modifier) {
+    val washes = StarveilColors.washes
+    Box(
+        modifier = modifier.drawWithCache {
+            val baked = bakeWash(size, washes)
+            onDrawBehind { drawImage(baked) }
+        },
+    )
+}
+
+/** The blooms alone, into their own bitmap. */
+private fun bakeWash(size: Size, washes: List<Color>): ImageBitmap {
+    val width = size.width.toInt().coerceAtLeast(1)
+    val height = size.height.toInt().coerceAtLeast(1)
+    val bitmap = ImageBitmap(width, height)
+    CanvasDrawScope().draw(
+        density = Density(1f),
+        layoutDirection = LayoutDirection.Ltr,
+        canvas = Canvas(bitmap),
+        size = Size(width.toFloat(), height.toFloat()),
+    ) {
+        if (washes.size < 3) return@draw
+        bloom(washes[0], x = 0.12f, y = 0.06f, rx = 0.385f, ry = 0.118f)
+        bloom(washes[1], x = 0.88f, y = 0.30f, rx = 0.359f, ry = 0.130f)
+        bloom(washes[2], x = 0.70f, y = 0.92f, rx = 0.410f, ry = 0.142f)
+    }
+    return bitmap
 }
 
 /** Renders the whole page background into one bitmap. */
@@ -82,6 +133,7 @@ private fun bakeBackground(
                 end = Offset(size.width * 0.35f, size.height),
             ),
         )
+        if (washes.size < 3) return@draw
         // The demo's three blooms, at the demo's positions and — more
         // importantly — the demo's shapes. They are wide, flat ellipses
         // (300×200, 280×220, 320×240 on a 390×844 phone), not discs: a disc of

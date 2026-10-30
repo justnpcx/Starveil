@@ -718,28 +718,31 @@ private fun CurrentNodeCard(
     val veil = StarveilColors.veil
     StarveilCard(onClick = onOpen) {
         Box {
-            // The gauze: 115 degrees, transparent 30 / veil 10 / transparent 34,
-            // clipped by the card's own shape and painted behind the text.
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .drawBehind {
-                        val period = 74.dp.toPx()
-                        val band = 10.dp.toPx()
-                        rotate(degrees = 25f) {
-                            var x = -size.height
-                            while (x < size.width + size.height) {
-                                drawRect(
-                                    color = veil,
-                                    topLeft = Offset(x, -size.height),
-                                    size = Size(band, size.height * 3f),
-                                )
-                                x += period
-                            }
-                        }
-                    },
-            )
             Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                // The gauze covers the card's information area and stops
+                // there. It used to fill the card, which put diagonal bands
+                // behind the segmented control's own labels — texture and
+                // control fighting for the same few pixels.
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .drawBehind {
+                                val period = 74.dp.toPx()
+                                val band = 10.dp.toPx()
+                                rotate(degrees = 25f) {
+                                    var x = -size.height
+                                    while (x < size.width + size.height) {
+                                        drawRect(
+                                            color = veil,
+                                            topLeft = Offset(x, -size.height),
+                                            size = Size(band, size.height * 3f),
+                                        )
+                                        x += period
+                                    }
+                                }
+                            },
+                    )
                 Row(verticalAlignment = Alignment.Top) {
                     Column(modifier = Modifier.weight(1f)) {
                         NodeName(name = name)
@@ -764,6 +767,7 @@ private fun CurrentNodeCard(
                         style = StarveilType.label,
                         color = StarveilColors.ink2,
                     )
+                }
                 }
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
                 StarveilSegmented(

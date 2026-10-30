@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="add_panel_title_rule">Add rule</string>
+    <string name="add_row_new_rule">New rule</string>
+    <string name="add_row_new_rule_sub">Domain, IP range or app</string>
+    <string name="add_row_market">Rule market</string>
+    <string name="add_row_market_sub">Ready-made rule sets</string>
+    <string name="add_panel_title_scene">Add scene</string>
+    <string name="add_row_new_scene">New scene</string>
+    <string name="add_row_new_scene_sub">Name it, then set the trigger</string>
+    <string name="add_scene_name">Scene name</string>
+    <string name="add_action_create">Create</string>
     <string name="rules_title">Rules</string>
     <string name="rules_empty_title">No rules of your own</string>
     <string name="rules_empty_body">Add a rule with the + button: send matching traffic direct, block it, or pick a node.</string>
@@ -37,6 +47,8 @@
     <string name="rules_flow_no_match_title">No matching connections</string>
     <string name="rules_flow_no_match_body">Try a shorter search.</string>
     <string name="rules_save">Save</string>
+    <string name="rules_field_value">Match value</string>
+    <string name="rules_more">More settings</string>
     <string name="rules_cancel">Cancel</string>
 
     <string name="rules_beginner_title">Beginner setup</string>
@@ -68,7 +80,7 @@
     <string name="rules_effective_domestic_names">Domestic names (geosite-cn) → direct</string>
     <string name="rules_effective_domestic_addresses">Domestic addresses (geoip-cn) → direct</string>
     <string name="rules_effective_lan">Local network (private addresses) → direct · built in</string>
-    <string name="rules_lan_note">Local network traffic always goes direct.</string>
+    <string name="rules_lan_note">Local network traffic always goes direct · built-in rule, in force for every preset.</string>
     <string name="rules_effective_user">%1$d of your own rules</string>
 
     <!-- The rule market. The entry sits beside the ad switch; the packs are a

@@ -19,6 +19,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.justnpcx.starveil.core.ui.components.StarveilAddFab
+import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.subscription.DocumentFormat
 import com.justnpcx.starveil.core.subscription.ImportFailure
@@ -69,6 +71,8 @@ import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -105,6 +109,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -117,6 +122,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
@@ -161,8 +169,6 @@ fun ProfilesScreen(
     onTestLatency: ((String) -> Unit) -> Unit = {},
     /** Opens the editor for a brand-new node of the chosen protocol. */
     onNewNode: (ProfileType) -> Unit = {},
-    /** Opens the scene editor with [name] already filled in. */
-    onNewScene: (String) -> Unit = {},
     /** Opens the editor for an existing node. */
     onEditNode: (ProfileType, Long) -> Unit = { _, _ -> },
     /** Measures one node by id, and reports what happened. */
@@ -177,10 +183,44 @@ fun ProfilesScreen(
      */
     incomingLink: String? = null,
     onLinkHandled: () -> Unit = {},
+    /** Opens the full-screen scanner. */
+    onScan: () -> Unit = {},
+    /**
+     * Codes the scanner collected. A list, not a string: the scanner stays open
+     * across several codes on purpose.
+     */
+    scannedLinks: List<String> = emptyList(),
+    onScannedHandled: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val probeState by probeViewModel.state.collectAsStateWithLifecycle()
+    val clipboardSuggestion by viewModel.clipboardSuggestion.collectAsStateWithLifecycle()
+    val subscriptionImport by viewModel.lastSubscriptionImport.collectAsStateWithLifecycle()
+    val highlightedNode by viewModel.highlightedNode.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    // Point at the row the import produced: scroll to it, flash it once, then
+    // let the highlight go. Nothing is left behind afterwards.
+    LaunchedEffect(highlightedNode) {
+        val id = highlightedNode ?: return@LaunchedEffect
+        val index = state.profiles.indexOfFirst { it.id == id }
+        if (index >= 0) listState.animateScrollToItem(index)
+        delay(HIGHLIGHT_MS)
+        viewModel.clearHighlight()
+    }
     val context = LocalContext.current
+    // The second of the two moments the clipboard is read: the page coming back
+    // to the foreground. Nothing polls, and Android's own "pasted from" notice
+    // is left alone.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.offerClipboard(readClipboardText(context))
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // A share link handed to the app. Keyed on the link so a second one while
     // this screen is open is imported too, and reported through the same
@@ -189,6 +229,13 @@ fun ProfilesScreen(
         val link = incomingLink ?: return@LaunchedEffect
         viewModel.import(link)
         onLinkHandled()
+    }
+    // What the scanner collected, imported in one go so a batch reports a
+    // batch ("added 3") rather than three separate messages.
+    LaunchedEffect(scannedLinks) {
+        if (scannedLinks.isEmpty()) return@LaunchedEffect
+        viewModel.importMany(scannedLinks.joinToString("\n"))
+        onScannedHandled()
     }
     // Group management sits behind a long-press on a chip, because a tap has to
     // stay the filter. Three stages, like the node delete: menu, then the
@@ -209,17 +256,22 @@ fun ProfilesScreen(
     // The menu's delete is a tap, not a gesture: confirm it. The swipe keeps
     // its instant delete + undo, because a swipe cannot be a stray tap.
     var nodeToDelete by remember { mutableStateOf<Profile?>(null) }
-    var pickingProtocol by remember { mutableStateOf(false) }
-    // One add entry, three ways in. The pills sit above the FAB, the dialogs
-    // are centred: a bottom sheet is not what a 2025 add flow looks like.
-    var addOpen by remember { mutableStateOf(false) }
-    var importDialog by remember { mutableStateOf(false) }
-    var addNodeDialog by remember { mutableStateOf(false) }
-    var addNodeManual by remember { mutableStateOf(false) }
-    var linkText by remember { mutableStateOf("") }
-    var subscriptionUrl by remember { mutableStateOf("") }
-    var sceneDialog by remember { mutableStateOf(false) }
-    var sceneName by remember { mutableStateOf("") }
+    // One entry point, one panel. The same button opens the same sheet on the
+    // rules and scenes pages; only the sheet's content differs. The old
+    // speed-dial of pills was the wrong model: a FAB that fans out is for
+    // creating siblings, and importing a node is several channels into one
+    // destination.
+    var addPanel by remember { mutableStateOf(false) }
+    // Set by the empty state's "import a subscription": the panel opens with
+    // that row already unfolded.
+    var addPanelStartsWithSubscription by remember { mutableStateOf(false) }
+    // Read once when the panel opens, never in the background: Android 10+
+    // only hands the clipboard to a focused app, and a proxy client has no
+    // business polling what the user copied.
+    var clipboardText by remember { mutableStateOf<String?>(null) }
+    val clipboardPreview = remember(clipboardText) {
+        clipboardText?.let { viewModel.preview(it) }?.takeIf { !it.isEmpty }
+    }
     var showGroupMenu by remember { mutableStateOf(false) }
     // §5.2. Hoisted out of the LazyColumn so a row scrolled away and back does
     // not replay its entrance.
@@ -248,14 +300,11 @@ fun ProfilesScreen(
             }
         }
     }
-    val disambiguators = remember(state.profiles) {
-        state.profiles
-            .groupBy { it.displayName() }
-            .filterValues { it.size > 1 }
-            .values
-            .flatten()
-            .associate { profile -> profile.id to shortAddress(profile.server, profile.port) }
-    }
+    // Two nodes can share a display name, and two more can share the first
+    // dozen characters of one — which is what the list actually shows, because
+    // the title is one line with an ellipsis. Both cases need a suffix, so the
+    // test is on the truncated prefix, over the rows that are on screen.
+    val disambiguators = remember(state.profiles) { disambiguate(state.profiles) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     // A Snackbar instead of a banner above the list: the banner pushed the
@@ -378,6 +427,15 @@ fun ProfilesScreen(
                     )
                 }
             }
+            // The clipboard bar sits between the chips and the list: close to
+            // the content it would add, and nowhere near the FAB.
+            clipboardSuggestion?.let { suggestion ->
+                ClipboardBar(
+                    suggestion = suggestion,
+                    onImport = viewModel::importClipboardSuggestion,
+                    onDismiss = viewModel::dismissClipboardSuggestion,
+                )
+            }
             // One line, once. Long-press is the only way to reach edit, share,
             // move and delete, and nothing on the row says so; a caption that
             // stayed forever would be chrome, so it leaves after the first
@@ -411,9 +469,21 @@ fun ProfilesScreen(
                 UsageBanner(info = usage)
             }
             when {
-                !state.hasProfiles -> EmptyState(
-                    title = stringResource(R.string.profiles_empty_title),
-                    body = stringResource(R.string.profiles_empty_body),
+                // A list with nothing in it says what it is and offers the two
+                // ways in, in the middle of the page. "No nodes yet" above an
+                // empty white card and a button in the corner is a page that
+                // looks broken rather than new.
+                !state.hasProfiles -> NodesEmptyState(
+                    onAdd = {
+                        clipboardText = readClipboardText(context)
+                        addPanelStartsWithSubscription = false
+                        addPanel = true
+                    },
+                    onImport = {
+                        clipboardText = readClipboardText(context)
+                        addPanelStartsWithSubscription = true
+                        addPanel = true
+                    },
                 )
 
                 // Nodes exist but the filter hides them: say so, rather than
@@ -448,6 +518,7 @@ fun ProfilesScreen(
                     val shown = if (showTimedOut) state.profiles else
                         state.profiles.filterNot { state.health[it.id]?.status == NodeStatus.DOWN }
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = StarveilSpacing.fabClearance),
                     ) {
@@ -464,6 +535,7 @@ fun ProfilesScreen(
                                     groupLabel = groupNames[profile.groupId]
                                         ?: stringResource(R.string.profiles_group_none),
                                     selected = profile.id == state.selectedId,
+                                    highlighted = profile.id == highlightedNode,
                                     showDivider = index != shown.lastIndex || timedOut.isNotEmpty(),
                                     onClick = { viewModel.select(profile.id) },
                                     onLongClick = {
@@ -514,20 +586,9 @@ fun ProfilesScreen(
         }
     }
 
-        // The add control: a scrim, three pills, and a FAB that becomes a
-        // close button. It floats over the list, so the list's last row keeps
-        // its own clearance.
-        if (addOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = if (StarveilColors.isDark) 0.55f else 0.32f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { addOpen = false },
-            )
-        }
+        // The add control: one button, and it does not fan out. The panel it
+        // opens floats over the list, so the list's last row keeps its own
+        // clearance.
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -535,87 +596,51 @@ fun ProfilesScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            AnimatedVisibility(
-                visible = addOpen,
-                enter = fadeIn(StarveilMotion.stateTransition()) +
-                    slideInVertically(StarveilMotion.stateTransition()) { it / 3 },
-                exit = fadeOut(StarveilMotion.press()) +
-                    slideOutVertically(StarveilMotion.press()) { it / 3 },
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    AddPill(
-                        label = stringResource(R.string.profiles_fab_add_node),
-                        icon = StarveilIcons.Add,
-                    ) {
-                        addOpen = false
-                        linkText = ""
-                        addNodeManual = false
-                        addNodeDialog = true
-                    }
-                    AddPill(
-                        label = stringResource(R.string.profiles_fab_import),
-                        icon = StarveilIcons.Down,
-                    ) {
-                        addOpen = false
-                        subscriptionUrl = ""
-                        importDialog = true
-                    }
-                    AddPill(
-                        label = stringResource(R.string.profiles_fab_scene),
-                        icon = StarveilIcons.Route,
-                    ) {
-                        addOpen = false
-                        sceneName = ""
-                        sceneDialog = true
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            AddFab(expanded = addOpen, onClick = { addOpen = !addOpen })
+            StarveilAddFab(
+                onClick = {
+                    clipboardText = readClipboardText(context)
+                    addPanel = true
+                },
+            )
         }
     }
 
-    if (importDialog) {
-        SubscriptionDialog(
-            url = subscriptionUrl,
-            onUrlChange = { subscriptionUrl = it },
-            onDismiss = { importDialog = false },
-            onImport = {
-                importDialog = false
-                viewModel.import(it)
+    StarveilAddSheet(
+        visible = addPanel,
+        onDismissRequest = {
+            addPanel = false
+            viewModel.clearSubscriptionImport()
+        },
+    ) {
+        ProfilesAddPanel(
+            clipboard = clipboardPreview,
+            previewOf = viewModel::preview,
+            subscriptionImport = subscriptionImport,
+            startWithSubscription = addPanelStartsWithSubscription,
+            onViewSubscription = { groupId ->
+                addPanel = false
+                viewModel.clearSubscriptionImport()
+                viewModel.filterByGroup(groupId)
             },
-        )
-    }
-
-    if (addNodeDialog) {
-        AddNodeDialog(
-            link = linkText,
-            onLinkChange = { linkText = it },
-            manual = addNodeManual,
-            onManualChange = { addNodeManual = it },
-            onDismiss = { addNodeDialog = false },
-            onAdd = {
-                addNodeDialog = false
-                viewModel.import(it)
+            onScan = {
+                addPanel = false
+                onScan()
+            },
+            onClipboard = {
+                addPanel = false
+                clipboardText?.let(viewModel::importMany)
             },
             onManual = {
-                addNodeDialog = false
-                pickingProtocol = true
+                addPanel = false
+                onNewNode(ProfileType.VLESS)
             },
-        )
-    }
-
-    if (sceneDialog) {
-        NewSceneDialog(
-            name = sceneName,
-            onNameChange = { sceneName = it },
-            onDismiss = { sceneDialog = false },
-            onCreate = {
-                sceneDialog = false
-                onNewScene(it)
+            onImportLinks = { text ->
+                addPanel = false
+                viewModel.importMany(text)
+            },
+            onImportSubscription = { url, name ->
+                addPanel = false
+                viewModel.importSubscription(url, name)
             },
         )
     }
@@ -814,34 +839,6 @@ fun ProfilesScreen(
             },
             dismissButton = {
                 TextButton(onClick = { nodeToDelete = null }) {
-                    Text(stringResource(R.string.profiles_group_cancel))
-                }
-            },
-        )
-    }
-
-    if (pickingProtocol) {
-        AlertDialog(
-            containerColor = StarveilColors.card,
-            shape = StarveilShapes.dialog,
-            onDismissRequest = { pickingProtocol = false },
-            title = { Text(stringResource(R.string.profiles_new_node_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    ProfileType.entries.filter { it != ProfileType.OTHER }.forEach { type ->
-                        TextButton(
-                            onClick = {
-                                pickingProtocol = false
-                                onNewNode(type)
-                            },
-                        ) {
-                            Text(type.editorLabel())
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { pickingProtocol = false }) {
                     Text(stringResource(R.string.profiles_group_cancel))
                 }
             },
@@ -1099,6 +1096,14 @@ private fun ProfilesMessage.text(): String = when (this) {
         } else {
             stringResource(R.string.profiles_msg_imported_skipped, count, dropped)
         }
+    is ProfilesMessage.Existing ->
+        if (name.isBlank()) {
+            stringResource(R.string.profiles_msg_exists)
+        } else {
+            stringResource(R.string.profiles_msg_exists_named, name)
+        }
+    is ProfilesMessage.ImportedPartially ->
+        stringResource(R.string.profiles_msg_imported_partial, count, failures.size)
     is ProfilesMessage.ImportFailed -> stringResource(R.string.profiles_msg_import_failed, failure.text())
     is ProfilesMessage.Refreshed ->
         if (dropped == 0) {
@@ -1229,6 +1234,8 @@ private fun NodeRow(
     disambiguator: String?,
     groupLabel: String,
     selected: Boolean,
+    /** True for the row an import just created or found. */
+    highlighted: Boolean = false,
     showDivider: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -1251,6 +1258,7 @@ private fun NodeRow(
                     )
                 }
             }
+            .background(if (highlighted) StarveilColors.selBg else Color.Transparent)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -1277,15 +1285,10 @@ private fun NodeRow(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // A fixed slot for the favourite mark, so a pinned row does not
-                // shift every name on the list.
-                Box(modifier = Modifier.size(16.dp), contentAlignment = Alignment.Center) {
-                    if (profile.favorite && !selected) {
-                        Text(text = "★", style = StarveilType.tech, color = accent)
-                    }
-                }
-                // The leading mark is the state, unless this row is the target:
-                // then it is the brand star, and the state moves to the right.
+                // One solid star per row, and it means one thing: this is the
+                // node the tunnel is on. The favourite mark is an outline, and
+                // it lives on the second line — a filled star beside a filled
+                // status dot was two blue marks saying different things.
                 if (selected) {
                     StarveilStar(size = 13.dp)
                 } else {
@@ -1360,20 +1363,41 @@ private fun NodeRow(
                 append(" · ")
                 append(profile.type.name.lowercase())
                 append(" · ")
-                append(profile.server)
-                append(":")
-                append(profile.port.toString())
+                // The host is elided in the middle, and the port is its own
+                // Text so it can never be the part that gets cut: "which port"
+                // is what tells two nodes on one host apart.
+                append(middleEllipsis(profile.server))
             }
-            Text(
-                text = secondary,
-                style = StarveilType.label,
-                color = StarveilColors.ink2,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 24.dp),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (profile.favorite) {
+                    Icon(
+                        imageVector = StarveilIcons.StarOutline,
+                        contentDescription = stringResource(R.string.profiles_favorites),
+                        tint = StarveilColors.ink2,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Spacer(modifier = Modifier.width(StarveilSpacing.xs))
+                }
+                Text(
+                    text = secondary,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Text(
+                    text = ":" + profile.port,
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -1445,27 +1469,6 @@ internal fun latencyReading(profile: Profile, health: NodeHealth?): LatencyReadi
         profile.latencyMs >= 0 -> LatencyReading.Value(profile.latencyMs)
         else -> LatencyReading.Untested
     }
-}
-
-/**
- * A short handle for a node whose name collides with another.
- *
- * The host's first label plus the port: "hk1.example.com:443" becomes
- * "hk1:443". The first label is the part subscription naming varies; the domain
- * is usually shared and would only repeat what the second line already says.
- */
-internal fun shortAddress(server: String, port: Int): String {
-    val isAddress = server.contains(':') || server.count { it == '.' } == 3 && server.all { it.isDigit() || it == '.' }
-    // An address has no "first label": the whole thing would be as long as the
-    // name it is trying to disambiguate. The last two groups are the part that
-    // differs between two nodes on one host, and short enough to fit.
-    val head = if (isAddress) {
-        val separator = if (server.contains(':')) ':' else '.'
-        server.split(separator).takeLast(2).joinToString(separator.toString())
-    } else {
-        server.substringBefore('.')
-    }
-    return head + ":" + port
 }
 
 /** §6.3 card metrics. */
@@ -1809,190 +1812,56 @@ private fun noteLabel(note: StageNote): String = stringResource(
 )
 
 
+
+/** How long a freshly imported row stays highlighted. */
+private const val HIGHLIGHT_MS = 1200L
+
 /**
- * The add button: 56dp, 16dp corners, the brand gradient, a white glyph.
- * Expanded, the glyph is a close mark and the same target collapses the stack.
+ * A suffix for every node whose title would read the same as another's.
+ *
+ * The order is the one a reader would use: the port first, because two nodes on
+ * one host differ by it; then the protocol; then, when both of those are equal
+ * too, an ordinal. Only the colliding rows get a suffix.
  */
-@Composable
-private fun AddFab(expanded: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(56.dp)
-            .clip(StarveilShapes.fab)
-            .background(Brush.linearGradient(StarveilBrand.colors))
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = if (expanded) StarveilIcons.Close else StarveilIcons.Add,
-            contentDescription = stringResource(
-                if (expanded) R.string.profiles_dialog_cancel else R.string.profiles_add,
-            ),
-            tint = Color.White,
-            modifier = Modifier.size(24.dp),
-        )
-    }
+internal fun disambiguate(profiles: List<Profile>): Map<Long, String> {
+    val out = mutableMapOf<Long, String>()
+    profiles
+        .groupBy { it.displayName().take(NAME_PREFIX_CHARS) }
+        .filterValues { it.size > 1 }
+        .values
+        .forEach { group ->
+            if (group.map { it.port }.distinct().size == group.size) {
+                group.forEach { out[it.id] = ":" + it.port }
+                return@forEach
+            }
+            if (group.map { it.type }.distinct().size == group.size) {
+                group.forEach { out[it.id] = it.type.shortName() }
+                return@forEach
+            }
+            group.forEachIndexed { index, profile -> out[profile.id] = "#" + (index + 1) }
+        }
+    return out
 }
 
-/** One of the three actions above the FAB: a card-coloured pill with a shadow. */
-@Composable
-private fun AddPill(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .heightIn(min = 44.dp)
-            .clip(CircleShape)
-            .background(StarveilColors.card)
-            .border(1.dp, StarveilColors.line, CircleShape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = StarveilColors.ink2,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = label, style = StarveilType.body, color = StarveilColors.ink)
-    }
+/** Roughly what a node title shows before the ellipsis, at the list's type size. */
+private const val NAME_PREFIX_CHARS = 12
+
+/** How much of a host survives before the middle of it is elided. */
+private const val HOST_CHARS = 20
+
+/** "a-very-long-subdomain.example.com" -> "a-very-lon…ample.com". */
+internal fun middleEllipsis(text: String, max: Int = HOST_CHARS): String =
+    if (text.length <= max) text else text.take(max / 2) + "…" + text.takeLast(max - max / 2 - 1)
+
+/** The protocol as it appears in a suffix: "HY2", "SS", "WG". */
+internal fun ProfileType.shortName(): String = when (this) {
+    ProfileType.VLESS -> "VLESS"
+    ProfileType.VMESS -> "VMess"
+    ProfileType.TROJAN -> "Trojan"
+    ProfileType.SHADOWSOCKS -> "SS"
+    ProfileType.HYSTERIA2 -> "HY2"
+    ProfileType.TUIC -> "TUIC"
+    ProfileType.WIREGUARD -> "WG"
+    ProfileType.OTHER -> "?"
 }
 
-/** A subscription URL, and nothing else. */
-@Composable
-private fun SubscriptionDialog(
-    url: String,
-    onUrlChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onImport: (String) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.dialog,
-        title = { Text(stringResource(R.string.profiles_dialog_import_title)) },
-        text = {
-            StarveilTextField(
-                value = url,
-                onValueChange = onUrlChange,
-                label = stringResource(R.string.profiles_dialog_subscription_hint),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                enabled = url.isNotBlank(),
-                onClick = { onImport(url.trim()) },
-            ) {
-                Text(stringResource(R.string.profiles_dialog_import))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profiles_dialog_cancel))
-            }
-        },
-    )
-}
-
-/** Add a node: paste a link, or go to the full editor. */
-@Composable
-private fun AddNodeDialog(
-    link: String,
-    onLinkChange: (String) -> Unit,
-    manual: Boolean,
-    onManualChange: (Boolean) -> Unit,
-    onDismiss: () -> Unit,
-    onAdd: (String) -> Unit,
-    onManual: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.dialog,
-        title = { Text(stringResource(R.string.profiles_dialog_add_node_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    StarveilChip(
-                        label = stringResource(R.string.profiles_dialog_paste_link),
-                        selected = !manual,
-                        onClick = { onManualChange(false) },
-                        surface = ChipSurface.Dialog,
-                    )
-                    StarveilChip(
-                        label = stringResource(R.string.profiles_dialog_manual),
-                        selected = manual,
-                        onClick = { onManualChange(true) },
-                        surface = ChipSurface.Dialog,
-                    )
-                }
-                if (!manual) {
-                    StarveilTextField(
-                        value = link,
-                        onValueChange = onLinkChange,
-                        label = stringResource(R.string.profiles_dialog_link_hint),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            if (manual) {
-                TextButton(onClick = onManual) {
-                    Text(stringResource(R.string.profiles_dialog_continue))
-                }
-            } else {
-                TextButton(enabled = link.isNotBlank(), onClick = { onAdd(link.trim()) }) {
-                    Text(stringResource(R.string.profiles_dialog_add))
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profiles_dialog_cancel))
-            }
-        },
-    )
-}
-
-/** Name first; the rest of the scene is the existing editor. */
-@Composable
-private fun NewSceneDialog(
-    name: String,
-    onNameChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onCreate: (String) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.dialog,
-        title = { Text(stringResource(R.string.profiles_dialog_scene_title)) },
-        text = {
-            StarveilTextField(
-                value = name,
-                onValueChange = onNameChange,
-                label = stringResource(R.string.profiles_dialog_scene_name),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = { onCreate(name.trim()) }) {
-                Text(stringResource(R.string.profiles_dialog_create))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.profiles_dialog_cancel))
-            }
-        },
-    )
-}

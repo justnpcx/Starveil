@@ -15,7 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -36,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,10 +71,14 @@ import com.justnpcx.starveil.core.model.SceneTarget
 import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.ui.components.ChipSurface
+import com.justnpcx.starveil.core.ui.components.AddActionRow
+import com.justnpcx.starveil.core.ui.components.StarveilAddFab
+import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.EmptyState
+import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
@@ -92,6 +102,9 @@ fun ScenesScreen(
     val context = LocalContext.current
     var editing by remember { mutableStateOf<Scene?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    var addPanel by remember { mutableStateOf(false) }
+    var sceneExpanded by remember { mutableStateOf(false) }
+    var sceneName by remember { mutableStateOf("") }
     // Arrived from the Nodes page with a name already typed: open the existing
     // editor on a draft, so the trigger and preset are chosen in one place.
     LaunchedEffect(draftName) {
@@ -119,28 +132,13 @@ fun ScenesScreen(
         ssidReadable = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
-        // No FAB: the add action belongs to the page, not to a floating disc.
+        // Transparent: the shell paints the page behind every screen.
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (!state.isEmpty) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.sm),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    StarveilButton(
-                        text = stringResource(R.string.scenes_add),
-                        onClick = {
-                            editing = null
-                            showDialog = true
-                        },
-                    )
-                }
-            }
             if (!ssidReadable) {
                 // The rationale, in the place the feature lives: what the
                 // permission is for, what happens without it, and no claim that
@@ -190,7 +188,13 @@ fun ScenesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(StarveilSpacing.lg),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = StarveilSpacing.lg,
+                        top = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.lg + WindowInsets.navigationBars
+                            .asPaddingValues().calculateBottomPadding(),
+                    ),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     items(state.scenes, key = { it.id }) { scene ->
@@ -205,6 +209,71 @@ fun ScenesScreen(
                             onDelete = { viewModel.delete(scene.id) },
                         )
                     }
+                }
+            }
+        }
+    }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(16.dp),
+        ) {
+            StarveilAddFab(onClick = { addPanel = true })
+        }
+    }
+
+    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
+        Text(
+            text = stringResource(R.string.add_panel_title_scene),
+            style = StarveilType.title,
+            color = StarveilColors.ink,
+            modifier = Modifier.padding(bottom = StarveilSpacing.sm),
+        )
+        // A scene starts as a name. The trigger and the preset are chosen in
+        // the existing editor, which is where they already live — the panel
+        // only replaces the dialog that used to ask for the name.
+        AddActionRow(
+            icon = StarveilIcons.Scenes,
+            title = stringResource(R.string.add_row_new_scene),
+            subtitle = stringResource(R.string.add_row_new_scene_sub),
+            expanded = sceneExpanded,
+            onClick = { sceneExpanded = !sceneExpanded },
+        )
+        AnimatedVisibility(visible = sceneExpanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            ) {
+                StarveilTextField(
+                    value = sceneName,
+                    onValueChange = { sceneName = it },
+                    label = stringResource(R.string.add_scene_name),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    StarveilButton(
+                        text = stringResource(R.string.add_action_create),
+                        enabled = sceneName.isNotBlank(),
+                        onClick = {
+                            val name = sceneName.trim()
+                            addPanel = false
+                            sceneExpanded = false
+                            sceneName = ""
+                            editing = Scene(
+                                id = 0L,
+                                name = name,
+                                trigger = SceneTrigger.Wifi(),
+                                preset = RoutePreset.BYPASS_MAINLAND,
+                            )
+                            showDialog = true
+                        },
+                    )
                 }
             }
         }
@@ -597,7 +666,16 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        // Bound to the tokens rather than left to Material's default: the two
+        // must not be able to disagree after a library bump.
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = StarveilColors.accent,
+                unselectedColor = StarveilColors.ink2,
+            ),
+        )
         Text(text = label, style = StarveilType.label, color = StarveilColors.ink)
     }
 }

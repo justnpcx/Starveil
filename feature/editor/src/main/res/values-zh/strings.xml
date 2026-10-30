@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="editor_paste_hint">粘贴链接自动填充</string>
+    <string name="editor_paste_fill">填充</string>
+    <string name="editor_paste_filled">已从链接填充 ✓</string>
+    <string name="editor_paste_undo">撤销</string>
+    <string name="editor_paste_failed">这条链接无法解析</string>
+    <string name="editor_advanced">高级设置</string>
+    <string name="editor_missing_field">还差：%1$s</string>
     <string name="editor_title_new">新建 %1$s 节点</string>
     <string name="editor_title_edit">编辑 %1$s 节点</string>
     <string name="editor_save">保存</string>

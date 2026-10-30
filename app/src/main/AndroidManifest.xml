@@ -7,6 +7,12 @@
         justified before use in a real build.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Scanning a node QR code. Decoding is on-device. The camera is
+         optional: every import path has a non-camera equivalent, so a device
+         without one must still be able to install the app. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Read only to see which Wi-Fi the phone is on, so a scene can match it.

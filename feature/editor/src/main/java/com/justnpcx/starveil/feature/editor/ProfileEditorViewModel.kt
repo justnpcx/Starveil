@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.model.ProfileType
+import com.justnpcx.starveil.core.subscription.LinkResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,10 @@ data class EditorUiState(
     val saved: Boolean = false,
     /** Editing an id that is no longer in the database. */
     val missing: Boolean = false,
+    /** The form was filled from a pasted link, and the paste row collapsed. */
+    val autofilled: Boolean = false,
+    /** The form as it was before the autofill, for undo. */
+    val undoForm: EditorForm? = null,
 )
 
 /**
@@ -35,6 +40,8 @@ data class EditorUiState(
 @HiltViewModel
 class ProfileEditorViewModel @Inject constructor(
     private val profiles: ProfileRepository,
+    /** The same resolver the importer uses: one parser, two entry points. */
+    private val resolver: LinkResolver,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditorUiState())
@@ -64,6 +71,62 @@ class ProfileEditorViewModel @Inject constructor(
                 EditorUiState(form = EditorForm.from(existing))
             }
         }
+    }
+
+    /**
+     * Switches the protocol in place.
+     *
+     * The page stays where it is: the protocol is a chip in a row, not a
+     * navigation decision. The three fields every protocol shares survive the
+     * switch, because retyping an address because you picked the wrong protocol
+     * is exactly the step count this round removes.
+     */
+    fun setType(type: ProfileType) {
+        val form = _uiState.value.form ?: return
+        if (form.type == type) return
+        _uiState.update {
+            it.copy(
+                form = EditorForm(
+                    id = form.id,
+                    type = type,
+                    groupId = form.groupId,
+                    latencyMs = form.latencyMs,
+                    name = form.name,
+                    server = form.server,
+                    port = form.port,
+                ),
+                errors = emptyMap(),
+                autofilled = false,
+                undoForm = null,
+            )
+        }
+    }
+
+    /**
+     * Fills the form from a share link.
+     *
+     * Returns false when the text is not a link this build can parse — the
+     * caller keeps the text so the user can see it did not take.
+     */
+    fun pasteLink(text: String): Boolean {
+        val form = _uiState.value.form ?: return false
+        val profile = resolver.resolve(text.trim()) ?: return false
+        val filled = EditorForm.from(profile).copy(id = form.id, groupId = form.groupId)
+        _uiState.update {
+            it.copy(
+                form = filled,
+                errors = emptyMap(),
+                autofilled = true,
+                undoForm = form,
+            )
+        }
+        return true
+    }
+
+    /** Puts the form back the way it was before the paste. */
+    fun undoAutofill() {
+        val previous = _uiState.value.undoForm ?: return
+        _uiState.update { it.copy(form = previous, autofilled = false, undoForm = null) }
     }
 
     /** Clears the error for a field as soon as the user edits it. */

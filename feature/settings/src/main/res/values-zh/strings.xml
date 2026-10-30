@@ -10,7 +10,8 @@
 
 
 
-    <string name="kill_switch_title">Kill Switch</string>
+    <string name="kill_switch_title">断网保护（Kill Switch）</string>
+    <string name="kill_switch_card_desc">隧道没起来时，流量按下面的方式处理。</string>
     <string name="kill_switch_off">关闭</string>
     <string name="kill_switch_off_desc">从不阻断流量。</string>
     <string name="kill_switch_on_disconnect">断开时阻断</string>
@@ -40,7 +41,7 @@
     <string name="per_app_target_direct">直连</string>
     <string name="per_app_target_missing">已删除的节点</string>
 
-    <string name="backup_title">备份</string>
+    <string name="backup_title">备份与恢复</string>
     <string name="backup_explainer">节点、分组和规则打成一个加密文件。没有口令就无法恢复。</string>
     <string name="backup_export">导出</string>
     <string name="backup_restore">恢复</string>
@@ -159,7 +160,11 @@
     <string name="settings_github_changelog">更新日志</string>
     <string name="settings_github_issues">反馈问题</string>
     <string name="settings_link_failed">这台设备上没有能打开链接的应用</string>
-    <string name="rule_test_title">规则命中测试</string>
+    <string name="rule_test_paste">从剪贴板粘贴</string>
+    <string name="rule_test_try">试试</string>
+    <string name="rule_test_placeholder">判定结果会显示命中规则与走向。</string>
+    <string name="rule_test_sets_label">规则包</string>
+    <string name="rule_test_title">诊断自检</string>
     <string name="rule_test_back">返回</string>
     <string name="rule_test_intro">输入域名或地址，按内核会拿到的那份规则表判定——不建立连接、不改任何东西。</string>
     <string name="rule_test_field">域名或地址</string>

@@ -41,6 +41,9 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+    // Pasting a link into the editor resolves it with the same resolver the
+    // importer uses, so a pasted link and an imported one cannot disagree.
+    implementation(project(":core:subscription"))
 
     implementation(libs.hilt.navigation.compose)
     implementation(libs.hilt.android)

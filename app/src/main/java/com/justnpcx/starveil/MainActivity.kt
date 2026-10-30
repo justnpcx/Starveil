@@ -162,32 +162,30 @@ class MainActivity : ComponentActivity() {
             StarveilTheme(darkTheme = dark) {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
-                StarveilBackground {
-                    StarveilShell(
-                        navController = navController,
-                        darkTheme = dark,
-                        onToggleTheme = {
-                            // From "follow system", the button pins the
-                            // opposite of what is on screen. From a pin, it
-                            // flips the pin.
-                            val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
-                            lifecycleScope.launch { preferences.setThemeMode(next) }
-                        },
-                        snackbarHost = {
-                            UndoSnackbarHost(
-                                requests = undoBus,
-                                hostState = snackbarHostState,
-                            )
-                        },
-                    ) { innerPadding ->
-                        StarveilNavHost(
-                            navController = navController,
-                            latencyTester = latencyTester,
-                            leakCheckRunner = leakCheckRunner,
-                            deepLinks = deepLinks,
-                            modifier = Modifier.padding(innerPadding),
+                StarveilShell(
+                    navController = navController,
+                    darkTheme = dark,
+                    onToggleTheme = {
+                        // From "follow system", the button pins the
+                        // opposite of what is on screen. From a pin, it
+                        // flips the pin.
+                        val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
+                        lifecycleScope.launch { preferences.setThemeMode(next) }
+                    },
+                    snackbarHost = {
+                        UndoSnackbarHost(
+                            requests = undoBus,
+                            hostState = snackbarHostState,
                         )
-                    }
+                    },
+                ) { innerPadding ->
+                    StarveilNavHost(
+                        navController = navController,
+                        latencyTester = latencyTester,
+                        leakCheckRunner = leakCheckRunner,
+                        deepLinks = deepLinks,
+                        modifier = Modifier.padding(innerPadding),
+                    )
                 }
             }
         }

@@ -17,6 +17,7 @@ import com.justnpcx.starveil.core.model.ProxyGroup
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
+import com.justnpcx.starveil.core.subscription.LinkPreview
 import com.justnpcx.starveil.core.subscription.LinkExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
@@ -27,6 +28,7 @@ import com.justnpcx.starveil.core.ui.snackbar.UndoBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import java.security.MessageDigest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -98,6 +100,20 @@ sealed interface ProfilesMessage {
 
     /** [dropped] counts subscription entries that produced no node. */
     data class ImportedNodes(val count: Int, val dropped: Int = 0) : ProfilesMessage
+
+    /** The link resolved to a node that is already in the list. */
+    data class Existing(val name: String) : ProfilesMessage
+
+    /**
+     * A pasted block where some lines worked.
+     *
+     * Both halves are reported: "5 added" alone hides the two that did not, and
+     * a failure message alone hides the five that did.
+     */
+    data class ImportedPartially(
+        val count: Int,
+        val failures: List<ImportFailure>,
+    ) : ProfilesMessage
     data class ImportFailed(val failure: ImportFailure) : ProfilesMessage
     data class Refreshed(val count: Int, val dropped: Int = 0) : ProfilesMessage
     data class RefreshFailed(val reason: SubscriptionFailure) : ProfilesMessage
@@ -122,6 +138,21 @@ sealed interface ProfilesMessage {
  * so rather than drawing a QR code for an empty string, which would scan into
  * nothing.
  */
+/** What a subscription import brought in, for the panel's result line. */
+data class SubscriptionImported(
+    val groupId: Long,
+    val name: String,
+    val count: Int,
+)
+
+/** A clipboard payload worth offering: what it holds, and how much of it. */
+data class ClipboardSuggestion(
+    val text: String,
+    val nodeCount: Int,
+    /** "host:port", or the subscription URL when that is what it holds. */
+    val detail: String,
+)
+
 data class ShareTarget(
     val name: String,
     val link: String?,
@@ -151,6 +182,49 @@ class ProfilesViewModel @Inject constructor(
     private val favoritesOnly = MutableStateFlow(false)
     private val searchQuery = MutableStateFlow("")
     private val share = MutableStateFlow<ShareTarget?>(null)
+
+    /**
+     * A clipboard payload the page is offering to import.
+     *
+     * Kept out of [ProfilesUiState] on purpose: it is not part of the list, and
+     * folding it into the six-way combine would re-run the whole list pipeline
+     * every time the clipboard changes.
+     */
+    private val clipboard = MutableStateFlow<ClipboardSuggestion?>(null)
+
+    /** The flow the nodes page reads for the in-page clipboard bar. */
+    val clipboardSuggestion: StateFlow<ClipboardSuggestion?> = clipboard
+
+    /**
+     * The last subscription imported from the panel.
+     *
+     * The panel stays open after a subscription import — a subscription is a
+     * batch, and closing the panel would leave the user looking at a list that
+     * changed for reasons they have to reconstruct.
+     */
+    private val subscriptionImport = MutableStateFlow<SubscriptionImported?>(null)
+    val lastSubscriptionImport: StateFlow<SubscriptionImported?> = subscriptionImport
+
+    /**
+     * The row an import just created or found.
+     *
+     * The list is long enough that "imported" is not self-evident; the page
+     * scrolls to this row and flashes it once.
+     */
+    private val highlight = MutableStateFlow<Long?>(null)
+    val highlightedNode: StateFlow<Long?> = highlight
+
+    fun clearHighlight() {
+        highlight.value = null
+    }
+
+    /**
+     * The last payload offered, by hash.
+     *
+     * "Offer once" is the rule: the same clipboard content must not raise the
+     * bar again on every resume, and a dismissed bar must stay dismissed.
+     */
+    private var offeredClipboardHash: String? = null
 
     init {
         // Nodes learn their country once. A GeoIP answer does not change, so the
@@ -268,6 +342,41 @@ class ProfilesViewModel @Inject constructor(
     )
 
     /** The hint has been read (or a long-press made it moot). */
+    /**
+     * Offers [text] as an import if it parses and has not been offered before.
+     *
+     * Called from the two foreground moments the design allows — the add panel
+     * opening and the page resuming — and never from a timer. A null or
+     * unparseable clipboard is not an error: it just means no bar.
+     */
+    fun offerClipboard(text: String?) {
+        val payload = text?.takeIf { it.isNotBlank() } ?: return
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(payload.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        if (hash == offeredClipboardHash) return
+        val preview = importer.preview(payload)
+        if (preview.isEmpty) return
+        offeredClipboardHash = hash
+        clipboard.value = ClipboardSuggestion(
+            text = payload,
+            nodeCount = preview.nodes.size,
+            detail = preview.nodes.firstOrNull()?.let { it.server + ":" + it.port }
+                ?: preview.subscriptionUrl.orEmpty(),
+        )
+    }
+
+    fun dismissClipboardSuggestion() {
+        clipboard.value = null
+    }
+
+    /** Imports what the bar offered and clears it. */
+    fun importClipboardSuggestion() {
+        val suggestion = clipboard.value ?: return
+        clipboard.value = null
+        importMany(suggestion.text)
+    }
+
     fun dismissNodeHint() {
         viewModelScope.launch { preferences.markNodeHintSeen() }
     }
@@ -493,12 +602,91 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch { profiles.upsert(profile) }
     }
 
+    /**
+     * What [text] would bring in, without importing anything.
+     *
+     * Pure: it parses, it does not touch the database. The add panel uses it
+     * both to describe the clipboard and to decide whether the clipboard tile
+     * is live.
+     */
+    fun preview(text: String): LinkPreview = importer.preview(text)
+
+    /**
+     * Imports every line of a pasted block.
+     *
+     * The result is a count plus the lines that failed, because a pasted block
+     * is all-or-nothing only in the worst case: one broken link must not throw
+     * away the other four.
+     */
+    fun importMany(text: String) {
+        viewModelScope.launch {
+            importing.value = true
+            val outcome = importer.importMany(text)
+            // The row to point at: what was created, or — when everything was
+            // already there — the node that already existed.
+            highlight.value = outcome.addedIds.firstOrNull() ?: outcome.duplicates.firstOrNull()
+            message.value = when {
+                outcome.added > 0 && outcome.failures.isEmpty() ->
+                    ProfilesMessage.ImportedNodes(outcome.added)
+                outcome.added > 0 ->
+                    ProfilesMessage.ImportedPartially(outcome.added, outcome.failures)
+                outcome.duplicates.isNotEmpty() ->
+                    ProfilesMessage.Existing("")
+                else -> ProfilesMessage.ImportFailed(
+                    outcome.failures.firstOrNull() ?: ImportFailure.NothingToImport,
+                )
+            }
+            importing.value = false
+        }
+    }
+
+    /** Imports a subscription, under [name] when the user gave one. */
+    fun importSubscription(url: String, name: String) {
+        viewModelScope.launch {
+            importing.value = true
+            message.value = when (val outcome = importer.import(url, name)) {
+                is ImportOutcome.AddedNode -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.AddedNode(outcome.name)
+                }
+                is ImportOutcome.Duplicate -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.Existing(outcome.name)
+                }
+                is ImportOutcome.AddedSubscription -> {
+                    val group = groups.findBySubscriptionUrl(url)
+                    if (group != null) {
+                        subscriptionImport.value = SubscriptionImported(
+                            groupId = group.id,
+                            name = group.name,
+                            count = outcome.nodeCount,
+                        )
+                    }
+                    ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
+                }
+                is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.failure)
+            }
+            importing.value = false
+        }
+    }
+
+    fun clearSubscriptionImport() {
+        subscriptionImport.value = null
+    }
+
     /** Paste a share link, or a subscription URL. */
     fun import(text: String) {
         viewModelScope.launch {
             importing.value = true
             message.value = when (val outcome = importer.import(text)) {
-                is ImportOutcome.AddedNode -> ProfilesMessage.AddedNode(outcome.name)
+                is ImportOutcome.AddedNode -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.AddedNode(outcome.name)
+                }
+                is ImportOutcome.Duplicate -> {
+                    highlight.value = outcome.id
+                    ProfilesMessage.Existing(outcome.name)
+                }
                 is ImportOutcome.AddedSubscription ->
                     ProfilesMessage.ImportedNodes(outcome.nodeCount, outcome.dropped)
                 is ImportOutcome.Failed -> ProfilesMessage.ImportFailed(outcome.failure)

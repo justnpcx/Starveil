@@ -131,9 +131,67 @@ class LinkImporterTest {
 
         val outcome = import_.import("vless://uuid@h.example:443#n")
 
-        assertEquals(ImportOutcome.AddedNode("node-from-link"), outcome)
+        assertEquals(ImportOutcome.AddedNode("node-from-link", id = 1L), outcome)
         assertEquals(1, profiles.rows.size)
         assertEquals(ProfileType.VLESS, profiles.rows.values.single().type)
+    }
+
+    @Test
+    fun `preview splits a pasted block and touches nothing`() {
+        val (import_, profiles, _) = importer()
+
+        val preview = import_.preview(
+            "vless://a@h1.example:443#n1\n  vless://b@h2.example:443#n2  ",
+        )
+
+        assertEquals(2, preview.nodes.size)
+        assertEquals(null, preview.subscriptionUrl)
+        assertTrue(profiles.rows.isEmpty())
+    }
+
+    @Test
+    fun `preview separates a subscription url from node links`() {
+        val (import_, _, _) = importer()
+
+        val preview = import_.preview(
+            "vless://a@h1.example:443#n1 https://sub.example.com/x",
+        )
+
+        assertEquals(1, preview.nodes.size)
+        assertEquals("https://sub.example.com/x", preview.subscriptionUrl)
+    }
+
+    @Test
+    fun `preview of unrelated text is empty`() {
+        val (import_, _, _) = importer()
+
+        assertTrue(import_.preview("just a sentence").isEmpty)
+        assertTrue(import_.preview("").isEmpty)
+    }
+
+    @Test
+    fun `a batch imports what it can and reports what it cannot`() = runBlocking {
+        val (import_, profiles, _) = importer()
+
+        val outcome = import_.importMany(
+            "vless://a@h1.example:443#n1\nnot-a-link\nvless://b@h2.example:443#n2",
+        )
+
+        assertEquals(2, outcome.added)
+        assertEquals(listOf(ImportFailure.LinkUnparseable), outcome.failures)
+        assertEquals(2, profiles.rows.size)
+    }
+
+    @Test
+    fun `the same link twice is one node, and the second says so`() = runBlocking {
+        val (import_, profiles, _) = importer()
+
+        val first = import_.import("vless://uuid@h.example:443#n")
+        val second = import_.import("vless://uuid@h.example:443#n")
+
+        assertEquals(ImportOutcome.AddedNode("node-from-link", id = 1L), first)
+        assertEquals(ImportOutcome.Duplicate("node-from-link", 1L), second)
+        assertEquals(1, profiles.rows.size)
     }
 
     @Test
