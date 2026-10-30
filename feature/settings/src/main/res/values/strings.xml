@@ -11,6 +11,7 @@
 
 
     <string name="kill_switch_title">Kill Switch</string>
+    <string name="kill_switch_card_desc">What happens to traffic when the tunnel is not up.</string>
     <string name="kill_switch_off">Off</string>
     <string name="kill_switch_off_desc">Never block traffic.</string>
     <string name="kill_switch_on_disconnect">Block on disconnect</string>
@@ -40,7 +41,7 @@
     <string name="per_app_target_direct">Direct</string>
     <string name="per_app_target_missing">Deleted node</string>
 
-    <string name="backup_title">Backup</string>
+    <string name="backup_title">Backup and restore</string>
     <string name="backup_explainer">Nodes, groups and rules in one encrypted file. It is useless without the passphrase — there is no recovery.</string>
     <string name="backup_export">Export</string>
     <string name="backup_restore">Restore</string>
@@ -170,7 +171,7 @@
     <string name="settings_github_changelog">Changelog</string>
     <string name="settings_github_issues">Report an issue</string>
     <string name="settings_link_failed">No app can open links on this device</string>
-    <string name="rule_test_title">Rule test</string>
+    <string name="rule_test_title">Diagnostics</string>
     <string name="rule_test_back">Back</string>
     <string name="rule_test_intro">Type a domain or an address. The answer comes from the rule list the kernel would be given — nothing is dialled, nothing is changed.</string>
     <string name="rule_test_field">Domain or address</string>
