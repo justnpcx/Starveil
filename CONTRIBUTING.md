@@ -43,6 +43,33 @@ Every push runs, in this order:
 Run the same commands locally before opening a pull request. A PR whose CI is
 red is not reviewed.
 
+## Landing a change
+
+`main` is protected: it requires the `build` check, and administrators are not
+exempt. A direct `git push` is rejected with
+
+```
+GH006: Protected branch update failed
+- Required status check "build" is expected.
+```
+
+because the pushed commit cannot have a passing run yet — the run is created
+*by* that push. Every change therefore lands the same way:
+
+1. Branch off `main`; one commit per reviewed item, the subject carrying its
+   identifier.
+2. `git push origin <branch>`.
+3. Open a pull request. CI runs on the pull request, and **that** run is what
+   satisfies the required check.
+4. Merge once it is green. The merge triggers one more run on `main`; that is
+   the run to quote when reporting the change.
+
+`workflow_dispatch` runs the same workflow on a branch, which is useful as a
+pre-flight check, but a green dispatch run does **not** satisfy `main`'s
+required check — only a run on the pull request, or on `main` itself, does.
+
+Merge commits are acceptable: the history is linear by habit, not by rule.
+
 ## Commits
 
 - Subject in the imperative, under 72 characters: `fix(rules): the local
