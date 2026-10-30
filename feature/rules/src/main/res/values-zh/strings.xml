@@ -47,6 +47,7 @@
     <string name="rules_field_value">匹配值</string>
     <string name="rules_more">更多设置</string>
     <string name="rules_cancel">取消</string>
+    <string name="rules_new">新建规则</string>
 
     <string name="rules_beginner_title">新手模式</string>
     <string name="rules_beginner_domestic">国内网站直连</string>

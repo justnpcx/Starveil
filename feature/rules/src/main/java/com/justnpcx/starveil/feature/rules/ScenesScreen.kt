@@ -72,8 +72,7 @@ import com.justnpcx.starveil.core.model.SceneTrigger
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.ui.components.ChipSurface
 import com.justnpcx.starveil.core.ui.components.AddActionRow
-import com.justnpcx.starveil.core.ui.components.StarveilAddFab
-import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
+import com.justnpcx.starveil.core.ui.components.StarveilPlusDisc
 import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
@@ -102,9 +101,8 @@ fun ScenesScreen(
     val context = LocalContext.current
     var editing by remember { mutableStateOf<Scene?>(null) }
     var showDialog by remember { mutableStateOf(false) }
-    var addPanel by remember { mutableStateOf(false) }
-    var sceneExpanded by remember { mutableStateOf(false) }
-    var sceneName by remember { mutableStateOf("") }
+    // The create dialog: a name, then the editor it opens.
+    var nameDialog by remember { mutableStateOf(false) }
     // Arrived from the Nodes page with a name already typed: open the existing
     // editor on a draft, so the trigger and preset are chosen in one place.
     LaunchedEffect(draftName) {
@@ -188,12 +186,13 @@ fun ScenesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    // The disc floats 12dp above the bar, so the last card
+                    // stops above it rather than behind it.
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         start = StarveilSpacing.lg,
                         top = StarveilSpacing.lg,
                         end = StarveilSpacing.lg,
-                        bottom = StarveilSpacing.lg + WindowInsets.navigationBars
-                            .asPaddingValues().calculateBottomPadding(),
+                        bottom = StarveilSpacing.plusClearance,
                     ),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
@@ -214,69 +213,32 @@ fun ScenesScreen(
         }
     }
 
-        Column(
+        StarveilPlusDisc(
+            contentDescription = stringResource(R.string.scenes_new),
+            onClick = { nameDialog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(16.dp),
-        ) {
-            StarveilAddFab(onClick = { addPanel = true })
-        }
+                .padding(
+                    end = StarveilSpacing.plusMarginEnd,
+                    bottom = StarveilSpacing.plusMarginBottom,
+                ),
+        )
     }
 
-    StarveilAddSheet(visible = addPanel, onDismissRequest = { addPanel = false }) {
-        Text(
-            text = stringResource(R.string.add_panel_title_scene),
-            style = StarveilType.title,
-            color = StarveilColors.ink,
-            modifier = Modifier.padding(bottom = StarveilSpacing.sm),
-        )
-        // A scene starts as a name. The trigger and the preset are chosen in
-        // the existing editor, which is where they already live — the panel
-        // only replaces the dialog that used to ask for the name.
-        AddActionRow(
-            icon = StarveilIcons.Scenes,
-            title = stringResource(R.string.add_row_new_scene),
-            subtitle = stringResource(R.string.add_row_new_scene_sub),
-            expanded = sceneExpanded,
-            onClick = { sceneExpanded = !sceneExpanded },
-        )
-        AnimatedVisibility(visible = sceneExpanded) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                StarveilTextField(
-                    value = sceneName,
-                    onValueChange = { sceneName = it },
-                    label = stringResource(R.string.add_scene_name),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth(),
+    if (nameDialog) {
+        NewSceneDialog(
+            onDismiss = { nameDialog = false },
+            onCreate = { name ->
+                nameDialog = false
+                editing = Scene(
+                    id = 0L,
+                    name = name,
+                    trigger = SceneTrigger.Wifi(),
+                    preset = RoutePreset.BYPASS_MAINLAND,
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    StarveilButton(
-                        text = stringResource(R.string.add_action_create),
-                        enabled = sceneName.isNotBlank(),
-                        onClick = {
-                            val name = sceneName.trim()
-                            addPanel = false
-                            sceneExpanded = false
-                            sceneName = ""
-                            editing = Scene(
-                                id = 0L,
-                                name = name,
-                                trigger = SceneTrigger.Wifi(),
-                                preset = RoutePreset.BYPASS_MAINLAND,
-                            )
-                            showDialog = true
-                        },
-                    )
-                }
-            }
-        }
+                showDialog = true
+            },
+        )
     }
 
     if (showDialog) {
@@ -300,6 +262,52 @@ fun ScenesScreen(
             },
         )
     }
+}
+
+/**
+ * The create dialog: a name, and nothing else.
+ *
+ * The trigger and the preset need room and a keyboard, so they stay in the
+ * editor this opens. What the disc asks for first is the one thing the editor
+ * cannot suggest.
+ */
+@Composable
+private fun NewSceneDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        containerColor = StarveilColors.card,
+        shape = StarveilShapes.dialog,
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.scenes_new),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+            )
+        },
+        text = {
+            StarveilTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = stringResource(R.string.scenes_name),
+                placeholder = stringResource(R.string.scenes_name_example),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank(),
+                onClick = { onCreate(name.trim()) },
+            ) {
+                Text(stringResource(R.string.add_action_create))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.rules_cancel))
+            }
+        },
+    )
 }
 
 @Composable

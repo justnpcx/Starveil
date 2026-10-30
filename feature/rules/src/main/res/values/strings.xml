@@ -50,6 +50,7 @@
     <string name="rules_field_value">Match value</string>
     <string name="rules_more">More settings</string>
     <string name="rules_cancel">Cancel</string>
+    <string name="rules_new">New rule</string>
 
     <string name="rules_beginner_title">Beginner setup</string>
     <string name="rules_beginner_domestic">Mainland sites go direct</string>
