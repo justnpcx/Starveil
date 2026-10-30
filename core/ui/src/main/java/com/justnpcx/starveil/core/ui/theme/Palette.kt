@@ -4,6 +4,15 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
+ * A semantic pair for one hub row: the icon's bed and the glyph on it.
+ *
+ * Not brand gradient, and not a status colour: these four are a wayfinding
+ * code, one hue per destination, and they exist in both modes.
+ */
+@Immutable
+data class HubTone(val bg: Color, val ink: Color)
+
+/**
  * The palette: two modes, one set of role names.
  *
  * The task book's token table is the only source of these values. A screen asks
@@ -48,6 +57,25 @@ data class StarveilPalette(
     val warn: Color,
     /** The ring when nothing is connected. */
     val ringOff: Color,
+    /** A brand mark's bed: the pale accent a link icon sits on. */
+    val accentSoft: Color,
+    /** The plus disc's face. The ring around it is the brand gradient. */
+    val floatDisc: Color,
+    /** A switch, off: the trough. */
+    val swOff: Color,
+    /** A switch, off: the outline and the thumb. */
+    val swOut: Color,
+    /** A switch, on: the thumb. */
+    val swOnTh: Color,
+    /** A switch, on: the check inside the thumb. */
+    val swChk: Color,
+    /** The hub's four entry tones, one per destination. */
+    val hubScenes: HubTone,
+    val hubLogs: HubTone,
+    val hubDiagnostics: HubTone,
+    val hubSettings: HubTone,
+    /** The hub's about row: a bed for the C2 mark, which never re-tints. */
+    val hubAboutBed: Color,
     /** The gauze woven across the connection card. */
     val veil: Color,
     /** Page bloom: pink, blue, purple. Static, never animated. */
@@ -128,6 +156,17 @@ val LightPalette = StarveilPalette(
     ok = Color(0xFF137333),
     warn = Color(0xFFAC4D00),
     ringOff = Color(0xFFC4C7C5),
+    accentSoft = Color(0xFFE8F0FE),
+    floatDisc = Color(0xFFFFFFFF),
+    swOff = Color(0xFFE9EAEC),
+    swOut = Color(0xFF747775),
+    swOnTh = Color(0xFFFFFFFF),
+    swChk = Color(0xFF0B57D0),
+    hubScenes = HubTone(bg = Color(0xFFEFEBFB), ink = Color(0xFF6C4BD8)),
+    hubLogs = HubTone(bg = Color(0xFFE8F0FE), ink = Color(0xFF0B57D0)),
+    hubDiagnostics = HubTone(bg = Color(0xFFE4F3EC), ink = Color(0xFF137333)),
+    hubSettings = HubTone(bg = Color(0xFFFDEEE2), ink = Color(0xFFD96C00)),
+    hubAboutBed = Color(0xFFF1EFFD),
     veil = Color(0x177C6CF0),
     washPink = Color(0x1AE85D9E),
     washBlue = Color(0x1A4285F4),
@@ -154,6 +193,17 @@ val DarkPalette = StarveilPalette(
     // Measured 10.92:1 on bg / 9.71:1 on card, so the candidate stands.
     warn = Color(0xFFFFB59E),
     ringOff = Color(0xFF5F6368),
+    accentSoft = Color(0xFF26303F),
+    floatDisc = Color(0xFF232426),
+    swOff = Color(0xFF36373B),
+    swOut = Color(0xFF8E918F),
+    swOnTh = Color(0xFF0B57D0),
+    swChk = Color(0xFFD3E3FD),
+    hubScenes = HubTone(bg = Color(0xFF2C2440), ink = Color(0xFFB79CFF)),
+    hubLogs = HubTone(bg = Color(0xFF22344D), ink = Color(0xFF8AB4F8)),
+    hubDiagnostics = HubTone(bg = Color(0xFF1E3328), ink = Color(0xFF81C995)),
+    hubSettings = HubTone(bg = Color(0xFF3A2A1A), ink = Color(0xFFF0A35E)),
+    hubAboutBed = Color(0xFF2A2440),
     veil = Color(0x12A8C7FA),
     washPink = Color(0x1FE85D9E),
     washBlue = Color(0x1F4285F4),

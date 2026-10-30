@@ -66,6 +66,28 @@ object StarveilColors {
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.warn
     val ringOff: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.ringOff
+    val accentSoft: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.accentSoft
+    val floatDisc: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.floatDisc
+    val swOff: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.swOff
+    val swOut: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.swOut
+    val swOnTh: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.swOnTh
+    val swChk: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.swChk
+    val hubScenes: HubTone
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hubScenes
+    val hubLogs: HubTone
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hubLogs
+    val hubDiagnostics: HubTone
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hubDiagnostics
+    val hubSettings: HubTone
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hubSettings
+    val hubAboutBed: Color
+        @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.hubAboutBed
     val veil: Color
         @Composable @ReadOnlyComposable get() = LocalStarveilPalette.current.veil
     val washes: List<Color>
