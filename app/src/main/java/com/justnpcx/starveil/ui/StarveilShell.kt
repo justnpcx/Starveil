@@ -77,7 +77,12 @@ fun StarveilShell(
         navController.navigate(routeFor(section)) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
-            restoreState = true
+            // The hub is a page rather than a tab with its own history: its
+            // item always lands on the list, even from a page opened out of
+            // it. Restoring the saved stack here would put the user back on
+            // the scene they had open and leave no way to reach the hub at
+            // all — which is exactly what it did.
+            restoreState = section != NavSection.MORE
         }
     }
 
