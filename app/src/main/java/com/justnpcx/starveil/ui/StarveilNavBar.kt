@@ -1,13 +1,18 @@
 package com.justnpcx.starveil.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -136,11 +141,23 @@ private fun RowScope.NavItem(
         onClick = onClick,
         modifier = Modifier.semantics { stateDescription = state },
         icon = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
+            // The pill is drawn here rather than left to the item's own
+            // indicator: Material 3.4's indicator is 56dp wide, and the design
+            // asks for 64. A 64x32 box behind a 24dp glyph is the same shape,
+            // and the transparent indicator below keeps the two from stacking.
+            Box(
+                modifier = Modifier
+                    .size(width = 64.dp, height = 32.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) StarveilColors.selBg else Color.Transparent),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         },
         label = {
             Text(
@@ -155,7 +172,7 @@ private fun RowScope.NavItem(
         colors = NavigationBarItemDefaults.colors(
             selectedIconColor = StarveilColors.selInk,
             selectedTextColor = StarveilColors.selInk,
-            indicatorColor = StarveilColors.selBg,
+            indicatorColor = Color.Transparent,
             unselectedIconColor = StarveilColors.ink2,
             unselectedTextColor = StarveilColors.ink2,
         ),
