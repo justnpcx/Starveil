@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.3] — 2026-10-31
+
+Navigation settles on the platform's own bar, the pages behind it get a hub, and
+the add panel stops offering the same import twice.
+
+### Added
+
+- **Standard navigation bar.** A full-width Material `NavigationBar`, 80dp, with
+  four destinations — Home, Nodes, Rules, More — a 64x32 selected pill, 24dp
+  glyphs and labels that never hide. Every page has exactly one active item;
+  the secondary pages light the hub.
+- **The hub.** One card, five rows — scenes, logs, diagnostics, settings, about —
+  each with its own semantic colour, and the version on the about row.
+- **The about page.** The mark at 84dp, the name, the version, four entries
+  (updates, what it does, privacy, licences) and a colophon.
+- **The plus disc.** A 56dp disc with the brand gradient drawn as a 1.6dp ring
+  and a 26dp glyph, on the nodes, rules and scenes pages only. Nodes opens the
+  add panel; rules and scenes open their create dialogs.
+- **Health card rows.** Exit IP and a smoothed round trip, each labelled.
+
+### Changed
+
+- **Add panel.** The clipboard card and the clipboard tile are mutually
+  exclusive: with something importable on the clipboard the card is the one-tap
+  import and the tile is gone; without it the tile is the only door and opens
+  the paste form. The masked preview shows protocol, host fragment and port —
+  never the credentials.
+- **Switches** are Material's own, with the task book's colours: a 16dp thumb
+  when off, a 24dp thumb with a tick when on, and a deep-blue thumb at night.
+- **Settings** no longer carries an about card, and ends with backup and restore.
+- **Node rows** show the protocol on the first line, so two nodes with one name
+  are told apart without opening either.
+
+### Removed
+
+- The floating capsule navigation, the navigation drawer, and the page-level
+  insets that existed only to clear them.
+
 ## [0.9.2] — 2026-10-30
 
 Interaction and ergonomics overhaul, critical bugfixes, power saving, and database batching.

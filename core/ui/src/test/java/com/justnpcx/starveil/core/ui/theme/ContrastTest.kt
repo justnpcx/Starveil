@@ -59,6 +59,34 @@ class ContrastTest {
         }
     }
 
+    /**
+     * The 0.9.3 additions: the hub's four semantic tones, the switch's parts,
+     * and the plus disc's face.
+     *
+     * Every pair here is a mark rather than running text — a glyph on its bed,
+     * a thumb on its track — so the bar is the graphic threshold, 3:1.
+     */
+    @Test
+    fun `the new marks clear the graphic threshold`() {
+        for ((name, p) in palettes) {
+            val tones = listOf(
+                "hub scenes" to p.hubScenes,
+                "hub logs" to p.hubLogs,
+                "hub diagnostics" to p.hubDiagnostics,
+                "hub settings" to p.hubSettings,
+            )
+            for ((what, tone) in tones) {
+                assertAtLeast(3.0, tone.ink, tone.bg, name + ": " + what + " glyph on its bed")
+            }
+            assertAtLeast(3.0, p.swOut, p.swOff, name + ": switch thumb off on track off")
+            assertAtLeast(3.0, p.swChk, p.swOnTh, name + ": switch check on thumb on")
+            assertAtLeast(3.0, p.accent, p.accentSoft, name + ": accent glyph on accentSoft")
+            // The disc's ring and glyph are drawn in the brand gradient; the
+            // lightest stop is the one that has to hold up against the face.
+            assertAtLeast(3.0, StarveilBrand.blue, p.floatDisc, name + ": gradient on disc face")
+        }
+    }
+
     @Test
     fun `report every measured ratio`() {
         for ((name, p) in palettes) {
@@ -72,6 +100,15 @@ class ContrastTest {
                 "err on card" to (p.err to p.card),
                 "warn on bg" to (p.warn to p.bg),
                 "warn on card" to (p.warn to p.card),
+                "hub scenes glyph on bed" to (p.hubScenes.ink to p.hubScenes.bg),
+                "hub logs glyph on bed" to (p.hubLogs.ink to p.hubLogs.bg),
+                "hub diagnostics glyph on bed" to (p.hubDiagnostics.ink to p.hubDiagnostics.bg),
+                "hub settings glyph on bed" to (p.hubSettings.ink to p.hubSettings.bg),
+                "switch thumb off on track off" to (p.swOut to p.swOff),
+                "switch check on thumb on" to (p.swChk to p.swOnTh),
+                "accent on accentSoft" to (p.accent to p.accentSoft),
+                "gradient blue on floatDisc" to (StarveilBrand.blue to p.floatDisc),
+                "gradient pink on floatDisc" to (StarveilBrand.pink to p.floatDisc),
             )
             for ((what, colors) in pairs) {
                 val key = "CONTRAST_" + name.uppercase() + "_" + what.replace(' ', '_')
