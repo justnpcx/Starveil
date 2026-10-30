@@ -262,6 +262,9 @@ fun ProfilesScreen(
     // creating siblings, and importing a node is several channels into one
     // destination.
     var addPanel by remember { mutableStateOf(false) }
+    // Set by the empty state's "import a subscription": the panel opens with
+    // that row already unfolded.
+    var addPanelStartsWithSubscription by remember { mutableStateOf(false) }
     // Read once when the panel opens, never in the background: Android 10+
     // only hands the clipboard to a focused app, and a proxy client has no
     // business polling what the user copied.
@@ -469,9 +472,21 @@ fun ProfilesScreen(
                 UsageBanner(info = usage)
             }
             when {
-                !state.hasProfiles -> EmptyState(
-                    title = stringResource(R.string.profiles_empty_title),
-                    body = stringResource(R.string.profiles_empty_body),
+                // A list with nothing in it says what it is and offers the two
+                // ways in, in the middle of the page. "No nodes yet" above an
+                // empty white card and a button in the corner is a page that
+                // looks broken rather than new.
+                !state.hasProfiles -> NodesEmptyState(
+                    onAdd = {
+                        clipboardText = readClipboardText(context)
+                        addPanelStartsWithSubscription = false
+                        addPanel = true
+                    },
+                    onImport = {
+                        clipboardText = readClipboardText(context)
+                        addPanelStartsWithSubscription = true
+                        addPanel = true
+                    },
                 )
 
                 // Nodes exist but the filter hides them: say so, rather than
@@ -604,6 +619,7 @@ fun ProfilesScreen(
             clipboard = clipboardPreview,
             previewOf = viewModel::preview,
             subscriptionImport = subscriptionImport,
+            startWithSubscription = addPanelStartsWithSubscription,
             onViewSubscription = { groupId ->
                 addPanel = false
                 viewModel.clearSubscriptionImport()

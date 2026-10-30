@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,8 @@ internal fun ProfilesAddPanel(
     previewOf: (String) -> LinkPreview,
     /** Set once a subscription has been imported from this panel. */
     subscriptionImport: SubscriptionImported?,
+    /** Opened from the empty state's "import a subscription". */
+    startWithSubscription: Boolean = false,
     onScan: () -> Unit,
     onClipboard: () -> Unit,
     onManual: () -> Unit,
@@ -75,6 +79,10 @@ internal fun ProfilesAddPanel(
     var linkText by remember { mutableStateOf("") }
     var subscriptionUrl by remember { mutableStateOf("") }
     var subscriptionName by remember { mutableStateOf("") }
+
+    LaunchedEffect(startWithSubscription) {
+        if (startWithSubscription) open = PanelRow.SUBSCRIPTION
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -284,3 +292,49 @@ internal fun ClipboardBar(
     }
 }
 
+
+/**
+ * The nodes page with nothing on it.
+ *
+ * Centred, with the brand star drawn as an outline: an empty list is a state,
+ * not an error, and the two ways out are both here rather than one of them
+ * being a button in a corner.
+ */
+@Composable
+internal fun NodesEmptyState(onAdd: () -> Unit, onImport: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .padding(StarveilSpacing.xxl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = StarveilIcons.StarOutline,
+            contentDescription = null,
+            tint = StarveilColors.accent.copy(alpha = 0.55f),
+            modifier = Modifier.size(64.dp),
+        )
+        Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+        Text(
+            text = stringResource(R.string.profiles_empty_title),
+            style = StarveilType.title,
+            color = StarveilColors.ink,
+        )
+        Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+        Text(
+            text = stringResource(R.string.profiles_empty_body),
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
+        )
+        Spacer(modifier = Modifier.height(StarveilSpacing.xl))
+        StarveilButton(text = stringResource(R.string.add_panel_title_node), onClick = onAdd)
+        Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+        StarveilButton(
+            text = stringResource(R.string.add_row_subscription),
+            secondary = true,
+            onClick = onImport,
+        )
+    }
+}
