@@ -1,12 +1,14 @@
 package com.justnpcx.starveil.feature.profiles
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -17,7 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import com.justnpcx.starveil.core.subscription.LinkPreview
@@ -27,9 +33,11 @@ import com.justnpcx.starveil.core.ui.components.AddSuggestionCard
 import com.justnpcx.starveil.core.ui.components.AddTile
 import com.justnpcx.starveil.core.ui.components.AddTileRow
 import com.justnpcx.starveil.core.ui.components.StarveilButton
+import com.justnpcx.starveil.core.ui.components.StarveilIconAction
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
+import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 
@@ -202,3 +210,58 @@ private fun LinkPreview.describe(): String {
     val head = node.server + ":" + node.port
     return if (nodes.size > 1) head + " …" else head + " · " + node.type.name.lowercase()
 }
+
+/**
+ * The in-page clipboard bar.
+ *
+ * A bar in the page, not a snackbar: the snackbar is where the FAB and the
+ * gesture area live, so a suggestion there is both transient and in the way.
+ * The bar is dismissed by ×, and by itself once the import succeeds.
+ */
+@Composable
+internal fun ClipboardBar(
+    suggestion: ClipboardSuggestion,
+    onImport: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.sm)
+            .clip(StarveilShapes.card)
+            .background(StarveilColors.selBg)
+            .padding(start = StarveilSpacing.md, end = StarveilSpacing.sm, top = StarveilSpacing.sm, bottom = StarveilSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = StarveilIcons.Clipboard,
+            contentDescription = null,
+            tint = StarveilColors.selInk,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.add_clipboard_bar_title),
+                style = StarveilType.body,
+                color = StarveilColors.selInk,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = suggestion.detail,
+                style = StarveilType.label,
+                color = StarveilColors.selInk.copy(alpha = 0.85f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        StarveilButton(text = stringResource(R.string.add_action_import), onClick = onImport, secondary = true)
+        StarveilIconAction(
+            icon = StarveilIcons.Close,
+            contentDescription = stringResource(R.string.add_clipboard_bar_dismiss),
+            onClick = onDismiss,
+        )
+    }
+}
+

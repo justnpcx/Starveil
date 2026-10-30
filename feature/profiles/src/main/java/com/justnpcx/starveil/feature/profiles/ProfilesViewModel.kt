@@ -28,6 +28,7 @@ import com.justnpcx.starveil.core.ui.snackbar.UndoBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import java.security.MessageDigest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -134,6 +135,14 @@ sealed interface ProfilesMessage {
  * so rather than drawing a QR code for an empty string, which would scan into
  * nothing.
  */
+/** A clipboard payload worth offering: what it holds, and how much of it. */
+data class ClipboardSuggestion(
+    val text: String,
+    val nodeCount: Int,
+    /** "host:port", or the subscription URL when that is what it holds. */
+    val detail: String,
+)
+
 data class ShareTarget(
     val name: String,
     val link: String?,
@@ -163,6 +172,26 @@ class ProfilesViewModel @Inject constructor(
     private val favoritesOnly = MutableStateFlow(false)
     private val searchQuery = MutableStateFlow("")
     private val share = MutableStateFlow<ShareTarget?>(null)
+
+    /**
+     * A clipboard payload the page is offering to import.
+     *
+     * Kept out of [ProfilesUiState] on purpose: it is not part of the list, and
+     * folding it into the six-way combine would re-run the whole list pipeline
+     * every time the clipboard changes.
+     */
+    private val clipboard = MutableStateFlow<ClipboardSuggestion?>(null)
+
+    /** The flow the nodes page reads for the in-page clipboard bar. */
+    val clipboardSuggestion: StateFlow<ClipboardSuggestion?> = clipboard
+
+    /**
+     * The last payload offered, by hash.
+     *
+     * "Offer once" is the rule: the same clipboard content must not raise the
+     * bar again on every resume, and a dismissed bar must stay dismissed.
+     */
+    private var offeredClipboardHash: String? = null
 
     init {
         // Nodes learn their country once. A GeoIP answer does not change, so the
@@ -280,6 +309,41 @@ class ProfilesViewModel @Inject constructor(
     )
 
     /** The hint has been read (or a long-press made it moot). */
+    /**
+     * Offers [text] as an import if it parses and has not been offered before.
+     *
+     * Called from the two foreground moments the design allows — the add panel
+     * opening and the page resuming — and never from a timer. A null or
+     * unparseable clipboard is not an error: it just means no bar.
+     */
+    fun offerClipboard(text: String?) {
+        val payload = text?.takeIf { it.isNotBlank() } ?: return
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(payload.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        if (hash == offeredClipboardHash) return
+        val preview = importer.preview(payload)
+        if (preview.isEmpty) return
+        offeredClipboardHash = hash
+        clipboard.value = ClipboardSuggestion(
+            text = payload,
+            nodeCount = preview.nodes.size,
+            detail = preview.nodes.firstOrNull()?.let { it.server + ":" + it.port }
+                ?: preview.subscriptionUrl.orEmpty(),
+        )
+    }
+
+    fun dismissClipboardSuggestion() {
+        clipboard.value = null
+    }
+
+    /** Imports what the bar offered and clears it. */
+    fun importClipboardSuggestion() {
+        val suggestion = clipboard.value ?: return
+        clipboard.value = null
+        importMany(suggestion.text)
+    }
+
     fun dismissNodeHint() {
         viewModelScope.launch { preferences.markNodeHintSeen() }
     }

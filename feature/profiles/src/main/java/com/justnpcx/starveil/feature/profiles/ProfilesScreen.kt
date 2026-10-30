@@ -107,6 +107,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -119,6 +120,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
@@ -180,7 +184,21 @@ fun ProfilesScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val probeState by probeViewModel.state.collectAsStateWithLifecycle()
+    val clipboardSuggestion by viewModel.clipboardSuggestion.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // The second of the two moments the clipboard is read: the page coming back
+    // to the foreground. Nothing polls, and Android's own "pasted from" notice
+    // is left alone.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.offerClipboard(readClipboardText(context))
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // A share link handed to the app. Keyed on the link so a second one while
     // this screen is open is imported too, and reported through the same
@@ -393,6 +411,15 @@ fun ProfilesScreen(
                         inUse = state.selectedGroupId == group.id,
                     )
                 }
+            }
+            // The clipboard bar sits between the chips and the list: close to
+            // the content it would add, and nowhere near the FAB.
+            clipboardSuggestion?.let { suggestion ->
+                ClipboardBar(
+                    suggestion = suggestion,
+                    onImport = viewModel::importClipboardSuggestion,
+                    onDismiss = viewModel::dismissClipboardSuggestion,
+                )
             }
             // One line, once. Long-press is the only way to reach edit, share,
             // move and delete, and nothing on the row says so; a caption that

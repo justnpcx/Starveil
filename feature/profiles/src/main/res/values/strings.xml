@@ -32,6 +32,8 @@
     <string name="add_action_import">Import</string>
     <string name="add_clipboard_title">%1$d node links on the clipboard</string>
     <string name="add_panel_label_batch">Batch import</string>
+    <string name="add_clipboard_bar_title">Node link on the clipboard</string>
+    <string name="add_clipboard_bar_dismiss">Dismiss</string>
     <string name="add_row_paste">Paste a link</string>
     <string name="add_row_paste_sub">Several at once, one per line</string>
     <string name="add_row_subscription">Import a subscription</string>
