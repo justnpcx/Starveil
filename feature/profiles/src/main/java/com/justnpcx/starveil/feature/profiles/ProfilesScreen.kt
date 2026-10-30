@@ -1285,15 +1285,10 @@ private fun NodeRow(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // A fixed slot for the favourite mark, so a pinned row does not
-                // shift every name on the list.
-                Box(modifier = Modifier.size(16.dp), contentAlignment = Alignment.Center) {
-                    if (profile.favorite && !selected) {
-                        Text(text = "★", style = StarveilType.tech, color = accent)
-                    }
-                }
-                // The leading mark is the state, unless this row is the target:
-                // then it is the brand star, and the state moves to the right.
+                // One solid star per row, and it means one thing: this is the
+                // node the tunnel is on. The favourite mark is an outline, and
+                // it lives on the second line — a filled star beside a filled
+                // status dot was two blue marks saying different things.
                 if (selected) {
                     StarveilStar(size = 13.dp)
                 } else {
@@ -1379,6 +1374,15 @@ private fun NodeRow(
                     .padding(start = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (profile.favorite) {
+                    Icon(
+                        imageVector = StarveilIcons.StarOutline,
+                        contentDescription = stringResource(R.string.profiles_favorites),
+                        tint = StarveilColors.ink2,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Spacer(modifier = Modifier.width(StarveilSpacing.xs))
+                }
                 Text(
                     text = secondary,
                     style = StarveilType.label,
