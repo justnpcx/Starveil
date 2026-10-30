@@ -61,7 +61,7 @@
     <string name="dashboard_notice_kernel_refused_reason">Kernel failed to start: %1$s</string>
     <string name="dashboard_mode_auto">Auto</string>
     <string name="dashboard_mode_manual">Manual</string>
-    <string name="dashboard_exit">Exit IP %1$s · round trip %2$d ms</string>
+    <string name="dashboard_exit">Exit IP %1$s · exit round trip %2$d ms (measured through the node)</string>
 <string name="dashboard_first_connect_hint">Tap the ring to connect</string>
     <string name="dashboard_hint_connect">Tap to connect</string>
     <string name="dashboard_hint_disconnect">Tap to disconnect</string>
@@ -70,7 +70,7 @@
 
     <string name="dashboard_health_collecting">Sampling: %1$d of %2$d probes. The curve appears when there is a shape to draw.</string>
     <string name="dashboard_health_all_unreachable">%1$d probes in this window, none reachable — there is no latency sample to draw.</string>
-    <string name="dashboard_health_summary">Latency EMA %1$d ms · %2$d of %3$d probes reachable</string>
+    <string name="dashboard_health_summary">Latency EMA %1$d ms (smoothed from node probes) · %2$d of %3$d reachable</string>
     <string name="dashboard_health_details_title">Node health</string>
     <string name="dashboard_health_legend_availability">Availability — the share of probes that came back at all.</string>
     <string name="dashboard_health_legend_ema">Latency EMA — the smoothed round trip of the probes that did come back.</string>
