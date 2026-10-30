@@ -66,13 +66,4 @@ object StarveilSpacing {
     val plusMarginEnd = 18.dp
     val plusMarginBottom = 12.dp
 
-    /**
-     * Bottom padding for a scrolling list that has a floating button over it.
-     *
-     * 96dp is not a rhythm value: it is the button's own height plus the gap
-     * that keeps it off the last row. A list that uses [xl] here lets the
-     * button cover its own final line, which is the defect this constant
-     * exists to stop repeating.
-     */
-    val fabClearance = 96.dp
 }

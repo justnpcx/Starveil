@@ -180,43 +180,6 @@ fun StarveilSearchField(
     }
 }
 
-/**
- * The floating add button: a glass disc with an accent edge and an ink plus.
- *
- * The edge is one of the accent's three appearances on the Nodes screen, which
- * is the budget. It sits over the list, so every list that carries one pads
- * its last row by [StarveilSpacing.fabClearance].
- */
-@Composable
-fun StarveilFab(
-    contentDescription: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(56.dp)
-            .shadow(
-                6.dp,
-                CircleShape,
-                // A little stronger than a card's: it floats.
-                ambientColor = StarveilColors.shadowTint.copy(alpha = 0.10f),
-                spotColor = StarveilColors.shadowTint.copy(alpha = 0.10f),
-            )
-            .clip(CircleShape)
-            .background(StarveilColors.surfaceGlass)
-            .border(1.dp, StarveilColors.accent, CircleShape)
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = StarveilIcons.Add,
-            contentDescription = contentDescription,
-            tint = StarveilColors.ink,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
 
 /**
  * A group caption: the mono face, uppercase, secondary ink.
