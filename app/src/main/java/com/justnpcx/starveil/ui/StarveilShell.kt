@@ -36,8 +36,21 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
+import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelState
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +71,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.justnpcx.starveil.R
 import com.justnpcx.starveil.core.ui.R as UiR
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
+import androidx.compose.foundation.shape.CircleShape
 import com.justnpcx.starveil.core.ui.components.PageWash
 import com.justnpcx.starveil.core.ui.components.StarveilBackground
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
@@ -270,6 +284,7 @@ private fun StarveilDrawer(
                         style = StarveilType.label.copy(fontSize = 12.sp),
                         color = StarveilColors.ink2,
                     )
+                    DrawerStatus()
                 }
             }
             }
@@ -277,7 +292,7 @@ private fun StarveilDrawer(
             DrawerGroup(stringResource(R.string.drawer_group_pages))
             DrawerRow(
                 label = stringResource(R.string.nav_home),
-                icon = StarveilIcons.Dashboard,
+                icon = StarveilIcons.Home,
                 selected = currentRoute == "dashboard",
                 onClick = { onNavigate("home") },
             )
@@ -309,13 +324,16 @@ private fun StarveilDrawer(
             )
             DrawerRow(
                 label = stringResource(R.string.nav_scenes),
-                icon = StarveilIcons.Route,
+                // Layers, not the rules page's turning path: two destinations
+                // with one glyph is a drawer you have to read twice.
+                icon = StarveilIcons.Scenes,
                 selected = currentRoute == "scenes",
                 onClick = { onNavigate("scenes_tab") },
             )
             DrawerRow(
                 label = stringResource(R.string.nav_diagnostics),
-                icon = StarveilIcons.Terminal,
+                // A pulse, not the log's terminal.
+                icon = StarveilIcons.Activity,
                 selected = currentRoute == "ruletest",
                 onClick = { onNavigate("diagnostics") },
             )
@@ -371,9 +389,12 @@ private fun DrawerRow(
             .height(48.dp)
             .then(
                 if (selected) {
+                    // A pill inset on both sides, not a band that runs to the
+                    // drawer's edges: flush-to-the-edge made the selection look
+                    // like a full-width highlight bar rather than a choice.
                     Modifier
-                        .padding(end = 12.dp)
-                        .clip(RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp))
+                        .padding(horizontal = DRAWER_PILL_INSET)
+                        .clip(CircleShape)
                         .background(StarveilColors.selBg)
                 } else {
                     Modifier
@@ -403,6 +424,60 @@ private fun DrawerRow(
     }
 }
 
+/** How far the selected row's pill sits from the drawer's edges. */
+private val DRAWER_PILL_INSET = 12.dp
+
 private const val PROJECT_REPO = "https://github.com/justnpcx/Starveil"
 private const val PROJECT_CHANGELOG = "https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md"
 private const val PROJECT_ISSUES = "https://github.com/justnpcx/Starveil/issues"
+
+/**
+ * "Connected · node" under the brand line.
+ *
+ * Display only: the drawer says what state the tunnel is in, and nothing here
+ * can change it. Read through an entry point because the shell is outside the
+ * navigation graph and has no view model of its own.
+ */
+@Composable
+private fun DrawerStatus() {
+    val context = LocalContext.current
+    val entry = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            DrawerStatusEntryPoint::class.java,
+        )
+    }
+    val kernelState by entry.kernel().state.collectAsStateWithLifecycle()
+    val target by entry.preferences().connectionTarget
+        .collectAsStateWithLifecycle(initialValue = ConnectionTarget.None)
+    var nodeName by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(target) {
+        nodeName = (target as? ConnectionTarget.Node)
+            ?.let { entry.profiles().getById(it.id)?.name }
+    }
+    val connected = kernelState is KernelState.Running
+    Text(
+        text = if (connected) {
+            stringResource(
+                R.string.drawer_status_connected,
+                nodeName ?: stringResource(R.string.drawer_status_unknown_node),
+            )
+        } else {
+            stringResource(R.string.drawer_status_offline)
+        },
+        style = StarveilType.label.copy(fontSize = 12.sp),
+        color = StarveilColors.ink2,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/** What the drawer's status line needs, and nothing else. */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface DrawerStatusEntryPoint {
+    fun kernel(): KernelBridge
+    fun preferences(): PreferencesRepository
+    fun profiles(): ProfileRepository
+}
+

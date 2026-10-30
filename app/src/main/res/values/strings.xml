@@ -20,6 +20,9 @@
 
     <!-- Drawer. -->
     <string name="drawer_open">Open navigation</string>
+    <string name="drawer_status_connected">Connected · %1$s</string>
+    <string name="drawer_status_unknown_node">a node</string>
+    <string name="drawer_status_offline">Not connected</string>
     <string name="drawer_group_pages">Pages</string>
     <string name="drawer_group_settings">Settings and diagnostics</string>
     <string name="drawer_group_about">About</string>

@@ -12,6 +12,9 @@
 
     <!-- Drawer. -->
     <string name="drawer_open">打开导航</string>
+    <string name="drawer_status_connected">已连接 · %1$s</string>
+    <string name="drawer_status_unknown_node">当前节点</string>
+    <string name="drawer_status_offline">未连接</string>
     <string name="drawer_group_pages">页面</string>
     <string name="drawer_group_settings">设置与诊断</string>
     <string name="drawer_group_about">关于</string>
