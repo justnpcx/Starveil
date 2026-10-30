@@ -19,6 +19,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -185,7 +187,13 @@ fun ScenesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(StarveilSpacing.lg),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = StarveilSpacing.lg,
+                        top = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.lg + WindowInsets.navigationBars
+                            .asPaddingValues().calculateBottomPadding(),
+                    ),
                     verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
                     items(state.scenes, key = { it.id }) { scene ->

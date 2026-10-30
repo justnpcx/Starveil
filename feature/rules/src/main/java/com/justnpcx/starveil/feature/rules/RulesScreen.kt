@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -175,11 +178,14 @@ fun RulesScreen(
                 modifier = Modifier.fillMaxSize(),
                 // Room for the FAB: without it the last line of the empty state
                 // sat under the button, which is how "全部走代理）" got covered.
+                // The bottom clears the gesture bar and then some: a list that
+                // ends flush against it loses its last row to the system.
                 contentPadding = PaddingValues(
                     start = StarveilSpacing.pageMargin,
                     top = StarveilSpacing.xs,
                     end = StarveilSpacing.pageMargin,
-                    bottom = StarveilSpacing.xl,
+                    bottom = StarveilSpacing.xl + WindowInsets.navigationBars
+                        .asPaddingValues().calculateBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
             ) {
@@ -935,7 +941,8 @@ private fun FlowGroupRow(group: FlowGroup) {
                 top = StarveilSpacing.md,
                 bottom = StarveilSpacing.md,
             ),
-        verticalAlignment = Alignment.CenterVertically,
+        // Baseline, not centre: the label, the count and the outcome are three
+        // different type sizes, and centring them makes the number float.
     ) {
         // The rule's own name, in the mono face: it is an identifier the user
         // typed, not prose.
@@ -945,19 +952,21 @@ private fun FlowGroupRow(group: FlowGroup) {
             color = StarveilColors.ink2,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).alignByBaseline(),
         )
         Spacer(modifier = Modifier.width(StarveilSpacing.md))
         Text(
             text = group.count.toString(),
-            style = StarveilType.numInline,
+            style = StarveilType.numInline.copy(fontFeatureSettings = "tnum"),
             color = StarveilColors.ink,
+            modifier = Modifier.alignByBaseline(),
         )
         Spacer(modifier = Modifier.width(StarveilSpacing.sm))
         Text(
             text = stringResource(group.outcome.labelRes()),
             style = StarveilType.label,
             color = group.outcome.colour(),
+            modifier = Modifier.alignByBaseline(),
         )
     }
 }
@@ -1260,8 +1269,10 @@ private fun RoutePresetCard(
             selected = preset == RoutePreset.GLOBAL_DIRECT,
             onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
         )
-        // One line, always: the one rule the user cannot turn off is also the
-        // one they would otherwise wonder about.
+        // A footer of the card, not a footnote to the last option: this rule is
+        // built in and applies to every preset, and sitting it directly under
+        // "Global direct" made it read as part of that choice.
+        StarveilDivider(startInset = TEXT_COLUMN_INSET)
         Text(
             text = stringResource(R.string.rules_lan_note),
             style = StarveilType.label,

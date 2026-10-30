@@ -75,7 +75,7 @@
     <string name="rules_effective_domestic_names">国内域名（geosite-cn）→ 直连</string>
     <string name="rules_effective_domestic_addresses">国内地址（geoip-cn）→ 直连</string>
     <string name="rules_effective_lan">局域网（私网地址）→ 直连 · 系统内置</string>
-    <string name="rules_lan_note">局域网流量始终直连。</string>
+    <string name="rules_lan_note">局域网流量始终直连 · 系统内置规则，对所有预设生效。</string>
     <string name="rules_effective_user">你自己的 %1$d 条规则</string>
 
     <!-- 规则市场 -->
