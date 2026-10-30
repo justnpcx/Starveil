@@ -6,6 +6,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.0] — 2026-10-30
+
+Scheme six: the navigation and the palette are new. The tunnel, the routing
+engine and the node picker are unchanged.
+
+### Added
+
+- **A drawer, and no bottom bar.** Pages are reached from a 280dp drawer:
+  Pages (Home, Nodes, Rules, Logs), Settings and diagnostics (Settings, Scenes,
+  Diagnostics), About (repository, changelog, issues). Each destination keeps
+  its own scroll and filter state.
+- **A day and a night table.** One token set per mode, every Material role
+  mapped explicitly — including the three tonal containers that used to fall
+  back to Material's lavender. Follow system, day, or night, persisted in
+  DataStore; the top-bar button is a shortcut to the same setting.
+- **A C2 adaptive icon.** The star is the icon; the gauze is clipped inside it,
+  and a monochrome layer follows the system's themed icons.
+- **A node-page speed dial.** Add node, import subscription, new scene. Each
+  opens a centred dialog, not a bottom sheet.
+- **A persisted auto/manual node mode.** Choosing a node by hand writes manual;
+  choosing auto picks now and survives a restart.
+- **Four node states**: untested (hollow), online (accent dot + latency),
+  timeout (red), selected (brand star + accent outline), with selected and
+  timeout allowed to coexist.
+- **A compact About card** with the C2 mark, version, kernel, update/privacy
+  buttons and the three repository links.
+
+### Changed
+
+- The home ring is a fixed 204dp; connected draws the brand gradient, idle the
+  grey ring. The centre is the star, the state, and one line of instruction.
+- The connection card carries the gauze and a two-segment auto/manual control;
+  the card is opaque, the lists stay opaque.
+- Node chips are generated only for groups that hold nodes. Subscription-backed
+  groups no longer produce a chip.
+- Search fields, chips, switches, dialogs and the type scale follow the new
+  token table. Page titles are 22/700, card titles 17/600, numbers are tabular.
+- The system bars take the page colour in both modes, with the icon grade
+  following the theme.
+
+### Removed
+
+- The bottom navigation bar and its variants.
+- The first-run onboarding flow; the home ring, the Nodes empty state and the
+  FAB already carry the same actions.
+- The Subscription chip and the scene FAB.
+
+### Fixed
+
+- Auto/manual no longer sticks in one direction; the mode is persisted.
+- Empty groups no longer leave a chip behind after a subscription refresh.
+- Dark-mode text that had fallen back to Compose's default black on the scene,
+  rule-flow, editor, empty-state, keep-alive, per-app and privacy screens.
+- System-bar seams on secondary pages.
+
 ## [Unreleased]
 
 ## [0.8.7] — 2026-10-26
