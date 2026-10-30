@@ -342,7 +342,7 @@ object StarveilIcons {
      *
      * The dashboard used to be a ring with a ring inside it — a target, which
      * reads as "aim" rather than "start here", and which was one of two
-     * bullseye-shaped marks in the drawer.
+     * bullseye-shaped marks in the old navigation.
      */
     val Home: ImageVector by lazy {
         strokeIcon("Line.Home") {
