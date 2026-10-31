@@ -129,10 +129,10 @@
     <string name="scenes_name_example">家里</string>
     <string name="scenes_ssids_known">这台设备知道的网络</string>
 <string name="rules_value_example_domain">www.example.com</string>
-    <string name="rules_hint_domain">只匹配该域名本身，不支持通配符</string>
-    <string name="rules_hint_suffix">匹配该域名及其全部子域名，前导点可省略</string>
-    <string name="rules_hint_keyword">匹配任何包含这段文字的域名</string>
-    <string name="rules_hint_cidr">单个地址或 CIDR 网段，如 10.0.0.0/8</string>
+    <string name="rules_hint_domain">只匹配该域名本身</string>
+    <string name="rules_hint_suffix">匹配该域名及其全部子域名</string>
+    <string name="rules_hint_keyword">匹配包含这段文字的域名</string>
+    <string name="rules_hint_cidr">单个地址或 CIDR 网段</string>
     <string name="rules_value_example_suffix">example.com</string>
     <string name="rules_value_example_keyword">google</string>
     <string name="rules_value_example_cidr">192.168.1.0/24</string>
