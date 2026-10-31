@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.9] — 2026-10-31
+
+The navigation bar stops reacting to touch, the app learns a second language, and
+the palette opens up — a little.
+
+### Added
+
+- **Language, in the app.** Settings → General → Language offers System default,
+  简体中文 and English, through the platform's per-app locale, so Android 13's own
+  "App language" page shows the same choice and the two cannot disagree.
+- **Five accent presets and three text sizes.** Star blue, violet, teal, pine and
+  amber, each remapping only the accent family — the brand gradient, the icon and
+  the semantic colours stay put. Text can be standard, large or largest; the home
+  page's one-screen promise holds at standard and is allowed to scroll above it.
+
+### Fixed
+
+- **The navigation bar no longer reacts to a press at all.** The slot-sized ripple
+  from 0.9.8 was still a shape appearing under the finger; a tab now changes
+  colour and nothing else, the way the phone's own tab bar behaves.
+
 ## [0.9.8] — 2026-10-31
 
 Two things the phone found in 0.9.7.
