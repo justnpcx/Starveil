@@ -292,7 +292,10 @@ fun StarveilNavHost(
 
         navigation(startDestination = RULE_TEST_ROUTE, route = "diagnostics") {
         composable(RULE_TEST_ROUTE) {
-            RuleTestScreen()
+            RuleTestScreen(
+                onRunLeakCheck = onRunLeakCheck,
+                onOpenDnsLog = { navController.navigate(DNS_LOG_ROUTE) },
+            )
         }
         }
 

@@ -155,6 +155,8 @@
     <string name="settings_group_connection">连接</string>
     <string name="settings_group_routing">路由与后台</string>
     <string name="settings_group_diagnostics">数据、安全与诊断</string>
+    <string name="diagnostics_card_check_title">自检</string>
+    <string name="diagnostics_card_dns_title">DNS</string>
     <string name="settings_dns_metrics_title">DNS 采样</string>
     <string name="settings_dns_metrics_desc">记录每次解析耗时，保留最近 512 次。</string>
     <string name="settings_dns_metrics_empty">暂无样本。</string>

@@ -8,16 +8,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,11 +27,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.justnpcx.starveil.core.data.geo.DnsMetrics
+import com.justnpcx.starveil.core.data.geo.DnsSnapshot
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
@@ -41,22 +45,31 @@ import com.justnpcx.starveil.core.kernel.config.RouteEvaluator
 import com.justnpcx.starveil.core.kernel.config.RuleDryRun
 import com.justnpcx.starveil.core.kernel.ruleset.Srs
 import com.justnpcx.starveil.core.kernel.ruleset.SrsRuleSetLookup
+import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.components.StarveilIconAction
-import com.justnpcx.starveil.core.ui.util.readClipboardText
+import com.justnpcx.starveil.core.ui.components.StarveilSwitch
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
+import com.justnpcx.starveil.core.ui.util.readClipboardText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
+import java.text.DateFormat
+import java.util.Date
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** What the screen has, and what it is waiting for. */
@@ -81,23 +94,69 @@ data class RuleTestResult(
     val index: Int?,
 )
 
+/**
+ * The two things on this page that are not the rule test: the last self-check,
+ * and the DNS ring.
+ *
+ * They are here because this page is where the diagnostics live now. They used
+ * to be rows in Settings, which meant the page that answers "what is going on"
+ * was split in two, one half of it behind a screen full of switches.
+ */
+data class DiagnosticsState(
+    val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
+    val dnsMetricsEnabled: Boolean = true,
+    val dnsStats: DnsSnapshot = DnsSnapshot.EMPTY,
+)
+
 @HiltViewModel
 class RuleTestViewModel @Inject constructor(
     private val store: MainlandRuleSetStore,
     private val builder: ConfigBuilder,
     private val preferences: PreferencesRepository,
     private val ruleRepository: RuleRepository,
+    private val metrics: DnsMetrics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RuleTestUiState>(RuleTestUiState.Loading)
     val state = _state.asStateFlow()
 
+    private val dnsStats = MutableStateFlow(DnsSnapshot.EMPTY)
+
     private var lookup: SrsRuleSetLookup? = null
     private var rules: List<Map<String, Any?>> = emptyList()
     private var finalTag: String = "proxy"
 
+    /**
+     * The switch decides whether the ring records; the metric itself has no
+     * opinion, so the stored value is applied here before the first sample.
+     */
+    val diagnostics: StateFlow<DiagnosticsState> = combine(
+        preferences.lastLeakCheck,
+        preferences.dnsMetricsEnabled,
+        dnsStats,
+    ) { leak, enabled, stats ->
+        DiagnosticsState(lastLeakCheck = leak, dnsMetricsEnabled = enabled, dnsStats = stats)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = DiagnosticsState(),
+    )
+
     init {
         viewModelScope.launch { load() }
+        viewModelScope.launch {
+            metrics.enabled = preferences.dnsMetricsEnabled.first()
+        }
+    }
+
+    /** Read the ring into the card; the page calls this on a slow tick. */
+    fun refreshDnsStats() {
+        dnsStats.value = metrics.snapshot()
+    }
+
+    fun setDnsMetricsEnabled(enabled: Boolean) {
+        metrics.enabled = enabled
+        viewModelScope.launch { preferences.setDnsMetricsEnabled(enabled) }
     }
 
     private suspend fun load() {
@@ -162,99 +221,234 @@ class RuleTestViewModel @Inject constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The diagnostics page: the self-check card, then the DNS card.
+ *
+ * Two cards rather than one long list because they answer two different
+ * questions — "does my rule set send this where I think it does" and "how fast
+ * is name resolution" — and a page that mixes them makes both harder to read.
+ */
 @Composable
 fun RuleTestScreen(
+    onRunLeakCheck: () -> Unit,
+    onOpenDnsLog: () -> Unit,
     viewModel: RuleTestViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    // The ring only changes while something resolves, so the card reads it on a
+    // slow tick rather than making every lookup flow into the UI.
+    LaunchedEffect(Unit) {
+        while (true) {
+            viewModel.refreshDnsStats()
+            delay(DNS_STATS_REFRESH_MS)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(
                 start = StarveilSpacing.pageMargin,
                 end = StarveilSpacing.pageMargin,
                 bottom = StarveilSpacing.navContentInset,
             ),
     ) {
-            Text(
-                text = stringResource(R.string.rule_test_intro),
-                style = StarveilType.label,
-                color = StarveilColors.ink2,
-                modifier = Modifier.padding(bottom = StarveilSpacing.lg),
-            )
-            // Said before the answer, not after it: a result that quietly
-            // ignored the user's own rules would be worse than no result.
-            Text(
-                text = stringResource(R.string.rule_test_scope),
-                style = StarveilType.tech,
-                color = StarveilColors.ink3,
-                modifier = Modifier.padding(bottom = StarveilSpacing.md),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                StarveilTextField(
-                    value = query,
-                    onValueChange = {
-                        query = it
-                        viewModel.test(it)
-                    },
-                    label = stringResource(R.string.rule_test_field),
-                    supportingText = stringResource(R.string.rule_test_hint),
-                    modifier = Modifier.weight(1f),
-                )
-                // Reading the clipboard is an interaction, which is exactly
-                // when Android 10+ will hand it over.
-                StarveilIconAction(
-                    icon = StarveilIcons.Clipboard,
-                    contentDescription = stringResource(R.string.rule_test_paste),
-                    onClick = {
-                        val text = readClipboardText(context)?.trim().orEmpty()
-                        if (text.isNotEmpty()) {
-                            query = text
-                            viewModel.test(text)
-                        }
-                    },
-                )
-            }
-            Spacer(modifier = Modifier.height(StarveilSpacing.md))
-            // Three addresses to try, so the page can be understood without
-            // typing anything.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
+        // ---- Self-check ----------------------------------------------------
+        StarveilCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
                 Text(
-                    text = stringResource(R.string.rule_test_try),
+                    text = stringResource(R.string.diagnostics_card_check_title),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                Text(
+                    text = stringResource(R.string.rule_test_intro),
                     style = StarveilType.label,
                     color = StarveilColors.ink2,
                 )
-                EXAMPLE_DOMAINS.forEach { domain ->
-                    StarveilChip(
-                        label = domain,
-                        selected = false,
+                // Said before the answer, not after it: a result that quietly
+                // ignored the user's own rules would be worse than no result.
+                Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                Text(
+                    text = stringResource(R.string.rule_test_scope),
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink3,
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                ) {
+                    StarveilTextField(
+                        value = query,
+                        onValueChange = {
+                            query = it
+                            viewModel.test(it)
+                        },
+                        label = stringResource(R.string.rule_test_field),
+                        supportingText = stringResource(R.string.rule_test_hint),
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Reading the clipboard is an interaction, which is exactly
+                    // when Android 10+ will hand it over.
+                    StarveilIconAction(
+                        icon = StarveilIcons.Clipboard,
+                        contentDescription = stringResource(R.string.rule_test_paste),
                         onClick = {
-                            query = domain
-                            viewModel.test(domain)
+                            val text = readClipboardText(context)?.trim().orEmpty()
+                            if (text.isNotEmpty()) {
+                                query = text
+                                viewModel.test(text)
+                            }
                         },
                     )
                 }
+                Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                // Three addresses to try, so the page can be understood without
+                // typing anything.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                ) {
+                    Text(
+                        text = stringResource(R.string.rule_test_try),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                    )
+                    EXAMPLE_DOMAINS.forEach { domain ->
+                        StarveilChip(
+                            label = domain,
+                            selected = false,
+                            onClick = {
+                                query = domain
+                                viewModel.test(domain)
+                            },
+                        )
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(StarveilSpacing.lg))
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            ResultArea(
+                state = state,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 148.dp)
+                    .padding(StarveilSpacing.lg),
+            )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            // The self-check's own status line, moved here from Settings: the
+            // page that runs it is the page that should say when it last ran.
+            Row(
+                modifier = Modifier.padding(
+                    start = StarveilSpacing.lg,
+                    end = StarveilSpacing.lg,
+                    top = StarveilSpacing.md,
+                    bottom = StarveilSpacing.md,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = leakCheckSummary(diagnostics.lastLeakCheck),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+                Text(
+                    text = stringResource(R.string.leak_check_run),
+                    style = StarveilType.label,
+                    color = StarveilColors.accent,
+                    modifier = Modifier
+                        .clickable(role = Role.Button, onClick = onRunLeakCheck)
+                        .padding(vertical = StarveilSpacing.xs),
+                )
+            }
+        }
 
-            // The result area takes the rest of the page. Without it the top
-            // half had content and the bottom half was blank, which reads as a
-            // screen that failed to finish loading.
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(bottom = StarveilSpacing.lg)) {
-                ResultArea(state = state)
+        Spacer(modifier = Modifier.height(StarveilSpacing.md))
+
+        // ---- DNS -----------------------------------------------------------
+        StarveilCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                Text(
+                    text = stringResource(R.string.diagnostics_card_dns_title),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                Text(
+                    text = stringResource(R.string.settings_dns_metrics_desc),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                )
             }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.md,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_dns_metrics_title),
+                    style = StarveilType.body,
+                    color = StarveilColors.ink,
+                    modifier = Modifier.weight(1f),
+                )
+                StarveilSwitch(
+                    checked = diagnostics.dnsMetricsEnabled,
+                    onCheckedChange = viewModel::setDnsMetricsEnabled,
+                )
+            }
+            if (diagnostics.dnsMetricsEnabled) {
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                // One line of state, not the telemetry: the numbers are one tap
+                // away, with the per-query log beside them.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button, onClick = onOpenDnsLog)
+                        .padding(
+                            start = StarveilSpacing.lg,
+                            end = StarveilSpacing.lg,
+                            top = StarveilSpacing.md,
+                            bottom = StarveilSpacing.md,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_dns_log_title),
+                            style = StarveilType.body,
+                            color = StarveilColors.ink,
+                        )
+                        Text(
+                            text = dnsStatusLine(diagnostics.dnsStats),
+                            style = StarveilType.label,
+                            color = StarveilColors.ink2,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                    Icon(
+                        imageVector = StarveilIcons.Chevron,
+                        contentDescription = null,
+                        tint = StarveilColors.ink2,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -262,12 +456,12 @@ fun RuleTestScreen(
 @Composable
 private fun ResultArea(state: RuleTestUiState, modifier: Modifier = Modifier) {
     when (state) {
-        RuleTestUiState.Loading -> PlaceholderCard(
+        RuleTestUiState.Loading -> Placeholder(
             text = stringResource(R.string.rule_test_loading),
             modifier = modifier,
         )
 
-        is RuleTestUiState.Failed -> PlaceholderCard(
+        is RuleTestUiState.Failed -> Placeholder(
             text = stringResource(R.string.rule_test_failed, state.message),
             modifier = modifier,
             error = true,
@@ -277,38 +471,31 @@ private fun ResultArea(state: RuleTestUiState, modifier: Modifier = Modifier) {
             // No sets on this device: every answer would be "final", which
             // reads like "no rule matched" when the truth is "there are no
             // rules to match". Say which it is.
-            state.tags.isEmpty() -> PlaceholderCard(
+            state.tags.isEmpty() -> Placeholder(
                 text = stringResource(R.string.rule_test_no_sets),
                 modifier = modifier,
             )
 
-            state.result == null -> PlaceholderCard(
+            state.result == null -> Placeholder(
                 text = stringResource(R.string.rule_test_placeholder),
                 modifier = modifier,
             )
 
-            else -> StarveilCard(modifier = modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(StarveilSpacing.lg),
-                ) {
-                    Text(
-                        text = outboundText(state.result.outbound),
-                        style = StarveilType.display,
-                        color = outcomeColour(state.result.outbound),
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-                    ResultLine(stringResource(R.string.rule_test_rule), state.result.rule)
-                    StarveilDivider(startInset = 0.dp)
-                    ResultLine(stringResource(R.string.rule_test_reason), reasonText(state.result.reason))
-                    StarveilDivider(startInset = 0.dp)
-                    ResultLine(
-                        stringResource(R.string.rule_test_sets_label),
-                        state.tags.joinToString(", "),
-                    )
-                }
+            else -> Column(modifier = modifier) {
+                Text(
+                    text = outboundText(state.result.outbound),
+                    style = StarveilType.display,
+                    color = outcomeColour(state.result.outbound),
+                )
+                Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                ResultLine(stringResource(R.string.rule_test_rule), state.result.rule)
+                StarveilDivider(startInset = 0.dp)
+                ResultLine(stringResource(R.string.rule_test_reason), reasonText(state.result.reason))
+                StarveilDivider(startInset = 0.dp)
+                ResultLine(
+                    stringResource(R.string.rule_test_sets_label),
+                    state.tags.joinToString(", "),
+                )
             }
         }
     }
@@ -316,22 +503,17 @@ private fun ResultArea(state: RuleTestUiState, modifier: Modifier = Modifier) {
 
 /** The empty state of the result area: it holds the space, and says what goes there. */
 @Composable
-private fun PlaceholderCard(
+private fun Placeholder(
     text: String,
     modifier: Modifier = Modifier,
     error: Boolean = false,
 ) {
-    StarveilCard(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(StarveilSpacing.lg),
-            contentAlignment = Alignment.TopStart,
-        ) {
-            Text(
-                text = text,
-                style = StarveilType.label,
-                color = if (error) StarveilColors.errText else StarveilColors.ink2,
-            )
-        }
+    Box(modifier = modifier, contentAlignment = Alignment.TopStart) {
+        Text(
+            text = text,
+            style = StarveilType.label,
+            color = if (error) StarveilColors.errText else StarveilColors.ink2,
+        )
     }
 }
 
@@ -374,3 +556,30 @@ private fun reasonText(reason: DecisionReason): String = when (reason) {
     DecisionReason.DEFAULT_OUTBOUND -> stringResource(R.string.rule_test_reason_default)
 }
 
+/** "No self-check has run yet", or when the last one ran and what it found. */
+@Composable
+private fun leakCheckSummary(record: LeakCheckRecord): String =
+    if (record.checkedAtEpochMs <= 0L) {
+        stringResource(R.string.leak_check_never)
+    } else {
+        val when_ = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+            .format(Date(record.checkedAtEpochMs))
+        stringResource(
+            if (record.leaking) R.string.leak_check_leaking else R.string.leak_check_clean,
+            when_,
+        )
+    }
+
+/** The DNS summary line: one number, the budget, and how many samples. */
+@Composable
+private fun dnsStatusLine(stats: DnsSnapshot): String = when {
+    stats.samples == 0 -> stringResource(R.string.settings_dns_metrics_empty)
+    stats.p50Ms <= DNS_TARGET_MS -> stringResource(R.string.settings_dns_log_ok, stats.p50Ms, stats.samples)
+    else -> stringResource(R.string.settings_dns_log_slow, stats.p50Ms, stats.samples)
+}
+
+/** The self-check's budget, in milliseconds. */
+private const val DNS_TARGET_MS = 30L
+
+/** Slow tick for the DNS card: the ring only moves when a name is resolved. */
+private const val DNS_STATS_REFRESH_MS = 2_000L
