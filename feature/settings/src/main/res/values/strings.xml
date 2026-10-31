@@ -9,6 +9,16 @@
     <string name="language_english">English</string>
 
     <string name="appearance_title">Appearance</string>
+    <string name="appearance_accent_title">Accent colour</string>
+    <string name="appearance_font_title">Text size</string>
+    <string name="font_standard">Standard</string>
+    <string name="font_large">Large</string>
+    <string name="font_largest">Largest</string>
+    <string name="accent_star_blue">Star blue</string>
+    <string name="accent_violet">Violet</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_pine">Pine</string>
+    <string name="accent_amber">Amber</string>
     <string name="appearance_system">Follow system</string>
     <string name="appearance_light">Day</string>
     <string name="appearance_dark">Night</string>

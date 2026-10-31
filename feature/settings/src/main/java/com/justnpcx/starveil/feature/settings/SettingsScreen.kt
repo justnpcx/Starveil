@@ -16,6 +16,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.ui.semantics.selected
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
+import com.justnpcx.starveil.core.ui.theme.accentToneFor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -325,6 +332,60 @@ fun SettingsScreen(
                                     0 -> ThemeMode.SYSTEM
                                     1 -> ThemeMode.LIGHT
                                     else -> ThemeMode.DARK
+                                },
+                            )
+                        },
+                    )
+                }
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                // The accent family: five swatches, one of them ticked. A row
+                // of dots rather than a dropdown because the whole point of a
+                // preset list this short is that you can see all of them.
+                Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                    Text(
+                        text = stringResource(R.string.appearance_accent_title),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+                    ) {
+                        AccentPreset.entries.forEach { preset ->
+                            AccentSwatch(
+                                preset = preset,
+                                selected = preset == state.accentPreset,
+                                onClick = { viewModel.setAccentPreset(preset) },
+                            )
+                        }
+                    }
+                }
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                    Text(
+                        text = stringResource(R.string.appearance_font_title),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                    StarveilSegmented(
+                        options = listOf(
+                            stringResource(R.string.font_standard),
+                            stringResource(R.string.font_large),
+                            stringResource(R.string.font_largest),
+                        ),
+                        selectedIndex = when (state.fontScale) {
+                            FontScale.STANDARD -> 0
+                            FontScale.LARGE -> 1
+                            FontScale.LARGEST -> 2
+                        },
+                        onSelect = { index ->
+                            viewModel.setFontScale(
+                                when (index) {
+                                    0 -> FontScale.STANDARD
+                                    1 -> FontScale.LARGE
+                                    else -> FontScale.LARGEST
                                 },
                             )
                         },
@@ -1248,5 +1309,61 @@ private fun CardHeader(title: String, description: String) {
     ) {
         Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
         Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
+    }
+}
+
+
+/**
+ * One accent swatch.
+ *
+ * The dot is the preset's own accent colour, and the tick is drawn in whatever
+ * reads on it — white on a dark accent, the page colour on a light one — so the
+ * mark never disappears into the swatch it is marking.
+ */
+@Composable
+private fun AccentSwatch(
+    preset: AccentPreset,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val dark = StarveilColors.isDark
+    val tone = accentToneFor(dark, preset)
+    val checkTint = if (dark) StarveilColors.bg else Color.White
+    val label = stringResource(
+        when (preset) {
+            AccentPreset.STAR_BLUE -> R.string.accent_star_blue
+            AccentPreset.VIOLET -> R.string.accent_violet
+            AccentPreset.TEAL -> R.string.accent_teal
+            AccentPreset.PINE -> R.string.accent_pine
+            AccentPreset.AMBER -> R.string.accent_amber
+        },
+    )
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.RadioButton, onClick = onClick)
+            .semantics {
+                contentDescription = label
+                this.selected = selected
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(tone.accent),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = StarveilIcons.Check,
+                    contentDescription = null,
+                    tint = checkTint,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
     }
 }

@@ -117,6 +117,39 @@ class ContrastTest {
         }
     }
 
+    /**
+     * Every accent preset, in both modes.
+     *
+     * A preset that cannot carry text on the page is a preset that has to be
+     * adjusted, not shipped — the whole point of a short measured list is that
+     * all five are usable.
+     */
+    @Test
+    fun everyAccentPresetClearsTheTextThreshold() {
+        for (preset in com.justnpcx.starveil.core.model.AccentPreset.entries) {
+            for (dark in listOf(false, true)) {
+                val p = paletteFor(dark, preset)
+                val where = preset.name + (if (dark) " dark" else " light")
+                assertAtLeast(4.5, p.accent, p.bg, where + ": accent on bg")
+                assertAtLeast(4.5, p.accent, p.card, where + ": accent on card")
+                assertAtLeast(4.5, p.selInk, p.selBg, where + ": selInk on selBg")
+            }
+        }
+    }
+
+    @Test
+    fun reportEveryAccentPreset() {
+        for (preset in com.justnpcx.starveil.core.model.AccentPreset.entries) {
+            for (dark in listOf(false, true)) {
+                val p = paletteFor(dark, preset)
+                val where = "PRESET_" + preset.name + (if (dark) "_DARK" else "_LIGHT")
+                println(where + "_accent_on_bg=" + "%.2f".format(contrast(p.accent, p.bg)))
+                println(where + "_accent_on_card=" + "%.2f".format(contrast(p.accent, p.card)))
+                println(where + "_selInk_on_selBg=" + "%.2f".format(contrast(p.selInk, p.selBg)))
+            }
+        }
+    }
+
     private fun assertAtLeast(minimum: Double, foreground: Color, background: Color, what: String) {
         val ratio = contrast(foreground, background)
         assertTrue(

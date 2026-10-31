@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.ui.theme
 
 import androidx.compose.runtime.Immutable
+import com.justnpcx.starveil.core.model.AccentPreset
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -206,3 +207,52 @@ val DarkPalette = StarveilPalette(
 
 /** The default palette. The theme always provides one explicitly. */
 val GlassPalette = LightPalette
+
+/**
+ * The three colours a preset remaps, and nothing else.
+ *
+ * Everything a preset is allowed to touch lives in this one value, which is
+ * what keeps the promise that the brand gradient, the icon and the semantic
+ * colours do not follow the setting.
+ */
+@Immutable
+data class AccentTone(
+    val accent: Color,
+    val selBg: Color,
+    val selInk: Color,
+)
+
+/** Light and dark tones, per preset. Values from the task book's TOK-1 table. */
+private val PRESET_TONES: Map<AccentPreset, Pair<AccentTone, AccentTone>> = mapOf(
+    AccentPreset.STAR_BLUE to (
+        AccentTone(Color(0xFF0B57D0), Color(0xFFD3E3FD), Color(0xFF0B57D0)) to
+            AccentTone(Color(0xFFA8C7FA), Color(0xFF004A77), Color(0xFFC2E7FF))
+        ),
+    AccentPreset.VIOLET to (
+        AccentTone(Color(0xFF6C4BD8), Color(0xFFE9E2FF), Color(0xFF4A2FA0)) to
+            AccentTone(Color(0xFFCDBDFF), Color(0xFF3A2A6E), Color(0xFFE4DAFF))
+        ),
+    AccentPreset.TEAL to (
+        AccentTone(Color(0xFF00707E), Color(0xFFCFEDF2), Color(0xFF005863)) to
+            AccentTone(Color(0xFF7FD8E0), Color(0xFF0C3B44), Color(0xFFC4F0F5))
+        ),
+    AccentPreset.PINE to (
+        AccentTone(Color(0xFF1E7A3C), Color(0xFFD3F0DB), Color(0xFF14532A)) to
+            AccentTone(Color(0xFF8FD6A4), Color(0xFF0E3D22), Color(0xFFC9F2D6))
+        ),
+    AccentPreset.AMBER to (
+        AccentTone(Color(0xFFA64B00), Color(0xFFFFE3C2), Color(0xFF8F4200)) to
+            AccentTone(Color(0xFFFFB77A), Color(0xFF4A2A08), Color(0xFFFFDDBD))
+        ),
+)
+
+/** The palette for a mode and a preset: the base table with its accent family swapped. */
+fun paletteFor(dark: Boolean, preset: AccentPreset): StarveilPalette {
+    val base = if (dark) DarkPalette else LightPalette
+    val tone = PRESET_TONES.getValue(preset).let { if (dark) it.second else it.first }
+    return base.copy(accent = tone.accent, selBg = tone.selBg, selInk = tone.selInk)
+}
+
+/** The tone a preset uses in a mode, for the settings page's swatches. */
+fun accentToneFor(dark: Boolean, preset: AccentPreset): AccentTone =
+    PRESET_TONES.getValue(preset).let { if (dark) it.second else it.first }

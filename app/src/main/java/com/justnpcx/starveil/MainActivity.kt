@@ -57,6 +57,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
 import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.ui.components.StarveilBackground
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
@@ -136,6 +138,10 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val themeMode by preferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val accentPreset by preferences.accentPreset
+                .collectAsStateWithLifecycle(initialValue = AccentPreset.STAR_BLUE)
+            val fontScale by preferences.fontScale
+                .collectAsStateWithLifecycle(initialValue = FontScale.STANDARD)
             val systemDark = isSystemInDarkTheme()
             val dark = when (themeMode) {
                 ThemeMode.SYSTEM -> systemDark
@@ -159,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
-            StarveilTheme(darkTheme = dark) {
+            StarveilTheme(darkTheme = dark, accent = accentPreset, fontScale = fontScale) {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
                 StarveilShell(
