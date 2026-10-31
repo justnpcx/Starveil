@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,6 +55,7 @@ import com.justnpcx.starveil.core.model.AvailabilityBand
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.NodeSelectionMode
+import com.justnpcx.starveil.core.ui.components.StarveilSnackbarHost
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.StarveilSegmented
 import com.justnpcx.starveil.core.ui.components.ConnectionCoreGeometry
@@ -312,7 +312,7 @@ fun DashboardScreen(
         }
         }
 
-        SnackbarHost(
+        StarveilSnackbarHost(
             hostState = snackbar,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
