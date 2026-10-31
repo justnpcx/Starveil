@@ -51,7 +51,9 @@
     <string name="about_update_checking">Checking…</string>
     <string name="about_update_latest">Up to date</string>
     <string name="about_update_available">%1$s available</string>
-    <string name="about_update_failed">Check failed</string>
+    <string name="about_update_downloading">Downloading…</string>
+    <string name="about_update_check_failed">Check failed · tap to retry</string>
+    <string name="about_update_download_failed">Download failed · tap to retry</string>
     <string name="about_update_ready">Ready to install</string>
     <string name="about_features_title">What it does</string>
     <string name="about_features_body">Starveil routes this device through a node you choose, and keeps the decision legible.\n\n· Nodes arrive by QR code, clipboard, subscription or by hand.\n· Rules decide what goes through the tunnel and what goes direct; the rules page shows what the kernel actually did, next to the rules you wrote.\n· Scenes switch the policy on a Wi-Fi name or a mobile network.\n· The home page shows the state, the rate, the exit address and a health curve for the node in force.\n· Everything local: no account, no analytics, one optional crash report.</string>
