@@ -255,12 +255,8 @@ fun StarveilNavHost(
         navigation(startDestination = Destination.SETTINGS.route, route = "settings_tab") {
         composable(Destination.SETTINGS.route) {
             SettingsScreen(
-                onRunLeakCheck = onRunLeakCheck,
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
                 onOpenKeepAlive = { navController.navigate(KEEP_ALIVE_ROUTE) },
-                onOpenRuleTest = { navController.navigate("diagnostics") },
-                onOpenConnections = { navController.navigate(CONNECTIONS_ROUTE) },
-                onOpenDnsLog = { navController.navigate(DNS_LOG_ROUTE) },
                 onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) },
                 onOpenLanguage = { navController.navigate(LANGUAGE_ROUTE) },
                 // A build with no DSN has no crash reporting, so the switch is

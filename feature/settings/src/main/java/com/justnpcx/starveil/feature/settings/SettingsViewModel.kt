@@ -8,14 +8,6 @@ import com.justnpcx.starveil.core.data.backup.BackupFileStore
 import com.justnpcx.starveil.core.data.backup.BackupManager
 import com.justnpcx.starveil.core.data.crash.CrashReportingSwitch
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
-import com.justnpcx.starveil.core.data.diagnostics.DiagnosticBundle
-import com.justnpcx.starveil.core.data.diagnostics.DiagnosticInput
-import com.justnpcx.starveil.core.data.geo.DnsMetrics
-import com.justnpcx.starveil.core.data.repository.GroupRepository
-import com.justnpcx.starveil.core.data.repository.ProfileRepository
-import com.justnpcx.starveil.core.data.repository.RuleRepository
-import com.justnpcx.starveil.core.kernel.LogStream
-import com.justnpcx.starveil.core.data.geo.DnsSnapshot
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.update.UpdateCheck
 import com.justnpcx.starveil.core.data.update.UpdateChecker
@@ -26,7 +18,6 @@ import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.AccentPreset
 import com.justnpcx.starveil.core.model.FontScale
 import com.justnpcx.starveil.core.model.ThemeMode
-import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -52,10 +43,9 @@ data class SettingsUiState(
     val accentPreset: AccentPreset = AccentPreset.STAR_BLUE,
     /** The text-size multiplier. */
     val fontScale: FontScale = FontScale.STANDARD,
-    val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     /**
-     * The core's own version string, e.g. `1.14.3-647c447`. Empty until the
-     * first read lands.
+     * The core's own version string, e.g. 1.14.3-647c447. Empty until the first
+     * read lands. The About page shows it.
      */
     val kernelVersion: String = "",
     /** How many apps are set to bypass the tunnel; shown on the entry row. */
@@ -67,10 +57,6 @@ data class SettingsUiState(
     val crashReports: Boolean = true,
     /** Whether the local Clash-compatible API is served. Off unless asked for. */
     val localApiEnabled: Boolean = false,
-    /** Whether DNS timings are sampled (developer options). */
-    val dnsMetricsEnabled: Boolean = true,
-    /** The current ring, as the developer options row shows it. */
-    val dnsStats: DnsSnapshot = DnsSnapshot.EMPTY,
     /**
      * The bearer token a dashboard must send. Empty until the Keystore read
      * lands, and never logged.
@@ -110,18 +96,13 @@ sealed interface BackupMessage {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
-    private val kernel: KernelBridge,
     private val backup: BackupManager,
     private val files: BackupFileStore,
     private val crashReporting: CrashReportingSwitch,
     private val updateChecker: UpdateChecker,
     private val updateDownloader: UpdateDownloadPort,
     private val localApiToken: LocalApiTokenStore,
-    private val metrics: DnsMetrics,
-    private val profiles: ProfileRepository,
-    private val groups: GroupRepository,
-    private val rules: RuleRepository,
-    private val logs: LogStream,
+    private val kernel: KernelBridge,
 ) : ViewModel() {
 
     private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
@@ -234,20 +215,12 @@ class SettingsViewModel @Inject constructor(
     /** Read from the Keystore once, off the main thread. */
     private val apiToken = MutableStateFlow("")
 
-    /** Declared before the init block, which reads it. */
-    private val dnsStatsFlow = MutableStateFlow(DnsSnapshot.EMPTY)
-
     init {
-        // The ring is on unless the switch says otherwise; the stored value is
-        // the source of truth, and the metric has no opinion of its own.
-        viewModelScope.launch {
-            metrics.enabled = preferences.dnsMetricsEnabled.first()
-        }
-        // Read once. It is a build constant, and Settings is the one place it
-        // is worth showing — a bug report needs to name the core it ran.
+        // Read once. It is a build constant, and About is where it is worth
+        // showing — a bug report needs to name the core it ran.
         viewModelScope.launch { kernelVersion.value = kernel.version() }
         // Reading the token creates it if this is the first time, which is
-        // exactly when the developer section is opened for the first time.
+        // exactly when the advanced section is opened for the first time.
         viewModelScope.launch(Dispatchers.IO) { apiToken.value = localApiToken.token() }
     }
 
@@ -265,8 +238,7 @@ class SettingsViewModel @Inject constructor(
         combine(preferences.autoReconnect, preferences.autoSwitchOnDrop) { reconnect, switch ->
             reconnect to switch
         },
-        preferences.lastLeakCheck,
-    ) { mode, appearance, reconnect, leak ->
+    ) { mode, appearance, reconnect ->
         SettingsUiState(
             killSwitchMode = mode,
             themeMode = appearance.first,
@@ -274,7 +246,6 @@ class SettingsViewModel @Inject constructor(
             fontScale = appearance.third,
             autoReconnect = reconnect.first,
             autoSwitchOnDrop = reconnect.second,
-            lastLeakCheck = leak,
         )
     }
 
@@ -286,94 +257,21 @@ class SettingsViewModel @Inject constructor(
             // says which.
             preferences.perAppRoutes.map { it.size },
             crashReports,
-            combine(
-                preferences.localApiEnabled,
-                preferences.dnsMetricsEnabled,
-            ) { api, dns -> api to dns },
-        ) { state, version, perAppCount, reports, apiAndDns ->
+            preferences.localApiEnabled,
+        ) { state, version, perAppCount, reports, apiEnabled ->
             state.copy(
                 kernelVersion = version,
                 perAppDirectCount = perAppCount,
                 crashReports = reports,
-                localApiEnabled = apiAndDns.first,
-                dnsMetricsEnabled = apiAndDns.second,
+                localApiEnabled = apiEnabled,
             )
         }.combine(apiToken) { state, token ->
             state.copy(apiToken = token)
-        }.combine(dnsStatsFlow) { state, stats ->
-            state.copy(dnsStats = stats)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = SettingsUiState(),
         )
-
-    /**
-     * Build the diagnostic bundle and hand the text back.
-     *
-     * Nothing is written anywhere until the user confirms in the preview — this
-     * function returns a string and that is all it does.
-     */
-    fun buildDiagnosticBundle(appVersion: String, onReady: (String) -> Unit) {
-        viewModelScope.launch {
-            val nodeList = profiles.observeAll().first()
-            val groupList = groups.observeAll().first()
-            val ruleList = rules.observeAllOrdered().first()
-            val token = localApiToken.token()
-            val leak = preferences.lastLeakCheck.first()
-            // The ring is oldest-first; the bundle keeps the most recent
-            // hundred, in the order they happened.
-            val logLines = logs.lines.first()
-                .takeLast(MAX_LOG_LINES)
-                .map { line ->
-                    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
-                        .format(java.util.Date(line.timestampMs))
-                    time + " " + line.level.name.take(1) + " " + line.message
-                }
-
-            val input = DiagnosticInput(
-                appVersion = appVersion,
-                kernelVersion = kernelVersion.value,
-                androidSdk = android.os.Build.VERSION.SDK_INT,
-                dns = metrics.snapshot(),
-                leakCheckedAtMs = leak.checkedAtEpochMs,
-                leakLeaking = leak.leaking,
-                nodeCount = nodeList.size,
-                groupCount = groupList.size,
-                ruleCount = ruleList.size,
-                routePreset = preferences.routePreset.first().name.lowercase(),
-                killSwitchMode = preferences.killSwitchMode.first().name.lowercase(),
-                localApiEnabled = preferences.localApiEnabled.first(),
-                perAppDirectCount = preferences.perAppRoutes.first().size,
-                dnsMetricsEnabled = preferences.dnsMetricsEnabled.first(),
-                logLines = logLines,
-                // The exact values this device must never publish. Servers,
-                // subscription URLs and the API token are the three that the
-                // shapes alone cannot reliably catch.
-                secrets = buildList {
-                    nodeList.forEach { add(it.server) }
-                    groupList.forEach { group -> group.subscriptionUrl?.let { add(it) } }
-                    if (token.isNotBlank()) add(token)
-                },
-            )
-            onReady(DiagnosticBundle.build(input))
-        }
-    }
-
-    /** Read the ring into the row; called while the developer group is open. */
-    fun refreshDnsStats() {
-        dnsStatsFlow.value = metrics.snapshot()
-    }
-
-    fun clearDnsStats() {
-        metrics.clear()
-        dnsStatsFlow.value = DnsSnapshot.EMPTY
-    }
-
-    fun setDnsMetricsEnabled(enabled: Boolean) {
-        metrics.enabled = enabled
-        viewModelScope.launch { preferences.setDnsMetricsEnabled(enabled) }
-    }
 
     fun setKillSwitchMode(mode: KillSwitchMode) {
         viewModelScope.launch { preferences.setKillSwitchMode(mode) }
@@ -399,11 +297,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoSwitchOnDrop(enabled: Boolean) {
         viewModelScope.launch { preferences.setAutoSwitchOnDrop(enabled) }
-    }
-
-    private companion object {
-        /** Enough to see the last failure, small enough to paste. */
-        const val MAX_LOG_LINES = 100
     }
 
     fun setCrashReports(enabled: Boolean) {
