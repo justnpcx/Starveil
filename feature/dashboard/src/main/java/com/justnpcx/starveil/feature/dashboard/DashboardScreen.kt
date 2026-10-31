@@ -2,7 +2,6 @@ package com.justnpcx.starveil.feature.dashboard
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +41,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -126,16 +124,18 @@ fun DashboardScreen(
         }
     }
 
-    // Landscape cannot hold the column, so it scrolls. Portrait must not.
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-
+    // Every page scrolls, in every orientation.
+    //
+    // "Portrait never scrolls" was the rule that made a short phone's health
+    // card unreachable: the column overflowed, the overflow was clipped, and
+    // there was no gesture that could bring it back. A tall screen pays
+    // nothing for this — the column is shorter than the window, so the scroll
+    // never engages and the first screen is the same pixels it always was.
     Box(modifier = Modifier.fillMaxSize()) {
-        val scroll = if (landscape) Modifier.verticalScroll(rememberScrollState()) else Modifier
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(scroll)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = StarveilSpacing.pageMargin),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -286,8 +286,10 @@ fun DashboardScreen(
                 }
             }
 
-            // The last card must not touch the navigation bar.
+            // The last card must not touch the navigation bar: 32dp of air,
+            // then the same 12dp every other page keeps above the bar.
             Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
+            Spacer(modifier = Modifier.height(StarveilSpacing.navContentInset))
         }
 
         SnackbarHost(
