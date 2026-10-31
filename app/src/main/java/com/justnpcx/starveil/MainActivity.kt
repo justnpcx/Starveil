@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -165,35 +166,44 @@ class MainActivity : AppCompatActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
-            StarveilTheme(darkTheme = dark, accent = accentPreset, fontScale = fontScale) {
-                val navController = rememberNavController()
-                val snackbarHostState = remember { SnackbarHostState() }
-                StarveilShell(
-                    navController = navController,
-                    darkTheme = dark,
-                    onToggleTheme = {
-                        // From "follow system", the button pins the
-                        // opposite of what is on screen. From a pin, it
-                        // flips the pin.
-                        val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
-                        lifecycleScope.launch { preferences.setThemeMode(next) }
-                    },
-                    snackbarHost = {
-                        UndoSnackbarHost(
-                            requests = undoBus,
-                            hostState = snackbarHostState,
-                        )
-                    },
-                ) {
-                    // The shell applies its own bar insets to the content; a
-                    // second padding here would be the bars counted twice.
-                    StarveilNavHost(
+            // Text size is a density multiplier, and a density only lands on
+            // the next measure: what is already on screen has laid its text
+            // out, and a changed local does not by itself re-measure it. Keying
+            // the tree on the choice rebuilds it, which is what the system does
+            // when its own font size changes. The nav controller and the
+            // snackbar sit above the key, so the page you were on is still the
+            // page you are on after the switch.
+            val navController = rememberNavController()
+            val snackbarHostState = remember { SnackbarHostState() }
+            key(fontScale) {
+                StarveilTheme(darkTheme = dark, accent = accentPreset, fontScale = fontScale) {
+                    StarveilShell(
                         navController = navController,
-                        latencyTester = latencyTester,
-                        leakCheckRunner = leakCheckRunner,
-                        deepLinks = deepLinks,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                        darkTheme = dark,
+                        onToggleTheme = {
+                            // From "follow system", the button pins the
+                            // opposite of what is on screen. From a pin, it
+                            // flips the pin.
+                            val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
+                            lifecycleScope.launch { preferences.setThemeMode(next) }
+                        },
+                        snackbarHost = {
+                            UndoSnackbarHost(
+                                requests = undoBus,
+                                hostState = snackbarHostState,
+                            )
+                        },
+                    ) {
+                        // The shell applies its own bar insets to the content; a
+                        // second padding here would be the bars counted twice.
+                        StarveilNavHost(
+                            navController = navController,
+                            latencyTester = latencyTester,
+                            leakCheckRunner = leakCheckRunner,
+                            deepLinks = deepLinks,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
