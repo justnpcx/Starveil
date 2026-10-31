@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.11] — 2026-10-31
+
+The hub is grouped by purpose, Settings stops pretending to be a dashboard, and
+the diagnostics page becomes the one place that answers "what is going on".
+
+### Changed
+
+- **The hub has two groups.** Diagnostic tools — self-check, connections, logs,
+  the exported bundle — and App — scenes, settings, about. Connections and the
+  bundle used to be reachable only from inside Settings, which is not where a
+  tool belongs.
+- **Settings is preferences only.** The six diagnostic rows moved to the
+  diagnostics page; the local API switch sits in a new Advanced group. Search no
+  longer offers a row that is not on the screen.
+- **The diagnostics page holds the DNS card.** Sampling, the p50 summary and the
+  per-query log moved here from Settings, beside the self-check that reads them.
+- **Scenes has one entrance.** The rules page carried a second copy of the row;
+  the hub is its home.
+
 ## [0.9.10] — 2026-10-31
 
 Two small corrections: where the add panel's tiles put their content, and what
