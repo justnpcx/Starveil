@@ -438,12 +438,17 @@ fun ProfilesScreen(
             }
             // The clipboard bar sits between the chips and the list: close to
             // the content it would add, and nowhere near the FAB.
-            clipboardSuggestion?.let { suggestion ->
-                ClipboardBar(
-                    suggestion = suggestion,
-                    onImport = viewModel::importClipboardSuggestion,
-                    onDismiss = viewModel::dismissClipboardSuggestion,
-                )
+            // Not while the add panel is up: the panel's own clipboard card is
+            // the same import, and two doors to it on one screen is the thing
+            // the panel was rewritten to stop doing.
+            if (!addPanel) {
+                clipboardSuggestion?.let { suggestion ->
+                    ClipboardBar(
+                        suggestion = suggestion,
+                        onImport = viewModel::importClipboardSuggestion,
+                        onDismiss = viewModel::dismissClipboardSuggestion,
+                    )
+                }
             }
             // One line, once. Long-press is the only way to reach edit, share,
             // move and delete, and nothing on the row says so; a caption that
