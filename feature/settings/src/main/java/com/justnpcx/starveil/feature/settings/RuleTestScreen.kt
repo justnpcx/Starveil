@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -312,9 +313,13 @@ fun RuleTestScreen(
                 }
                 Spacer(modifier = Modifier.height(StarveilSpacing.sm))
                 // Three addresses to try, so the page can be understood without
-                // typing anything.
+                // typing anything. The row scrolls rather than wraps: inside a
+                // card the third chip no longer fits, and "youtube. / com" on
+                // two lines reads as a broken chip.
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
