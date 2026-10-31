@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.4] — 2026-10-31
+
+复查整改：首页在短屏上够得着，导航栏只剩一种选中信号，证据页重拍。
+
+### Fixed
+
+- **The home page scrolls in portrait too.** It only scrolled in landscape, so a
+  640dp-tall phone clipped the health card behind the navigation bar with no
+  gesture that could bring it back. The column now scrolls in every
+  orientation; on a tall screen the content is shorter than the window and
+  nothing moves.
+- **Navigation selection is colour, not a pill.** The selected item is the
+  accent — icon, label and a heavier label weight — and the bar no longer draws
+  a shape behind it. Press feedback is Material's own ripple, one layer.
+
+### Removed
+
+- Two dead row composables in the settings screen, left behind when the about
+  section moved to its own page.
+
 ## [0.9.3] — 2026-10-31
 
 Navigation settles on the platform's own bar, the pages behind it get a hub, and
