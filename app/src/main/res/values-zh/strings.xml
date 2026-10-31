@@ -26,6 +26,7 @@
     <string name="nav_connections">连接</string>
     <string name="nav_dns_log">DNS 日志</string>
     <string name="nav_privacy">隐私</string>
+    <string name="nav_language">语言</string>
 
     <!-- 聚合页：导航栏未列出的每个去处一行。 -->
     <string name="hub_scenes_sub">自动化预设与场景切换</string>

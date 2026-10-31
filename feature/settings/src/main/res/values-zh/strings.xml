@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_title">设置</string>
+    <string name="settings_group_general">通用</string>
+    <string name="settings_language_title">语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_english">English</string>
+
     <string name="appearance_title">外观</string>
+    <string name="appearance_accent_title">主题色</string>
+    <string name="appearance_font_title">字号</string>
+    <string name="font_standard">标准</string>
+    <string name="font_large">较大</string>
+    <string name="font_largest">最大</string>
+    <string name="accent_star_blue">星蓝</string>
+    <string name="accent_violet">黛紫</string>
+    <string name="accent_teal">青岚</string>
+    <string name="accent_pine">松绿</string>
+    <string name="accent_amber">曜橙</string>
     <string name="appearance_system">跟随系统</string>
     <string name="appearance_light">白天</string>
     <string name="appearance_dark">黑夜</string>

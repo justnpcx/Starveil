@@ -52,6 +52,7 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.Starveil">
 
@@ -64,6 +65,18 @@
             Init is done by StarveilApp instead, where the DSN is a build
             constant and the redaction callback lives.
         -->
+        <!-- Remembers the language the user picked across process restarts. AppCompat reads this
+             flag and persists the choice itself; without it the app would fall back to the
+             system language on every cold start. -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
+
         <meta-data
             android:name="io.sentry.auto-init"
             android:value="false" />

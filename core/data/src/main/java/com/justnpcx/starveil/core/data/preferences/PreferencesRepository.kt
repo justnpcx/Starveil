@@ -11,6 +11,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.NodeSelectionMode
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
 import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.model.RoutePreset
 import com.justnpcx.starveil.core.model.Scene
@@ -253,6 +255,18 @@ interface PreferencesRepository {
 
     suspend fun setThemeMode(mode: ThemeMode) = Unit
 
+    /** The accent preset. Defaults keep every fake source-compatible. */
+    val accentPreset: Flow<AccentPreset>
+        get() = kotlinx.coroutines.flow.flowOf(AccentPreset.STAR_BLUE)
+
+    suspend fun setAccentPreset(preset: AccentPreset) = Unit
+
+    /** The text-size multiplier. */
+    val fontScale: Flow<FontScale>
+        get() = kotlinx.coroutines.flow.flowOf(FontScale.STANDARD)
+
+    suspend fun setFontScale(scale: FontScale) = Unit
+
     /** Whether the picker may move the selected node. Persisted. */
     val nodeSelectionMode: Flow<NodeSelectionMode>
         get() = kotlinx.coroutines.flow.flowOf(NodeSelectionMode.AUTO)
@@ -340,6 +354,8 @@ class DataStorePreferencesRepository @Inject constructor(
         val DNS_METRICS = booleanPreferencesKey("dns_metrics_enabled")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
         val KILL_SWITCH_MODE = stringPreferencesKey("kill_switch_mode")
+        val ACCENT_PRESET = stringPreferencesKey("accent_preset")
+        val FONT_SCALE = stringPreferencesKey("font_scale")
         val LEAK_CHECK_AT = longPreferencesKey("leak_check_at")
         val LEAK_CHECK_LEAKING = booleanPreferencesKey("leak_check_leaking")
         val SELECTED_PROFILE_ID = longPreferencesKey("selected_profile_id")
@@ -373,6 +389,22 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    override val accentPreset: Flow<AccentPreset> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> AccentPreset.fromStorage(prefs[Keys.ACCENT_PRESET]) }
+
+    override suspend fun setAccentPreset(preset: AccentPreset) {
+        dataStore.edit { it[Keys.ACCENT_PRESET] = preset.name }
+    }
+
+    override val fontScale: Flow<FontScale> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> FontScale.fromStorage(prefs[Keys.FONT_SCALE]) }
+
+    override suspend fun setFontScale(scale: FontScale) {
+        dataStore.edit { it[Keys.FONT_SCALE] = scale.name }
     }
 
     override val nodeSelectionMode: Flow<NodeSelectionMode> = dataStore.data

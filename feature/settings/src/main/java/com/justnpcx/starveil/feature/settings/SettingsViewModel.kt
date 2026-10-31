@@ -23,6 +23,8 @@ import com.justnpcx.starveil.core.data.update.UpdateFailure
 import com.justnpcx.starveil.core.data.update.UpdateInfo
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.model.KillSwitchMode
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
 import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.data.update.UpdateDownloadPort
@@ -46,6 +48,10 @@ data class SettingsUiState(
     val autoSwitchOnDrop: Boolean = true,
     /** Light, dark, or follow the system. */
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** Which accent family the app is wearing. */
+    val accentPreset: AccentPreset = AccentPreset.STAR_BLUE,
+    /** The text-size multiplier. */
+    val fontScale: FontScale = FontScale.STANDARD,
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     /**
      * The core's own version string, e.g. `1.14.3-647c447`. Empty until the
@@ -124,6 +130,14 @@ class SettingsViewModel @Inject constructor(
     /** Persist the appearance choice. The whole app re-themes above this. */
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { preferences.setThemeMode(mode) }
+    }
+
+    fun setAccentPreset(preset: AccentPreset) {
+        viewModelScope.launch { preferences.setAccentPreset(preset) }
+    }
+
+    fun setFontScale(scale: FontScale) {
+        viewModelScope.launch { preferences.setFontScale(scale) }
     }
 
     fun checkForUpdates(currentVersion: String) {
@@ -237,19 +251,27 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) { apiToken.value = localApiToken.token() }
     }
 
+    private val appearanceState = combine(
+        preferences.themeMode,
+        preferences.accentPreset,
+        preferences.fontScale,
+    ) { theme, accent, scale -> Triple(theme, accent, scale) }
+
     private val preferencesState = combine(
         preferences.killSwitchMode,
-        preferences.themeMode,
+        appearanceState,
         // Paired so the typed three-argument combine stays available; the two
         // reconnect switches are read together and always shown together.
         combine(preferences.autoReconnect, preferences.autoSwitchOnDrop) { reconnect, switch ->
             reconnect to switch
         },
         preferences.lastLeakCheck,
-    ) { mode, theme, reconnect, leak ->
+    ) { mode, appearance, reconnect, leak ->
         SettingsUiState(
             killSwitchMode = mode,
-            themeMode = theme,
+            themeMode = appearance.first,
+            accentPreset = appearance.second,
+            fontScale = appearance.third,
             autoReconnect = reconnect.first,
             autoSwitchOnDrop = reconnect.second,
             lastLeakCheck = leak,

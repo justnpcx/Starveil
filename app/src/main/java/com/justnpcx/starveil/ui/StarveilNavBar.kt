@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.remember
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
@@ -153,9 +152,12 @@ private fun RowScope.NavItem(
             .fillMaxHeight()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                // Bounded to the slot: the whole cell lights up under a finger,
-                // not a shape in the middle of it.
-                indication = ripple(color = StarveilColors.ink),
+                // No press feedback at all, the way the phone's own tab bar
+                // works: the only thing that changes when a tab is tapped is
+                // the colour. A ripple, a slot-sized highlight or a pill all
+                // put a shape on screen for a moment, and the shape is the
+                // thing this bar was changed twice to stop drawing.
+                indication = null,
                 role = Role.Tab,
                 onClick = onClick,
             )

@@ -2,8 +2,8 @@ package com.justnpcx.starveil
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,6 +58,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
 import com.justnpcx.starveil.core.model.ThemeMode
 import com.justnpcx.starveil.core.ui.components.StarveilBackground
 import com.justnpcx.starveil.core.ui.theme.StarveilTheme
@@ -79,7 +82,7 @@ import kotlinx.coroutines.launch
  * [StarveilNavHost]; this Activity owns only window + navigation chrome.
  */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     /** The Activity is the composition root, so it reads the theme directly. */
     @Inject
@@ -136,6 +139,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by preferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val accentPreset by preferences.accentPreset
+                .collectAsStateWithLifecycle(initialValue = AccentPreset.STAR_BLUE)
+            val fontScale by preferences.fontScale
+                .collectAsStateWithLifecycle(initialValue = FontScale.STANDARD)
             val systemDark = isSystemInDarkTheme()
             val dark = when (themeMode) {
                 ThemeMode.SYSTEM -> systemDark
@@ -159,35 +166,44 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
 
-            StarveilTheme(darkTheme = dark) {
-                val navController = rememberNavController()
-                val snackbarHostState = remember { SnackbarHostState() }
-                StarveilShell(
-                    navController = navController,
-                    darkTheme = dark,
-                    onToggleTheme = {
-                        // From "follow system", the button pins the
-                        // opposite of what is on screen. From a pin, it
-                        // flips the pin.
-                        val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
-                        lifecycleScope.launch { preferences.setThemeMode(next) }
-                    },
-                    snackbarHost = {
-                        UndoSnackbarHost(
-                            requests = undoBus,
-                            hostState = snackbarHostState,
-                        )
-                    },
-                ) {
-                    // The shell applies its own bar insets to the content; a
-                    // second padding here would be the bars counted twice.
-                    StarveilNavHost(
+            // Text size is a density multiplier, and a density only lands on
+            // the next measure: what is already on screen has laid its text
+            // out, and a changed local does not by itself re-measure it. Keying
+            // the tree on the choice rebuilds it, which is what the system does
+            // when its own font size changes. The nav controller and the
+            // snackbar sit above the key, so the page you were on is still the
+            // page you are on after the switch.
+            val navController = rememberNavController()
+            val snackbarHostState = remember { SnackbarHostState() }
+            key(fontScale) {
+                StarveilTheme(darkTheme = dark, accent = accentPreset, fontScale = fontScale) {
+                    StarveilShell(
                         navController = navController,
-                        latencyTester = latencyTester,
-                        leakCheckRunner = leakCheckRunner,
-                        deepLinks = deepLinks,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                        darkTheme = dark,
+                        onToggleTheme = {
+                            // From "follow system", the button pins the
+                            // opposite of what is on screen. From a pin, it
+                            // flips the pin.
+                            val next = if (dark) ThemeMode.LIGHT else ThemeMode.DARK
+                            lifecycleScope.launch { preferences.setThemeMode(next) }
+                        },
+                        snackbarHost = {
+                            UndoSnackbarHost(
+                                requests = undoBus,
+                                hostState = snackbarHostState,
+                            )
+                        },
+                    ) {
+                        // The shell applies its own bar insets to the content; a
+                        // second padding here would be the bars counted twice.
+                        StarveilNavHost(
+                            navController = navController,
+                            latencyTester = latencyTester,
+                            leakCheckRunner = leakCheckRunner,
+                            deepLinks = deepLinks,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }

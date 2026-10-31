@@ -32,6 +32,8 @@ kotlin {
 }
 
 dependencies {
+    // Reading the app's current language for the settings row.
+    implementation(libs.appcompat)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
     // The back arrow on the keep-alive screen; the same core icon set the

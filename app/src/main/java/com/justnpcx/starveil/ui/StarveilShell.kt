@@ -213,6 +213,7 @@ private fun titleFor(route: String?): String = stringResource(
         "connections" -> R.string.nav_connections
         "dnslog" -> R.string.nav_dns_log
         "privacy" -> R.string.nav_privacy
+        "language" -> R.string.nav_language
         else -> R.string.nav_home
     },
 )

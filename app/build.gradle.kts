@@ -34,7 +34,7 @@ plugins {
  * that would collide, which is the only moment anyone can still choose a
  * different number.
  */
-val appVersionName = "0.9.8"
+val appVersionName = "0.9.9"
 val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
     val majorPart = major.toInt()
     val minorPart = minor.toInt()
@@ -220,6 +220,8 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.animation)
     implementation(libs.activity.compose)
+    // Per-app language: AppCompatDelegate is the supported backport.
+    implementation(libs.appcompat)
     implementation(libs.navigation.compose)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.hilt.android)

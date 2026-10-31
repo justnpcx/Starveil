@@ -35,7 +35,14 @@ fun StarveilSegmented(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    proportional: Boolean = false,
 ) {
+    // Equal thirds cut a long label: the part that does not fit is painted
+    // over by the next pill, and no ellipsis ever appears because the text is
+    // not what is being truncated — the space is. With [proportional] the
+    // width follows the words, so "Follow system" keeps its second word while
+    // "Day" gives up room it never needed.
+    val weights = options.map { if (proportional) (it.length + 4).toFloat() else 1f }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -48,7 +55,7 @@ fun StarveilSegmented(
             val selected = index == selectedIndex
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(weights[index])
                     .fillMaxHeight()
                     .clip(CircleShape)
                     .background(if (selected) StarveilColors.selBg else androidx.compose.ui.graphics.Color.Transparent)

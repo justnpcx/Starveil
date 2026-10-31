@@ -15,6 +15,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.ui.semantics.selected
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
+import com.justnpcx.starveil.core.ui.theme.accentToneFor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -112,6 +120,8 @@ fun SettingsScreen(
     onOpenDnsLog: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
+    /** Opens the language page. :app owns the route. */
+    onOpenLanguage: () -> Unit = {},
     /**
      * Whether this build has a Sentry DSN. A switch that cannot do anything is
      * worse than no switch, so the row is hidden rather than disabled.
@@ -173,6 +183,26 @@ fun SettingsScreen(
     fun matches(texts: List<String>): Boolean =
         q.isBlank() || texts.any { it.contains(q, ignoreCase = true) }
 
+    val showGeneral = matches(
+        listOf(
+            stringResource(R.string.settings_group_general),
+            stringResource(R.string.settings_language_title),
+            stringResource(R.string.language_system),
+            stringResource(R.string.language_chinese),
+            stringResource(R.string.language_english),
+            "language", "locale", "语言",
+        ),
+    )
+    // Read from the platform rather than from our own preference: the system's
+    // app-language page changes the same value, and the row has to agree with
+    // it. An empty list is "follow the system".
+    val appLocales = AppCompatDelegate.getApplicationLocales()
+    val languageValue = when {
+        appLocales.isEmpty -> stringResource(R.string.language_system)
+        appLocales.get(0)?.language?.startsWith("zh") == true ->
+            stringResource(R.string.language_chinese)
+        else -> stringResource(R.string.language_english)
+    }
     val showAppearance = matches(
         listOf(
             stringResource(R.string.appearance_title),
@@ -232,7 +262,7 @@ fun SettingsScreen(
         ),
     )
     val nothingMatches = q.isNotBlank() &&
-        !showAppearance && !showConnection && !showRouting && !showDiagnostics
+        !showGeneral && !showAppearance && !showConnection && !showRouting && !showDiagnostics
 
     LaunchedEffect(updateState) {
         val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
@@ -268,6 +298,18 @@ fun SettingsScreen(
             )
         }
 
+        // ---- General -------------------------------------------------------
+        if (showGeneral) {
+            StarveilGroupHeader(stringResource(R.string.settings_group_general))
+            SettingsCard {
+                EntryRow(
+                    title = stringResource(R.string.settings_language_title),
+                    value = languageValue,
+                    onClick = onOpenLanguage,
+                )
+            }
+        }
+
         // ---- Appearance ----------------------------------------------------
         if (showAppearance) {
             StarveilGroupHeader(stringResource(R.string.appearance_title))
@@ -284,12 +326,69 @@ fun SettingsScreen(
                             ThemeMode.LIGHT -> 1
                             ThemeMode.DARK -> 2
                         },
+                        // Three words of very different length.
+                        proportional = true,
                         onSelect = { index ->
                             viewModel.setThemeMode(
                                 when (index) {
                                     0 -> ThemeMode.SYSTEM
                                     1 -> ThemeMode.LIGHT
                                     else -> ThemeMode.DARK
+                                },
+                            )
+                        },
+                    )
+                }
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                // The accent family: five swatches, one of them ticked. A row
+                // of dots rather than a dropdown because the whole point of a
+                // preset list this short is that you can see all of them.
+                Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                    Text(
+                        text = stringResource(R.string.appearance_accent_title),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+                    ) {
+                        AccentPreset.entries.forEach { preset ->
+                            AccentSwatch(
+                                preset = preset,
+                                selected = preset == state.accentPreset,
+                                onClick = { viewModel.setAccentPreset(preset) },
+                            )
+                        }
+                    }
+                }
+                StarveilDivider(startInset = StarveilSpacing.lg)
+                Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+                    Text(
+                        text = stringResource(R.string.appearance_font_title),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                    )
+                    Spacer(modifier = Modifier.height(StarveilSpacing.sm))
+                    StarveilSegmented(
+                        options = listOf(
+                            stringResource(R.string.font_standard),
+                            stringResource(R.string.font_large),
+                            stringResource(R.string.font_largest),
+                        ),
+                        selectedIndex = when (state.fontScale) {
+                            FontScale.STANDARD -> 0
+                            FontScale.LARGE -> 1
+                            FontScale.LARGEST -> 2
+                        },
+                        proportional = true,
+                        onSelect = { index ->
+                            viewModel.setFontScale(
+                                when (index) {
+                                    0 -> FontScale.STANDARD
+                                    1 -> FontScale.LARGE
+                                    else -> FontScale.LARGEST
                                 },
                             )
                         },
@@ -897,6 +996,8 @@ private fun LinkText(
 private fun EntryRow(
     title: String,
     description: String? = null,
+    /** The current setting, shown before the chevron. */
+    value: String? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -916,6 +1017,10 @@ private fun EntryRow(
             if (description != null) {
                 Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
             }
+        }
+        if (value != null) {
+            Text(text = value, style = StarveilType.label, color = StarveilColors.ink2)
+            Spacer(modifier = Modifier.width(StarveilSpacing.xs))
         }
         Icon(
             imageVector = StarveilIcons.Chevron,
@@ -1207,5 +1312,61 @@ private fun CardHeader(title: String, description: String) {
     ) {
         Text(text = title, style = StarveilType.headline, color = StarveilColors.ink)
         Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
+    }
+}
+
+
+/**
+ * One accent swatch.
+ *
+ * The dot is the preset's own accent colour, and the tick is drawn in whatever
+ * reads on it — white on a dark accent, the page colour on a light one — so the
+ * mark never disappears into the swatch it is marking.
+ */
+@Composable
+private fun AccentSwatch(
+    preset: AccentPreset,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val dark = StarveilColors.isDark
+    val tone = accentToneFor(dark, preset)
+    val checkTint = if (dark) StarveilColors.bg else Color.White
+    val label = stringResource(
+        when (preset) {
+            AccentPreset.STAR_BLUE -> R.string.accent_star_blue
+            AccentPreset.VIOLET -> R.string.accent_violet
+            AccentPreset.TEAL -> R.string.accent_teal
+            AccentPreset.PINE -> R.string.accent_pine
+            AccentPreset.AMBER -> R.string.accent_amber
+        },
+    )
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.RadioButton, onClick = onClick)
+            .semantics {
+                contentDescription = label
+                this.selected = selected
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(tone.accent),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = StarveilIcons.Check,
+                    contentDescription = null,
+                    tint = checkTint,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
     }
 }

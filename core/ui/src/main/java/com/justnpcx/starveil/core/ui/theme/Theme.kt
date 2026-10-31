@@ -7,10 +7,15 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import com.justnpcx.starveil.core.model.AccentPreset
+import com.justnpcx.starveil.core.model.FontScale
 
 /** The palette in force, as a CompositionLocal. */
 val LocalStarveilPalette = staticCompositionLocalOf { LightPalette }
@@ -204,12 +209,27 @@ internal val DarkScheme = DarkPalette.scheme(darkColorScheme())
 @Composable
 fun StarveilTheme(
     darkTheme: Boolean = false,
+    accent: AccentPreset = AccentPreset.STAR_BLUE,
+    fontScale: FontScale = FontScale.STANDARD,
     content: @Composable () -> Unit,
 ) {
-    val palette = if (darkTheme) DarkPalette else LightPalette
-    CompositionLocalProvider(LocalStarveilPalette provides palette) {
+    val palette = remember(darkTheme, accent) { paletteFor(darkTheme, accent) }
+    val scheme = remember(darkTheme, accent) {
+        palette.scheme(if (darkTheme) darkColorScheme() else lightColorScheme())
+    }
+    // The type scale is fixed in sp, so the size setting is applied where sp is
+    // resolved rather than by rewriting every token: one multiplier here moves
+    // every label, heading and number in the app by the same factor.
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalStarveilPalette provides palette,
+        LocalDensity provides Density(
+            density = density.density,
+            fontScale = density.fontScale * fontScale.factor,
+        ),
+    ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            colorScheme = scheme,
             typography = StarveilTypography,
             shapes = StarveilShapes.material,
             content = content,
