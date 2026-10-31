@@ -34,7 +34,7 @@
     <string name="add_tile_clipboard">Clipboard</string>
     <string name="add_tile_clipboard_sub">Link or subscription</string>
     <string name="add_tile_clipboard_empty">No usable link on the clipboard</string>
-    <string name="add_tile_subscription">Import subscription</string>
+    <string name="add_tile_subscription">Subscription</string>
     <string name="add_tile_subscription_sub">Pull every node</string>
     <string name="add_back">Back</string>
     <string name="add_tile_manual">Manually</string>
