@@ -8,7 +8,7 @@
 
 基于 sing-box 内核的 Android 网络调试与规则分流工具——连接明细、DNS 采样、泄漏自检与诊断包导出，让每一条流量都可观测、可解释、可复现。
 
-[![Release](https://img.shields.io/github/v/release/justnpcx/Starveil-releases?label=下载最新版)](https://github.com/justnpcx/Starveil-releases/releases)
+[![Release](https://img.shields.io/github/v/release/justnpcx/Starveil?label=下载最新版)](https://github.com/justnpcx/Starveil/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-10%2B-green.svg)](#下载与安装)
 [![Kernel](https://img.shields.io/badge/kernel-sing--box%201.14.3-orange.svg)](docs/04-libbox-build.md)
@@ -58,7 +58,7 @@
 
 ## 下载与安装
 
-1. 到 [Starveil-releases](https://github.com/justnpcx/Starveil-releases/releases) 下载最新 APK（需 Android 10 / API 29 以上）。
+1. 到 [Releases](https://github.com/justnpcx/Starveil/releases) 下载最新 APK（需 Android 10 / API 29 以上）。
 2. 安装时如系统提示，允许「安装未知应用」。
 3. 已装旧版可在 App 内「关于 → 版本更新」直接升级；更新包在下载后校验 SHA-256 与签名证书，不匹配不会安装。
 
