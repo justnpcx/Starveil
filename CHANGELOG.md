@@ -26,6 +26,15 @@ the palette opens up — a little.
 - **The navigation bar no longer reacts to a press at all.** The slot-sized ripple
   from 0.9.8 was still a shape appearing under the finger; a tab now changes
   colour and nothing else, the way the phone's own tab bar behaves.
+- **A new text size applies while you watch.** Density is read when text is
+  measured, so changing it left the screen that had already laid its text out
+  untouched — the setting looked broken until the app restarted. The tree is now
+  rebuilt on the change, which is what the system does when its own font size
+  moves; the navigation stack survives it.
+- **Segment labels are no longer cut off.** An equal-third segmented control
+  painted the next pill over the tail of a long label — "Follow system" showed as
+  "Follow", without even an ellipsis. Segments now take width in proportion to
+  their text where the caller asks for it.
 
 ## [0.9.8] — 2026-10-31
 
