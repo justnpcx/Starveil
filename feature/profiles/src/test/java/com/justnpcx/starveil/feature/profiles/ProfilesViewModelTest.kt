@@ -402,7 +402,7 @@ class ProfilesViewModelTest {
         // The refresh work must not outlive the group it refreshes.
         assertEquals(listOf(SUB), scheduler.cancelled)
         // The filter pointed at a group that no longer exists.
-        assertNull(viewModel.uiState.value.groupFilter)
+        assertEquals(NodeFilter.All, viewModel.uiState.value.filter)
         job.cancel()
     }
 
@@ -770,6 +770,78 @@ class ProfilesViewModelTest {
     private fun subGroup(mode: GroupMode) =
         ProxyGroup(id = SUB, name = "sub", mode = mode, profileIds = listOf(ONE))
 
+    /**
+     * One filter, one lit chip.
+     *
+     * The old model kept favorites and the group as two flags, so choosing a
+     * group after favorites left both on: two chips lit, the list narrowed to
+     * the intersection of two filters, and usually nothing in it. These six
+     * moves are the ones that used to be able to produce that state.
+     */
+    @Test
+    fun `every filter move lights exactly one chip and narrows to it`() = runBlocking {
+        val folder = 9L
+        val profiles = FakeProfiles(
+            mutableListOf(
+                profile(ONE, "starred").copy(groupId = 0L, favorite = true),
+                profile(TWO, "in-sub").copy(groupId = SUB),
+                profile(3L, "in-folder").copy(groupId = folder),
+            ),
+        )
+        val groups = FakeGroups(
+            listOf(
+                ProxyGroup(id = SUB, name = "sub", subscriptionUrl = "https://sub.example.com/a"),
+                ProxyGroup(id = folder, name = "folder"),
+            ),
+        )
+        val viewModel = viewModel(profiles, FakePreferences(ONE), groups)
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        // 1. favorites -> group
+        viewModel.filterFavorites(true)
+        yield()
+        assertEquals(NodeFilter.Favorites, viewModel.uiState.value.filter)
+        viewModel.filterByGroup(SUB)
+        yield()
+        assertEquals(NodeFilter.Group(SUB), viewModel.uiState.value.filter)
+        assertEquals(listOf(TWO), viewModel.uiState.value.profiles.map { it.id })
+
+        // 2. group -> favorites
+        viewModel.filterFavorites(true)
+        yield()
+        assertEquals(NodeFilter.Favorites, viewModel.uiState.value.filter)
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+
+        // 3. group -> group
+        viewModel.filterByGroup(SUB)
+        yield()
+        viewModel.filterByGroup(folder)
+        yield()
+        assertEquals(NodeFilter.Group(folder), viewModel.uiState.value.filter)
+        assertEquals(listOf(3L), viewModel.uiState.value.profiles.map { it.id })
+
+        // 4. group -> all
+        viewModel.filterByGroup(null)
+        yield()
+        assertEquals(NodeFilter.All, viewModel.uiState.value.filter)
+        assertEquals(listOf(ONE, TWO, 3L), viewModel.uiState.value.profiles.map { it.id }.sorted())
+
+        // 5. all -> favorites
+        viewModel.filterFavorites(true)
+        yield()
+        assertEquals(NodeFilter.Favorites, viewModel.uiState.value.filter)
+        assertEquals(listOf(ONE), viewModel.uiState.value.profiles.map { it.id })
+
+        // 6. create -> the new group, and only it
+        viewModel.createGroup("fresh")
+        yield()
+        assertTrue("a new group becomes the filter", viewModel.uiState.value.filter is NodeFilter.Group)
+        assertTrue("and the list is that (empty) group", viewModel.uiState.value.profiles.isEmpty())
+
+        job.cancel()
+    }
+
     private fun groupsWithSub() = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
 
     private fun viewModel(
@@ -964,6 +1036,10 @@ private class FakeGroups(
 
     var upserted: ProxyGroup? = null
         private set
+
+    private companion object {
+        const val NEW_ID = 42L
+    }
     var deletedId: Long? = null
         private set
     var deletedWithProfiles: Pair<Long, Boolean>? = null
@@ -979,7 +1055,9 @@ private class FakeGroups(
 
     override suspend fun upsert(group: ProxyGroup): Long {
         upserted = group
-        return group.id
+        // Room hands a new row an id; a fake that echoed 0 would make every
+        // "new group" look like the ungrouped bucket.
+        return if (group.id == 0L) NEW_ID else group.id
     }
 
     override suspend fun deleteById(id: Long) {
