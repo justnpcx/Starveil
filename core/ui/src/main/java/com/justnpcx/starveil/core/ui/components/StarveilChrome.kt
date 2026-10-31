@@ -32,7 +32,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
@@ -204,18 +207,53 @@ fun StarveilGroupHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A row of chips, scrolling horizontally when it overflows. */
+/**
+ * A row of chips, scrolling horizontally when it overflows.
+ *
+ * The margin belongs to the window, not to the scrolled content: with the
+ * padding inside the scroll, a chip that is scrolled to sits flush against the
+ * screen edge and the row stops lining up with the search field above it. Here
+ * the Box owns the margin and the Row scrolls inside it, so the first and last
+ * chips always start and end on the page's text column.
+ *
+ * The fade on the right is the only hint that there is more: a row that ends
+ * mid-chip looks like a row that was cut, not one that continues.
+ */
 @Composable
 fun StarveilChipRow(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
-    Row(
+    val scroll = rememberScrollState()
+    // Read outside the draw lambda: the palette getter is @Composable.
+    val fadeTo = StarveilColors.bg
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-        content = content,
-    )
+            .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.sm)
+            .drawWithContent {
+                drawContent()
+                if (scroll.canScrollForward) {
+                    val fade = CHIP_ROW_FADE.toPx()
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, fadeTo),
+                            startX = size.width - fade,
+                            endX = size.width,
+                        ),
+                    )
+                }
+            },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scroll),
+            horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+            content = content,
+        )
+    }
 }
+
+/** How wide the right-hand fade is: about one chip's corner. */
+private val CHIP_ROW_FADE = 32.dp
