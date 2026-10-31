@@ -12,6 +12,8 @@ coroutines = "1.10.2"
 workmanager = "2.10.1"
 lifecycle = "2.9.3"
 activityCompose = "1.11.0"
+# Per-app language: the official backport of Android 13's LocaleManager.
+appcompat = "1.7.0"
 glance = "1.2.0"
 # Crash reporting. The only third-party service the app talks to, and the only
 # dependency here whose absence changes behaviour rather than just features.
@@ -62,6 +64,7 @@ hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-com
 
 # Activity / Lifecycle
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 

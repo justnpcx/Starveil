@@ -6,7 +6,7 @@
         background means the launch window does not flash black before the
         first frame; values-night flips it for a device in dark mode.
     -->
-    <style name="Theme.Starveil" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Starveil" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@drawable/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

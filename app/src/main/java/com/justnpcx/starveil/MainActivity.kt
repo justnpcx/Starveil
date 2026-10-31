@@ -2,8 +2,8 @@ package com.justnpcx.starveil
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -79,7 +79,7 @@ import kotlinx.coroutines.launch
  * [StarveilNavHost]; this Activity owns only window + navigation chrome.
  */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     /** The Activity is the composition root, so it reads the theme directly. */
     @Inject

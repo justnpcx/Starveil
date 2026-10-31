@@ -35,6 +35,7 @@
     <string name="nav_connections">Connections</string>
     <string name="nav_dns_log">DNS log</string>
     <string name="nav_privacy">Privacy</string>
+    <string name="nav_language">Language</string>
 
     <!-- The hub: one row per destination the bar does not list. -->
     <string name="hub_scenes_sub">Presets and scene switching</string>

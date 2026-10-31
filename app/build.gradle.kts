@@ -220,6 +220,8 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.animation)
     implementation(libs.activity.compose)
+    // Per-app language: AppCompatDelegate is the supported backport.
+    implementation(libs.appcompat)
     implementation(libs.navigation.compose)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.hilt.android)

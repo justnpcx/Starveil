@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The languages this app ships. Android 13's per-app language page reads
+    this file, and AppCompat's backport uses it to build the same list on older
+    versions. A language that is translated but missing here is a language the
+    system will not offer.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="zh-CN" />
+</locale-config>

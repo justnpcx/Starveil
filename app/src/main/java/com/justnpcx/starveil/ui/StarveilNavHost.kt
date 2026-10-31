@@ -43,6 +43,7 @@ import com.justnpcx.starveil.feature.editor.ProfileEditorScreen
 import com.justnpcx.starveil.feature.rules.ScenesScreen
 import com.justnpcx.starveil.feature.settings.KeepAliveScreen
 import com.justnpcx.starveil.feature.settings.PerAppScreen
+import com.justnpcx.starveil.feature.settings.LanguageScreen
 import com.justnpcx.starveil.feature.settings.PrivacyScreen
 import com.justnpcx.starveil.feature.settings.ConnectionsScreen
 import com.justnpcx.starveil.feature.settings.DnsLogScreen
@@ -82,6 +83,9 @@ private const val RULE_EDITOR_ROUTE = "editor/rule?id={id}"
 
 /** Also not a tab: the policy is read once, from the About page. */
 private const val PRIVACY_ROUTE = "privacy"
+
+/** The language page: three rows, one of them ticked. */
+private const val LANGUAGE_ROUTE = "language"
 
 /** The hub the bar's fourth destination opens. */
 private const val HUB_ROUTE = "hub"
@@ -257,6 +261,7 @@ fun StarveilNavHost(
                 onOpenConnections = { navController.navigate(CONNECTIONS_ROUTE) },
                 onOpenDnsLog = { navController.navigate(DNS_LOG_ROUTE) },
                 onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) },
+                onOpenLanguage = { navController.navigate(LANGUAGE_ROUTE) },
                 // A build with no DSN has no crash reporting, so the switch is
                 // hidden rather than shown doing nothing.
                 crashReportingAvailable = BuildConfig.SENTRY_DSN.isNotBlank(),
@@ -317,6 +322,9 @@ fun StarveilNavHost(
         }
         composable(PRIVACY_ROUTE) {
             PrivacyScreen()
+        }
+        composable(LANGUAGE_ROUTE) {
+            LanguageScreen()
         }
 
         descriptors.forEach { descriptor ->

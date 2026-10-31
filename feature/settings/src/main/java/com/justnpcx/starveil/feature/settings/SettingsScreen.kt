@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -112,6 +113,8 @@ fun SettingsScreen(
     onOpenDnsLog: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
+    /** Opens the language page. :app owns the route. */
+    onOpenLanguage: () -> Unit = {},
     /**
      * Whether this build has a Sentry DSN. A switch that cannot do anything is
      * worse than no switch, so the row is hidden rather than disabled.
@@ -173,6 +176,26 @@ fun SettingsScreen(
     fun matches(texts: List<String>): Boolean =
         q.isBlank() || texts.any { it.contains(q, ignoreCase = true) }
 
+    val showGeneral = matches(
+        listOf(
+            stringResource(R.string.settings_group_general),
+            stringResource(R.string.settings_language_title),
+            stringResource(R.string.language_system),
+            stringResource(R.string.language_chinese),
+            stringResource(R.string.language_english),
+            "language", "locale", "语言",
+        ),
+    )
+    // Read from the platform rather than from our own preference: the system's
+    // app-language page changes the same value, and the row has to agree with
+    // it. An empty list is "follow the system".
+    val appLocales = AppCompatDelegate.getApplicationLocales()
+    val languageValue = when {
+        appLocales.isEmpty -> stringResource(R.string.language_system)
+        appLocales.get(0)?.language?.startsWith("zh") == true ->
+            stringResource(R.string.language_chinese)
+        else -> stringResource(R.string.language_english)
+    }
     val showAppearance = matches(
         listOf(
             stringResource(R.string.appearance_title),
@@ -232,7 +255,7 @@ fun SettingsScreen(
         ),
     )
     val nothingMatches = q.isNotBlank() &&
-        !showAppearance && !showConnection && !showRouting && !showDiagnostics
+        !showGeneral && !showAppearance && !showConnection && !showRouting && !showDiagnostics
 
     LaunchedEffect(updateState) {
         val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
@@ -266,6 +289,18 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_search_empty_title),
                 body = stringResource(R.string.settings_search_empty_body, q),
             )
+        }
+
+        // ---- General -------------------------------------------------------
+        if (showGeneral) {
+            StarveilGroupHeader(stringResource(R.string.settings_group_general))
+            SettingsCard {
+                EntryRow(
+                    title = stringResource(R.string.settings_language_title),
+                    value = languageValue,
+                    onClick = onOpenLanguage,
+                )
+            }
         }
 
         // ---- Appearance ----------------------------------------------------
@@ -897,6 +932,8 @@ private fun LinkText(
 private fun EntryRow(
     title: String,
     description: String? = null,
+    /** The current setting, shown before the chevron. */
+    value: String? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -916,6 +953,10 @@ private fun EntryRow(
             if (description != null) {
                 Text(text = description, style = StarveilType.label, color = StarveilColors.ink2)
             }
+        }
+        if (value != null) {
+            Text(text = value, style = StarveilType.label, color = StarveilColors.ink2)
+            Spacer(modifier = Modifier.width(StarveilSpacing.xs))
         }
         Icon(
             imageVector = StarveilIcons.Chevron,
