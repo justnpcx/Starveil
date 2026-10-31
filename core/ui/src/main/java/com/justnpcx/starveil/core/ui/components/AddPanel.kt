@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
@@ -124,6 +125,10 @@ fun AddTileRow(content: @Composable () -> Unit) {
  * nothing importable in it — and the subtitle then says why. A tile that looks
  * live and then reports an error on tap is a worse control than a greyed one
  * that explains itself.
+ *
+ * The three parts stack centred, like the app's buttons and its empty states: a
+ * tile is a target, not a paragraph, and an icon pinned to the left edge of an
+ * otherwise centred row of tiles reads as a layout mistake.
  */
 @Composable
 fun AddTile(
@@ -142,6 +147,7 @@ fun AddTile(
             .border(1.dp, StarveilColors.line, StarveilShapes.card)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = StarveilSpacing.md, vertical = StarveilSpacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
     ) {
         Icon(
@@ -157,6 +163,7 @@ fun AddTile(
             color = if (enabled) StarveilColors.ink else StarveilColors.ink2.copy(alpha = 0.55f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
         Text(
             text = subtitle,
@@ -164,6 +171,7 @@ fun AddTile(
             color = StarveilColors.ink2.copy(alpha = if (enabled) 1f else 0.55f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
