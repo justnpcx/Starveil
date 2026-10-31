@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.8] — 2026-10-31
+
+Two things the phone found in 0.9.7.
+
+### Fixed
+
+- **One filter, one lit chip.** Favorites and the group were two separate flags,
+  and choosing a group never cleared favorites — so two chips could be on at
+  once and the list showed the intersection of two filters, which was usually
+  nothing. The filter is one value now (all / favorites / one group), the chips
+  and the list both read it, and six filter moves are covered by a unit test.
+- **The navigation bar's press is the slot, not a pill.** Material clips its
+  ripple to the 64x32 indicator, so every tab tap flashed a pill-shaped block
+  even though the indicator was transparent. The item is drawn here now: equal
+  slot, icon and label, ripple bounded to the whole cell, selection still the
+  accent colour and a heavier label.
+
 ## [0.9.7] — 2026-10-31
 
 Polish pass: the button that was not centred, the page that was flat in daylight,
