@@ -135,13 +135,13 @@
     <string name="scenes_name_example">Home</string>
     <string name="scenes_ssids_known">Networks this device knows</string>
 <string name="rules_value_example_domain">www.example.com</string>
-    <string name="rules_hint_domain">Matches this host exactly; no wildcards</string>
+    <string name="rules_hint_domain">This host only; no wildcards</string>
     <string name="rules_value_example_suffix">example.com</string>
-    <string name="rules_hint_suffix">Matches this domain and every subdomain; no leading dot needed</string>
+    <string name="rules_hint_suffix">This domain and every subdomain</string>
     <string name="rules_value_example_keyword">google</string>
-    <string name="rules_hint_keyword">Matches any domain containing this text</string>
+    <string name="rules_hint_keyword">Any domain containing this text</string>
     <string name="rules_value_example_cidr">192.168.1.0/24</string>
-    <string name="rules_hint_cidr">One address or a CIDR block, e.g. 10.0.0.0/8</string>
+    <string name="rules_hint_cidr">One address or a CIDR block</string>
     <string name="rules_move_top">Move to top</string>
     <string name="rules_move_bottom">Move to bottom</string>
 </resources>
