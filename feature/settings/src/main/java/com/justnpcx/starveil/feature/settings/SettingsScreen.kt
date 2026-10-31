@@ -552,15 +552,20 @@ fun SettingsScreen(
                 ),
                 horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
             ) {
+                // Equal halves of the card. Two buttons sized to their own
+                // text sat in the left half of a wide card and read as a
+                // group that had failed to centre itself.
                 StarveilButton(
                     text = stringResource(R.string.backup_export),
                     secondary = true,
                     onClick = { askingForExport = true },
+                    modifier = Modifier.weight(1f),
                 )
                 StarveilButton(
                     text = stringResource(R.string.backup_restore),
                     secondary = true,
                     onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
