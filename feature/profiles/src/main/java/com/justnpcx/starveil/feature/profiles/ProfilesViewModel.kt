@@ -123,6 +123,9 @@ sealed interface ProfilesMessage {
     /** How many region groups the last grouping pass created or refreshed. */
     data class GroupedByRegion(val regions: Int) : ProfilesMessage
 
+    /** A folder the user just made, so the page can say so. */
+    data class GroupCreated(val name: String) : ProfilesMessage
+
     /** Nothing in the node names could be recognised as a region. */
     data object NoRegionsFound : ProfilesMessage
 
@@ -480,7 +483,15 @@ class ProfilesViewModel @Inject constructor(
     fun createGroup(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
-        viewModelScope.launch { groups.upsert(ProxyGroup(name = trimmed)) }
+        viewModelScope.launch {
+            val id = groups.upsert(ProxyGroup(name = trimmed))
+            // Show the result, don't just create it: a new folder used to be
+            // invisible because the chip row only drew groups that already had
+            // nodes in them, so "new group" looked like it had done nothing.
+            groupFilter.value = id
+            favoritesOnly.value = false
+            message.value = ProfilesMessage.GroupCreated(trimmed)
+        }
     }
 
     /** [groupId] of null takes the node out of its group. */
@@ -497,7 +508,13 @@ class ProfilesViewModel @Inject constructor(
      * keeping them would leave orphans nothing can update or remove as a set.
      * The caller confirms first, and the dialog names the count.
      */
-    fun deleteGroup(group: ProxyGroup) {
+    /**
+     * Delete a group. [deleteProfiles] is the user's answer to "and its
+     * nodes?", and it only applies to a plain folder: a subscription's nodes
+     * cannot outlive the address that refreshes them, and a region group owns
+     * no nodes at all — its members are derived from their names.
+     */
+    fun deleteGroup(group: ProxyGroup, deleteProfiles: Boolean) {
         viewModelScope.launch {
             // Read before deleting: the ids are gone once the profiles are.
             val removedIds = group.profileIds.toSet()
@@ -509,8 +526,13 @@ class ProfilesViewModel @Inject constructor(
             // The row and its nodes go in one transaction: a half-finished
             // delete would leave an empty group that looks like a subscription
             // which refreshed to nothing.
-            groups.deleteWithProfiles(group.id, deleteProfiles = group.region == null)
-            if (group.region == null) {
+            val removeNodes = when {
+                group.region != null -> false
+                group.subscriptionUrl != null -> true
+                else -> deleteProfiles
+            }
+            groups.deleteWithProfiles(group.id, deleteProfiles = removeNodes)
+            if (removeNodes) {
                 // A subscription group's refresh work outlives the row
                 // otherwise, and would keep re-creating nodes for a group that
                 // is gone.

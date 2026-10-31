@@ -122,6 +122,7 @@ private class StubGroupDao(private val rows: List<GroupEntity>) : GroupDao {
     override suspend fun delete(entity: GroupEntity) = error("read-only")
     override suspend fun deleteById(id: Long) = error("read-only")
     override suspend fun deleteProfilesOfGroup(groupId: Long) = error("read-only")
+    override suspend fun detachProfilesOfGroup(groupId: Long) = error("read-only")
 }
 
 /** Counts the per-group query, which observeAll must not make. */

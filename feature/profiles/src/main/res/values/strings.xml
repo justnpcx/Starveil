@@ -152,19 +152,27 @@
     <string name="profiles_share_no_qr">This link is too long to show as a QR code. Copy it instead.</string>
     <string name="profiles_share_unavailable">This node has no share format.</string>
     <string name="profiles_group_delete">Delete</string>
-    <string name="profiles_group_delete_title">Delete this group?</string>
-    <string name="profiles_group_delete_body">%1$s and its %2$d nodes will be removed.</string>
-    <string name="profiles_group_delete_body_empty">%1$s will be removed.</string>
+    <string name="profiles_group_delete_title_name">Delete group “%1$s”?</string>
 
     <!-- Creating a group, and moving a node between groups. -->
     <string name="profiles_group_new">New group</string>
+    <string name="profiles_group_empty_label">%1$s · 0</string>
+    <string name="profiles_msg_group_created">Created group “%1$s”</string>
+    <string name="profiles_group_empty_title">%1$s</string>
+    <string name="profiles_group_empty_body">No nodes in this group yet. Long-press the group to manage it.</string>
+    <string name="profiles_group_delete_keep">Delete group only</string>
+    <string name="profiles_group_delete_with_nodes">Delete group and %1$d nodes</string>
+    <string name="profiles_group_delete_body_count">%1$d nodes</string>
+    <string name="profiles_group_delete_empty_body">This group has no nodes.</string>
+    <string name="profiles_group_delete_region_body">A region group is a view over node names. Deleting it takes no nodes with it.</string>
+    <string name="profiles_group_unsubscribe_title">Unsubscribe and delete “%1$s”?</string>
+    <string name="profiles_group_unsubscribe_body">Its nodes come from the subscription address. Keeping them would leave orphans that nothing can refresh, so this deletes the whole subscription.</string>
     <string name="profiles_group_actions">Group actions</string>
     <string name="profiles_group_state_in_use">In use</string>
     <string name="profiles_group_state_selected">Selected</string>
     <string name="profiles_node_long_press">Move to group</string>
     <string name="profiles_group_by_region">By region</string>
     <string name="profiles_dialog_ok">OK</string>
-    <string name="profiles_group_delete_body_derived">Delete “%1$s”? Its nodes stay where they are — only the group goes.</string>
     <string name="profiles_group_new_title">New group</string>
     <string name="profiles_group_move_title">Move %1$s</string>
     <string name="profiles_group_none">No group</string>
