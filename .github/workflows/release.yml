@@ -74,6 +74,15 @@ jobs:
           done
           ls -la dist
 
+      # A checksum file beside the binaries. The updater already verifies
+      # SHA-256 of what it downloads, but a user who saves an APK by hand has
+      # nothing to compare against. Generated from dist/ rather than committed,
+      # so it can only ever describe the three files in this release — a stale
+      # checksum file is worse than none, because it fails for the wrong reason.
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: sha256sum *.apk > SHA256SUMS
+
       # Kept out of the release itself: it maps obfuscated names back to real
       # ones, which is exactly what a crash report needs and what an attacker
       # would like to have.
@@ -101,8 +110,10 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Starveil ${{ github.ref_name }}
           body: |
-            APKs for the three supported ABIs. What changed is in
+            APKs for the three supported ABIs, plus SHA256SUMS (run
+            sha256sum -c SHA256SUMS in the download directory to verify them).
+            What changed is in
             [CHANGELOG.md](https://github.com/justnpcx/Starveil/blob/main/CHANGELOG.md).
-          files: dist/*.apk
+          files: dist/*
           draft: false
           make_latest: true
