@@ -292,7 +292,12 @@ fun ProfilesScreen(
     // sit beside the name and specific enough to tell the two apart.
     // Only groups that actually hold nodes get a chip. Computed in ViewModel
     // from the unfiltered node pool so selecting a chip does not make other chips vanish.
-    val nonEmptyGroups = state.nonEmptyGroups
+    // Every folder, empty or not: a group the user just made has to be
+    // visible, or creating one looks like it did nothing. Region groups are
+    // derived, so an empty one is noise rather than a container.
+    val chipGroups = remember(state.groups) {
+        state.groups.filter { it.region == null || it.profileIds.isNotEmpty() }
+    }
     // Two nodes can share a display name, and two more can share the first
     // dozen characters of one — which is what the list actually shows, because
     // the title is one line with an ellipsis. Both cases need a suffix, so the
@@ -426,9 +431,13 @@ fun ProfilesScreen(
                         viewModel.filterByGroup(null)
                     },
                 )
-                nonEmptyGroups.forEach { group ->
+                chipGroups.forEach { group ->
                     GroupChip(
-                        label = group.name,
+                        label = if (group.profileIds.isEmpty()) {
+                            stringResource(R.string.profiles_group_empty_label, group.name)
+                        } else {
+                            group.name
+                        },
                         selected = state.groupFilter == group.id,
                         onClick = { viewModel.filterByGroup(group.id) },
                         onLongClick = { groupMenu = group },
@@ -502,10 +511,44 @@ fun ProfilesScreen(
 
                 // Nodes exist but the filter hides them: say so, rather than
                 // reusing "No nodes yet", which would be a lie.
-                state.hasNoMatches -> EmptyState(
-                    title = stringResource(R.string.profiles_no_matches_title),
-                    body = stringResource(R.string.profiles_no_matches_body),
-                )
+                state.hasNoMatches -> {
+                    // An empty group is a place, not a dead end: it gets its
+                    // own header and a line that says how to manage it, rather
+                    // than the generic "nothing matches this filter".
+                    val filtered = state.groups.firstOrNull { it.id == state.groupFilter }
+                    if (filtered != null) {
+                        StarveilCard(
+                            modifier = Modifier.padding(horizontal = StarveilSpacing.pageMargin),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {},
+                                        onLongClick = { groupMenu = filtered },
+                                    )
+                                    .padding(StarveilSpacing.lg),
+                            ) {
+                                Text(
+                                    text = filtered.name,
+                                    style = StarveilType.headline,
+                                    color = StarveilColors.ink,
+                                )
+                                Text(
+                                    text = stringResource(R.string.profiles_group_empty_body),
+                                    style = StarveilType.label,
+                                    color = StarveilColors.ink2,
+                                    modifier = Modifier.padding(top = StarveilSpacing.xs),
+                                )
+                            }
+                        }
+                    } else {
+                        EmptyState(
+                            title = stringResource(R.string.profiles_no_matches_title),
+                            body = stringResource(R.string.profiles_no_matches_body),
+                        )
+                    }
+                }
 
                 // Same, for the search: the sentence has to name what was
                 // searched for, or it reads like the group is empty.
@@ -873,45 +916,80 @@ fun ProfilesScreen(
     }
 
     groupToDelete?.let { group ->
+        // Deleting a container is not the same as deleting its contents, so
+        // the folder case asks. The two exceptions say why they do not ask:
+        // a subscription's nodes cannot outlive their address, and a region
+        // group never owned any nodes to begin with.
+        val isSubscription = group.subscriptionUrl != null
+        val isRegion = group.region != null
+        val count = group.profileIds.size
+        // Nothing to keep or take: an empty folder has one sensible action.
+        val empty = !isSubscription && !isRegion && count == 0
         AlertDialog(
             containerColor = StarveilColors.card,
             shape = StarveilShapes.dialog,
             onDismissRequest = { groupToDelete = null },
-            title = { Text(stringResource(R.string.profiles_group_delete_title)) },
+            title = {
+                Text(
+                    if (isSubscription) {
+                        stringResource(R.string.profiles_group_unsubscribe_title, group.name)
+                    } else {
+                        stringResource(R.string.profiles_group_delete_title_name, group.name)
+                    },
+                )
+            },
             text = {
                 Text(
-                    // Say the node count: deleting a subscription group takes
-                    // its nodes with it, and that is not obvious. A region
-                    // group takes nothing with it, which is equally not obvious.
                     when {
-                        group.region != null ->
-                            stringResource(R.string.profiles_group_delete_body_derived, group.name)
-                        group.profileIds.isEmpty() ->
-                            stringResource(R.string.profiles_group_delete_body_empty, group.name)
-                        else -> stringResource(
-                            R.string.profiles_group_delete_body,
-                            group.name,
-                            group.profileIds.size,
-                        )
+                        isSubscription -> stringResource(R.string.profiles_group_unsubscribe_body)
+                        isRegion -> stringResource(R.string.profiles_group_delete_region_body)
+                        empty -> stringResource(R.string.profiles_group_delete_empty_body)
+                        else -> stringResource(R.string.profiles_group_delete_body_count, count)
                     },
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteGroup(group)
-                        groupToDelete = null
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.profiles_group_delete),
-                        color = StarveilColors.errText,
-                    )
+                if (isSubscription || isRegion || empty) {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteGroup(group, deleteProfiles = isSubscription)
+                            groupToDelete = null
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profiles_group_delete),
+                            color = StarveilColors.errText,
+                        )
+                    }
+                } else {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteGroup(group, deleteProfiles = true)
+                            groupToDelete = null
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profiles_group_delete_with_nodes, count),
+                            color = StarveilColors.errText,
+                        )
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { groupToDelete = null }) {
-                    Text(stringResource(R.string.profiles_group_cancel))
+                Row {
+                    if (!isSubscription && !isRegion && !empty) {
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteGroup(group, deleteProfiles = false)
+                                groupToDelete = null
+                            },
+                        ) {
+                            Text(stringResource(R.string.profiles_group_delete_keep))
+                        }
+                    }
+                    TextButton(onClick = { groupToDelete = null }) {
+                        Text(stringResource(R.string.profiles_group_cancel))
+                    }
                 }
             },
         )
@@ -1128,6 +1206,7 @@ private fun ProfilesMessage.text(): String = when (this) {
         }
     is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason.text())
     is ProfilesMessage.GroupedByRegion -> stringResource(R.string.profiles_msg_grouped, regions)
+    is ProfilesMessage.GroupCreated -> stringResource(R.string.profiles_msg_group_created, name)
     ProfilesMessage.NoRegionsFound -> stringResource(R.string.profiles_msg_no_regions)
     is ProfilesMessage.External -> text
 }

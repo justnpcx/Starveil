@@ -392,7 +392,7 @@ class ProfilesViewModelTest {
 
         viewModel.filterByGroup(SUB)
         yield()
-        viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)))
+        viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)), deleteProfiles = true)
         yield()
 
         // One call, one transaction: the fake records the delegation, the DAO
@@ -414,7 +414,7 @@ class ProfilesViewModelTest {
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
-        viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)))
+        viewModel.deleteGroup(ProxyGroup(id = SUB, name = "sub", profileIds = listOf(ONE)), deleteProfiles = true)
         yield()
 
         assertEquals(0L, preferences.selectedProfileId.first())
@@ -586,7 +586,7 @@ class ProfilesViewModelTest {
 
         viewModel.selectGroup(subGroup(GroupMode.URL_TEST))
         yield()
-        viewModel.deleteGroup(subGroup(GroupMode.URL_TEST))
+        viewModel.deleteGroup(subGroup(GroupMode.URL_TEST), deleteProfiles = true)
         yield()
 
         assertEquals(0L, preferences.selectedGroupId.first())

@@ -60,10 +60,18 @@ interface GroupDao {
      */
     @Transaction
     suspend fun deleteWithProfiles(groupId: Long, deleteProfiles: Boolean) {
-        if (deleteProfiles) deleteProfilesOfGroup(groupId)
+        // Deleting the container is not deleting its contents: a folder's
+        // nodes go back to "no group" unless the caller asked for them to go
+        // with it. Both halves are in the same transaction, so an interruption
+        // cannot leave nodes pointing at a group that no longer exists.
+        if (deleteProfiles) deleteProfilesOfGroup(groupId) else detachProfilesOfGroup(groupId)
         deleteById(groupId)
     }
 
     @Query("DELETE FROM profiles WHERE groupId = :groupId")
     suspend fun deleteProfilesOfGroup(groupId: Long)
+
+    /** Nodes of a folder group become ungrouped; a region group's members are derived. */
+    @Query("UPDATE profiles SET groupId = 0 WHERE groupId = :groupId")
+    suspend fun detachProfilesOfGroup(groupId: Long)
 }

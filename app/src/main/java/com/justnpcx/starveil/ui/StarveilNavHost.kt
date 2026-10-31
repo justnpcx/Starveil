@@ -30,6 +30,7 @@ import com.justnpcx.starveil.feature.dashboard.DashboardScreen
 import com.justnpcx.starveil.feature.logs.LogsScreen
 import com.justnpcx.starveil.feature.profiles.ProfilesScreen
 import com.justnpcx.starveil.feature.profiles.QrScannerScreen
+import com.justnpcx.starveil.feature.rules.RuleEditorScreen
 import com.justnpcx.starveil.feature.rules.RulesScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -75,6 +76,9 @@ private const val KEEP_ALIVE_ROUTE = "keepalive"
 private const val RULE_TEST_ROUTE = "ruletest"
 private const val CONNECTIONS_ROUTE = "connections"
 private const val DNS_LOG_ROUTE = "dnslog"
+
+/** The rule editor: a full-screen page, like the node editor. */
+private const val RULE_EDITOR_ROUTE = "editor/rule?id={id}"
 
 /** Also not a tab: the policy is read once, from the About page. */
 private const val PRIVACY_ROUTE = "privacy"
@@ -221,6 +225,7 @@ fun StarveilNavHost(
             RulesScreen(
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
                 onOpenScenes = { navController.navigate("scenes_tab") },
+                onOpenRuleEditor = { id -> navController.navigate("editor/rule?id=$id") },
             )
         }
         }
@@ -283,6 +288,22 @@ fun StarveilNavHost(
         composable(RULE_TEST_ROUTE) {
             RuleTestScreen()
         }
+        }
+
+        composable(
+            route = RULE_EDITOR_ROUTE,
+            arguments = listOf(
+                navArgument("id") {
+                    type = NavType.LongType
+                    // Absent means "new rule".
+                    defaultValue = 0L
+                },
+            ),
+        ) { entry ->
+            RuleEditorScreen(
+                ruleId = entry.arguments?.getLong("id") ?: 0L,
+                onDone = { navController.popBackStack() },
+            )
         }
 
         composable(CONNECTIONS_ROUTE) {
