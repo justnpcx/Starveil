@@ -119,7 +119,6 @@ import kotlinx.coroutines.flow.drop
 fun RulesScreen(
     /** Opens the per-app routing screen, which lives with the other settings. */
     onOpenPerApp: () -> Unit = {},
-    onOpenScenes: () -> Unit = {},
     /** Opens the full-screen rule editor: 0 for a new rule, else the row's id. */
     onOpenRuleEditor: (Long) -> Unit = {},
     viewModel: RulesViewModel = hiltViewModel(),
@@ -199,7 +198,6 @@ fun RulesScreen(
                         onToggleAds = viewModel::setBlockAds,
                         onOpenMarket = { showMarket = true },
                         onOpenPerApp = onOpenPerApp,
-                        onOpenScenes = onOpenScenes,
                     )
                 }
 
@@ -968,7 +966,6 @@ private fun RoutePresetCard(
     onToggleAds: (Boolean) -> Unit,
     onOpenMarket: () -> Unit,
     onOpenPerApp: () -> Unit,
-    onOpenScenes: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     StarveilCard {
@@ -1069,12 +1066,6 @@ private fun RoutePresetCard(
             title = stringResource(R.string.rules_per_app_title),
             description = stringResource(R.string.rules_per_app_desc),
             onClick = onOpenPerApp,
-        )
-        StarveilDivider(startInset = StarveilSpacing.lg)
-        EntryRow(
-            title = stringResource(R.string.rules_scenes_title),
-            description = stringResource(R.string.rules_scenes_desc),
-            onClick = onOpenScenes,
         )
         StarveilDivider(startInset = StarveilSpacing.lg)
         // What the kernel will actually be told, not what the switches look

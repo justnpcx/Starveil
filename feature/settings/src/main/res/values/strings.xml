@@ -166,7 +166,10 @@
     <string name="keepalive_action_open">Open</string>
     <string name="settings_group_connection">Connection</string>
     <string name="settings_group_routing">Routing and background</string>
+    <string name="settings_group_advanced">Advanced</string>
     <string name="settings_group_diagnostics">Data, security and diagnostics</string>
+    <string name="diagnostics_card_check_title">Self-check</string>
+    <string name="diagnostics_card_dns_title">DNS</string>
     <string name="settings_dns_metrics_title">DNS sampling</string>
     <string name="settings_dns_metrics_desc">Times every lookup, keeps the last 512.</string>
     <string name="settings_dns_metrics_empty">No samples yet.</string>

@@ -76,18 +76,13 @@ class SettingsViewModelTest {
         val crash = FakeCrashReporting(enabled = true)
         val viewModel = SettingsViewModel(
             FakePreferences(),
-            FakeKernel(""),
             emptyBackup(),
             NoFiles(),
             crash,
             UpdateChecker(),
             NoDownloads(),
             FakeTokens,
-            DnsMetrics(),
-            NoProfiles(),
-            NoGroups(),
-            NoRules(),
-            NoLogs,
+            FakeKernel(""),
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()
@@ -102,7 +97,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `the kernel's version reaches the ui state`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel("1.14.3-647c447"), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics(), NoProfiles(), NoGroups(), NoRules(), NoLogs)
+        val viewModel = SettingsViewModel(FakePreferences(), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, FakeKernel("1.14.3-647c447"))
         val job = launch { viewModel.uiState.collect {} }
 
         // The read happens in the view model's init, and the fold crosses a
@@ -122,7 +117,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `an empty kernel version leaves the rest of the state alone`() = runBlocking {
-        val viewModel = SettingsViewModel(FakePreferences(), FakeKernel(""), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, DnsMetrics(), NoProfiles(), NoGroups(), NoRules(), NoLogs)
+        val viewModel = SettingsViewModel(FakePreferences(), emptyBackup(), NoFiles(), FakeCrashReporting(), UpdateChecker(), NoDownloads(), FakeTokens, FakeKernel(""))
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -137,18 +132,13 @@ class SettingsViewModelTest {
         val preferences = FakePreferences()
         val viewModel = SettingsViewModel(
             preferences,
-            FakeKernel(""),
             emptyBackup(),
             NoFiles(),
             FakeCrashReporting(),
             UpdateChecker(),
             NoDownloads(),
             FakeTokens,
-            DnsMetrics(),
-            NoProfiles(),
-            NoGroups(),
-            NoRules(),
-            NoLogs,
+            FakeKernel(""),
         )
         val job = launch { viewModel.uiState.collect {} }
         yield()

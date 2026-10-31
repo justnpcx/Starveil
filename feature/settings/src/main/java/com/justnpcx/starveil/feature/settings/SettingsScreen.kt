@@ -76,9 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.model.KillSwitchMode
 import com.justnpcx.starveil.core.model.ThemeMode
-import com.justnpcx.starveil.core.model.LeakCheckRecord
 import com.justnpcx.starveil.core.model.LocalApi
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,7 +95,6 @@ import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
-import com.justnpcx.starveil.core.ui.util.writeClipboard
 
 /**
  * Settings — theme, the Kill Switch three-way choice, and the leak self-check.
@@ -109,15 +106,11 @@ fun SettingsScreen(
      * Runs the leak self-check. Supplied by :app, which owns the VpnService the
      * check inspects; the default keeps previews and tests platform-free.
      */
-    onRunLeakCheck: () -> Unit = {},
     /** Opens the per-app exception list. :app owns the route. */
     onOpenPerApp: () -> Unit = {},
     onOpenKeepAlive: () -> Unit = {},
-    onOpenRuleTest: () -> Unit = {},
     /** Opens the live connection table. :app owns the route. */
-    onOpenConnections: () -> Unit = {},
     /** Opens the per-query DNS log. :app owns the route. */
-    onOpenDnsLog: () -> Unit = {},
     /** Opens the privacy policy. :app owns the route. */
     onOpenPrivacy: () -> Unit = {},
     /** Opens the language page. :app owns the route. */
@@ -155,7 +148,6 @@ fun SettingsScreen(
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     var confirmingTokenReset by remember { mutableStateOf(false) }
     /** The built bundle, held until the user closes the preview. */
-    var diagnostics by remember { mutableStateOf<String?>(null) }
 
     val createBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -240,29 +232,30 @@ fun SettingsScreen(
             "per-app", "background", "keep alive",
         ),
     )
-    val showDiagnostics = matches(
+    // The diagnostics rows that used to be here are on the diagnostics page now,
+    // so they are not in this index either: a search that offers a row which is
+    // not on this screen is a search that lies. "DNS" and "diagnostic" therefore
+    // match nothing here, deliberately.
+    val showBackup = matches(
         listOf(
-            stringResource(R.string.settings_group_diagnostics),
+            stringResource(R.string.backup_title),
             stringResource(R.string.backup_explainer),
             stringResource(R.string.backup_export),
             stringResource(R.string.backup_restore),
-            stringResource(R.string.rule_test_title),
-            stringResource(R.string.rule_test_entry_desc),
-            stringResource(R.string.connections_entry_title),
-            stringResource(R.string.connections_entry_desc),
-            stringResource(R.string.diagnostics_export_title),
-            stringResource(R.string.diagnostics_export_desc),
-            stringResource(R.string.leak_check_run),
-            stringResource(R.string.settings_dns_metrics_title),
-            stringResource(R.string.settings_dns_metrics_desc),
-            stringResource(R.string.settings_dns_log_title),
+            "backup", "export", "restore", "备份", "恢复",
+        ),
+    )
+    val showAdvanced = matches(
+        listOf(
+            stringResource(R.string.settings_group_advanced),
             stringResource(R.string.settings_local_api_title),
             stringResource(R.string.settings_local_api_desc, LocalApi.address),
-            "backup", "dns", "leak", "token", "api", "diagnostic", "log",
+            "advanced", "token", "api", "高级",
         ),
     )
     val nothingMatches = q.isNotBlank() &&
-        !showGeneral && !showAppearance && !showConnection && !showRouting && !showDiagnostics
+        !showGeneral && !showAppearance && !showConnection && !showRouting &&
+        !showBackup && !showAdvanced
 
     LaunchedEffect(updateState) {
         val ready = updateState as? UpdateUiState.Ready ?: return@LaunchedEffect
@@ -489,183 +482,109 @@ fun SettingsScreen(
 
         }
 
-        // ---- Data, security and diagnostics --------------------------------
-        if (showDiagnostics) {
-        // Everything that answers "what is going on": the backup file, the leak
-        // self-check, the DNS numbers and the local API. The new diagnostics
-        // from this task book belong here too, so they do not start a fifth
-        // group of their own.
-        StarveilGroupHeader(stringResource(R.string.settings_group_diagnostics))
-        SettingsCard {
-            EntryRow(
-                title = stringResource(R.string.rule_test_title),
-                description = stringResource(R.string.rule_test_entry_desc),
-                onClick = onOpenRuleTest,
-            )
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            EntryRow(
-                title = stringResource(R.string.connections_entry_title),
-                description = stringResource(R.string.connections_entry_desc),
-                onClick = onOpenConnections,
-            )
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            EntryRow(
-                title = stringResource(R.string.diagnostics_export_title),
-                description = stringResource(R.string.diagnostics_export_desc),
-                onClick = {
-                    // Nothing is produced until this tap, and nothing leaves
-                    // the device until the preview's copy is pressed.
-                    viewModel.buildDiagnosticBundle(appVersion.orEmpty()) { text ->
-                        diagnostics = text
-                    }
-                },
-            )
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            Row(
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    top = StarveilSpacing.md,
-                    bottom = StarveilSpacing.xs,
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = leakCheckSummary(state.lastLeakCheck),
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                    modifier = Modifier.weight(1f),
+        // ---- Backup --------------------------------------------------------
+        // The one card whose buttons leave the app: a file out and a file back
+        // in. Everything above it is a setting; this is a transfer.
+        if (showBackup) {
+            StarveilGroupHeader(stringResource(R.string.backup_title))
+            SettingsCard {
+                CardHeader(
+                    title = stringResource(R.string.backup_title),
+                    description = stringResource(R.string.backup_explainer),
                 )
-                Spacer(modifier = Modifier.width(StarveilSpacing.md))
-                LinkText(
-                    text = stringResource(R.string.leak_check_run),
-                    onClick = onRunLeakCheck,
-                )
-            }
-            Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            // The ring only changes while something resolves, so the row reads
-            // it on a slow tick rather than making every lookup flow into the
-            // UI: a settings screen has no business observing the DNS path.
-            LaunchedEffect(Unit) {
-                while (true) {
-                    viewModel.refreshDnsStats()
-                    delay(DNS_STATS_REFRESH_MS)
-                }
-            }
-            SwitchRow(
-                title = stringResource(R.string.settings_dns_metrics_title),
-                description = stringResource(R.string.settings_dns_metrics_desc),
-                checked = state.dnsMetricsEnabled,
-                onCheckedChange = viewModel::setDnsMetricsEnabled,
-            )
-            if (state.dnsMetricsEnabled) {
-                StarveilDivider(startInset = StarveilSpacing.lg)
-                // One line of state, not the telemetry: "23 samples · p50 81 ms
-                // · p95 587 ms · fallback 0% · cache 0%" is a row of numbers in
-                // a list of settings, and it made the diagnostics group the
-                // only place where a setting looked like a dashboard. The
-                // numbers are one tap away, with the per-query log beside them.
-                EntryRow(
-                    title = stringResource(R.string.settings_dns_log_title),
-                    description = dnsStatusLine(state.dnsStats),
-                    onClick = onOpenDnsLog,
-                )
-            }
-            StarveilDivider(startInset = StarveilSpacing.lg)
-            SwitchRow(
-                title = stringResource(R.string.settings_local_api_title),
-                description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
-                checked = state.localApiEnabled,
-                onCheckedChange = viewModel::setLocalApiEnabled,
-            )
-            if (state.localApiEnabled) {
-                StarveilDivider(startInset = StarveilSpacing.lg)
-                Column(
-                    modifier = Modifier.padding(
-                        start = StarveilSpacing.lg,
-                        end = StarveilSpacing.lg,
-                        top = StarveilSpacing.md,
-                        bottom = StarveilSpacing.sm,
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_local_api_address, LocalApi.address),
-                        style = StarveilType.log,
-                        color = StarveilColors.ink2,
-                    )
-                    Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                    Text(
-                        text = state.apiToken,
-                        style = StarveilType.log,
-                        color = StarveilColors.ink2,
-                    )
-                }
+                // Two outline buttons, not two words in a paragraph: export and
+                // restore are this card's primary actions, and a bare text link
+                // is how a secondary action is drawn.
                 Row(
                     modifier = Modifier.padding(
                         start = StarveilSpacing.lg,
                         end = StarveilSpacing.lg,
+                        top = StarveilSpacing.xs,
                         bottom = StarveilSpacing.md,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                 ) {
-                    LinkText(
-                        text = stringResource(R.string.settings_local_api_copy),
-                        enabled = state.apiToken.isNotEmpty(),
-                        onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                                as ClipboardManager
-                            clipboard.setPrimaryClip(
-                                ClipData.newPlainText("Starveil local API token", state.apiToken),
-                            )
-                        },
+                    // Equal halves of the card. Two buttons sized to their own
+                    // text sat in the left half of a wide card and read as a
+                    // group that had failed to centre itself.
+                    StarveilButton(
+                        text = stringResource(R.string.backup_export),
+                        secondary = true,
+                        onClick = { askingForExport = true },
+                        modifier = Modifier.weight(1f),
                     )
-                    LinkText(
-                        text = stringResource(R.string.settings_local_api_reset),
-                        enabled = state.apiToken.isNotEmpty(),
-                        onClick = { confirmingTokenReset = true },
+                    StarveilButton(
+                        text = stringResource(R.string.backup_restore),
+                        secondary = true,
+                        onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
         }
 
-        // ---- Backup --------------------------------------------------------
-        // Last, because it is the one card whose buttons leave the app: a file
-        // out and a file back in. Everything above it is a setting; this is a
-        // transfer, and it closes the page.
-        StarveilGroupHeader(stringResource(R.string.backup_title))
-        SettingsCard {
-            CardHeader(
-                title = stringResource(R.string.backup_title),
-                description = stringResource(R.string.backup_explainer),
-            )
-            // Two outline buttons, not two words in a paragraph: export and
-            // restore are this card's primary actions, and a bare text link is
-            // how a secondary action is drawn.
-            Row(
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.lg,
-                    end = StarveilSpacing.lg,
-                    top = StarveilSpacing.xs,
-                    bottom = StarveilSpacing.md,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                // Equal halves of the card. Two buttons sized to their own
-                // text sat in the left half of a wide card and read as a
-                // group that had failed to centre itself.
-                StarveilButton(
-                    text = stringResource(R.string.backup_export),
-                    secondary = true,
-                    onClick = { askingForExport = true },
-                    modifier = Modifier.weight(1f),
+        // ---- Advanced ------------------------------------------------------
+        // What used to sit at the bottom of the diagnostics group: a switch
+        // that changes how the app is driven from outside, not a diagnostic.
+        // It stays in Settings because it is a preference; the four rows that
+        // answered "what is going on" did not.
+        if (showAdvanced) {
+            StarveilGroupHeader(stringResource(R.string.settings_group_advanced))
+            SettingsCard {
+                SwitchRow(
+                    title = stringResource(R.string.settings_local_api_title),
+                    description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
+                    checked = state.localApiEnabled,
+                    onCheckedChange = viewModel::setLocalApiEnabled,
                 )
-                StarveilButton(
-                    text = stringResource(R.string.backup_restore),
-                    secondary = true,
-                    onClick = { openBackup.launch(arrayOf("application/octet-stream", "*/*")) },
-                    modifier = Modifier.weight(1f),
-                )
+                if (state.localApiEnabled) {
+                    StarveilDivider(startInset = StarveilSpacing.lg)
+                    Column(
+                        modifier = Modifier.padding(
+                            start = StarveilSpacing.lg,
+                            end = StarveilSpacing.lg,
+                            top = StarveilSpacing.md,
+                            bottom = StarveilSpacing.sm,
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_local_api_address, LocalApi.address),
+                            style = StarveilType.log,
+                            color = StarveilColors.ink2,
+                        )
+                        Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                        Text(
+                            text = state.apiToken,
+                            style = StarveilType.log,
+                            color = StarveilColors.ink2,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.padding(
+                            start = StarveilSpacing.lg,
+                            end = StarveilSpacing.lg,
+                            bottom = StarveilSpacing.md,
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.lg),
+                    ) {
+                        LinkText(
+                            text = stringResource(R.string.settings_local_api_copy),
+                            enabled = state.apiToken.isNotEmpty(),
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                    as ClipboardManager
+                                clipboard.setPrimaryClip(
+                                    ClipData.newPlainText("Starveil local API token", state.apiToken),
+                                )
+                            },
+                        )
+                        LinkText(
+                            text = stringResource(R.string.settings_local_api_reset),
+                            enabled = state.apiToken.isNotEmpty(),
+                            onClick = { confirmingTokenReset = true },
+                        )
+                    }
+                }
             }
         }
 
@@ -673,17 +592,6 @@ fun SettingsScreen(
         // already reserved by the shell; this is the 12dp the task book asks
         // for on top of it.
         Spacer(modifier = Modifier.height(StarveilSpacing.navContentInset))
-
-        diagnostics?.let { text ->
-            DiagnosticPreviewDialog(
-                text = text,
-                onCopy = {
-                    writeClipboard(context, text, "Starveil diagnostics")
-                    diagnostics = null
-                },
-                onDismiss = { diagnostics = null },
-            )
-        }
 
         }
 
@@ -755,7 +663,6 @@ fun SettingsScreen(
             )
         }
     }
-}
 
 /**
  * The failure, in the user's language.
@@ -951,7 +858,6 @@ private fun BackupMessage.text(): String = when (this) {
 private const val MIN_PASSPHRASE = 8
 
 /** How often the DNS row re-reads its ring while the screen is open. */
-private const val DNS_STATS_REFRESH_MS = 2_000L
 
 private fun defaultBackupFileName(): String {
     val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
@@ -1155,35 +1061,6 @@ private fun SwitchRow(
     }
 }
 
-/**
- * The DNS row's one line.
- *
- * The threshold is the project's own (§7.1: p50 under 30 ms), not a number
- * invented here — "normal" without a stated rule would be a judgement the
- * screen has no basis for.
- */
-@Composable
-private fun dnsStatusLine(stats: com.justnpcx.starveil.core.data.geo.DnsSnapshot): String = when {
-    stats.samples == 0 -> stringResource(R.string.settings_dns_metrics_empty)
-    stats.p50Ms <= DNS_TARGET_MS -> stringResource(R.string.settings_dns_log_ok, stats.p50Ms, stats.samples)
-    else -> stringResource(R.string.settings_dns_log_slow, stats.p50Ms, stats.samples)
-}
-
-/** §7.1's p50 budget. */
-private const val DNS_TARGET_MS = 30L
-
-@Composable
-private fun leakCheckSummary(record: LeakCheckRecord): String =
-    if (record.checkedAtEpochMs <= 0L) {
-        stringResource(R.string.leak_check_never)
-    } else {
-        val when_ = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-            .format(Date(record.checkedAtEpochMs))
-        stringResource(
-            if (record.leaking) R.string.leak_check_leaking else R.string.leak_check_clean,
-            when_,
-        )
-    }
 
 private fun KillSwitchMode.labelRes(): Int = when (this) {
     KillSwitchMode.OFF -> R.string.kill_switch_off
@@ -1245,53 +1122,6 @@ private fun openSystemVpnSettings(context: Context) {
         }
     }
 }
-
-/**
- * The bundle, before it goes anywhere.
- *
- * A preview rather than a share sheet straight from the row: the user is about
- * to publish their own network's numbers, and the only honest way to ask is to
- * show them the text first. Nothing is written to a file, and nothing is
- * uploaded — the button copies.
- */
-@Composable
-private fun DiagnosticPreviewDialog(
-    text: String,
-    onCopy: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.diagnostics_preview_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                Text(
-                    text = stringResource(R.string.diagnostics_preview_note),
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                )
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 380.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    Text(text = text, style = StarveilType.log, color = StarveilColors.ink2)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onCopy) {
-                Text(stringResource(R.string.diagnostics_preview_copy))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.diagnostics_preview_cancel))
-            }
-        },
-    )
-}
-
 
 /**
  * A card's own title and one-line explanation.
