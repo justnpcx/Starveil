@@ -199,11 +199,15 @@ private fun HubRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            // Two lines, because the diagnostic rows say what they do rather
+            // than name themselves: "Version, kernel, DNS stats, leak check and
+            // recent logs" does not fit one line on a phone, and a subtitle
+            // that ends in an ellipsis explains nothing.
             Text(
                 text = subtitle,
                 style = StarveilType.label,
                 color = StarveilColors.ink2,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -255,11 +259,15 @@ private fun HubAboutRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            // Two lines, because the diagnostic rows say what they do rather
+            // than name themselves: "Version, kernel, DNS stats, leak check and
+            // recent logs" does not fit one line on a phone, and a subtitle
+            // that ends in an ellipsis explains nothing.
             Text(
                 text = subtitle,
                 style = StarveilType.label,
                 color = StarveilColors.ink2,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
