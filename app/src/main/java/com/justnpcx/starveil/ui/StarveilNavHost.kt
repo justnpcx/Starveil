@@ -243,6 +243,7 @@ fun StarveilNavHost(
                 onOpenScenes = { navController.navigate("scenes_tab") },
                 onOpenLogs = { navController.navigate("logs_tab") },
                 onOpenDiagnostics = { navController.navigate("diagnostics") },
+                onOpenConnections = { navController.navigate(CONNECTIONS_ROUTE) },
                 onOpenSettings = { navController.navigate("settings_tab") },
                 onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
             )

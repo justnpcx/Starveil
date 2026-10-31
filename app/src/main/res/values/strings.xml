@@ -38,6 +38,12 @@
     <string name="nav_language">Language</string>
 
     <!-- The hub: one row per destination the bar does not list. -->
+    <string name="hub_group_tools">Diagnostic tools</string>
+    <string name="hub_group_app">App</string>
+    <string name="hub_connections_title">Connections</string>
+    <string name="hub_connections_sub">Who connected where, and which rule matched</string>
+    <string name="hub_export_title">Export diagnostics</string>
+    <string name="hub_export_sub">Version, kernel, DNS stats, leak check and recent logs, previewed before sharing</string>
     <string name="hub_scenes_sub">Presets and scene switching</string>
     <string name="hub_logs_sub">Log and recent flows</string>
     <string name="hub_diagnostics_title">Diagnostics</string>

@@ -1247,53 +1247,6 @@ private fun openSystemVpnSettings(context: Context) {
 }
 
 /**
- * The bundle, before it goes anywhere.
- *
- * A preview rather than a share sheet straight from the row: the user is about
- * to publish their own network's numbers, and the only honest way to ask is to
- * show them the text first. Nothing is written to a file, and nothing is
- * uploaded — the button copies.
- */
-@Composable
-private fun DiagnosticPreviewDialog(
-    text: String,
-    onCopy: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.diagnostics_preview_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                Text(
-                    text = stringResource(R.string.diagnostics_preview_note),
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                )
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 380.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    Text(text = text, style = StarveilType.log, color = StarveilColors.ink2)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onCopy) {
-                Text(stringResource(R.string.diagnostics_preview_copy))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.diagnostics_preview_cancel))
-            }
-        },
-    )
-}
-
-
-/**
  * A card's own title and one-line explanation.
  *
  * A card that starts with "Off" or with a paragraph of prose is a card the
