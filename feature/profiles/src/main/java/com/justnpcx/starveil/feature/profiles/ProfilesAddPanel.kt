@@ -1,6 +1,5 @@
 package com.justnpcx.starveil.feature.profiles
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import com.justnpcx.starveil.core.subscription.LinkPreview
-import com.justnpcx.starveil.core.ui.components.AddActionRow
 import com.justnpcx.starveil.core.ui.components.AddResultLine
 import com.justnpcx.starveil.core.ui.components.AddSuggestionCard
 import com.justnpcx.starveil.core.ui.components.AddTile
@@ -78,118 +76,130 @@ internal fun ProfilesAddPanel(
     onImportSubscription: (url: String, name: String) -> Unit,
     onViewSubscription: (Long) -> Unit,
 ) {
-    var subscriptionOpen by remember { mutableStateOf(startWithSubscription) }
+    var page by remember {
+        mutableStateOf(if (startWithSubscription) AddPage.SUBSCRIPTION else AddPage.CHANNELS)
+    }
     var clipboardForm by remember { mutableStateOf(false) }
-    var linkText by remember { mutableStateOf("") }
     var subscriptionUrl by remember { mutableStateOf("") }
     var subscriptionName by remember { mutableStateOf("") }
 
     LaunchedEffect(startWithSubscription) {
-        if (startWithSubscription) subscriptionOpen = true
+        if (startWithSubscription) page = AddPage.SUBSCRIPTION
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.add_panel_title_node),
-            style = StarveilType.title,
-            color = StarveilColors.ink,
-            modifier = Modifier.padding(bottom = StarveilSpacing.md),
+    when (page) {
+        AddPage.SUBSCRIPTION -> SubscriptionForm(
+            url = subscriptionUrl,
+            name = subscriptionName,
+            onUrlChange = { subscriptionUrl = it },
+            onNameChange = { subscriptionName = it },
+            onBack = { page = AddPage.CHANNELS },
+            onImport = { onImportSubscription(subscriptionUrl, subscriptionName) },
         )
 
-        // A subscription import finishes here: the panel stays open and says
-        // what arrived, with the one action that matters next.
-        if (subscriptionImport != null) {
-            AddResultLine(
-                text = stringResource(
-                    R.string.add_subscription_done,
-                    subscriptionImport.name,
-                    subscriptionImport.count,
-                ),
-                action = stringResource(R.string.add_view),
-                onAction = { onViewSubscription(subscriptionImport.groupId) },
+        AddPage.CHANNELS -> Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.add_panel_title_node),
+                style = StarveilType.title,
+                color = StarveilColors.ink,
+                modifier = Modifier.padding(bottom = StarveilSpacing.md),
             )
-            Spacer(modifier = Modifier.height(StarveilSpacing.md))
-        }
 
-        // The card and the tile are the same door, so only one of them is ever
-        // on screen: with something importable on the clipboard the card is the
-        // shorter path and the tile would be a second way to do the same thing;
-        // with nothing there, the card has nothing to say and the tile is the
-        // way to type or paste a link by hand.
-        if (clipboard != null) {
-            AddSuggestionCard(
-                title = if (clipboard.subscriptionUrl != null) {
-                    stringResource(R.string.add_clipboard_subscription_title)
-                } else {
-                    stringResource(R.string.add_clipboard_title, clipboard.nodes.size)
-                },
-                detail = clipboard.describe(),
-                action = stringResource(R.string.add_action_import),
-                onAction = onClipboard,
-            )
-            Spacer(modifier = Modifier.height(StarveilSpacing.md))
-        }
-
-        AddTileRow {
-            AddTile(
-                icon = StarveilIcons.Scan,
-                title = stringResource(R.string.add_tile_scan),
-                subtitle = stringResource(R.string.add_tile_scan_sub),
-                modifier = Modifier.weight(1f),
-                onClick = onScan,
-            )
-            if (clipboard == null) {
-                AddTile(
-                    icon = StarveilIcons.Clipboard,
-                    title = stringResource(R.string.add_tile_clipboard),
-                    subtitle = stringResource(R.string.add_tile_clipboard_sub),
-                    modifier = Modifier.weight(1f),
-                    onClick = { clipboardForm = true },
+            // A subscription import finishes here: the panel stays open and says
+            // what arrived, with the one action that matters next.
+            if (subscriptionImport != null) {
+                AddResultLine(
+                    text = stringResource(
+                        R.string.add_subscription_done,
+                        subscriptionImport.name,
+                        subscriptionImport.count,
+                    ),
+                    action = stringResource(R.string.add_view),
+                    onAction = { onViewSubscription(subscriptionImport.groupId) },
                 )
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
             }
-            AddTile(
-                icon = StarveilIcons.Pencil,
-                title = stringResource(R.string.add_tile_manual),
-                subtitle = stringResource(R.string.add_tile_manual_sub),
-                modifier = Modifier.weight(1f),
-                onClick = onManual,
-            )
-        }
 
-        // One row, one chevron: a subscription is not a fourth peer of the
-        // three tiles — it is a link you paste, and it stays below the line.
-        AddActionRow(
-            icon = StarveilIcons.Link,
-            title = stringResource(R.string.add_row_subscription),
-            subtitle = stringResource(R.string.add_row_subscription_sub),
-            expanded = subscriptionOpen,
-            onClick = { subscriptionOpen = !subscriptionOpen },
-        )
-        AnimatedVisibility(visible = subscriptionOpen) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                StarveilTextField(
-                    value = subscriptionUrl,
-                    onValueChange = { subscriptionUrl = it },
-                    label = stringResource(R.string.add_row_subscription_url),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth(),
+            // One door per path. With something importable on the clipboard the
+            // card is the shorter way in and the tile that would do the same
+            // import is gone; with a subscription on it, the subscription tile
+            // goes too — the card already is that import.
+            val subscriptionOnClipboard = clipboard?.subscriptionUrl != null
+            if (clipboard != null) {
+                AddSuggestionCard(
+                    title = if (subscriptionOnClipboard) {
+                        stringResource(R.string.add_clipboard_subscription_title)
+                    } else {
+                        stringResource(R.string.add_clipboard_title, clipboard.nodes.size)
+                    },
+                    detail = clipboard.describe(),
+                    action = stringResource(R.string.add_action_import),
+                    onAction = onClipboard,
                 )
-                StarveilTextField(
-                    value = subscriptionName,
-                    onValueChange = { subscriptionName = it },
-                    label = stringResource(R.string.add_row_subscription_name),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    StarveilButton(
-                        text = stringResource(R.string.add_action_import),
-                        enabled = subscriptionUrl.isNotBlank(),
-                        onClick = { onImportSubscription(subscriptionUrl, subscriptionName) },
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+            }
+
+            // Four channels, one grid. A subscription used to be a bare row
+            // with a chevron that unfolded a form underneath — a second
+            // language for the same kind of decision. It is a tile now, and it
+            // leads to its own page, exactly like the manual form.
+            val tiles: List<@Composable (Modifier) -> Unit> = buildList {
+                add { m ->
+                    AddTile(
+                        icon = StarveilIcons.Scan,
+                        title = stringResource(R.string.add_tile_scan),
+                        subtitle = stringResource(R.string.add_tile_scan_sub),
+                        modifier = m,
+                        onClick = onScan,
                     )
+                }
+                if (clipboard == null) {
+                    add { m ->
+                        AddTile(
+                            icon = StarveilIcons.Clipboard,
+                            title = stringResource(R.string.add_tile_clipboard),
+                            subtitle = stringResource(R.string.add_tile_clipboard_sub),
+                            modifier = m,
+                            onClick = { clipboardForm = true },
+                        )
+                    }
+                }
+                add { m ->
+                    AddTile(
+                        icon = StarveilIcons.Pencil,
+                        title = stringResource(R.string.add_tile_manual),
+                        subtitle = stringResource(R.string.add_tile_manual_sub),
+                        modifier = m,
+                        onClick = onManual,
+                    )
+                }
+                if (!subscriptionOnClipboard) {
+                    add { m ->
+                        AddTile(
+                            icon = StarveilIcons.Link,
+                            title = stringResource(R.string.add_tile_subscription),
+                            subtitle = stringResource(R.string.add_tile_subscription_sub),
+                            modifier = m,
+                            onClick = { page = AddPage.SUBSCRIPTION },
+                        )
+                    }
+                }
+            }
+
+            if (tiles.size <= 3) {
+                AddTileRow { tiles.forEach { tile -> tile(Modifier.weight(1f)) } }
+            } else {
+                // Four does not fit one row at phone width without shrinking
+                // the subtitles to nothing, so the grid becomes two rows of two.
+                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    AddTileRow {
+                        tiles[0](Modifier.weight(1f))
+                        tiles[1](Modifier.weight(1f))
+                    }
+                    AddTileRow {
+                        tiles[2](Modifier.weight(1f))
+                        tiles[3](Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -204,6 +214,65 @@ internal fun ProfilesAddPanel(
                 onImportLinks(text)
             },
         )
+    }
+}
+
+/** Which page of the panel is showing. */
+private enum class AddPage { CHANNELS, SUBSCRIPTION }
+
+/**
+ * The subscription form, as its own page.
+ *
+ * The back arrow is the panel's own: the sheet is one surface, and a form that
+ * replaced the tiles needs a way back that is not "dismiss the whole panel".
+ */
+@Composable
+private fun SubscriptionForm(
+    url: String,
+    name: String,
+    onUrlChange: (String) -> Unit,
+    onNameChange: (String) -> Unit,
+    onBack: () -> Unit,
+    onImport: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StarveilIconAction(
+                icon = StarveilIcons.Back,
+                contentDescription = stringResource(R.string.add_back),
+                onClick = onBack,
+            )
+            Text(
+                text = stringResource(R.string.add_row_subscription),
+                style = StarveilType.title,
+                color = StarveilColors.ink,
+                modifier = Modifier.padding(start = StarveilSpacing.xs),
+            )
+        }
+        Spacer(modifier = Modifier.height(StarveilSpacing.md))
+        Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+            StarveilTextField(
+                value = url,
+                onValueChange = onUrlChange,
+                label = stringResource(R.string.add_row_subscription_url),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            StarveilTextField(
+                value = name,
+                onValueChange = onNameChange,
+                label = stringResource(R.string.add_row_subscription_name),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                StarveilButton(
+                    text = stringResource(R.string.add_action_import),
+                    enabled = url.isNotBlank(),
+                    onClick = onImport,
+                )
+            }
+        }
     }
 }
 

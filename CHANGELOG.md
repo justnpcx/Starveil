@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.5] — 2026-10-31
+
+Three things the phone found that the desk did not.
+
+### Fixed
+
+- **The home page fits the screen it is on.** The fixed stack overflowed a
+  700dp phone by a few dozen dp, so the health card needed a scroll on a page
+  with air to spare above the ring. It now compresses in two steps — 680dp and
+  below — while the ring stays 204dp and an 872dp screen keeps the 0.9.4
+  composition pixel for pixel. Scrolling stays as the last resort.
+- **"Check for updates" can install the update.** On the about page the row
+  only ever re-checked, so a phone that had found 0.9.5 could not download it.
+  The row now follows the state: check, then download, then hand the file to
+  the installer, with a spinner while it works and a retry when it fails.
+- **Importing a subscription looks like every other import.** It was a bare row
+  with a chevron that unfolded a form; it is a tile now, opening its own page
+  inside the panel, and it disappears when the clipboard already holds a
+  subscription — one door per import.
+
 ## [0.9.4] — 2026-10-31
 
 复查整改：首页在短屏上够得着，导航栏只剩一种选中信号，证据页重拍。

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -43,6 +45,7 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
+import com.justnpcx.starveil.core.data.update.UpdateInstaller
 import com.justnpcx.starveil.feature.settings.SettingsViewModel
 import com.justnpcx.starveil.feature.settings.UpdateUiState
 
@@ -60,6 +63,7 @@ fun AboutScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var showFeatures by remember { mutableStateOf(false) }
     var showLicences by remember { mutableStateOf(false) }
 
@@ -118,7 +122,32 @@ fun AboutScreen(
                 icon = StarveilIcons.Refresh,
                 title = stringResource(R.string.about_update_title),
                 value = updateText(update),
-                onClick = { viewModel.checkForUpdates(BuildConfig.VERSION_NAME) },
+                // Busy states are not targets: a second tap while a check or a
+                // download is running would start it again.
+                enabled = update !is UpdateUiState.Checking &&
+                    update !is UpdateUiState.Downloading,
+                busy = update is UpdateUiState.Checking || update is UpdateUiState.Downloading,
+                onClick = {
+                    when (val state = update) {
+                        // The row used to only ever re-check, which is why a
+                        // phone that had found an update could not install it:
+                        // the one control that knew about the update asked the
+                        // server again instead of downloading it.
+                        is UpdateUiState.Available -> viewModel.downloadUpdate(state.info)
+                        is UpdateUiState.Ready -> {
+                            if (UpdateInstaller.canInstall(context)) {
+                                context.startActivity(UpdateInstaller.intent(context, state.file))
+                                viewModel.clearUpdate()
+                            } else {
+                                // Same guidance as the settings page: the
+                                // system owns this permission, and the only
+                                // honest thing to do is open the page for it.
+                                context.startActivity(UpdateInstaller.permissionSettings(context))
+                            }
+                        }
+                        else -> viewModel.checkForUpdates(BuildConfig.VERSION_NAME)
+                    }
+                },
             )
             StarveilDivider(startInset = StarveilSpacing.lg)
             AboutRow(
@@ -186,13 +215,14 @@ fun AboutScreen(
 /** What the update row says on the right, in one word or one number. */
 @Composable
 private fun updateText(state: UpdateUiState): String = when (state) {
-    is UpdateUiState.Checking, is UpdateUiState.Downloading ->
-        stringResource(R.string.about_update_checking)
+    is UpdateUiState.Checking -> stringResource(R.string.about_update_checking)
+    is UpdateUiState.Downloading -> stringResource(R.string.about_update_downloading)
     is UpdateUiState.UpToDate -> stringResource(R.string.about_update_latest)
     is UpdateUiState.Available ->
         stringResource(R.string.about_update_available, state.info.version)
-    is UpdateUiState.Failed, is UpdateUiState.DownloadFailed ->
-        stringResource(R.string.about_update_failed)
+    // A failure says which half failed and what to do about it: tap to retry.
+    is UpdateUiState.Failed -> stringResource(R.string.about_update_check_failed)
+    is UpdateUiState.DownloadFailed -> stringResource(R.string.about_update_download_failed)
     is UpdateUiState.Ready -> stringResource(R.string.about_update_ready)
     else -> ""
 }
@@ -203,13 +233,16 @@ private fun AboutRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     value: String = "",
+    enabled: Boolean = true,
+    /** True while a check or a download is in flight: a small spinner. */
+    busy: Boolean = false,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -226,6 +259,14 @@ private fun AboutRow(
             color = StarveilColors.ink,
             modifier = Modifier.weight(1f),
         )
+        if (busy) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 1.5.dp,
+                color = StarveilColors.accent,
+            )
+            Spacer(modifier = Modifier.width(StarveilSpacing.xs))
+        }
         if (value.isNotEmpty()) {
             Text(
                 text = value,

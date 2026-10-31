@@ -32,6 +32,9 @@
     <string name="add_tile_clipboard">剪贴板导入</string>
     <string name="add_tile_clipboard_sub">链接或订阅地址</string>
     <string name="add_tile_clipboard_empty">剪贴板里没有可用链接</string>
+    <string name="add_tile_subscription">导入订阅</string>
+    <string name="add_tile_subscription_sub">拉取地址下的全部节点</string>
+    <string name="add_back">返回</string>
     <string name="add_tile_manual">手动添加</string>
     <string name="add_tile_manual_sub">逐项填写</string>
     <string name="add_row_subscription_url">订阅地址</string>

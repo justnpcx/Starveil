@@ -42,7 +42,9 @@
     <string name="about_update_checking">检查中…</string>
     <string name="about_update_latest">已是最新</string>
     <string name="about_update_available">有新版本 %1$s</string>
-    <string name="about_update_failed">检查失败</string>
+    <string name="about_update_downloading">下载中…</string>
+    <string name="about_update_check_failed">检查失败 · 点击重试</string>
+    <string name="about_update_download_failed">下载失败 · 点击重试</string>
     <string name="about_update_ready">可以安装</string>
     <string name="about_features_title">功能介绍</string>
     <string name="about_features_body">Starveil 让这台设备的流量走你选的节点，并且把每一个决定摊开给你看。\n\n· 节点可以通过二维码、剪贴板、订阅或手动录入进来。\n· 规则决定哪些流量进隧道、哪些直连；规则页会把内核实际做出的判断摆在你写的规则旁边。\n· 场景按 Wi-Fi 名称或移动网络自动切换策略。\n· 首页显示状态、速率、出口地址，以及当前节点的健康曲线。\n· 全部在本地：没有账号，没有统计，只有一份可关闭的崩溃报告。</string>
