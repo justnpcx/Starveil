@@ -419,16 +419,13 @@ fun ProfilesScreen(
             StarveilChipRow {
                 GroupChip(
                     label = stringResource(R.string.profiles_favorites),
-                    selected = state.favoritesOnly,
+                    selected = state.filter is NodeFilter.Favorites,
                     onClick = { viewModel.filterFavorites(true) },
                 )
                 GroupChip(
                     label = stringResource(R.string.profiles_group_all),
-                    selected = state.groupFilter == null && !state.favoritesOnly,
-                    onClick = {
-                        viewModel.filterFavorites(false)
-                        viewModel.filterByGroup(null)
-                    },
+                    selected = state.filter is NodeFilter.All,
+                    onClick = { viewModel.filterByGroup(null) },
                 )
                 chipGroups.forEach { group ->
                     GroupChip(
@@ -437,7 +434,7 @@ fun ProfilesScreen(
                         } else {
                             group.name
                         },
-                        selected = state.groupFilter == group.id,
+                        selected = state.filter == NodeFilter.Group(group.id),
                         onClick = { viewModel.filterByGroup(group.id) },
                         onLongClick = { groupMenu = group },
                         inUse = state.selectedGroupId == group.id,
@@ -482,8 +479,9 @@ fun ProfilesScreen(
             // another subscription's quota here would be worse than showing
             // none, because the number looks like it belongs to what is on
             // screen. Unfiltered, the node in force is the one being described.
-            val usage = if (state.groupFilter != null) {
-                state.usage[state.groupFilter]
+            val filterGroupId = (state.filter as? NodeFilter.Group)?.id
+            val usage = if (filterGroupId != null) {
+                state.usage[filterGroupId]
             } else {
                 state.usage[state.selectedGroupId]
             }
@@ -514,7 +512,7 @@ fun ProfilesScreen(
                     // An empty group is a place, not a dead end: it gets its
                     // own header and a line that says how to manage it, rather
                     // than the generic "nothing matches this filter".
-                    val filtered = state.groups.firstOrNull { it.id == state.groupFilter }
+                    val filtered = filterGroupId?.let { id -> state.groups.firstOrNull { it.id == id } }
                     if (filtered != null) {
                         StarveilCard(
                             modifier = Modifier.padding(horizontal = StarveilSpacing.pageMargin),

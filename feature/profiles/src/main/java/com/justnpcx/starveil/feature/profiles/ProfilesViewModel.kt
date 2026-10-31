@@ -38,15 +38,32 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/**
+ * What narrows the node list.
+ *
+ * One value, not two flags. The old model kept "favorites only" and "group id"
+ * as separate booleans, so turning one on had to remember to turn the other
+ * off — and the group chip never did. Two chips could be lit at once, the list
+ * showed the intersection, and the intersection was usually nothing.
+ */
+sealed interface NodeFilter {
+    /** Everything. */
+    data object All : NodeFilter
+    /** Starred nodes, from any group. */
+    data object Favorites : NodeFilter
+    /** One group — a folder, a subscription, or a derived region. */
+    data class Group(val id: Long) : NodeFilter
+}
+
 data class ProfilesUiState(
-    /** The nodes to show — already narrowed by [groupFilter]. */
+    /** The nodes to show — already narrowed by [filter]. */
     val profiles: List<Profile> = emptyList(),
     /** Every group, for the filter chips. */
     val groups: List<ProxyGroup> = emptyList(),
     /** Groups that actually contain nodes (unfiltered), for the chip row. */
     val nonEmptyGroups: List<ProxyGroup> = emptyList(),
-    /** null = show every group. */
-    val groupFilter: Long? = null,
+    /** What the list is narrowed to. Exactly one chip is lit by construction. */
+    val filter: NodeFilter = NodeFilter.All,
     /** Whether any node exists at all, filtered or not. */
     val hasProfiles: Boolean = false,
     /** Nodes exist, but the current filter hides them all. */
@@ -67,7 +84,7 @@ data class ProfilesUiState(
      */
     val hasNoSearchMatches: Boolean = false,
     /** True while the "Favorites" chip is the active filter. */
-    val favoritesOnly: Boolean = false,
+
     /** Show the one-time "long-press a node" line. */
     val showLongPressHint: Boolean = false,
     val selectedId: Long = 0L,
@@ -183,8 +200,7 @@ class ProfilesViewModel @Inject constructor(
 
     private val importing = MutableStateFlow(false)
     private val message = MutableStateFlow<ProfilesMessage?>(null)
-    private val groupFilter = MutableStateFlow<Long?>(null)
-    private val favoritesOnly = MutableStateFlow(false)
+    private val nodeFilter = MutableStateFlow<NodeFilter>(NodeFilter.All)
     private val searchQuery = MutableStateFlow("")
     private val share = MutableStateFlow<ShareTarget?>(null)
 
@@ -253,8 +269,8 @@ class ProfilesViewModel @Inject constructor(
      * reading them separately can catch a half-applied change, and the
      * favorites chip and the group chips are alternatives.
      */
-    private val filters = combine(groupFilter, searchQuery, favoritesOnly) { group, text, favorites ->
-        Triple(group, text, favorites)
+    private val filters = combine(nodeFilter, searchQuery) { filter, text ->
+        filter to text
     }
 
     /**
@@ -269,7 +285,7 @@ class ProfilesViewModel @Inject constructor(
         preferences.connectionTarget,
         transient,
         filters,
-    ) { list, groupList, target, (isImporting, msg), (filter, query, onlyFavorites) ->
+    ) { list, groupList, target, (isImporting, msg), (filter, query) ->
         val selectedId = (target as? ConnectionTarget.Node)?.id ?: 0L
         // A node imported from a share link has no group, so it only ever
         // shows under "All".
@@ -280,17 +296,20 @@ class ProfilesViewModel @Inject constructor(
         // therefore always come out empty — the nodes still belong to the
         // subscription they came from. Ask the region instead; that is what the
         // group means.
-        // Favorites is a filter, not a sort: it narrows to the starred nodes
-        // and leaves the group chips alone (the screen clears the group when
-        // this is chosen, so the two cannot contradict each other).
-        val pool = if (onlyFavorites) list.filter { it.favorite } else list
-        val filterGroup = filter?.let { id -> groupList.firstOrNull { it.id == id } }
-        val inGroup = when {
-            filter == null -> pool
-            filterGroup?.region != null -> pool.filter { profile ->
-                NodeRegions.resolve(profile.name, profile.country) == filterGroup.region
+        // One value decides, so the chips and the list can never disagree.
+        val inGroup = when (filter) {
+            NodeFilter.All -> list
+            NodeFilter.Favorites -> list.filter { it.favorite }
+            is NodeFilter.Group -> {
+                val group = groupList.firstOrNull { it.id == filter.id }
+                if (group?.region != null) {
+                    list.filter { profile ->
+                        NodeRegions.resolve(profile.name, profile.country) == group.region
+                    }
+                } else {
+                    list.filter { it.groupId == filter.id }
+                }
             }
-            else -> pool.filter { it.groupId == filter }
         }
         // Favorites come first — "pin", not just "bookmark". The sort is
         // stable, so the order inside each half is the one the list already
@@ -309,7 +328,7 @@ class ProfilesViewModel @Inject constructor(
             profiles = visible,
             groups = groupList,
             nonEmptyGroups = activeGroups,
-            groupFilter = filter,
+            filter = filter,
             hasProfiles = list.isNotEmpty(),
             // Two ways to end up with nothing, and they need different
             // sentences: a group that is empty, and a search that matched
@@ -317,7 +336,6 @@ class ProfilesViewModel @Inject constructor(
             hasNoMatches = visible.isEmpty() && list.isNotEmpty() && query.isBlank(),
             query = query,
             hasNoSearchMatches = visible.isEmpty() && list.isNotEmpty() && query.isNotBlank(),
-            favoritesOnly = onlyFavorites,
             selectedId = selectedId,
             selectedGroupId = (target as? ConnectionTarget.Group)?.id ?: 0L,
             loading = false,
@@ -401,10 +419,15 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch { profiles.setFavorite(profile.id, !profile.favorite) }
     }
 
-    /** The favorites chip; choosing it clears the group, and the reverse. */
+    /**
+     * The favorites chip.
+     *
+     * One assignment: a filter is a value, so choosing favorites cannot leave a
+     * group lit behind it. Turning it off goes back to everything, which is
+     * what the chip's own toggle means.
+     */
     fun filterFavorites(on: Boolean) {
-        favoritesOnly.value = on
-        if (on) groupFilter.value = null
+        nodeFilter.value = if (on) NodeFilter.Favorites else NodeFilter.All
     }
 
     fun select(id: Long) {
@@ -449,9 +472,9 @@ class ProfilesViewModel @Inject constructor(
         }
     }
 
-    /** [groupId] of null shows every group. */
+    /** [groupId] of null shows everything; otherwise exactly that group. */
     fun filterByGroup(groupId: Long?) {
-        groupFilter.value = groupId
+        nodeFilter.value = groupId?.let { NodeFilter.Group(it) } ?: NodeFilter.All
     }
 
     /**
@@ -488,8 +511,7 @@ class ProfilesViewModel @Inject constructor(
             // Show the result, don't just create it: a new folder used to be
             // invisible because the chip row only drew groups that already had
             // nodes in them, so "new group" looked like it had done nothing.
-            groupFilter.value = id
-            favoritesOnly.value = false
+            nodeFilter.value = NodeFilter.Group(id)
             message.value = ProfilesMessage.GroupCreated(trimmed)
         }
     }
@@ -544,7 +566,7 @@ class ProfilesViewModel @Inject constructor(
                 preferences.setSelectedGroupId(0L)
             }
             // Stop filtering by something that no longer exists.
-            if (groupFilter.value == group.id) groupFilter.value = null
+            if (nodeFilter.value == NodeFilter.Group(group.id)) nodeFilter.value = NodeFilter.All
             // Same rule as deleting one node: the selection must not outlive
             // the node it points at. Only ordinary groups removed nodes.
             if (group.region == null && preferences.selectedProfileId.first() in removedIds) {
