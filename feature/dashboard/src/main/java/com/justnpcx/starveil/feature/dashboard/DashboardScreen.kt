@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -132,6 +133,12 @@ fun DashboardScreen(
     // nothing for this — the column is shorter than the window, so the scroll
     // never engages and the first screen is the same pixels it always was.
     Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // How much of the fixed stack this window can hold. The ring never
+        // changes size — everything else gives a little, in three steps, so a
+        // 700dp phone shows the whole page without a scroll while an 872dp one
+        // keeps the 0.9.4 composition pixel for pixel.
+        val metrics = homeMetricsFor(maxHeight)
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -139,9 +146,9 @@ fun DashboardScreen(
                 .padding(horizontal = StarveilSpacing.pageMargin),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 32dp of air on the grid: the ring starts below the status bar
-            // rather than floating in the middle of an empty top third.
-            Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
+            // Air above the ring: 32dp when the window can afford it, 12 when
+            // it cannot. The ring itself never moves up or down in size.
+            Spacer(modifier = Modifier.height(metrics.topGap))
             ConnectionCore(
                 state = state.coreState,
                 busy = state.isBusy,
@@ -180,7 +187,7 @@ fun DashboardScreen(
                 ),
             )
 
-            SpeedSection(state = state, modifier = Modifier.height(TELEMETRY_HEIGHT))
+            SpeedSection(state = state, modifier = Modifier.height(metrics.telemetry))
 
             // The context line sits under the group it explains, in a fixed
             // slot, so a state change cannot move anything below it. A failure
@@ -189,7 +196,7 @@ fun DashboardScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(CONTEXT_SLOT_HEIGHT),
+                    .height(metrics.contextSlot),
                 contentAlignment = Alignment.Center,
             ) {
                 // The hint lives in the slot that already exists for one line
@@ -230,7 +237,7 @@ fun DashboardScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(StarveilSpacing.xl))
+            Spacer(modifier = Modifier.height(metrics.cardGap))
 
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
@@ -238,6 +245,7 @@ fun DashboardScreen(
                 mode = state.selectionMode,
                 onOpen = onOpenNodes,
                 onModeChange = viewModel::setSelectionMode,
+                padding = metrics.cardPadding,
             )
 
             // §7.2: the selected node's health over the window. Only for a
@@ -252,6 +260,8 @@ fun DashboardScreen(
                 NodeHealthSummary(
                     health = health,
                     onClick = { healthOpen = true },
+                    padding = metrics.cardPadding,
+                    showDetail = metrics.healthDetail,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -290,6 +300,7 @@ fun DashboardScreen(
             // then the same 12dp every other page keeps above the bar.
             Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
             Spacer(modifier = Modifier.height(StarveilSpacing.navContentInset))
+        }
         }
 
         SnackbarHost(
@@ -375,10 +386,13 @@ private fun NodeHealthSummary(
     health: NodeHealth,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    padding: Dp = StarveilSpacing.lg,
+    /** False on a short screen: the sentence is in the dialog one tap away. */
+    showDetail: Boolean = true,
 ) {
     val reachable = health.samples.count { it.reachable }
     StarveilCard(onClick = onClick, modifier = modifier) {
-        Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+        Column(modifier = Modifier.padding(padding)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -408,30 +422,32 @@ private fun NodeHealthSummary(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-            Text(
-                text = when {
-                    health.collecting -> stringResource(
-                        R.string.dashboard_health_collecting,
-                        health.samples.size,
-                        NodeHealth.MIN_SAMPLES,
-                    )
-                    reachable == 0 -> stringResource(
-                        R.string.dashboard_health_all_unreachable,
-                        health.samples.size,
-                    )
-                    else -> stringResource(
-                        R.string.dashboard_health_summary,
-                        health.emaMs ?: 0L,
-                        reachable,
-                        health.samples.size,
-                    )
-                },
-                style = StarveilType.label,
-                color = StarveilColors.ink2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (showDetail) {
+                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                Text(
+                    text = when {
+                        health.collecting -> stringResource(
+                            R.string.dashboard_health_collecting,
+                            health.samples.size,
+                            NodeHealth.MIN_SAMPLES,
+                        )
+                        reachable == 0 -> stringResource(
+                            R.string.dashboard_health_all_unreachable,
+                            health.samples.size,
+                        )
+                        else -> stringResource(
+                            R.string.dashboard_health_summary,
+                            health.emaMs ?: 0L,
+                            reachable,
+                            health.samples.size,
+                        )
+                    },
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -766,11 +782,12 @@ private fun CurrentNodeCard(
     mode: NodeSelectionMode,
     onOpen: () -> Unit,
     onModeChange: (NodeSelectionMode) -> Unit,
+    padding: Dp = StarveilSpacing.lg,
 ) {
     val veil = StarveilColors.veil
     StarveilCard(onClick = onOpen) {
         Box {
-            Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
+            Column(modifier = Modifier.padding(padding)) {
                 // The gauze covers the card's information area and stops
                 // there. It used to fill the card, which put diagonal bands
                 // behind the segmented control's own labels — texture and
@@ -886,6 +903,63 @@ internal fun splitLeadingFlag(name: String): Pair<String?, String> {
 }
 
 /** One line of state explanation, occupied or not. */
+/**
+ * What the home page's fixed stack can afford at a given window height.
+ *
+ * Three steps, and only one number is sacred: the ring stays 204dp everywhere,
+ * because it is the page's anchor and resizing it would move every other thing
+ * on the screen. The rest — the air above it, the telemetry block, the status
+ * slot, the gap before the node card, the cards' own padding — gives a little
+ * at each step. A 700dp phone lands in COMPACT and fits without a scroll; a
+ * 640dp one lands in SHORT and gives up the health card's second sentence,
+ * which is in its dialog anyway.
+ */
+private enum class HomeTier { STANDARD, COMPACT, SHORT }
+
+private data class HomeMetrics(
+    val topGap: Dp,
+    val telemetry: Dp,
+    val contextSlot: Dp,
+    val cardGap: Dp,
+    val cardPadding: Dp,
+    val healthDetail: Boolean,
+)
+
+/**
+ * The chrome the shell draws around the page: the 56dp top bar and the 80dp
+ * navigation bar. The tiers are stated against the window height — 640, 720
+ * and 872dp are what a phone and the acceptance viewports actually are — and
+ * the page is laid out in the window minus this.
+ */
+private val CHROME_HEIGHT = 136.dp
+
+private fun homeMetricsFor(contentHeight: Dp): HomeMetrics = when {
+    contentHeight + CHROME_HEIGHT >= 780.dp -> HomeMetrics(
+        topGap = StarveilSpacing.xxl,
+        telemetry = TELEMETRY_HEIGHT,
+        contextSlot = CONTEXT_SLOT_HEIGHT,
+        cardGap = StarveilSpacing.xl,
+        cardPadding = StarveilSpacing.lg,
+        healthDetail = true,
+    )
+    contentHeight + CHROME_HEIGHT >= 680.dp -> HomeMetrics(
+        topGap = StarveilSpacing.md,
+        telemetry = 92.dp,
+        contextSlot = 20.dp,
+        cardGap = StarveilSpacing.md,
+        cardPadding = StarveilSpacing.lg,
+        healthDetail = true,
+    )
+    else -> HomeMetrics(
+        topGap = StarveilSpacing.md,
+        telemetry = 80.dp,
+        contextSlot = 20.dp,
+        cardGap = StarveilSpacing.md,
+        cardPadding = StarveilSpacing.md,
+        healthDetail = false,
+    )
+}
+
 private val CONTEXT_SLOT_HEIGHT = 24.dp
 
 /** The telemetry block's height, with or without numbers: 16+8+58+4+19, rounded up. */
