@@ -950,52 +950,6 @@ private fun ValueRow(title: String, value: String) {
 }
 
 
-/** A 48dp read-only row: title on the left, value on the right. */
-@Composable
-private fun AboutValueRow(title: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .padding(horizontal = StarveilSpacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = StarveilType.body,
-            color = StarveilColors.ink,
-            modifier = Modifier.weight(1f),
-        )
-        Text(text = value, style = StarveilType.log, color = StarveilColors.ink2)
-    }
-}
-
-/** A 48dp row that opens the system browser. */
-@Composable
-private fun AboutLinkRow(title: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = StarveilSpacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = StarveilType.body,
-            color = StarveilColors.ink,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            imageVector = StarveilIcons.Chevron,
-            contentDescription = null,
-            tint = StarveilColors.ink2,
-            modifier = Modifier.size(18.dp),
-        )
-    }
-}
-
 @Composable
 private fun RadioOption(
     label: String,
