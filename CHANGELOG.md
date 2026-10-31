@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.7] — 2026-10-31
+
+Polish pass: the button that was not centred, the page that was flat in daylight,
+the home screen that still needed a scroll on a 714dp phone, and the message bar
+that never appeared.
+
+### Fixed
+
+- **Button labels are centred.** Surface lays its content out from the top-left,
+  so a button stretched to half a card had its text pinned to the corner. Both
+  button shapes now centre their content in both directions, and a form's save
+  uses the selected fill (selBg + selInk) while cancel stays a ghost outline.
+- **The home page fits a 714dp phone without scrolling.** The bottom air, the
+  status slot, the gap before the node card and the top gap are all sized by the
+  tier now; an empty status slot costs nothing below the standard tier, and the
+  first-connect hint stops repeating what the ring already says.
+- **Daylight has depth.** The light page moves from #F6F7F9 to #EDF0F4, rules
+  and segment troughs darken a step, and cards carry the two-shadow pair a light
+  interface usually uses. Dark mode is untouched.
+- **The message bar appears.** Material's SnackbarHost drew nothing on the nodes
+  page — the slot was alive and the message was there for its full four seconds,
+  but not one pixel was painted. The app now draws the bar from the host state
+  itself; the same state class, the same timeout, the same action.
+
 ## [0.9.6] — 2026-10-31
 
 Four things the phone found in 0.9.5.

@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
@@ -26,7 +27,12 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
  * that is easiest to draw.
  *
  * [secondary] is the same capsule with no fill, for the action beside a primary
- * one.
+ * one. [confirm] is a form's save: the selected fill (selBg) with selInk on it —
+ * the language this design already uses for "the chosen one".
+ *
+ * The label is centred in both directions. Surface lays its content out from the
+ * top-left, so a button stretched by a weight had its text pinned to the corner:
+ * invisible at capsule width, obvious once the button was half a card wide.
  */
 @Composable
 fun StarveilButton(
@@ -35,27 +41,42 @@ fun StarveilButton(
     modifier: Modifier = Modifier,
     secondary: Boolean = false,
     enabled: Boolean = true,
+    /** A form's confirm action: selBg fill, selInk label. */
+    confirm: Boolean = false,
 ) {
     Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
         shape = CircleShape,
-        color = if (!enabled) StarveilColors.surfaceGlass else if (secondary) Color.Transparent else StarveilColors.surfaceGlass,
-        contentColor = if (enabled) StarveilColors.ink else StarveilColors.ink3,
+        color = when {
+            !enabled -> StarveilColors.segBg
+            confirm -> StarveilColors.selBg
+            secondary -> Color.Transparent
+            else -> StarveilColors.card
+        },
+        contentColor = when {
+            !enabled -> StarveilColors.ink3
+            confirm -> StarveilColors.selInk
+            else -> StarveilColors.ink
+        },
         border = BorderStroke(
             1.dp,
-            if (enabled) StarveilColors.glassBorder else StarveilColors.hairline,
+            when {
+                !enabled -> StarveilColors.hairline
+                confirm -> Color.Transparent
+                else -> StarveilColors.glassBorder
+            },
         ),
     ) {
-        Text(
-            text = text,
-            style = StarveilType.label,
-            modifier = Modifier.padding(
-                horizontal = StarveilSpacing.xl,
-                vertical = StarveilSpacing.md,
-            ),
-        )
+        Box(
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .padding(horizontal = StarveilSpacing.xl, vertical = StarveilSpacing.md),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = text, style = StarveilType.label)
+        }
     }
 }
 
@@ -79,7 +100,7 @@ fun StarveilButton(
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
         shape = CircleShape,
-        color = if (enabled) StarveilColors.surfaceGlass else StarveilColors.surfaceGlass,
+        color = if (enabled) StarveilColors.card else StarveilColors.segBg,
         contentColor = if (enabled) StarveilColors.ink else StarveilColors.ink3,
         border = BorderStroke(
             1.dp,
@@ -87,10 +108,12 @@ fun StarveilButton(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(
-                horizontal = StarveilSpacing.xl,
-                vertical = StarveilSpacing.md,
-            ),
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .padding(
+                    horizontal = StarveilSpacing.xl,
+                    vertical = StarveilSpacing.md,
+                ),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
             content = content,

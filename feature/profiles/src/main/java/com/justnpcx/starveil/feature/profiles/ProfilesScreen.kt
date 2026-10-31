@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.justnpcx.starveil.core.ui.components.LocalTopBarActions
+import com.justnpcx.starveil.core.ui.components.StarveilSnackbarHost
 import com.justnpcx.starveil.core.ui.components.StarveilPlusDisc
 import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
@@ -100,7 +101,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.graphics.Color
@@ -382,7 +382,6 @@ fun ProfilesScreen(
         // The shell owns the window insets; a nested Scaffold adding them again
         // would push the list down by a status bar.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             state.message?.let { message ->
@@ -644,6 +643,21 @@ fun ProfilesScreen(
             }
         }
     }
+
+        // The Snackbar, pinned above the navigation bar.
+        //
+        // It used to live in this page's own Scaffold slot. That slot is
+        // composed — a plain Text put there draws fine — but the Material
+        // SnackbarHost inside it never drew a pixel, while the identical host
+        // in the shell (same component, same state class) works. Hosting it
+        // here instead of in the slot is the difference that makes the message
+        // visible, and it keeps one owner: this page's state, this page's host.
+        StarveilSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = StarveilSpacing.sm),
+        )
 
         // The add control: the disc, 12dp above the bar and 18dp from the
         // edge. The list's own bottom padding is what keeps its last row clear

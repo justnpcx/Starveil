@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,6 +55,7 @@ import com.justnpcx.starveil.core.model.AvailabilityBand
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.NodeSelectionMode
+import com.justnpcx.starveil.core.ui.components.StarveilSnackbarHost
 import com.justnpcx.starveil.core.ui.components.ConnectionCore
 import com.justnpcx.starveil.core.ui.components.StarveilSegmented
 import com.justnpcx.starveil.core.ui.components.ConnectionCoreGeometry
@@ -139,6 +139,17 @@ fun DashboardScreen(
         // 700dp phone shows the whole page without a scroll while an 872dp one
         // keeps the 0.9.4 composition pixel for pixel.
         val metrics = homeMetricsFor(maxHeight)
+        // What the status slot would say, decided before the slot is measured:
+        // an empty slot costs nothing below the standard tier.
+        val firstConnectHint = !state.everConnected &&
+            state.coreState == ConnectionState.DISCONNECTED &&
+            noticeText == null
+        // The first-connect hint is a second copy of what the ring already
+        // says ("tap to connect"); on a screen that has no height to spare it
+        // is the first thing to go, and the slot then costs nothing.
+        val showFirstHint = firstConnectHint && !metrics.collapseEmptySlot
+        val slotHasContent = showFirstHint || (persistent && noticeText != null)
+        val slotHeight = if (metrics.collapseEmptySlot && !slotHasContent) 0.dp else metrics.contextSlot
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -196,16 +207,13 @@ fun DashboardScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(metrics.contextSlot),
+                    .height(slotHeight),
                 contentAlignment = Alignment.Center,
             ) {
                 // The hint lives in the slot that already exists for one line
                 // of state explanation, so showing and hiding it cannot move
                 // the ring, the rates, or anything below.
-                val firstConnectHint = !state.everConnected &&
-                    state.coreState == ConnectionState.DISCONNECTED &&
-                    noticeText == null
-                if (firstConnectHint) {
+                if (showFirstHint) {
                     Text(
                         text = stringResource(R.string.dashboard_first_connect_hint),
                         style = StarveilType.label,
@@ -296,14 +304,15 @@ fun DashboardScreen(
                 }
             }
 
-            // The last card must not touch the navigation bar: 32dp of air,
-            // then the same 12dp every other page keeps above the bar.
-            Spacer(modifier = Modifier.height(StarveilSpacing.xxl))
-            Spacer(modifier = Modifier.height(StarveilSpacing.navContentInset))
+            // Air under the last card, sized by the tier: a tall screen can
+            // afford 24dp above the bar, a short one needs the height for the
+            // cards instead. This replaces the old xxl + navContentInset pair,
+            // which spent 44dp on nothing at the bottom of every phone.
+            Spacer(modifier = Modifier.height(metrics.bottomGap))
         }
         }
 
-        SnackbarHost(
+        StarveilSnackbarHost(
             hostState = snackbar,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
@@ -919,10 +928,22 @@ private enum class HomeTier { STANDARD, COMPACT, SHORT }
 private data class HomeMetrics(
     val topGap: Dp,
     val telemetry: Dp,
+    /** The status slot's height when it has something to say. */
     val contextSlot: Dp,
     val cardGap: Dp,
     val cardPadding: Dp,
+    /** Air under the last card, before the navigation bar. */
+    val bottomGap: Dp,
     val healthDetail: Boolean,
+    /**
+     * Whether an empty status slot collapses to nothing.
+     *
+     * True below the standard tier: the slot exists so a notice cannot move
+     * the ring, and on a screen that is short of height a 20dp hole with
+     * nothing in it is height spent on nothing. The standard tier keeps the
+     * slot at a fixed height so its composition stays pixel-identical to 0.9.6.
+     */
+    val collapseEmptySlot: Boolean,
 )
 
 /**
@@ -940,23 +961,29 @@ private fun homeMetricsFor(contentHeight: Dp): HomeMetrics = when {
         contextSlot = CONTEXT_SLOT_HEIGHT,
         cardGap = StarveilSpacing.xl,
         cardPadding = StarveilSpacing.lg,
+        bottomGap = 24.dp,
         healthDetail = true,
+        collapseEmptySlot = false,
     )
     contentHeight + CHROME_HEIGHT >= 680.dp -> HomeMetrics(
         topGap = StarveilSpacing.md,
         telemetry = 92.dp,
         contextSlot = 20.dp,
-        cardGap = StarveilSpacing.md,
+        cardGap = StarveilSpacing.sm,
         cardPadding = StarveilSpacing.lg,
+        bottomGap = 12.dp,
         healthDetail = true,
+        collapseEmptySlot = true,
     )
     else -> HomeMetrics(
-        topGap = StarveilSpacing.md,
+        topGap = StarveilSpacing.sm,
         telemetry = 80.dp,
         contextSlot = 20.dp,
-        cardGap = StarveilSpacing.md,
+        cardGap = StarveilSpacing.sm,
         cardPadding = StarveilSpacing.md,
+        bottomGap = 8.dp,
         healthDetail = false,
+        collapseEmptySlot = true,
     )
 }
 

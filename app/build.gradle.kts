@@ -34,7 +34,7 @@ plugins {
  * that would collide, which is the only moment anyone can still choose a
  * different number.
  */
-val appVersionName = "0.9.6"
+val appVersionName = "0.9.7"
 val appVersionCode = appVersionName.split('.').let { (major, minor, patch) ->
     val majorPart = major.toInt()
     val minorPart = minor.toInt()
