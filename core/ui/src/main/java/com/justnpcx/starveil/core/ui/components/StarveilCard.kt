@@ -48,14 +48,35 @@ fun StarveilCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // Two shadows in the day, one at night.
+    //
+    // A white card on #EDF0F4 is one step of value and a hairline; that reads
+    // flat, and the fix is depth, not a heavier border. The day therefore gets
+    // the pair a light interface usually uses — a tight 1dp contact shadow and
+    // a wide 6dp one — while the dark card keeps exactly the shadow it had:
+    // on a #131314 page the card is already separated by value, and a shadow
+    // there is invisible anyway.
+    val day = !StarveilColors.isDark
     Column(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 4.dp,
+                elevation = if (day) 1.dp else 4.dp,
                 shape = StarveilShapes.card,
-                ambientColor = StarveilColors.shadowTint.copy(alpha = 0.07f),
-                spotColor = StarveilColors.shadowTint.copy(alpha = 0.07f),
+                ambientColor = StarveilColors.shadowTint.copy(alpha = if (day) 0.05f else 0.07f),
+                spotColor = StarveilColors.shadowTint.copy(alpha = if (day) 0.05f else 0.07f),
+            )
+            .then(
+                if (day) {
+                    Modifier.shadow(
+                        elevation = 6.dp,
+                        shape = StarveilShapes.card,
+                        ambientColor = StarveilColors.shadowTint.copy(alpha = 0.055f),
+                        spotColor = StarveilColors.shadowTint.copy(alpha = 0.055f),
+                    )
+                } else {
+                    Modifier
+                },
             )
             .clip(StarveilShapes.card)
             .background(StarveilColors.surfaceGlass)
