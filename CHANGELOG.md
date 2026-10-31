@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.10] — 2026-10-31
+
+Two small corrections: where the add panel's tiles put their content, and what
+the navigation bar's own comment claims about its presses.
+
+### Fixed
+
+- **The add panel's tiles are centred.** The icon, title and subtitle sat against
+  the left edge with the rest of the tile empty, which reads as a layout mistake
+  beside buttons and empty states that are centred everywhere else. The fix is in
+  the shared tile, so every panel that uses it follows without a per-page patch.
+- **The navigation bar's comment no longer promises a ripple.** It still described
+  a press ripple bounded to the slot — exactly the behaviour 0.9.9 removed. A
+  maintainer reading it would have put the shape back.
+
 ## [0.9.9] — 2026-10-31
 
 The navigation bar stops reacting to touch, the app learns a second language, and
