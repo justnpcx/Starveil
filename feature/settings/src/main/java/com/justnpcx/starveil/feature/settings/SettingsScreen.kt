@@ -326,6 +326,8 @@ fun SettingsScreen(
                             ThemeMode.LIGHT -> 1
                             ThemeMode.DARK -> 2
                         },
+                        // Three words of very different length.
+                        proportional = true,
                         onSelect = { index ->
                             viewModel.setThemeMode(
                                 when (index) {
@@ -380,6 +382,7 @@ fun SettingsScreen(
                             FontScale.LARGE -> 1
                             FontScale.LARGEST -> 2
                         },
+                        proportional = true,
                         onSelect = { index ->
                             viewModel.setFontScale(
                                 when (index) {
