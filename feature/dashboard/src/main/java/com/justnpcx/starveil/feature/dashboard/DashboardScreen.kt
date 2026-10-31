@@ -64,6 +64,7 @@ import com.justnpcx.starveil.core.ui.components.ConnectionState
 import com.justnpcx.starveil.core.ui.components.NodeHealthChart
 import com.justnpcx.starveil.core.ui.components.StarveilBadge
 import com.justnpcx.starveil.core.ui.components.StarveilCard
+import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
@@ -261,23 +262,28 @@ fun DashboardScreen(
             // exactly like one that works until this line says so.
             state.exit?.let { exit ->
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                // The only visible evidence that the tunnel is not silently
-                // falling back to the local connection, so it stays on the page
-                // and it says what the number is.
-                Text(
-                    text = stringResource(
-                        R.string.dashboard_exit,
-                        exit.address,
-                        exit.rttMs,
-                    ),
-                    style = StarveilType.tech,
-                    color = StarveilColors.ink2,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(StarveilSpacing.xs))
-                        .clickable(role = Role.Button) { exitOpen = true }
-                        .padding(vertical = StarveilSpacing.xs),
-                )
+                // Where the traffic appears to come from, and how long the
+                // round trip took: the only visible evidence that the tunnel is
+                // not silently falling back to the local connection. Two rows,
+                // labelled — a bare "IP · 43 ms" line left the reader guessing
+                // which number was which.
+                StarveilCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { exitOpen = true },
+                ) {
+                    ExitRow(
+                        label = stringResource(R.string.dashboard_exit_address),
+                        value = exit.address,
+                    )
+                    StarveilDivider(startInset = StarveilSpacing.lg)
+                    ExitRow(
+                        label = stringResource(R.string.dashboard_exit_rtt_smoothed),
+                        value = stringResource(
+                            R.string.dashboard_exit_rtt_value,
+                            state.exitSmoothedRttMs ?: exit.rttMs,
+                        ),
+                    )
+                }
             }
 
             // The last card must not touch the navigation bar.
@@ -524,6 +530,31 @@ private fun ExitDetailsDialog(
             }
         },
     )
+}
+
+/** One labelled fact on the exit card: the name on the left, the value right. */
+@Composable
+private fun ExitRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = StarveilSpacing.lg, vertical = StarveilSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(modifier = Modifier.width(StarveilSpacing.md))
+        Text(
+            text = value,
+            style = StarveilType.tech,
+            color = StarveilColors.ink,
+            maxLines = 1,
+        )
+    }
 }
 
 @Composable

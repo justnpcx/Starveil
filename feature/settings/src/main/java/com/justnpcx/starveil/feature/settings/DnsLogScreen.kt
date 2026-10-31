@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,7 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.data.geo.DnsEntry
 import com.justnpcx.starveil.core.data.geo.DnsOutcome
-import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
+import com.justnpcx.starveil.core.ui.components.LocalTopBarActions
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
@@ -63,7 +64,6 @@ private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DnsLogScreen(
-    onBack: () -> Unit,
     viewModel: DnsLogViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -71,33 +71,27 @@ fun DnsLogScreen(
     var previewing by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
 
+    // The export is the page's own action, so it goes in the shell's bar
+    // rather than in a second header of its own.
+    val topBar = LocalTopBarActions.current
+    DisposableEffect(topBar) {
+        topBar?.content = {
+            TextButton(
+                enabled = state.snapshot.samples > 0,
+                onClick = { previewing = true },
+            ) {
+                Text(
+                    stringResource(
+                        if (copied) R.string.dns_log_copied else R.string.dns_log_export,
+                    ),
+                )
+            }
+        }
+        onDispose { topBar?.content = null }
+    }
+
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = {
-            StarveilTopAppBar(
-                title = { Text(stringResource(R.string.dns_log_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            StarveilIcons.Back,
-                            contentDescription = stringResource(R.string.dns_log_back),
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(
-                        enabled = state.snapshot.samples > 0,
-                        onClick = { previewing = true },
-                    ) {
-                        Text(
-                            stringResource(
-                                if (copied) R.string.dns_log_copied else R.string.dns_log_export,
-                            ),
-                        )
-                    }
-                },
-            )
-        },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Text(

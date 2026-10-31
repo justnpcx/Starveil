@@ -2,7 +2,7 @@
 <!--
     C2 "the star in the gauze". The in-app mark, 100x100, full bleed: the
     launcher's mask provides the corners, so there is no rounded rectangle and
-    no fake border here. One file, used by the drawer and by About.
+    no fake border here. One file, used by the hub's about row and the about page.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"

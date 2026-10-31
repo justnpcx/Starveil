@@ -1,6 +1,5 @@
 package com.justnpcx.starveil.feature.settings
 
-import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,19 +28,11 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PrivacyScreen(onBack: () -> Unit) {
+fun PrivacyScreen() {
+    // No bar of its own: the shell draws the title and the arrow back to the
+    // page this one was opened from.
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = {
-            StarveilTopAppBar(
-                title = { Text(stringResource(R.string.privacy_title)) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.privacy_close))
-                    }
-                },
-            )
-        },
     ) { padding ->
         Column(
             modifier = Modifier

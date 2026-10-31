@@ -76,8 +76,14 @@ private const val RULE_TEST_ROUTE = "ruletest"
 private const val CONNECTIONS_ROUTE = "connections"
 private const val DNS_LOG_ROUTE = "dnslog"
 
-/** Also not a tab: the policy is read once, from the About section. */
+/** Also not a tab: the policy is read once, from the About page. */
 private const val PRIVACY_ROUTE = "privacy"
+
+/** The hub the bar's fourth destination opens. */
+private const val HUB_ROUTE = "hub"
+
+/** About: reached from the hub's last row, and the only place the brand lives. */
+private const val ABOUT_ROUTE = "about"
 
 @Composable
 fun StarveilNavHost(
@@ -95,13 +101,18 @@ fun StarveilNavHost(
     // Both come from the Activity: they need the kernel, they live in
     // :core:probe, and the screens below only receive callbacks.
     val scope = rememberCoroutineScope()
-    val onTestLatency: ((String) -> Unit) -> Unit = { onResult ->
-        scope.launch { onResult(latencyTester.testSelectedNode()) }
+    // The nodes page's refresh says "refreshed" only when a number came back,
+    // so it gets the outcome rather than the sentence.
+    val onRefreshLatency: ((String, Boolean) -> Unit) -> Unit = { onResult ->
+        scope.launch {
+            val result = latencyTester.testSelectedNode()
+            onResult(result.message, result.measured)
+        }
     }
     // The same probe for one node: tapping a card's badge should measure that
     // card, not whichever node happens to be selected.
     val onTestNode: (Long, (String) -> Unit) -> Unit = { id, onResult ->
-        scope.launch { onResult(latencyTester.testNode(id)) }
+        scope.launch { onResult(latencyTester.testNode(id).message) }
     }
 
     val onRunLeakCheck: () -> Unit = {
@@ -182,7 +193,7 @@ fun StarveilNavHost(
         navigation(startDestination = Destination.PROFILES.route, route = "nodes") {
         composable(Destination.PROFILES.route) {
             ProfilesScreen(
-                onTestLatency = onTestLatency,
+                onRefreshLatency = onRefreshLatency,
                 onTestNode = onTestNode,
                 onNewNode = { type -> navController.navigate(editorRouteFor(type)) },
                 onEditNode = { type, id -> navController.navigate("${editorRouteFor(type)}?id=$id") },
@@ -218,6 +229,19 @@ fun StarveilNavHost(
         composable(Destination.LOGS.route) { LogsScreen() }
         }
 
+        composable(HUB_ROUTE) {
+            HubScreen(
+                onOpenScenes = { navController.navigate("scenes_tab") },
+                onOpenLogs = { navController.navigate("logs_tab") },
+                onOpenDiagnostics = { navController.navigate("diagnostics") },
+                onOpenSettings = { navController.navigate("settings_tab") },
+                onOpenAbout = { navController.navigate(ABOUT_ROUTE) },
+            )
+        }
+        composable(ABOUT_ROUTE) {
+            AboutScreen(onOpenPrivacy = { navController.navigate(PRIVACY_ROUTE) })
+        }
+
         navigation(startDestination = Destination.SETTINGS.route, route = "settings_tab") {
         composable(Destination.SETTINGS.route) {
             SettingsScreen(
@@ -234,7 +258,7 @@ fun StarveilNavHost(
             )
         }
         composable(PER_APP_ROUTE) {
-            PerAppScreen(onBack = { navController.popBackStack() })
+            PerAppScreen()
         }
         }
 
@@ -262,16 +286,16 @@ fun StarveilNavHost(
         }
 
         composable(CONNECTIONS_ROUTE) {
-            ConnectionsScreen(onBack = { navController.popBackStack() })
+            ConnectionsScreen()
         }
         composable(DNS_LOG_ROUTE) {
-            DnsLogScreen(onBack = { navController.popBackStack() })
+            DnsLogScreen()
         }
         composable(KEEP_ALIVE_ROUTE) {
-            KeepAliveScreen(onBack = { navController.popBackStack() })
+            KeepAliveScreen()
         }
         composable(PRIVACY_ROUTE) {
-            PrivacyScreen(onBack = { navController.popBackStack() })
+            PrivacyScreen()
         }
 
         descriptors.forEach { descriptor ->

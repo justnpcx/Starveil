@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,7 +33,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import com.justnpcx.starveil.core.subscription.LinkPreview
 import com.justnpcx.starveil.core.ui.components.AddActionRow
-import com.justnpcx.starveil.core.ui.components.AddPanelLabel
 import com.justnpcx.starveil.core.ui.components.AddResultLine
 import com.justnpcx.starveil.core.ui.components.AddSuggestionCard
 import com.justnpcx.starveil.core.ui.components.AddTile
@@ -43,20 +45,20 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
-
-/** Which secondary row is open. One at a time: the panel is short. */
-private enum class PanelRow { PASTE, SUBSCRIPTION }
+import com.justnpcx.starveil.core.ui.util.readClipboardText
 
 /**
  * The add panel's content on the nodes page.
  *
  * Three channels in one row — scanning a code, taking what is on the clipboard,
  * and typing a node by hand are the same size of decision, so they get the same
- * size of control. The two batch flows sit below, because "several nodes at
- * once" is a variation on importing rather than a fourth peer.
+ * size of control. A subscription sits below the line, because "several nodes
+ * at once" is a variation on importing rather than a fourth peer.
  *
- * Nothing here opens a dialog: every item either starts an import or expands
- * inside this sheet.
+ * One door per path. When the clipboard already holds something importable,
+ * the card at the top is the import and the tile that leads to the same import
+ * is gone; when it does not, the card has nothing to offer and the tile is the
+ * only way in, which is the form for typing or pasting a link.
  */
 @Composable
 internal fun ProfilesAddPanel(
@@ -69,19 +71,21 @@ internal fun ProfilesAddPanel(
     /** Opened from the empty state's "import a subscription". */
     startWithSubscription: Boolean = false,
     onScan: () -> Unit,
+    /** The clipboard card's one-tap import: no form, no confirmation. */
     onClipboard: () -> Unit,
     onManual: () -> Unit,
     onImportLinks: (String) -> Unit,
     onImportSubscription: (url: String, name: String) -> Unit,
     onViewSubscription: (Long) -> Unit,
 ) {
-    var open by remember { mutableStateOf<PanelRow?>(null) }
+    var subscriptionOpen by remember { mutableStateOf(startWithSubscription) }
+    var clipboardForm by remember { mutableStateOf(false) }
     var linkText by remember { mutableStateOf("") }
     var subscriptionUrl by remember { mutableStateOf("") }
     var subscriptionName by remember { mutableStateOf("") }
 
     LaunchedEffect(startWithSubscription) {
-        if (startWithSubscription) open = PanelRow.SUBSCRIPTION
+        if (startWithSubscription) subscriptionOpen = true
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -107,9 +111,18 @@ internal fun ProfilesAddPanel(
             Spacer(modifier = Modifier.height(StarveilSpacing.md))
         }
 
+        // The card and the tile are the same door, so only one of them is ever
+        // on screen: with something importable on the clipboard the card is the
+        // shorter path and the tile would be a second way to do the same thing;
+        // with nothing there, the card has nothing to say and the tile is the
+        // way to type or paste a link by hand.
         if (clipboard != null) {
             AddSuggestionCard(
-                title = stringResource(R.string.add_clipboard_title, clipboard.nodes.size),
+                title = if (clipboard.subscriptionUrl != null) {
+                    stringResource(R.string.add_clipboard_subscription_title)
+                } else {
+                    stringResource(R.string.add_clipboard_title, clipboard.nodes.size)
+                },
                 detail = clipboard.describe(),
                 action = stringResource(R.string.add_action_import),
                 onAction = onClipboard,
@@ -125,20 +138,15 @@ internal fun ProfilesAddPanel(
                 modifier = Modifier.weight(1f),
                 onClick = onScan,
             )
-            AddTile(
-                icon = StarveilIcons.Clipboard,
-                title = stringResource(R.string.add_tile_clipboard),
-                // A tile that looks live and then reports an error is worse
-                // than one that says why it is grey.
-                subtitle = if (clipboard == null) {
-                    stringResource(R.string.add_tile_clipboard_empty)
-                } else {
-                    stringResource(R.string.add_tile_clipboard_sub)
-                },
-                modifier = Modifier.weight(1f),
-                enabled = clipboard != null,
-                onClick = onClipboard,
-            )
+            if (clipboard == null) {
+                AddTile(
+                    icon = StarveilIcons.Clipboard,
+                    title = stringResource(R.string.add_tile_clipboard),
+                    subtitle = stringResource(R.string.add_tile_clipboard_sub),
+                    modifier = Modifier.weight(1f),
+                    onClick = { clipboardForm = true },
+                )
+            }
             AddTile(
                 icon = StarveilIcons.Pencil,
                 title = stringResource(R.string.add_tile_manual),
@@ -148,59 +156,16 @@ internal fun ProfilesAddPanel(
             )
         }
 
-        AddPanelLabel(stringResource(R.string.add_panel_label_batch))
-
+        // One row, one chevron: a subscription is not a fourth peer of the
+        // three tiles — it is a link you paste, and it stays below the line.
         AddActionRow(
             icon = StarveilIcons.Link,
-            title = stringResource(R.string.add_row_paste),
-            subtitle = stringResource(R.string.add_row_paste_sub),
-            expanded = open == PanelRow.PASTE,
-            onClick = { open = if (open == PanelRow.PASTE) null else PanelRow.PASTE },
-        )
-        AnimatedVisibility(visible = open == PanelRow.PASTE) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
-                StarveilTextField(
-                    value = linkText,
-                    onValueChange = { linkText = it },
-                    label = stringResource(R.string.add_link_hint),
-                    singleLine = false,
-                    minLines = 3,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val detected = remember(linkText) { previewOf(linkText).nodes.size }
-                    Text(
-                        text = if (detected > 0) {
-                            stringResource(R.string.add_detected, detected)
-                        } else {
-                            ""
-                        },
-                        style = StarveilType.label,
-                        color = StarveilColors.ink2,
-                        modifier = Modifier.weight(1f),
-                    )
-                    StarveilButton(
-                        text = stringResource(R.string.add_action_import),
-                        enabled = linkText.isNotBlank(),
-                        onClick = { onImportLinks(linkText) },
-                    )
-                }
-            }
-        }
-
-        AddActionRow(
-            icon = StarveilIcons.Down,
             title = stringResource(R.string.add_row_subscription),
             subtitle = stringResource(R.string.add_row_subscription_sub),
-            expanded = open == PanelRow.SUBSCRIPTION,
-            onClick = {
-                open = if (open == PanelRow.SUBSCRIPTION) null else PanelRow.SUBSCRIPTION
-            },
+            expanded = subscriptionOpen,
+            onClick = { subscriptionOpen = !subscriptionOpen },
         )
-        AnimatedVisibility(visible = open == PanelRow.SUBSCRIPTION) {
+        AnimatedVisibility(visible = subscriptionOpen) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(bottom = StarveilSpacing.md),
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
@@ -229,13 +194,123 @@ internal fun ProfilesAddPanel(
             }
         }
     }
+
+    if (clipboardForm) {
+        ClipboardImportDialog(
+            previewOf = previewOf,
+            onDismiss = { clipboardForm = false },
+            onImport = { text ->
+                clipboardForm = false
+                onImportLinks(text)
+            },
+        )
+    }
 }
 
-/** "host:port · vless" for the clipboard card's second line. */
+/**
+ * The clipboard tile's form.
+ *
+ * A dialog rather than another expansion inside the sheet: the tile is only on
+ * screen when the clipboard has nothing to offer, and what it opens is a
+ * text area with its own keyboard — the one thing the sheet has no room for.
+ * "Paste" reads the clipboard on the tap, which is also the moment Android
+ * will hand it over.
+ */
+@Composable
+private fun ClipboardImportDialog(
+    previewOf: (String) -> LinkPreview,
+    onDismiss: () -> Unit,
+    onImport: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    var text by remember { mutableStateOf("") }
+    val detected = remember(text) { previewOf(text).nodes.size }
+    AlertDialog(
+        containerColor = StarveilColors.card,
+        shape = StarveilShapes.dialog,
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.add_clipboard_form_title),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                StarveilTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = stringResource(R.string.add_link_hint),
+                    singleLine = false,
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.add_clipboard_form_formats),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = {
+                            // Empty clipboard is not an error: the field simply
+                            // stays as it was.
+                            readClipboardText(context)?.let { text = it }
+                        },
+                    ) {
+                        Text(stringResource(R.string.add_clipboard_form_paste))
+                    }
+                }
+                if (detected > 0) {
+                    Text(
+                        text = stringResource(R.string.add_detected, detected),
+                        style = StarveilType.label,
+                        color = StarveilColors.accentText,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = text.isNotBlank(),
+                onClick = { onImport(text) },
+            ) {
+                Text(stringResource(R.string.add_action_import))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.add_cancel))
+            }
+        },
+    )
+}
+/**
+ * The card's second line: the protocol, a host fragment and the port.
+ *
+ * Deliberately not the link. A share link carries the node's credentials in its
+ * user-info or its query, and a card that shows them puts a secret on screen to
+ * be screenshotted; what identifies the node for the person importing it is the
+ * protocol, the host and the port.
+ */
 private fun LinkPreview.describe(): String {
-    val node = nodes.firstOrNull() ?: return subscriptionUrl.orEmpty()
-    val head = node.server + ":" + node.port
-    return if (nodes.size > 1) head + " …" else head + " · " + node.type.name.lowercase()
+    val node = nodes.firstOrNull()
+    if (node == null) {
+        // A subscription is identified by where it comes from, not by its path
+        // or token: the host is enough to recognise it.
+        val host = subscriptionUrl?.let {
+            runCatching { java.net.URI(it).host }.getOrNull()
+        }
+        return host ?: middleEllipsis(subscriptionUrl.orEmpty(), max = 24)
+    }
+    val head = node.type.name.lowercase() + " · " + middleEllipsis(node.server, max = 22) +
+        ":" + node.port
+    return if (nodes.size > 1) head + " …" else head
 }
 
 /**

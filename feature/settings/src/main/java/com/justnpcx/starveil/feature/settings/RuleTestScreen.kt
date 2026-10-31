@@ -174,7 +174,11 @@ fun RuleTestScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = StarveilSpacing.pageMargin),
+            .padding(
+                start = StarveilSpacing.pageMargin,
+                end = StarveilSpacing.pageMargin,
+                bottom = StarveilSpacing.navContentInset,
+            ),
     ) {
             Text(
                 text = stringResource(R.string.rule_test_intro),

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_title">设置</string>
-    <string name="settings_brand_tagline">星光为路 · 薄纱为盾</string>
     <string name="appearance_title">外观</string>
     <string name="appearance_system">跟随系统</string>
     <string name="appearance_light">白天</string>
@@ -31,8 +30,6 @@
     <string name="per_app_entry_desc">让单个应用直连，或走指定节点。</string>
     <string name="per_app_entry_count">%1$d 个应用使用独立路由</string>
     <string name="per_app_manage">管理</string>
-    <string name="per_app_title">按应用分流</string>
-    <string name="per_app_done">完成</string>
     <string name="per_app_close">关闭</string>
     <string name="per_app_explainer">每个应用都可以跟随隧道、直接出设备，或使用指定节点。该设置在建隧道时应用，因此下次连接才生效。</string>
     <string name="per_app_search">搜索应用</string>
@@ -63,7 +60,6 @@
     <string name="leak_check_leaking">上次检查：检测到泄漏（%1$s）。</string>
     <string name="leak_check_run">运行自检</string>
 
-    <string name="settings_kernel_title">内核</string>
     <string name="settings_kernel_version">sing-box 内核 %1$s</string>
     <string name="settings_kernel_unknown">版本不可用。</string>
 
@@ -80,7 +76,6 @@
 
     <string name="settings_about_title">关于</string>
     <string name="settings_app_version">Starveil %1$s</string>
-    <string name="settings_privacy">隐私政策</string>
 
     <string name="update_check">检查更新</string>
     <string name="update_checking">正在检查…</string>
@@ -107,12 +102,9 @@
     <string name="update_open_settings">打开设置</string>
 
 
-    <string name="diagnostics_title">诊断</string>
     <string name="crash_reports_title">发送崩溃报告</string>
     <string name="crash_reports_desc">崩溃堆栈、应用版本、Android 版本和设备型号。节点地址、链接、UUID 和密钥在发送前会被替换。关闭后不发送任何内容。</string>
 
-    <string name="privacy_title">隐私</string>
-    <string name="privacy_close">关闭</string>
     <string name="privacy_intro">Starveil 完全在本机运行。这一页列出所有离开设备的内容——没有一项不是你自己要求发送的。</string>
     <string name="privacy_data_title">收集什么</string>
     <string name="privacy_data_body">只有一种上报：崩溃时的一份报告。没有账号、没有统计、没有广告标识符。本项目没有自己的服务器——报告发往 Sentry，见下一节。</string>
@@ -133,8 +125,6 @@
 
     <string name="keepalive_entry_title">后台保活</string>
     <string name="keepalive_entry_desc">防止系统在锁屏后杀掉隧道。</string>
-    <string name="keepalive_title">后台保活</string>
-    <string name="keepalive_back">返回</string>
     <string name="keepalive_intro">国产 ROM 会按自己的规则清后台。这三个开关是它决定「不清」的地方。</string>
     <string name="keepalive_battery_title">电池优化</string>
     <string name="keepalive_battery_body">防止锁屏后系统冻结隧道。</string>
@@ -149,16 +139,11 @@
     <string name="settings_group_connection">连接</string>
     <string name="settings_group_routing">路由与后台</string>
     <string name="settings_group_diagnostics">数据、安全与诊断</string>
-    <string name="settings_group_about">关于</string>
-    <string name="settings_version_title">Starveil</string>
     <string name="settings_dns_metrics_title">DNS 采样</string>
     <string name="settings_dns_metrics_desc">记录每次解析耗时，保留最近 512 次。</string>
     <string name="settings_dns_metrics_empty">暂无样本。</string>
     <string name="settings_dns_metrics_stats">%1$d 次 · p50 %2$d ms · p95 %3$d ms · 回退 %4$d%% · 缓存 %5$d%%</string>
     <string name="settings_dns_metrics_clear">清除样本</string>
-    <string name="settings_github_repo">GitHub 仓库</string>
-    <string name="settings_github_changelog">更新日志</string>
-    <string name="settings_github_issues">反馈问题</string>
     <string name="settings_link_failed">这台设备上没有能打开链接的应用</string>
     <string name="rule_test_paste">从剪贴板粘贴</string>
     <string name="rule_test_try">试试</string>
@@ -186,8 +171,6 @@
     <string name="rule_test_scope">规则包与按应用分流暂未计入判定。</string>
     <string name="rule_test_no_sets_title">本机还没有规则集</string>
     <string name="rule_test_no_sets">先用「绕过中国大陆」预设连接一次，或开启「去广告」，规则集会下载到本机。之后再回来测。</string>
-<string name="connections_title">连接明细</string>
-    <string name="connections_back">返回</string>
     <string name="connections_intro">内核实际处理的每条连接。不记录请求内容，只有谁、去哪、命中哪条规则、走的哪个节点。</string>
     <string name="connections_filter_active">进行中</string>
     <string name="connections_filter_all">全部</string>
@@ -209,8 +192,6 @@
     <string name="connections_no_matches_body">放宽或清除筛选再看看。</string>
     <string name="connections_entry_title">连接明细</string>
     <string name="connections_entry_desc">谁连了哪里、命中哪条规则、走的哪个节点</string>
-<string name="dns_log_title">DNS 日志</string>
-    <string name="dns_log_back">返回</string>
     <string name="dns_log_scope">GeoIP 探针采样，非隧道 DNS。这里记的是本应用解析节点域名时发出的 DoH 请求，不代表隧道内 DNS 的质量。</string>
     <string name="dns_log_stats">%1$d 次 · p50 %2$d ms · p95 %3$d ms · 回退 %4$d%% · 缓存 %5$d%%</string>
     <string name="dns_log_empty">暂无样本。</string>

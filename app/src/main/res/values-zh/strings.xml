@@ -9,21 +9,49 @@
     <string name="nav_settings">设置</string>
     <string name="nav_scenes">场景</string>
     <string name="nav_diagnostics">诊断自检</string>
+    <string name="nav_more">更多</string>
+    <string name="nav_about">关于</string>
+    <string name="nav_back">返回</string>
+    <!-- 导航栏朗读的选中状态，接在名称之后。 -->
+    <string name="nav_item_selected">已选中</string>
+    <string name="nav_item_unselected">未选中</string>
 
-    <!-- Drawer. -->
-    <string name="drawer_open">打开导航</string>
-    <string name="drawer_status_connected">已连接 · %1$s</string>
-    <string name="drawer_status_unknown_node">当前节点</string>
-    <string name="drawer_status_offline">未连接</string>
-    <string name="drawer_group_pages">页面</string>
-    <string name="drawer_group_settings">设置与诊断</string>
-    <string name="drawer_group_about">关于</string>
-    <string name="brand_tagline">星光为路 · 薄纱为盾</string>
+    <!-- The one global action in the top bar. -->
     <string name="theme_to_dark">切换到深色</string>
     <string name="theme_to_light">切换到浅色</string>
-    <string name="drawer_github">GitHub 仓库</string>
-    <string name="drawer_changelog">更新日志</string>
-    <string name="drawer_issues">反馈问题</string>
+
+    <!-- 导航栏负责绘制的页面标题；页面本身不再自带标题。 -->
+    <string name="nav_per_app">分应用路由</string>
+    <string name="nav_keep_alive">后台保活</string>
+    <string name="nav_connections">连接</string>
+    <string name="nav_dns_log">DNS 日志</string>
+    <string name="nav_privacy">隐私</string>
+
+    <!-- 聚合页：导航栏未列出的每个去处一行。 -->
+    <string name="hub_scenes_sub">自动化预设与场景切换</string>
+    <string name="hub_logs_sub">连接日志与最近流向</string>
+    <string name="hub_diagnostics_title">诊断自检</string>
+    <string name="hub_diagnostics_sub">DNS、探测与连通性检查</string>
+    <string name="hub_settings_sub">外观、连接、安全与备份</string>
+    <string name="hub_about_sub">版本、功能介绍、隐私与许可</string>
+
+    <!-- 关于。 -->
+    <string name="about_name">Starveil 星纱</string>
+    <string name="about_version_line">版本 %1$s</string>
+    <string name="about_update_title">版本更新</string>
+    <string name="about_update_checking">检查中…</string>
+    <string name="about_update_latest">已是最新</string>
+    <string name="about_update_available">有新版本 %1$s</string>
+    <string name="about_update_failed">检查失败</string>
+    <string name="about_update_ready">可以安装</string>
+    <string name="about_features_title">功能介绍</string>
+    <string name="about_features_body">Starveil 让这台设备的流量走你选的节点，并且把每一个决定摊开给你看。\n\n· 节点可以通过二维码、剪贴板、订阅或手动录入进来。\n· 规则决定哪些流量进隧道、哪些直连；规则页会把内核实际做出的判断摆在你写的规则旁边。\n· 场景按 Wi-Fi 名称或移动网络自动切换策略。\n· 首页显示状态、速率、出口地址，以及当前节点的健康曲线。\n· 全部在本地：没有账号，没有统计，只有一份可关闭的崩溃报告。</string>
+    <string name="about_privacy_title">隐私政策</string>
+    <string name="about_licences_title">开源许可</string>
+    <string name="about_licences_body">Starveil 以 GNU 通用公共许可证第 3 版发布。源码公开，修改后的版本同样必须开源。\n\n它内置了自维护的 sing-box fork（GPL-3.0），隧道本体由它承担。\n\n它还链接了 AndroidX 与 Jetpack Compose（Apache-2.0）、Hilt 与 Dagger（Apache-2.0）、Room 与 SQLCipher（Apache-2.0 / BSD 类）、ZXing（Apache-2.0）与 Sentry（MIT）。完整文本随各自依赖分发。</string>
+    <string name="about_footer_kernel">内核 sing-box %1$s · 本应用基于 GPL-3.0 开源</string>
+    <string name="about_footer_copyright">© 2026 justnpcx</string>
+    <string name="about_close">关闭</string>
 
     <!-- Appearance. -->
     <string name="appearance_title">外观</string>

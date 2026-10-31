@@ -62,6 +62,20 @@ object StarveilType {
         letterSpacing = (-0.2).sp,
     )
 
+    /**
+     * The top bar's title. 22sp at weight 600 and a hair of positive tracking:
+     * the platform's default title is bold and tight, and at this size the
+     * difference between 600 and 700 is the difference between a label and a
+     * shout.
+     */
+    val pageTitle = TextStyle(
+        fontFamily = SansFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.3.sp,
+    )
+
     /** A section heading, or the main line of a row. */
     val headline = TextStyle(
         fontFamily = SansFamily,

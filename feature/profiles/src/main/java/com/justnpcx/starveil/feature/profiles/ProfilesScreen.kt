@@ -2,6 +2,8 @@ package com.justnpcx.starveil.feature.profiles
 
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -19,7 +21,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import com.justnpcx.starveil.core.ui.components.StarveilAddFab
+import com.justnpcx.starveil.core.ui.components.LocalTopBarActions
+import com.justnpcx.starveil.core.ui.components.StarveilPlusDisc
 import com.justnpcx.starveil.core.ui.components.StarveilAddSheet
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.subscription.DocumentFormat
@@ -56,11 +59,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.size
 import com.justnpcx.starveil.core.model.GroupMode
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.geometry.Offset
@@ -112,6 +117,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -161,18 +167,17 @@ fun ProfilesScreen(
      * touch the list's state.
      */
     probeViewModel: StagedProbeViewModel = hiltViewModel(),
-    /**
-     * Measures the selected node's latency. Supplied by :app, which owns the
-     * kernel; it reports back a user-facing message so a failed measurement is
-     * never silent. The default keeps previews and tests kernel-free.
-     */
-    onTestLatency: ((String) -> Unit) -> Unit = {},
     /** Opens the editor for a brand-new node of the chosen protocol. */
     onNewNode: (ProfileType) -> Unit = {},
     /** Opens the editor for an existing node. */
     onEditNode: (ProfileType, Long) -> Unit = { _, _ -> },
     /** Measures one node by id, and reports what happened. */
     onTestNode: (Long, (String) -> Unit) -> Unit = { _, _ -> },
+    /**
+     * The bar's refresh: measures the selected node and reports whether a
+     * number came back, so the page can say "refreshed" only when it did.
+     */
+    onRefreshLatency: ((message: String, measured: Boolean) -> Unit) -> Unit = { _ -> },
     /**
      * A link that arrived from outside the app, to import on arrival.
      *
@@ -308,6 +313,63 @@ fun ProfilesScreen(
         }
     }
 
+    // The list's own actions live in the bar: refresh and the group menu are
+    // about this list, and a row of two icons under the title was a second
+    // header with nothing in it but the same two buttons.
+    var spin by remember { mutableIntStateOf(0) }
+    val spinAngle by animateFloatAsState(
+        targetValue = spin * 360f,
+        animationSpec = tween(REFRESH_SPIN_MS),
+        label = "refresh-spin",
+    )
+    val refreshedText = stringResource(R.string.profiles_refreshed)
+    val topBar = LocalTopBarActions.current
+    DisposableEffect(topBar) {
+        topBar?.content = {
+            StarveilIconAction(
+                icon = StarveilIcons.Refresh,
+                contentDescription = stringResource(R.string.profiles_test_selected),
+                modifier = Modifier.graphicsLayer { rotationZ = spinAngle },
+                onClick = {
+                    // One turn of the glyph while the probe runs, then a line
+                    // that says what happened. The turn is the only progress
+                    // the bar can show without a second widget.
+                    spin += 1
+                    onRefreshLatency { message, measured ->
+                        viewModel.postMessage(if (measured) refreshedText else message)
+                    }
+                },
+            )
+            Box {
+                StarveilIconAction(
+                    icon = StarveilIcons.More,
+                    contentDescription = stringResource(R.string.profiles_group_actions),
+                    onClick = { showGroupMenu = true },
+                )
+                DropdownMenu(
+                    expanded = showGroupMenu,
+                    onDismissRequest = { showGroupMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.profiles_group_new)) },
+                        onClick = {
+                            showGroupMenu = false
+                            creatingGroup = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.profiles_group_by_region)) },
+                        onClick = {
+                            showGroupMenu = false
+                            viewModel.groupByRegion()
+                        },
+                    )
+                }
+            }
+        }
+        onDispose { topBar?.content = null }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         // Transparent: the ambient gradient behind the app is the page.
@@ -318,47 +380,6 @@ fun ProfilesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Page actions live in the page now: the top bar carries only the
-            // drawer, the title and the theme switch.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = StarveilSpacing.xs),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                StarveilIconAction(
-                    icon = StarveilIcons.Refresh,
-                    contentDescription = stringResource(R.string.profiles_test_selected),
-                    onClick = { onTestLatency { msg -> viewModel.postMessage(msg) } },
-                )
-                Box {
-                    StarveilIconAction(
-                        icon = StarveilIcons.More,
-                        contentDescription = stringResource(R.string.profiles_group_actions),
-                        onClick = { showGroupMenu = true },
-                    )
-                    DropdownMenu(
-                        expanded = showGroupMenu,
-                        onDismissRequest = { showGroupMenu = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.profiles_group_new)) },
-                            onClick = {
-                                showGroupMenu = false
-                                creatingGroup = true
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.profiles_group_by_region)) },
-                            onClick = {
-                                showGroupMenu = false
-                                viewModel.groupByRegion()
-                            },
-                        )
-                    }
-                }
-            }
             state.message?.let { message ->
                 if (message is ProfilesMessage.NoRegionsFound) {
                     // A dialog, not the banner. "By region" is the one action
@@ -510,7 +531,7 @@ fun ProfilesScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = StarveilSpacing.fabClearance),
+                        contentPadding = PaddingValues(bottom = StarveilSpacing.plusClearance),
                     ) {
                     itemsIndexed(shown, key = { _, profile -> profile.id }) { index, profile ->
                         // §5.2: rows settle in top-down instead of snapping in
@@ -576,23 +597,22 @@ fun ProfilesScreen(
         }
     }
 
-        // The add control: one button, and it does not fan out. The panel it
-        // opens floats over the list, so the list's last row keeps its own
-        // clearance.
-        Column(
+        // The add control: the disc, 12dp above the bar and 18dp from the
+        // edge. The list's own bottom padding is what keeps its last row clear
+        // of it.
+        StarveilPlusDisc(
+            contentDescription = stringResource(R.string.add_panel_title_node),
+            onClick = {
+                clipboardText = readClipboardText(context)
+                addPanel = true
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.End,
-        ) {
-            StarveilAddFab(
-                onClick = {
-                    clipboardText = readClipboardText(context)
-                    addPanel = true
-                },
-            )
-        }
+                .padding(
+                    end = StarveilSpacing.plusMarginEnd,
+                    bottom = StarveilSpacing.plusMarginBottom,
+                ),
+        )
     }
 
     StarveilAddSheet(
@@ -1269,7 +1289,7 @@ private fun NodeRow(
             .padding(
                 start = 10.dp,
                 top = 12.dp,
-                end = FAB_GUTTER,
+                end = 10.dp,
                 bottom = 12.dp,
             ),
     ) {
@@ -1293,9 +1313,16 @@ private fun NodeRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                Spacer(modifier = Modifier.width(StarveilSpacing.xs))
+                // The protocol, on the first line, for every row: two nodes
+                // that share a name are told apart by what they speak as much
+                // as by their port, and a reader should not have to open a row
+                // to find out which is which.
+                ProtocolBadge(profile.type.shortName())
                 if (disambiguator != null) {
+                    Spacer(modifier = Modifier.width(StarveilSpacing.xs))
                     Text(
-                        text = " · " + disambiguator,
+                        text = disambiguator,
                         style = StarveilType.tech,
                         color = StarveilColors.ink2,
                         maxLines = 1,
@@ -1397,6 +1424,21 @@ private fun NodeRow(
  * Carries a description because colour alone is not a signal for anyone using a
  * screen reader — the dot is the only place the window's verdict appears.
  */
+/** The protocol, as a small tag on the row's first line. */
+@Composable
+private fun ProtocolBadge(label: String) {
+    Text(
+        text = label,
+        style = StarveilType.tech.copy(fontSize = 10.sp, letterSpacing = 0.4.sp),
+        color = StarveilColors.ink2,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(StarveilColors.segBg)
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
+}
+
 @Composable
 private fun StatusDot(status: NodeStatus, modifier: Modifier = Modifier) {
     val description = when (status) {
@@ -1541,7 +1583,6 @@ private val LATENCY_TOUCH_CORNER = 8.dp
 private val LATENCY_COLUMN_WIDTH = 76.dp
 
 /** The FAB's footprint (56dp) plus its margin from the screen edge (16dp). */
-private val FAB_GUTTER = 72.dp
 
 @Composable
 private fun Hint(text: String) {
@@ -1805,6 +1846,9 @@ private fun noteLabel(note: StageNote): String = stringResource(
 
 /** How long a freshly imported row stays highlighted. */
 private const val HIGHLIGHT_MS = 1200L
+
+/** How long the refresh glyph takes to come round once. */
+private const val REFRESH_SPIN_MS = 650
 
 /**
  * A suffix for every node whose title would read the same as another's.

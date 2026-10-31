@@ -3,6 +3,7 @@ package com.justnpcx.starveil.feature.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +33,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.model.AppRoute
 import com.justnpcx.starveil.core.model.Profile
@@ -50,23 +50,13 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PerAppScreen(
-    onBack: () -> Unit,
     viewModel: PerAppViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // No bar of its own: the shell draws the title and the arrow back.
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = {
-            StarveilTopAppBar(
-                title = { Text(stringResource(R.string.per_app_title)) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.per_app_done))
-                    }
-                },
-            )
-        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -108,7 +98,10 @@ fun PerAppScreen(
                     modifier = Modifier.padding(StarveilSpacing.lg),
                 )
 
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = StarveilSpacing.navContentInset),
+                ) {
                     items(state.visible, key = { it.packageName }) { app ->
                         AppRow(
                             app = app,

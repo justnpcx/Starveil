@@ -47,13 +47,23 @@ object StarveilSpacing {
     /** The page's left and right margin. Named so screens stop writing 24.dp. */
     val pageMargin = xl
 
+    /** The navigation bar's own height, above the system gesture inset. */
+    val navBarHeight = 80.dp
+
+    /** The air a page keeps between its last row and the bar. */
+    val navContentInset = 12.dp
+
     /**
-     * Bottom padding for a scrolling list that has a floating button over it.
+     * Bottom padding for a list on a page that carries the plus disc.
      *
-     * 96dp is not a rhythm value: it is the button's own height plus the gap
-     * that keeps it off the last row. A list that uses [xl] here lets the
-     * button cover its own final line, which is the defect this constant
-     * exists to stop repeating.
+     * The disc is 56dp and sits 12dp above the bar, so 76dp is what a last row
+     * needs to come to rest above it rather than behind it.
      */
-    val fabClearance = 96.dp
+    val plusClearance = 76.dp
+
+    /** The disc's diameter, its inset from the right edge and its lift. */
+    val plusDisc = 56.dp
+    val plusMarginEnd = 18.dp
+    val plusMarginBottom = 12.dp
+
 }

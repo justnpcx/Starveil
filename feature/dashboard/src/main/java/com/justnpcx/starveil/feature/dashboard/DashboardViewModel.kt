@@ -71,6 +71,16 @@ data class DashboardUiState(
     val exit: com.justnpcx.starveil.core.data.network.ExitInfo? = null,
 
     /**
+     * The exit round trip, smoothed.
+     *
+     * A single probe is one request through a tunnel: it swings by tens of
+     * milliseconds between two samples a minute apart, and a number that jumps
+     * reads as a fault. The exponential average keeps the direction of a change
+     * and drops the jitter. Null until the first measurement.
+     */
+    val exitSmoothedRttMs: Long? = null,
+
+    /**
      * False only on an install that has never had a tunnel up. The ring's
      * hint is shown exactly then.
      */
@@ -241,10 +251,20 @@ class DashboardViewModel @Inject constructor(
             while (isActive && screenVisible) {
                 if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
                     exitProbe.probe()?.let { info ->
-                        _uiState.update { it.copy(exit = info) }
+                        _uiState.update { state ->
+                            state.copy(
+                                exit = info,
+                                exitSmoothedRttMs = smoothRtt(
+                                    previous = state.exitSmoothedRttMs,
+                                    sample = info.rttMs,
+                                ),
+                            )
+                        }
                     }
                 } else if (_uiState.value.exit != null) {
-                    _uiState.update { it.copy(exit = null) }
+                    // A tunnel that went down has no exit to describe, and no
+                    // history worth carrying into the next one.
+                    _uiState.update { it.copy(exit = null, exitSmoothedRttMs = null) }
                 }
                 delay(
                     if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
@@ -874,3 +894,20 @@ private const val EXIT_REFRESH_MS = 30_000L
 
 /** How often the connected/disconnected state is looked at. No network involved. */
 private const val EXIT_IDLE_TICK_MS = 2_000L
+
+/**
+ * How much of a new sample the exit average takes.
+ *
+ * A third: two or three probes settle the number after a change of node, and a
+ * single slow request moves it by a third of the difference rather than all of
+ * it.
+ */
+private const val EXIT_EMA_ALPHA = 0.3
+
+/** One step of the exponential average, in whole milliseconds. */
+internal fun smoothRtt(previous: Long?, sample: Long): Long =
+    if (previous == null) {
+        sample
+    } else {
+        Math.round(EXIT_EMA_ALPHA * sample + (1 - EXIT_EMA_ALPHA) * previous)
+    }

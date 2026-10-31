@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.ConnectionDetail
-import com.justnpcx.starveil.core.ui.components.StarveilTopAppBar
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
@@ -63,7 +62,6 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectionsScreen(
-    onBack: () -> Unit,
     viewModel: ConnectionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -81,21 +79,9 @@ fun ConnectionsScreen(
         }
     }
 
+    // No bar of its own: the shell draws the title and the arrow back.
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        topBar = {
-            StarveilTopAppBar(
-                title = { Text(stringResource(R.string.connections_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            StarveilIcons.Back,
-                            contentDescription = stringResource(R.string.connections_back),
-                        )
-                    }
-                },
-            )
-        },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Text(
