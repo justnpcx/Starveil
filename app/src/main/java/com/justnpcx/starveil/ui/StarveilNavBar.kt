@@ -66,13 +66,14 @@ fun navSectionFor(route: String?): NavSection = when {
 /**
  * The navigation bar: full width, 80dp, flush to the bottom.
  *
- * Material's own [NavigationBar] rather than a drawn one. The shape the design
- * asks for — 80dp, a 64x32 pill behind the selected icon, 24dp glyphs, labels
- * that never disappear — is exactly Material's, and the platform's component
- * brings the ripple, the tab semantics and the touch target with it. The one
- * thing it does not bring is a height that ignores the gesture inset, so the
- * inset is applied outside the 80dp rather than inside it: the container's
- * colour runs to the screen edge, and the bar itself stays 80.
+ * Material's own [NavigationBar] rather than a drawn one: it brings the tab
+ * semantics, the equal-width slots and the touch target, and the 80dp height
+ * and label layout the design asks for are a matter of sizing it. The item
+ * inside it is drawn here (see [NavItem]) because Material's ripple is a shape
+ * this bar does not show. The one thing the container does not bring is a
+ * height that ignores the gesture inset, so the inset is applied outside the
+ * 80dp rather than inside it: the container's colour runs to the screen edge,
+ * and the bar itself stays 80.
  */
 @Composable
 fun StarveilNavBar(
@@ -126,14 +127,16 @@ fun StarveilNavBar(
 /**
  * One destination, drawn here rather than by Material's NavigationBarItem.
  *
- * Material's item clips its press ripple to the 64x32 indicator pill. The pill
- * itself is transparent in this design, so it never shows at rest — but the
- * ripple is drawn inside that shape, so every tap flashed a pill-shaped block
- * and faded it out, which is exactly the shape this bar stopped showing.
+ * Material's item clips its press ripple to the 64x32 indicator pill, and this
+ * bar has spent two rounds removing shapes from a press: the pill first, then
+ * the slot-sized ripple that replaced it. So the item is a plain equal-width
+ * slot with no press feedback of any kind — no ripple, no highlight, nothing
+ * that appears for the duration of a touch.
  *
- * The item is therefore a plain equal-width slot: icon, label, and a ripple
- * bounded to the whole slot rather than to a shape inside it. Selection is the
- * accent colour plus a heavier label; there is no background at any moment.
+ * Selection is the accent colour plus a heavier label, and that is the only
+ * thing that ever changes: there is no background at rest or under a finger.
+ * Do not add an indication back; a shape flashing on tap is the exact defect
+ * this bar was changed twice to remove.
  */
 @Composable
 private fun RowScope.NavItem(
