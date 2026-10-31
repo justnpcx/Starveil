@@ -228,7 +228,6 @@ fun StarveilNavHost(
         composable(Destination.RULES.route) {
             RulesScreen(
                 onOpenPerApp = { navController.navigate(PER_APP_ROUTE) },
-                onOpenScenes = { navController.navigate("scenes_tab") },
                 onOpenRuleEditor = { id -> navController.navigate("editor/rule?id=$id") },
             )
         }
