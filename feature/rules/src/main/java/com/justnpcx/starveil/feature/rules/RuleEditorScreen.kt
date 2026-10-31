@@ -184,6 +184,7 @@ fun RuleEditorScreen(
             )
             StarveilButton(
                 text = stringResource(R.string.rules_save),
+                confirm = true,
                 enabled = value.isNotBlank(),
                 onClick = { save() },
                 modifier = Modifier.weight(1f),

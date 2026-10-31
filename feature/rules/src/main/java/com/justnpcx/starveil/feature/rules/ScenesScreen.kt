@@ -619,6 +619,7 @@ private fun SceneSheet(
             ) {
                 StarveilButton(
                     text = stringResource(R.string.scenes_save),
+                    confirm = true,
                     enabled = name.isNotBlank(),
                     onClick = {
                         onSave(
