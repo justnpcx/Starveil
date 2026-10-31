@@ -80,9 +80,13 @@
   ├── :feature:editor      节点编辑
   ├── :feature:logs        日志
   └── :feature:settings    设置 / 诊断 / 备份
-:core:kernel ── sing-box 1.14.3 自维护 fork（libbox）+ KernelBridge 唯一契约
-:core:probe  ── 延迟探测 / 健康采样 / DNS 采样 / 泄漏自检
-:core:data   ── Room(SQLCipher) / DataStore / 订阅解析
+:core:kernel       ── sing-box 1.14.3 自维护 fork（libbox）+ KernelBridge 唯一契约
+:core:probe        ── 延迟探测 / 健康采样 / DNS 采样 / 泄漏自检
+:core:ui           ── 设计系统（主题 / 组件 / 图标）
+:core:model        ── 数据模型（Profile / ProxyGroup / Rule / 健康评分 / 选点）
+:core:subscription ── 订阅解析（base64 / Clash YAML / sing-box JSON / SIP008）
+:core:data         ── Room(SQLCipher) / DataStore
+:benchmark         ── Macrobenchmark 基线测量
 ```
 
 技术栈：Kotlin + Compose (Material 3) + Hilt + Coroutines/Flow + Room + WorkManager。模块职责与边界规则见 [产品指南](docs/03-top-tier-product-guide.md)。
