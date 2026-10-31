@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.6] — 2026-10-31
+
+Four things the phone found in 0.9.5.
+
+### Fixed
+
+- **The chip row keeps its margins.** The page margin sat inside the scrolling
+  row, so a chip scrolled to the end touched the screen edge and the row no
+  longer lined up with the search field above it. The margin belongs to the
+  window now, with a fade on the right when there is more to scroll.
+- **A rule is edited on a page, not in a dialog.** Four matcher choices in a
+  narrow column, a hint that broke mid-sentence, buttons in a corner and the
+  add button peeking out behind the scrim — all of it was the dialog. The rule
+  editor is a full page like the node editor: equal 2×2 tiles, one-line hints,
+  a three-way segmented action, and two equal buttons at the bottom.
+- **Export and restore fill the card.** Two buttons sized to their own text sat
+  in the left half of a wide card and read as a group that had failed to centre
+  itself.
+- **A group exists from the moment it is created.** The chip row only drew
+  groups that already had nodes, so a new folder was invisible; it is drawn
+  now, empty ones included, and creating one switches the filter to it and says
+  so. Deleting a folder asks what to do with its nodes instead of deciding.
+
 ## [0.9.5] — 2026-10-31
 
 Three things the phone found that the desk did not.
