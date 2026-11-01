@@ -1017,6 +1017,8 @@ private class FakePreferences(initialId: Long) : PreferencesRepository {
     override suspend fun setRoutePreset(preset: RoutePreset) { notUsed() }
     override suspend fun setBlockAds(enabled: Boolean) { notUsed() }
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
+    override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
+    override suspend fun setSubscriptionViaProxy(enabled: Boolean) { /* no-op */ }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { notUsed() }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setAutoReconnect(enabled: Boolean) { notUsed() }

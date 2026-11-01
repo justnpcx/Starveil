@@ -81,6 +81,8 @@
 
     <!-- 开发者选项：本地 Clash 兼容 API，默认关闭 -->
     <string name="settings_developer_title">开发者选项</string>
+    <string name="settings_subscription_proxy_title">通过隧道更新订阅</string>
+    <string name="settings_subscription_proxy_desc">给本机网络到不了的订阅地址用。需要先连上隧道；关闭时直接连接。</string>
     <string name="settings_local_api_title">本地 API</string>
     <string name="settings_local_api_desc">仅监听本机（%1$s），每个请求都要带 Token。</string>
     <string name="settings_local_api_address">正在监听 %1$s，其他设备无法访问。</string>

@@ -83,6 +83,8 @@
     <!-- About: the version to quote in a bug report, and the policy. -->
     <!-- Developer options: the local Clash-compatible API. Off by default. -->
     <string name="settings_developer_title">Developer options</string>
+    <string name="settings_subscription_proxy_title">Update subscriptions through the tunnel</string>
+    <string name="settings_subscription_proxy_desc">For a subscription URL this network cannot reach. Needs the tunnel to be connected; off means fetch directly.</string>
     <string name="settings_local_api_title">Local API</string>
     <string name="settings_local_api_desc">Clash-compatible, loopback only (%1$s). Needs the token below.</string>
     <string name="settings_local_api_address">Listening on %1$s — not reachable from other devices.</string>

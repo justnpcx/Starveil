@@ -859,6 +859,23 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `the subscription proxy listens only when it was asked for`() {
+        // A loopback socket is a socket; it exists only while the user wants
+        // subscription fetches to leave through the tunnel.
+        val off = builder.build(vlessProfile(), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
+        assertFalse(off.contains("subscription-in"))
+
+        val on = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            preset = RoutePreset.BYPASS_MAINLAND,
+            subscriptionProxyPort = 2080,
+        )
+        assertTrue(on.contains("subscription-in"))
+        assertTrue(on.contains("127.0.0.1"))
+    }
+
+    @Test
     fun `the proxy resolver is validated against a name, not the address`() {
         // Dialling 1.1.1.1 and checking the certificate against 1.1.1.1 is
         // only valid when the endpoint answers with an IP SAN. Through a

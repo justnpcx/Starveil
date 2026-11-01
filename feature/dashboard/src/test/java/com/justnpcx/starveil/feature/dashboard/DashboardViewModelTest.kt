@@ -859,6 +859,11 @@ private class FakePreferences(
     override suspend fun setPerAppRoutes(routes: Map<String, AppRoute>) {
         perAppRoutesFlow.value = routes
     }
+    override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
+    override suspend fun setSubscriptionViaProxy(enabled: Boolean) {
+        /* no-op */
+    }
+
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }

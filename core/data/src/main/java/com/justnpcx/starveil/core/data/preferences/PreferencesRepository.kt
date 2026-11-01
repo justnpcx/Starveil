@@ -148,6 +148,17 @@ interface PreferencesRepository {
     val localApiEnabled: Flow<Boolean>
 
     /**
+     * Whether a subscription fetch may leave through the tunnel.
+     *
+     * Off by default, because the common case is a subscription the device can
+     * reach on its own and a fetch through the node is slower and depends on a
+     * connection that may not be up. On is for the URLs that only resolve
+     * abroad: the app's own sockets are outside its own tun, so the only way
+     * out is the loopback proxy the kernel listens on.
+     */
+    val subscriptionViaProxy: Flow<Boolean>
+
+    /**
      * Whether DNS timings are sampled (developer options).
      *
      * On by default: the ring is 4 KB and the point of the metric is to be
@@ -288,6 +299,9 @@ interface PreferencesRepository {
 
     suspend fun setLocalApiEnabled(enabled: Boolean)
 
+    /** See [subscriptionViaProxy]. */
+    suspend fun setSubscriptionViaProxy(enabled: Boolean)
+
     suspend fun setDnsMetricsEnabled(enabled: Boolean)
 
     suspend fun setScenes(scenes: List<Scene>)
@@ -350,6 +364,9 @@ class DataStorePreferencesRepository @Inject constructor(
         val BLOCK_ADS = booleanPreferencesKey("block_ads")
         val RULE_PACKS = stringPreferencesKey("subscribed_rule_packs")
         val LOCAL_API = booleanPreferencesKey("local_api_enabled")
+
+        /** Subscription fetches leave through the loopback proxy. */
+        val SUBSCRIPTION_VIA_PROXY = booleanPreferencesKey("subscription_via_proxy")
 
         val DNS_METRICS = booleanPreferencesKey("dns_metrics_enabled")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
@@ -530,6 +547,14 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override val dnsMetricsEnabled: Flow<Boolean> = dataStore.data
         .map { it[Keys.DNS_METRICS] ?: true }
+
+    override val subscriptionViaProxy: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.SUBSCRIPTION_VIA_PROXY] ?: false }
+
+    override suspend fun setSubscriptionViaProxy(enabled: Boolean) {
+        dataStore.edit { it[Keys.SUBSCRIPTION_VIA_PROXY] = enabled }
+    }
 
     override val localApiEnabled: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }

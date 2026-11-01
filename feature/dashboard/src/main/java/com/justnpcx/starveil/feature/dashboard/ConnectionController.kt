@@ -145,6 +145,15 @@ class ConnectionController @Inject constructor(
             null
         }
 
+        // A loopback SOCKS inbound, only when the user asked subscription
+        // fetches to leave through the tunnel. The port is a constant because
+        // the fetcher has to know it before the config exists.
+        val subscriptionProxyPort = if (preferences.subscriptionViaProxy.first()) {
+            ConfigBuilder.SUBSCRIPTION_PROXY_PORT
+        } else {
+            null
+        }
+
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
             // Which addresses are one hop away right now. Read at build time,
@@ -168,6 +177,7 @@ class ConnectionController @Inject constructor(
                         rulePacks = packs,
                         localApi = localApi,
                         localSubnets = subnets,
+                        subscriptionProxyPort = subscriptionProxyPort,
                     )
 
                     is Target.Group -> configBuilder.build(
@@ -181,6 +191,7 @@ class ConnectionController @Inject constructor(
                         rulePacks = packs,
                         localApi = localApi,
                         localSubnets = subnets,
+                        subscriptionProxyPort = subscriptionProxyPort,
                     )
 
                     Target.None -> null
