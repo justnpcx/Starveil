@@ -33,7 +33,25 @@ data class Profile(
      * "Favorites" filter shows. Storage, not a score — the picker ignores it.
      */
     val favorite: Boolean = false,
-)
+    /**
+     * The node this one dials through, as [nodeKey] of that node.
+     *
+     * A key rather than a row id because a subscription refresh deletes and
+     * re-inserts its group's rows, so ids do not survive an update. Null means
+     * a single hop, which is what every node was before this field existed.
+     */
+    val frontNodeKey: String? = null,
+) {
+    /**
+     * What makes two entries the same node.
+     *
+     * The same tuple the importer already dedupes on: protocol, address, port
+     * and name. It survives a refresh as long as the provider keeps publishing
+     * the same entry — and when it does not, the reference is treated as
+     * dangling rather than silently pointing at a different node.
+     */
+    val nodeKey: String get() = type.name + "|" + server + "|" + port + "|" + name
+}
 
 enum class ProfileType {
     VLESS,

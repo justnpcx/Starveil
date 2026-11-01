@@ -27,4 +27,14 @@ data class ProfileEntity(
     val country: String? = null,
     /** Pinned to the top of the list and shown by the Favorites filter. */
     val favorite: Boolean = false,
+    /**
+     * The node this one dials through, as a business key rather than a row id.
+     *
+     * A subscription refresh is delete-then-insert (ProfileDao.replaceGroup), so
+     * every row gets a new id on every refresh — a foreign key here would point
+     * at a row that no longer exists after the next update. The key is
+     * [com.justnpcx.starveil.core.model.Profile.nodeKey]: the same tuple this app
+     * already uses to decide two entries are the same node.
+     */
+    val frontNodeKey: String? = null,
 )

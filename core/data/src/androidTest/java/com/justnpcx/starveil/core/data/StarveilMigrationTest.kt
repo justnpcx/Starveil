@@ -166,6 +166,25 @@ class StarveilMigrationTest {
     }
 
     @Test
+    fun migration_6_to_7_leaves_every_node_a_single_hop() {
+        val name = "migration-v7-${System.nanoTime()}.db"
+
+        helper.createDatabase(name, 6).use { db ->
+            db.execSQL(
+                "INSERT INTO profiles (name, type, server, port, latencyMs, groupId, settingsJson) " +
+                    "VALUES ('node', 'VLESS', 'a.example.com', 443, -1, 0, '{}')",
+            )
+        }
+
+        helper.runMigrationsAndValidate(name, 7, true, *StarveilMigrations.ALL).use { db ->
+            assertEquals(1, db.rowCount("profiles"))
+            // No front is the state every existing node is in, and a default
+            // other than null would silently put nodes behind something.
+            assertEquals(1, db.scalarInt("SELECT COUNT(*) FROM profiles WHERE frontNodeKey IS NULL"))
+        }
+    }
+
+    @Test
     fun the_composite_key_makes_a_re_probe_a_replace() {
         val name = "migration-pk-${System.nanoTime()}.db"
         helper.createDatabase(name, 1).use { }

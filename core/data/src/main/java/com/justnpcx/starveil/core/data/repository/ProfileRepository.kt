@@ -135,6 +135,7 @@ internal fun ProfileEntity.toDomain(): Profile {
         country = country,
         favorite = favorite,
         settings = SettingsJson.decode(settingsJson, profileType),
+        frontNodeKey = frontNodeKey,
     )
 }
 
@@ -150,4 +151,5 @@ internal fun Profile.toEntity(settingsJson: String = SettingsJson.encode(setting
         country = country,
         favorite = favorite,
         settingsJson = settingsJson,
+        frontNodeKey = frontNodeKey,
     )
