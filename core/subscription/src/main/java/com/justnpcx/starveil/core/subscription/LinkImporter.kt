@@ -189,7 +189,30 @@ class LinkImporter @Inject constructor(
         // still has a URL, and must retry on the periodic cadence rather than
         // stay empty forever.
         refreshScheduler.schedule(groupId)
-        return when (val outcome = updater.update(groupId, url)) {
+        val outcome = updater.update(groupId, url)
+        if (outcome is SubscriptionUpdateOutcome.Success && outcome.profileCount > 0) {
+            // Read the group back through the same column the node list reads.
+            // A group that exists but owns nothing is the state a failed first
+            // import leaves behind, and a later refresh inherits it: the update
+            // reports success, the rows end up where this group does not look,
+            // and every refresh after that repeats the same empty result. An
+            // import that says "41 nodes" must never be followed by an empty
+            // group, so the group row is rebuilt and the write is tried once
+            // more.
+            if (profiles.observeByGroup(groupId).first().isEmpty()) {
+                groups.upsert(
+                    ProxyGroup(
+                        id = groupId,
+                        name = existing?.name
+                            ?: name?.trim()?.takeIf { it.isNotEmpty() }
+                            ?: defaultName(url),
+                        subscriptionUrl = url,
+                    ),
+                )
+                updater.update(groupId, url)
+            }
+        }
+        return when (outcome) {
             is SubscriptionUpdateOutcome.Success ->
                 ImportOutcome.AddedSubscription(outcome.profileCount, outcome.dropped)
             is SubscriptionUpdateOutcome.Failure ->

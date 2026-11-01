@@ -4,6 +4,7 @@ import android.content.Context
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.subscription.Clock
 import com.justnpcx.starveil.core.subscription.HttpUrlConnectionFetcher
+import com.justnpcx.starveil.core.subscription.SubscriptionProxy
 import com.justnpcx.starveil.core.subscription.SubscriptionFetcher
 import com.justnpcx.starveil.core.subscription.SubscriptionHealthSink
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
@@ -21,7 +22,8 @@ object SubscriptionModule {
 
     @Provides
     @Singleton
-    fun provideSubscriptionFetcher(): SubscriptionFetcher = HttpUrlConnectionFetcher()
+    fun provideSubscriptionFetcher(proxy: SubscriptionProxy): SubscriptionFetcher =
+        HttpUrlConnectionFetcher(proxy)
 
     @Provides
     @Singleton

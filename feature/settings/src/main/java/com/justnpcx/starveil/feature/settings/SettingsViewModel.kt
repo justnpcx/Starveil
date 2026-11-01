@@ -57,6 +57,8 @@ data class SettingsUiState(
     val crashReports: Boolean = true,
     /** Whether the local Clash-compatible API is served. Off unless asked for. */
     val localApiEnabled: Boolean = false,
+    /** Whether a subscription fetch may leave through the tunnel. */
+    val subscriptionViaProxy: Boolean = false,
     /**
      * The bearer token a dashboard must send. Empty until the Keystore read
      * lands, and never logged.
@@ -257,13 +259,17 @@ class SettingsViewModel @Inject constructor(
             // says which.
             preferences.perAppRoutes.map { it.size },
             crashReports,
-            preferences.localApiEnabled,
-        ) { state, version, perAppCount, reports, apiEnabled ->
+            combine(
+                preferences.localApiEnabled,
+                preferences.subscriptionViaProxy,
+            ) { api, sub -> api to sub },
+        ) { state, version, perAppCount, reports, apiAndSub ->
             state.copy(
                 kernelVersion = version,
                 perAppDirectCount = perAppCount,
                 crashReports = reports,
-                localApiEnabled = apiEnabled,
+                localApiEnabled = apiAndSub.first,
+                subscriptionViaProxy = apiAndSub.second,
             )
         }.combine(apiToken) { state, token ->
             state.copy(apiToken = token)
@@ -282,6 +288,10 @@ class SettingsViewModel @Inject constructor(
      * the preference and rebuilds the tunnel, so the listener starts when the
      * next config does rather than needing a separate start.
      */
+    fun setSubscriptionViaProxy(enabled: Boolean) {
+        viewModelScope.launch { preferences.setSubscriptionViaProxy(enabled) }
+    }
+
     fun setLocalApiEnabled(enabled: Boolean) {
         viewModelScope.launch { preferences.setLocalApiEnabled(enabled) }
     }

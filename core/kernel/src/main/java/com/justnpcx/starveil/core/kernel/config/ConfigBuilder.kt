@@ -41,6 +41,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rulePacks: List<InstalledRulePack> = emptyList(),
         localApi: LocalApiConfig? = null,
         localSubnets: List<String> = emptyList(),
+        subscriptionProxyPort: Int? = null,
     ): String {
         val proxy = fragment(profile, PROXY_TAG)
         // WireGuard is an endpoint, so its fragment goes in a different
@@ -69,6 +70,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             proxyTag = PROXY_TAG,
             localApi = localApi,
             localSubnets = localSubnets,
+            subscriptionProxyPort = subscriptionProxyPort,
         )
     }
 
@@ -97,6 +99,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         rulePacks: List<InstalledRulePack> = emptyList(),
         localApi: LocalApiConfig? = null,
         localSubnets: List<String> = emptyList(),
+        subscriptionProxyPort: Int? = null,
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
@@ -159,6 +162,7 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             proxyTag = AUTO_TAG,
             localApi = localApi,
             localSubnets = localSubnets,
+            subscriptionProxyPort = subscriptionProxyPort,
         )
     }
 
@@ -622,11 +626,30 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         localApi: LocalApiConfig? = null,
         cacheFileName: String = "cache.db",
         localSubnets: List<String> = emptyList(),
+        subscriptionProxyPort: Int? = null,
     ): String {
         val config = linkedMapOf<String, Any?>(
             "log" to linkedMapOf("level" to "warn", "timestamp" to true),
             "dns" to dnsBlock(mainland, finalTag),
-            "inbounds" to listOf(tunInbound()),
+            "inbounds" to buildList {
+                add(tunInbound())
+                // Loopback only, and only when the user asked for subscription
+                // fetches to leave through the tunnel: Android keeps this app's
+                // own sockets out of its own tun, so the only way to reach the
+                // node from inside the app is a proxy the kernel is listening
+                // on. A port nobody asked for is a port anything on the device
+                // could use.
+                subscriptionProxyPort?.let { port ->
+                    add(
+                        linkedMapOf<String, Any?>(
+                            "type" to "socks",
+                            "tag" to SUBSCRIPTION_IN_TAG,
+                            "listen" to "127.0.0.1",
+                            "listen_port" to port,
+                        ),
+                    )
+                }
+            },
             "outbounds" to outbounds,
         )
         // WireGuard's endpoint goes here, not in `outbounds`: sing-box 1.13
@@ -758,6 +781,12 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val DIRECT_TAG = "direct"
         const val BLOCK_TAG = "block"
         const val TUN_TAG = "tun-in"
+
+        /** The loopback inbound a subscription fetch dials, when it is on. */
+        const val SUBSCRIPTION_IN_TAG = "subscription-in"
+
+        /** Where that inbound listens. Loopback only. */
+        const val SUBSCRIPTION_PROXY_PORT = 2080
         const val LOCAL_DNS_TAG = "local"
         const val DNS_CN_TAG = "dns-cn"
         const val DNS_PROXY_TAG = "dns-proxy"

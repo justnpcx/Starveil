@@ -174,6 +174,8 @@ private class LeakFakePreferences(private val mode: KillSwitchMode) : Preference
     override suspend fun setBlockAds(enabled: Boolean) { leakNotUsed() }
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { leakNotUsed() }
     override suspend fun setLocalApiEnabled(enabled: Boolean) { leakNotUsed() }
+    override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
+    override suspend fun setSubscriptionViaProxy(enabled: Boolean) { leakNotUsed() }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setAutoReconnect(enabled: Boolean) { leakNotUsed() }
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) { leakNotUsed() }

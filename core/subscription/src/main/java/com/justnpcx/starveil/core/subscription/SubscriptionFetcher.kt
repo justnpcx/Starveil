@@ -2,6 +2,8 @@ package com.justnpcx.starveil.core.subscription
 
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,6 +31,25 @@ interface SubscriptionFetcher {
 }
 
 /**
+ * Where the fetcher dials when a subscription has to go through the tunnel.
+ *
+ * Null is the default and the right answer for almost everyone: a subscription
+ * URL is normally reachable from the device's own network. Some are not — a
+ * panel hosted where the device cannot reach it, or a URL that is only
+ * reachable through the node — and for those the fetch has to leave through the
+ * kernel instead. Android excludes this app's own traffic from its own tunnel,
+ * so "through the kernel" means the loopback SOCKS inbound the config carries
+ * when the user asked for this.
+ *
+ * Implemented outside this module: the port depends on a preference and on the
+ * kernel actually running, and neither belongs in a parser.
+ */
+fun interface SubscriptionProxy {
+    /** The loopback SOCKS port, or null to fetch directly. */
+    fun port(): Int?
+}
+
+/**
  * A non-2xx response.
  *
  * Typed rather than an `IOException("HTTP 403")` because the status is what
@@ -44,6 +65,8 @@ class HttpStatusException(val code: Int) : IOException("HTTP $code")
  * its path or query (README "安全红线").
  */
 class HttpUrlConnectionFetcher(
+    /** Null port = straight out, which is the default. */
+    private val proxy: SubscriptionProxy = SubscriptionProxy { null },
     private val connectTimeoutMs: Int = 15_000,
     private val readTimeoutMs: Int = 30_000,
     private val maxBytes: Int = 4 * 1024 * 1024,
@@ -52,7 +75,13 @@ class HttpUrlConnectionFetcher(
     override suspend fun fetch(url: String): String = fetchWithMeta(url).body
 
     override suspend fun fetchWithMeta(url: String): FetchedSubscription = withContext(Dispatchers.IO) {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+        val route = proxy.port()?.let { port ->
+            Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port))
+        }
+        val connection = (
+            if (route == null) URL(url).openConnection() else URL(url).openConnection(route)
+            ) as HttpURLConnection
+        connection.apply {
             connectTimeout = connectTimeoutMs
             readTimeout = readTimeoutMs
             requestMethod = "GET"

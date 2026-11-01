@@ -250,7 +250,9 @@ fun SettingsScreen(
             stringResource(R.string.settings_group_advanced),
             stringResource(R.string.settings_local_api_title),
             stringResource(R.string.settings_local_api_desc, LocalApi.address),
-            "advanced", "token", "api", "高级",
+            stringResource(R.string.settings_subscription_proxy_title),
+            stringResource(R.string.settings_subscription_proxy_desc),
+            "advanced", "token", "api", "subscription", "订阅", "高级",
         ),
     )
     val nothingMatches = q.isNotBlank() &&
@@ -531,6 +533,17 @@ fun SettingsScreen(
         if (showAdvanced) {
             StarveilGroupHeader(stringResource(R.string.settings_group_advanced))
             SettingsCard {
+                // A preference, not a diagnostic: it changes how the app reaches
+                // the network, and it belongs next to the other switch that
+                // does. Off by default — the common subscription is reachable
+                // on its own.
+                SwitchRow(
+                    title = stringResource(R.string.settings_subscription_proxy_title),
+                    description = stringResource(R.string.settings_subscription_proxy_desc),
+                    checked = state.subscriptionViaProxy,
+                    onCheckedChange = viewModel::setSubscriptionViaProxy,
+                )
+                StarveilDivider(startInset = StarveilSpacing.lg)
                 SwitchRow(
                     title = stringResource(R.string.settings_local_api_title),
                     description = stringResource(R.string.settings_local_api_desc, LocalApi.address),
