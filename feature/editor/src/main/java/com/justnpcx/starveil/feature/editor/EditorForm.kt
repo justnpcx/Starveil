@@ -69,6 +69,7 @@ data class EditorForm(
     /** Kept so an edit does not lose the node's group. */
     val groupId: Long = 0L,
     val latencyMs: Long = -1L,
+    val frontNodeKey: String? = null,
 
     // --- basic ---------------------------------------------------------
     val name: String = "",
@@ -215,6 +216,7 @@ data class EditorForm(
             latencyMs = latencyMs,
             groupId = groupId,
             settings = toSettings(),
+            frontNodeKey = frontNodeKey,
         )
     }
 
@@ -333,6 +335,7 @@ data class EditorForm(
                 type = profile.type,
                 groupId = profile.groupId,
                 latencyMs = profile.latencyMs,
+                frontNodeKey = profile.frontNodeKey,
                 name = profile.name,
                 server = profile.server,
                 port = profile.port.toString(),

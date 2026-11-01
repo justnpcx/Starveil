@@ -11,4 +11,17 @@
     -->
     <string name="core_health_collecting">Building the health curve…</string>
     <string name="core_search_clear">Clear search</string>
+    <string name="core_chain_title">Chain proxy</string>
+    <string name="core_chain_exit">Exit node: %1$s</string>
+    <string name="core_chain_direct">Direct: this node connects on its own</string>
+    <string name="core_chain_path">%1$s → %2$s</string>
+    <string name="core_chain_none">No front node</string>
+    <string name="core_chain_clear">Clear the front node</string>
+    <string name="core_chain_no_candidates">No node can be a front here.</string>
+    <string name="core_chain_excluded_self">exit node itself</string>
+    <string name="core_chain_excluded_chained">already has a front; one hop only</string>
+    <string name="core_chain_ungrouped">No group</string>
+    <string name="core_chain_latency">%1$d ms</string>
+    <string name="core_chain_latency_untested">latency untested</string>
+    <string name="core_chain_field">Front node</string>
 </resources>

@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.registry.ProtocolRegistry
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.subscription.LinkExporter
+import com.justnpcx.starveil.core.subscription.SingBoxJsonExporter
 import com.justnpcx.starveil.core.subscription.LinkResolver
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import dagger.Module
@@ -46,6 +47,11 @@ object RegistryModule {
     @Singleton
     fun provideLinkExporter(registry: ProtocolRegistry): LinkExporter =
         LinkExporter { profile -> registry.writeLink(profile) }
+
+    @Provides
+    @Singleton
+    fun provideSingBoxJsonExporter(builder: ConfigBuilder): SingBoxJsonExporter =
+        SingBoxJsonExporter { profile, front -> builder.build(profile, front = front) }
 
     @Provides
     @Singleton

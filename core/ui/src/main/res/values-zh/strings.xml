@@ -4,4 +4,17 @@
     <string name="core_undo">撤销</string>
     <string name="core_health_collecting">正在生成健康曲线…</string>
     <string name="core_search_clear">清除搜索</string>
+    <string name="core_chain_title">链式代理</string>
+    <string name="core_chain_exit">出口节点：%1$s</string>
+    <string name="core_chain_direct">直连：该节点自己拨号</string>
+    <string name="core_chain_path">%1$s → %2$s</string>
+    <string name="core_chain_none">无前置节点</string>
+    <string name="core_chain_clear">清除前置</string>
+    <string name="core_chain_no_candidates">没有可用作前置的节点。</string>
+    <string name="core_chain_excluded_self">出口节点自身</string>
+    <string name="core_chain_excluded_chained">已带前置，仅允许一层</string>
+    <string name="core_chain_ungrouped">不分组</string>
+    <string name="core_chain_latency">%1$d ms</string>
+    <string name="core_chain_latency_untested">延迟未测</string>
+    <string name="core_chain_field">前置节点</string>
 </resources>

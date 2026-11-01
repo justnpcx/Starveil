@@ -16,6 +16,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.justnpcx.starveil.core.ui.R as CoreR
+import com.justnpcx.starveil.core.ui.components.ChainProxySheet
 import com.justnpcx.starveil.core.ui.components.StarveilButton
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.SecurityMode
 import com.justnpcx.starveil.core.model.TransportType
@@ -72,6 +75,7 @@ fun ProfileEditorScreen(
 ) {
     LaunchedEffect(type, profileId) { viewModel.load(type, profileId) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showChainEditor by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.saved) { if (state.saved) onDone() }
 
@@ -133,6 +137,26 @@ fun ProfileEditorScreen(
                     )
 
                     BasicFields(form, state.errors, viewModel::update)
+                    val currentFront = state.allProfiles.firstOrNull { it.nodeKey == form.frontNodeKey }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { showChainEditor = true }
+                            .padding(vertical = StarveilSpacing.sm),
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(CoreR.string.core_chain_field),
+                                style = StarveilType.body,
+                                color = StarveilColors.ink,
+                            )
+                            Text(
+                                text = currentFront?.name ?: stringResource(CoreR.string.core_chain_none),
+                                style = StarveilType.label,
+                                color = StarveilColors.ink2,
+                            )
+                        }
+                    }
                     Section(stringResource(R.string.editor_section_protocol, form.type.displayName()))
                     ProtocolFields(form, state.errors, viewModel::update)
 
@@ -176,6 +200,26 @@ fun ProfileEditorScreen(
                         runCatching { requesters[first]?.requestFocus() }
                     }
                 },
+            )
+        }
+        if (showChainEditor) {
+            ChainProxySheet(
+                exit = Profile(
+                    id = form.id,
+                    name = form.name.ifBlank { form.server },
+                    type = form.type,
+                    server = form.server,
+                    port = form.port.toIntOrNull() ?: 0,
+                    groupId = form.groupId,
+                    frontNodeKey = form.frontNodeKey,
+                ),
+                all = state.allProfiles,
+                groupNames = state.groupNames,
+                onPick = { front ->
+                    viewModel.update(form.copy(frontNodeKey = front?.nodeKey))
+                    showChainEditor = false
+                },
+                onDismiss = { showChainEditor = false },
             )
         }
     }

@@ -43,11 +43,13 @@ class NodeHealthSamplerTest {
         profiles: ProfileRepository = FakeProfiles(mapOf(1L to node)),
         selectedId: Long = 1L,
         health: NodeHealthRepository = FakeHealth(),
+        chainProbe: ChainNodeProbe = ChainNodeProbe.unavailable,
     ) = NodeHealthSampler(
         probe = probe,
         profiles = profiles,
         preferences = FakePreferences(selectedId),
         health = health,
+        chainProbe = chainProbe,
     )
 
     @Test
@@ -73,9 +75,39 @@ class NodeHealthSamplerTest {
     @Test
     fun `an unreachable node is recorded as loss too`() = runTest {
         val health = FakeHealth()
-        sampler(probe = FakeProbe(ProbeResult.Failed), health = health).sampleOnce(atMs = 1L)
+        sampler(probe = FakeProbe(ProbeResult.ConnectionFailed), health = health).sampleOnce(atMs = 1L)
 
         assertEquals(LATENCY_UNREACHABLE, health.recorded.single().second)
+    }
+
+    @Test
+    fun `a resolution failure is not evidence of node loss`() = runTest {
+        val health = FakeHealth()
+        val id = sampler(probe = FakeProbe(ProbeResult.ResolutionFailed), health = health)
+            .sampleOnce(atMs = 1L)
+
+        assertEquals(1L, id)
+        assertTrue(health.recorded.isEmpty())
+    }
+
+    @Test
+    fun `a chain failure belongs to the exit and never dents the front itself`() = runTest {
+        val front = node.copy(id = 2L, name = "front", server = "front.example")
+        val exit = node.copy(frontNodeKey = front.nodeKey)
+        val health = FakeHealth()
+        val chain = object : ChainNodeProbe {
+            override suspend fun probe(exit: Profile, front: Profile, timeoutMs: Int) =
+                ProbeResult.ConnectionFailed
+        }
+
+        sampler(
+            profiles = FakeProfiles(mapOf(1L to exit, 2L to front)),
+            health = health,
+            chainProbe = chain,
+        ).sampleOnce(atMs = 9L)
+
+        assertEquals(listOf(Triple(1L, LATENCY_UNREACHABLE, 9L)), health.recorded)
+        assertTrue("the front's own health is untouched", health.recorded.none { it.first == 2L })
     }
 
     @Test
@@ -110,7 +142,7 @@ class NodeHealthSamplerTest {
         // It speaks UDP only, so a TCP handshake can only fail — recording that
         // would be a lie about a node that works.
         val wg = node.copy(type = ProfileType.WIREGUARD)
-        val probe = FakeProbe(ProbeResult.Failed)
+        val probe = FakeProbe(ProbeResult.ConnectionFailed)
         val health = FakeHealth()
 
         val id = sampler(
@@ -166,7 +198,7 @@ private class FakeProbe(private val result: ProbeResult) : NodeProbe {
 }
 
 private class FakeProfiles(private val byId: Map<Long, Profile>) : ProfileRepository {
-    override fun observeAll(): Flow<List<Profile>> = samplerNotUsed()
+    override fun observeAll(): Flow<List<Profile>> = flowOf(byId.values.toList())
     override fun observeByGroup(groupId: Long): Flow<List<Profile>> = samplerNotUsed()
     override suspend fun getById(id: Long): Profile? = byId[id]
     override suspend fun upsert(profile: Profile): Long = samplerNotUsed()

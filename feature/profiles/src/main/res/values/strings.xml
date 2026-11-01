@@ -111,6 +111,15 @@
     <string name="profiles_msg_grouped">Grouped by region: %1$d groups</string>
     <string name="profiles_msg_no_regions">No node name contains a region. Rename a node to include one — Hong Kong, Japan, US, 香港, 日本…</string>
     <string name="profiles_msg_refresh_failed">Refresh failed: %1$s</string>
+    <string name="profiles_row_chain">Chain proxy</string>
+    <string name="profiles_chain_title">Chain proxy</string>
+    <string name="profiles_chain_exit">Exit node: %1$s</string>
+    <string name="profiles_chain_direct">Direct: this node connects on its own</string>
+    <string name="profiles_chain_path">%1$s → %2$s</string>
+    <string name="profiles_row_via">via</string>
+    <string name="profiles_chain_none">No front node</string>
+    <string name="profiles_chain_clear">Clear the front node</string>
+    <string name="profiles_chain_no_candidates">No node can be a front here: a node already behind one cannot front another.</string>
     <string name="profiles_row_move">Move to group</string>
     <string name="profiles_row_menu_title">%1$s</string>
     <string name="profiles_group_all">All</string>
@@ -151,6 +160,7 @@
     <string name="profiles_group_cancel">Cancel</string>
 
     <string name="profiles_share_title">Share %1$s</string>
+    <string name="profiles_share_no_front">This node dials through a front node. The link does not include it — the recipient will connect directly.</string>
     <string name="profiles_share_copy">Copy link</string>
     <string name="profiles_share_copied">Link copied</string>
     <string name="profiles_share_qr_description">QR code for this node</string>
@@ -226,4 +236,8 @@
     <string name="profiles_favorite_add">Pin to top</string>
     <string name="profiles_favorite_remove">Unpin</string>
 <string name="profiles_long_press_hint">Long-press a node to edit, pin, share, move or delete it</string>
+    <string name="profiles_front_invalidated">The front node for %1$s is no longer available; it will connect directly.</string>
+    <string name="profiles_delete_front_dependents">%1$d nodes use this as their front and will connect directly after deletion.</string>
+    <string name="profiles_share_copy_json">Copy sing-box JSON</string>
+    <string name="profiles_share_json_copied">JSON copied</string>
 </resources>

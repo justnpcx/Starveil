@@ -12,6 +12,29 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 - **Kernel sync:** sing-box 1.14.3 → 1.14.4 (fork branch `starveil-1.14.4`, with the six patches from `starveil-1.14.x` replayed unchanged).
 
+## [0.9.17] — 2026-11-01
+
+### Added
+
+- **Chain proxying with one front node.** An exit node can now dial through a
+  Cloudflare-fronted or other fast entry node while the destination sees the
+  dedicated IP of the exit. The chain is an attribute of the node being set,
+  not a new node type, and it applies only to that node — no rule or preset is
+  changed. Latency and health measure the whole chain, and a deleted front is
+  reported before the exit falls back to a direct connection.
+- **Chains survive sing-box JSON import and export.** A `detour` to another
+  outbound becomes the node's front and is written back on export. A single-node
+  share link cannot carry a second node: the share sheet explicitly says that
+  the front setting is not included instead of dropping it silently.
+
+### Fixed
+
+- **A working tunnel can clear a stale unreachable verdict.** A successful exit
+  request now writes a successful health sample, and the node row follows the
+  latest sample rather than keeping a window-level POOR verdict after recovery.
+- **DNS failure is no longer reported as a dead node.** Resolution and connection
+  failures have separate results and wording; a resolver that returns no address
+  does not create an unreachable health sample.
 ## [0.9.16] — 2026-11-01
 
 The rule sets stop being a snapshot taken at build time, and Play downloads stop

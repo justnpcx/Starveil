@@ -42,8 +42,23 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         localApi: LocalApiConfig? = null,
         localSubnets: List<String> = emptyList(),
         subscriptionProxyPort: Int? = null,
+        /**
+         * The node this one dials through, already resolved by the caller.
+         *
+         * Null means a single hop — the same config as before chain proxying
+         * existed. The caller resolves the reference because the builder has no
+         * repository; passing an unresolved key here would put the lookup in a
+         * pure function.
+         */
+        front: Profile? = null,
     ): String {
-        val proxy = fragment(profile, PROXY_TAG)
+        // A front that is the node itself, or one the caller could not resolve,
+        // is not a chain: emitting a detour for it produces a config the core
+        // refuses to start, and this is the last place that can prevent that.
+        val chainFront = front?.takeIf { it.nodeKey != profile.nodeKey }
+        val proxy = fragment(profile, PROXY_TAG).let { block ->
+            if (chainFront == null) block else block + ("detour" to FRONT_TAG)
+        }
         // WireGuard is an endpoint, so its fragment goes in a different
         // top-level section — and the route still points at its tag, because
         // the outbound manager resolves an endpoint tag too.
@@ -52,11 +67,21 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         return render(
             outbounds = buildList {
                 if (!isEndpoint) add(proxy)
+                // The front is emitted even though no rule points at it: it is
+                // reached through the detour, and a tag nothing references is
+                // still a tag the router has to know.
+                chainFront?.takeIf { placementOf(it) == ConfigPlacement.OUTBOUND }?.let {
+                    add(fragment(it, FRONT_TAG))
+                }
                 addAll(perAppEmission.outbounds)
                 add(directOutbound())
                 add(blockOutbound())
             },
-            endpoints = (if (isEndpoint) listOf(proxy) else emptyList()) + perAppEmission.endpoints,
+            endpoints = (if (isEndpoint) listOf(proxy) else emptyList()) +
+                (chainFront?.takeIf { placementOf(it) == ConfigPlacement.ENDPOINT }?.let {
+                    listOf(fragment(it, FRONT_TAG))
+                } ?: emptyList()) +
+                perAppEmission.endpoints,
             // "Direct everything" still builds the proxy outbound: the node is
             // what the user configured, and switching the policy back must not
             // require reconnecting to something else.
@@ -100,25 +125,50 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         localApi: LocalApiConfig? = null,
         localSubnets: List<String> = emptyList(),
         subscriptionProxyPort: Int? = null,
+        /**
+         * The front of a member, resolved by the caller.
+         *
+         * A group is a set of nodes, and a chain is an attribute of a node, so
+         * each member carries its own — one node behind a front does not put
+         * the others behind it.
+         */
+        frontFor: (Profile) -> Profile? = { null },
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
             "a MANUAL group is a folder; connect to one of its nodes instead"
         }
         val tags = profiles.indices.map { "proxy-$it" }
-        val fragments = profiles.mapIndexed { index, profile -> fragment(profile, tags[index]) }
+        // A front that is the member itself is not a chain: the detour would
+        // point at its own tag, which the core refuses.
+        val fronts = profiles.map { profile ->
+            frontFor(profile)?.takeIf { it.nodeKey != profile.nodeKey }
+        }
+        val fragments = profiles.mapIndexed { index, profile ->
+            val block = fragment(profile, tags[index])
+            if (fronts[index] == null) block else block + ("detour" to "front-$index")
+        }
+        // Emitted even though only the detour references them.
+        val frontFragments = profiles.indices
+            .filter { fronts[it] != null }
+            .associateWith { index -> fragment(fronts[index]!!, "front-$index") }
         // One placement lookup per profile: this runs for every node of a
         // subscription, and the builder is on a latency-sensitive path.
         val placements = profiles.map { placementOf(it) }
         val endpoints = profiles.indices
             .filter { placements[it] == ConfigPlacement.ENDPOINT }
-            .map { fragments[it] }
+            .map { fragments[it] } +
+            frontFragments.filterKeys { placementOf(fronts[it]!!) == ConfigPlacement.ENDPOINT }
+                .values
         val perAppEmission = emitPerApp(perApp)
 
         val outbounds = buildList {
             profiles.indices
                 .filter { placements[it] == ConfigPlacement.OUTBOUND }
                 .forEach { add(fragments[it]) }
+            frontFragments.forEach { (index, block) ->
+                if (placementOf(fronts[index]!!) == ConfigPlacement.OUTBOUND) add(block)
+            }
             addAll(perAppEmission.outbounds)
             add(
                 when (mode) {
@@ -188,6 +238,66 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
             // per policy, is bounded and removes the contention entirely.
             cacheFileName = "cache-block.db",
         )
+
+    /**
+     * A no-tun probe config. Its proxy and front fragments come from the same
+     * [fragment] calls as the production config, so a chained measurement
+     * exercises the real protocol handshakes and complete detour path.
+     */
+    fun buildProbe(
+        profile: Profile,
+        front: Profile,
+        socksPort: Int,
+        cacheFileName: String,
+    ): String {
+        require(socksPort in 1..65535) { "invalid socks port" }
+        val chainFront = front.takeIf { it.nodeKey != profile.nodeKey }
+        val proxy = fragment(profile, PROXY_TAG).let { block ->
+            if (chainFront == null) block else block + ("detour" to FRONT_TAG)
+        }
+        val fragments = buildList {
+            if (placementOf(profile) == ConfigPlacement.OUTBOUND) add(proxy)
+            if (chainFront != null && placementOf(chainFront) == ConfigPlacement.OUTBOUND) {
+                add(fragment(chainFront, FRONT_TAG))
+            }
+        }
+        val endpoints = buildList {
+            if (placementOf(profile) == ConfigPlacement.ENDPOINT) add(proxy)
+            if (chainFront != null && placementOf(chainFront) == ConfigPlacement.ENDPOINT) {
+                add(fragment(chainFront, FRONT_TAG))
+            }
+        }
+        return Json.write(
+            linkedMapOf(
+                "log" to linkedMapOf("level" to "warn", "timestamp" to true),
+                "dns" to linkedMapOf(
+                    "servers" to listOf(
+                        linkedMapOf<String, Any?>("type" to "local", "tag" to LOCAL_DNS_TAG),
+                    ),
+                ),
+                "inbounds" to listOf(
+                    linkedMapOf(
+                        "type" to "mixed",
+                        "tag" to "probe-in",
+                        "listen" to "127.0.0.1",
+                        "listen_port" to socksPort,
+                    ),
+                ),
+                "outbounds" to fragments,
+                "endpoints" to endpoints,
+                "route" to linkedMapOf(
+                    "final" to PROXY_TAG,
+                    "default_domain_resolver" to linkedMapOf(
+                        "server" to LOCAL_DNS_TAG,
+                        "strategy" to NODE_RESOLVE_STRATEGY,
+                    ),
+                ),
+                "experimental" to linkedMapOf(
+                    "cache_file" to linkedMapOf("path" to cacheFileName),
+                ),
+            ),
+        )
+    }
 
     /**
      * Enabled rules, in the order the user arranged them — the first match
@@ -807,6 +917,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     companion object {
         const val PROXY_TAG = "proxy"
+
+        /** The outbound a chained node dials through. Not a route target. */
+        const val FRONT_TAG = "front"
         const val AUTO_TAG = "auto"
         const val DIRECT_TAG = "direct"
         const val BLOCK_TAG = "block"

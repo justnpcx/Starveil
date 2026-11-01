@@ -1,9 +1,11 @@
 package com.justnpcx.starveil.di
 
 import android.content.Context
+import com.justnpcx.starveil.core.data.repository.ChainWarningSink
 import com.justnpcx.starveil.core.kernel.ConnectionLog
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelPaths
 import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
@@ -16,7 +18,9 @@ import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import com.justnpcx.starveil.core.probe.TunnelProbe
 import com.justnpcx.starveil.core.probe.VpnServiceTunnelProbe
+import com.justnpcx.starveil.core.probe.ChainNodeProbe
 import com.justnpcx.starveil.core.probe.NodeProbe
+import com.justnpcx.starveil.core.probe.SingBoxChainNodeProbe
 import com.justnpcx.starveil.core.probe.StagedNodeProbe
 import com.justnpcx.starveil.core.probe.TcpNodeProbe
 import com.justnpcx.starveil.core.probe.KernelLogStream
@@ -41,6 +45,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object KernelModule {
+
+    @Provides
+    @Singleton
+    fun provideChainWarningSink(): ChainWarningSink = ChainWarningSink { KernelDiagnostics.log(it) }
 
     @Provides
     @Singleton
@@ -118,6 +126,10 @@ object KernelModule {
     @Singleton
     fun provideNodeProbe(dns: com.justnpcx.starveil.core.data.geo.DohResolver): NodeProbe =
         TcpNodeProbe(dns)
+
+    @Provides
+    @Singleton
+    fun provideChainNodeProbe(probe: SingBoxChainNodeProbe): ChainNodeProbe = probe
 
     /**
      * The staged diagnostic behind the node long-press menu. Bound here for the

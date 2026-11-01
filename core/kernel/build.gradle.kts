@@ -32,7 +32,8 @@ dependencies {
     // sing-box core (libbox), checked in as an AAR. It lives here, not in
     // :app, because :app and :feature:* must never touch the kernel directly.
     // Reproducible via tools/build-libbox.sh — see docs/04-libbox-build.md.
-    implementation(files("libs/libbox.aar"))
+    api(files("libs/libbox.aar"))
 
     testImplementation(libs.junit)
+    testImplementation(project(":core:subscription"))
 }

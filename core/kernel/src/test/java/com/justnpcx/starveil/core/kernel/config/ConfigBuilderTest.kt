@@ -859,6 +859,132 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `a chained node emits its front and the detour that reaches it`() {
+        val exit = vlessProfile().copy(name = "exit", server = "exit.example.com")
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+
+        val config = builder.build(exit, preset = RoutePreset.GLOBAL_PROXY, front = front)
+
+        // The front is a real outbound with its own tag, and the exit dials
+        // through it — no rule points at the front, the detour is the only
+        // reference, which is exactly why it has to be emitted anyway.
+        assertTrue(config.contains("\"tag\":\"front\""))
+        assertTrue(config.contains("\"detour\":\"front\""))
+    }
+
+    @Test
+    fun `a group puts only the chained member behind its front`() {
+        val plain = vlessProfile().copy(name = "plain", server = "plain.example.com")
+        val chained = vlessProfile().copy(
+            name = "chained",
+            server = "chained.example.com",
+            frontNodeKey = "VLESS|front.example.com|443|front",
+        )
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+
+        val config = builder.build(
+            listOf(plain, chained),
+            mode = GroupMode.URL_TEST,
+            preset = RoutePreset.GLOBAL_PROXY,
+            frontFor = { profile -> if (profile.name == "chained") front else null },
+        )
+
+        // Exactly one detour, and it belongs to the chained member: a chain is
+        // an attribute of a node, not of the group.
+        assertEquals(1, Regex("\"detour\"").findAll(config).count())
+        assertTrue(config.contains("\"detour\":\"front-1\""))
+        assertTrue(config.contains("\"tag\":\"front-1\""))
+    }
+
+    @Test
+    fun `a front that is the node itself is not a chain`() {
+        val node = vlessProfile().copy(name = "same", server = "same.example.com")
+
+        val config = builder.build(node, preset = RoutePreset.GLOBAL_PROXY, front = node)
+
+        // A detour to itself is a config the core refuses; the builder drops it
+        // rather than emitting something that cannot start.
+        assertFalse(config.contains("\"detour\""))
+        assertFalse(config.contains("\"tag\":\"front\""))
+    }
+
+    @Test
+    fun `a dangling front key emits the unchanged single-hop config`() {
+        val exit = vlessProfile().copy(frontNodeKey = "VLESS|gone.example.com|443|gone")
+
+        val config = builder.build(exit, front = null)
+
+        assertFalse(config.contains("\"detour\""))
+        assertFalse(config.contains("\"tag\":\"front\""))
+    }
+
+    @Test
+    fun `a WireGuard front is emitted once as an endpoint`() {
+        val exit = vlessProfile().copy(name = "exit", server = "exit.example.com")
+        val front = Profile(
+            name = "wg-front",
+            type = ProfileType.WIREGUARD,
+            server = "wg.example.com",
+            port = 51820,
+            settings = WireGuardSettings(
+                privateKey = "priv",
+                address = listOf("10.7.0.2/32"),
+                peers = listOf(
+                    WireGuardPeer(
+                        publicKey = "pub",
+                        endpointAddress = "wg.example.com",
+                        endpointPort = 51820,
+                        allowedIps = listOf("0.0.0.0/0"),
+                    ),
+                ),
+            ),
+        )
+
+        val config = builder.build(exit, front = front)
+
+        assertEquals(1, Regex("\"tag\":\"front\"").findAll(config).count())
+        assertTrue(config.contains("\"endpoints\":[{\"type\":\"wireguard\""))
+        assertFalse(config.contains("\"outbounds\":[{\"type\":\"wireguard\""))
+        assertTrue(config.contains("\"detour\":\"front\""))
+    }
+
+    @Test
+    fun `exported sing-box JSON imports again with its chain intact`() {
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+        val exit = vlessProfile().copy(
+            name = "exit",
+            server = "exit.example.com",
+            frontNodeKey = front.nodeKey,
+        )
+
+        val exported = builder.build(exit, front = front)
+        val imported = com.justnpcx.starveil.core.subscription.SingBoxJsonSubscriptionParser()
+            .parse(exported)
+
+        val importedExit = imported.single { it.name == "proxy" }
+        val importedFront = imported.single { it.name == "front" }
+        assertEquals(importedFront.nodeKey, importedExit.frontNodeKey)
+    }
+
+    @Test
+    fun `the standalone probe uses the production chain fragments without a tun`() {
+        val exit = vlessProfile().copy(name = "exit", server = "exit.example.com")
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+
+        val config = builder.buildProbe(exit, front, socksPort = 2081, cacheFileName = "probe.db")
+
+        assertTrue(config.contains("\"type\":\"mixed\""))
+        assertTrue(config.contains("\"listen_port\":2081"))
+        assertTrue(config.contains("\"detour\":\"front\""))
+        assertTrue(config.contains("\"default_domain_resolver\":{\"server\":\"local\""))
+        assertFalse(config.contains("\"type\":\"tun\""))
+        assertTrue(config.contains("\"experimental\":{\"cache_file\""))
+        // The real protocol fragment, not a bare server:port replacement.
+        assertTrue(config.contains("\"reality\""))
+        assertTrue(config.contains("\"transport\""))
+    }
+
+    @Test
     fun `the subscription proxy listens only when it was asked for`() {
         // A loopback socket is a socket; it exists only while the user wants
         // subscription fetches to leave through the tunnel.

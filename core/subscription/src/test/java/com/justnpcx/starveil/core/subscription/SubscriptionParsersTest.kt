@@ -17,6 +17,7 @@ import java.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -329,6 +330,46 @@ class EchSubscriptionTest {
         val ech = (profile.settings as VlessSettings).tls.ech
         assertNotNull(ech)
         assertEquals("cloudflare-ech.com", ech!!.queryServerName)
+    }
+}
+
+class SingBoxDetourImportTest {
+
+    @Test
+    fun `an outbound whose detour names another becomes a chained node`() {
+        val json = """
+            {"outbounds":[
+              {"type":"vless","tag":"front","server":"front.example.com","server_port":443,
+               "uuid":"11111111-2222-3333-4444-555555555555",
+               "tls":{"enabled":true,"server_name":"front.example.com"}},
+              {"type":"vless","tag":"exit","server":"exit.example.com","server_port":443,
+               "uuid":"11111111-2222-3333-4444-555555555555",
+               "tls":{"enabled":true,"server_name":"exit.example.com"},
+               "detour":"front"}]}
+        """.trimIndent()
+
+        val profiles = SingBoxJsonSubscriptionParser().parse(json)
+
+        val exit = profiles.single { it.name == "exit" }
+        // The reference is stored as the front's business key, not as its tag:
+        // tags do not survive this app's own import.
+        assertEquals("VLESS|front.example.com|443|front", exit.frontNodeKey)
+        assertEquals(null, profiles.single { it.name == "front" }.frontNodeKey)
+    }
+
+    @Test
+    fun `a detour that points nowhere is not a chain`() {
+        val json = """
+            {"outbounds":[
+              {"type":"vless","tag":"exit","server":"exit.example.com","server_port":443,
+               "uuid":"11111111-2222-3333-4444-555555555555",
+               "tls":{"enabled":true,"server_name":"exit.example.com"},
+               "detour":"missing"}]}
+        """.trimIndent()
+
+        val profile = SingBoxJsonSubscriptionParser().parse(json).single()
+
+        assertNull(profile.frontNodeKey)
     }
 }
 

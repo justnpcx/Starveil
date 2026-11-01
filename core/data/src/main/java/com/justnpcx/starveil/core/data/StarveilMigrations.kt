@@ -90,6 +90,19 @@ object StarveilMigrations {
      * Additive with a default of 0: every existing node is not a favorite,
      * which is what "the feature did not exist" means. No row changes value.
      */
+    /**
+     * The front node, for chain proxying.
+     *
+     * Nullable and no default beyond null: every existing node is a single hop
+     * until someone sets a front, and a node with no front must behave exactly
+     * as it did before this column existed.
+     */
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE profiles ADD COLUMN frontNodeKey TEXT")
+        }
+    }
+
     val MIGRATION_5_6 = object : Migration(5, 6) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -99,5 +112,7 @@ object StarveilMigrations {
     }
 
     val ALL: Array<Migration> =
-        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+        arrayOf(
+        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+    )
 }

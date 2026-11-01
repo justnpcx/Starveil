@@ -53,6 +53,7 @@ class NodeLatencyTester @Inject constructor(
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
     private val health: NodeHealthRepository,
+    private val chainProbe: ChainNodeProbe = ChainNodeProbe.unavailable,
 ) {
 
     suspend fun testSelectedNode(): LatencyTestResult {
@@ -75,12 +76,20 @@ class NodeLatencyTester @Inject constructor(
         // A WireGuard endpoint speaks UDP only, so a TCP handshake to it can
         // only ever fail — reporting that as "unreachable" would be a lie
         // about a node that works.
-        if (profile.type == ProfileType.WIREGUARD) {
+        if (profile.type == ProfileType.WIREGUARD && profile.frontNodeKey == null) {
             return LatencyTestResult(context.getString(R.string.latency_not_applicable), false)
         }
 
         val nowMs = System.currentTimeMillis()
-        return when (val result = probe.probe(profile.server, profile.port)) {
+        return when (
+            val result = probeProfile(
+                profile = profile,
+                timeoutMs = NodeProbe.DEFAULT_TIMEOUT_MS,
+                direct = probe,
+                chain = chainProbe,
+                allProfiles = { profiles.observeAll().first() },
+            )
+        ) {
             is ProbeResult.Reached -> {
                 profiles.upsert(profile.copy(latencyMs = result.latencyMs))
                 health.record(id, result.latencyMs, nowMs, WEIGHT_MANUAL)
@@ -95,10 +104,24 @@ class NodeLatencyTester @Inject constructor(
                 LatencyTestResult(context.getString(R.string.latency_timeout), false)
             }
 
-            ProbeResult.Failed -> {
+            ProbeResult.ConnectionFailed -> {
                 health.record(id, LATENCY_UNREACHABLE, nowMs, WEIGHT_MANUAL)
-                LatencyTestResult(context.getString(R.string.latency_unreachable), false)
+                LatencyTestResult(context.getString(manualFailureMessage(ProbeResult.ConnectionFailed)), false)
             }
+
+            ProbeResult.ResolutionFailed -> {
+                // No address means no node connection was attempted. Do not
+                // turn a private-DNS failure into evidence that the node died.
+                LatencyTestResult(context.getString(manualFailureMessage(ProbeResult.ResolutionFailed)), false)
+            }
+
+            ProbeResult.Unsupported ->
+                LatencyTestResult(context.getString(R.string.latency_not_applicable), false)
         }
     }
+}
+
+internal fun manualFailureMessage(result: ProbeResult): Int = when (result) {
+    ProbeResult.ResolutionFailed -> R.string.latency_resolution_failed
+    else -> R.string.latency_unreachable
 }

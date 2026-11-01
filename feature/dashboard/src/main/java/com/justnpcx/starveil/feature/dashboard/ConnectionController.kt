@@ -9,6 +9,8 @@ import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.RulePackStore
+import com.justnpcx.starveil.core.kernel.ChainFailureClassifier
+import com.justnpcx.starveil.core.kernel.ChainFailureStage
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
@@ -154,6 +156,29 @@ class ConnectionController @Inject constructor(
             null
         }
 
+        // A chained node names its front by business key; resolving it here
+        // keeps the builder pure and makes a dangling key a no-op (single hop)
+        // rather than a config the core refuses.
+        val allProfiles = if (
+            target is Target.Node || target is Target.Group
+        ) {
+            profiles.observeAll().first()
+        } else {
+            emptyList()
+        }
+        fun frontOf(profile: com.justnpcx.starveil.core.model.Profile): Profile? {
+            val key = profile.frontNodeKey ?: return null
+            val resolved = allProfiles.firstOrNull { it.nodeKey == key }
+            if (resolved == null || resolved.nodeKey == profile.nodeKey) {
+                val reason = if (resolved == null) "missing" else "self-referenced"
+                KernelDiagnostics.log("WARN chain front $reason for ${profile.name}; using direct")
+                return null
+            }
+            return resolved
+        }
+
+        val front = (target as? Target.Node)?.profile?.let(::frontOf)
+
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
             // Which addresses are one hop away right now. Read at build time,
@@ -178,6 +203,7 @@ class ConnectionController @Inject constructor(
                         localApi = localApi,
                         localSubnets = subnets,
                         subscriptionProxyPort = subscriptionProxyPort,
+                        front = front,
                     )
 
                     is Target.Group -> configBuilder.build(
@@ -192,6 +218,7 @@ class ConnectionController @Inject constructor(
                         localApi = localApi,
                         localSubnets = subnets,
                         subscriptionProxyPort = subscriptionProxyPort,
+                        frontFor = ::frontOf,
                     )
 
                     Target.None -> null
@@ -212,7 +239,16 @@ class ConnectionController @Inject constructor(
         } else {
             // The bridge reports a redacted reason (PRD §8.3: tell the truth on
             // failure, never a bare "failed to start").
-            ConnectionOutcome.Refused(result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() })
+            val reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+            if (front != null) {
+                val detail = when (ChainFailureClassifier.classify(reason.orEmpty())) {
+                    ChainFailureStage.FRONT -> "cannot connect to front ${front.name}"
+                    ChainFailureStage.EXIT -> "cannot connect to exit ${(target as Target.Node).profile.name} through front ${front.name}"
+                    ChainFailureStage.UNSEGMENTED -> "chain failed (unsegmented)"
+                }
+                KernelDiagnostics.logError(detail)
+            }
+            ConnectionOutcome.Refused(reason)
         }
     }
 

@@ -106,6 +106,15 @@ class NodeHealthBatchProbeTest {
     }
 
     @Test
+    fun `a resolution failure writes no health sample`() = runBlocking {
+        val health = BatchHealth()
+        val count = probe(listOf(node(1)), health) { ProbeResult.ResolutionFailed }.run(now)
+
+        assertEquals(1, count)
+        assertTrue(health.recorded.isEmpty())
+    }
+
+    @Test
     fun `no more than four sockets are open at once`() = runBlocking {
         val inFlight = AtomicInteger(0)
         val peak = AtomicInteger(0)

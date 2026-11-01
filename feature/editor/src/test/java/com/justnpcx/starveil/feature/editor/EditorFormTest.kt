@@ -164,13 +164,19 @@ class EditorFormTest {
 
     @Test
     fun `editing keeps the id, group and latency`() {
-        val existing = validForm(ProfileType.VLESS).copy(id = 42L, groupId = 7L, latencyMs = 165L).toProfile()!!
+        val existing = validForm(ProfileType.VLESS).copy(
+            id = 42L,
+            groupId = 7L,
+            latencyMs = 165L,
+            frontNodeKey = "VLESS|front.example|443|front",
+        ).toProfile()!!
 
         val refilled = EditorForm.from(existing)
 
         assertEquals(42L, refilled.id)
         assertEquals(7L, refilled.groupId)
         assertEquals(165L, refilled.latencyMs)
+        assertEquals("VLESS|front.example|443|front", refilled.frontNodeKey)
         assertEquals(existing, refilled.toProfile())
     }
 

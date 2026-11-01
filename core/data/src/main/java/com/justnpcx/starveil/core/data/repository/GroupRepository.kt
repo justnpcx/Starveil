@@ -46,6 +46,7 @@ interface GroupRepository {
 class RoomGroupRepository @Inject constructor(
     private val groupDao: GroupDao,
     private val profileDao: ProfileDao,
+    private val chainIntegrity: ChainReferenceIntegrity? = null,
 ) : GroupRepository {
     override fun observeAll(): Flow<List<ProxyGroup>> =
         combine(groupDao.observeAll(), profileDao.observeAll()) { groups, profiles ->
@@ -84,8 +85,10 @@ class RoomGroupRepository @Inject constructor(
 
     override suspend fun deleteById(id: Long) = groupDao.deleteById(id)
 
-    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) =
+    override suspend fun deleteWithProfiles(id: Long, deleteProfiles: Boolean) {
         groupDao.deleteWithProfiles(id, deleteProfiles)
+        chainIntegrity?.repair()
+    }
 
     private suspend fun profileIdsOf(entity: GroupEntity): List<Long> {
         val region = entity.region.toRegion() ?: return profileDao.getProfileIdsByGroup(entity.id)

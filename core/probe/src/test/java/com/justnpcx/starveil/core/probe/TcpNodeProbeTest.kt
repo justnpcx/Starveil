@@ -68,7 +68,7 @@ class TcpNodeProbeTest {
         )
         val probe = TcpNodeProbe(resolver)
 
-        assertEquals(ProbeResult.Failed, probe.probe("node.example", 443, timeoutMs = 500))
+        assertEquals(ProbeResult.ResolutionFailed, probe.probe("node.example", 443, timeoutMs = 500))
         assertEquals("the system resolver was used", 0, fallbacks.get())
     }
 

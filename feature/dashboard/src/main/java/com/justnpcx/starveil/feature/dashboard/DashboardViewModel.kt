@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.model.STICKINESS_MARGIN
 import com.justnpcx.starveil.core.model.pickerPolicySummary
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.WEIGHT_FULL
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.ui.components.ConnectionState
@@ -260,6 +261,7 @@ class DashboardViewModel @Inject constructor(
                                 ),
                             )
                         }
+                        recordExitReached(info)
                     }
                 } else if (_uiState.value.exit != null) {
                     // A tunnel that went down has no exit to describe, and no
@@ -275,6 +277,18 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * A successful exit request is end-to-end evidence, including every detour.
+     * Feed it back at full weight so a stale TCP-probe verdict cannot keep a
+     * working node marked DOWN. GLOBAL_DIRECT proves nothing about the node.
+     */
+    internal suspend fun recordExitReached(info: com.justnpcx.starveil.core.data.network.ExitInfo) {
+        if (preferences.routePreset.first() == RoutePreset.GLOBAL_DIRECT) return
+        val id = preferences.selectedProfileId.first()
+        if (id == 0L) return
+        nodeHealth.record(id, info.rttMs, info.atEpochMs, WEIGHT_FULL)
     }
 
     init {
@@ -862,7 +876,19 @@ class DashboardViewModel @Inject constructor(
         // Nodes tab and in the connect outcome, and a preference write that
         // makes this collector run again must not be the moment the flag
         // disappears. It did, on device.
-        is ConnectionTarget.Node -> profiles.getById(target.id)?.displayName()
+        is ConnectionTarget.Node -> {
+            val node = profiles.getById(target.id)
+            // A chained node is named by the whole path: the user picked two
+            // nodes, and showing only the exit would hide half of what is
+            // running. Order is always front then exit, here and everywhere.
+            val front = node?.frontNodeKey
+                ?.let { key -> profiles.observeAll().first().firstOrNull { it.nodeKey == key } }
+            if (node != null && front != null) {
+                front.displayName() + " → " + node.displayName()
+            } else {
+                node?.displayName()
+            }
+        }
         is ConnectionTarget.Group -> groups.getById(target.id)?.name
         ConnectionTarget.None -> null
     }

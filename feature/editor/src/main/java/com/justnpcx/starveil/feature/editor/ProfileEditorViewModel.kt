@@ -2,7 +2,9 @@ package com.justnpcx.starveil.feature.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
+import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.subscription.LinkResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,6 +12,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -17,6 +20,8 @@ import kotlinx.coroutines.launch
 data class EditorUiState(
     /** Null until [ProfileEditorViewModel.load] has run. */
     val form: EditorForm? = null,
+    val allProfiles: List<Profile> = emptyList(),
+    val groupNames: Map<Long, String> = emptyMap(),
     /** Field-level errors, populated by a failed save. */
     val errors: Map<EditorField, EditorError> = emptyMap(),
     val saving: Boolean = false,
@@ -40,6 +45,7 @@ data class EditorUiState(
 @HiltViewModel
 class ProfileEditorViewModel @Inject constructor(
     private val profiles: ProfileRepository,
+    private val groups: GroupRepository,
     /** The same resolver the importer uses: one parser, two entry points. */
     private val resolver: LinkResolver,
 ) : ViewModel() {
@@ -59,16 +65,26 @@ class ProfileEditorViewModel @Inject constructor(
     fun load(type: ProfileType, profileId: Long) {
         if (loaded) return
         loaded = true
-        if (profileId == 0L) {
-            _uiState.value = EditorUiState(form = EditorForm(type = type))
-            return
-        }
         viewModelScope.launch {
+            val all = profiles.observeAll().first()
+            val groupNames = groups.observeAll().first().associate { it.id to it.name }
+            if (profileId == 0L) {
+                _uiState.value = EditorUiState(
+                    form = EditorForm(type = type),
+                    allProfiles = all,
+                    groupNames = groupNames,
+                )
+                return@launch
+            }
             val existing = profiles.getById(profileId)
             _uiState.value = if (existing == null) {
-                EditorUiState(missing = true)
+                EditorUiState(missing = true, allProfiles = all, groupNames = groupNames)
             } else {
-                EditorUiState(form = EditorForm.from(existing))
+                EditorUiState(
+                    form = EditorForm.from(existing),
+                    allProfiles = all,
+                    groupNames = groupNames,
+                )
             }
         }
     }
@@ -91,6 +107,7 @@ class ProfileEditorViewModel @Inject constructor(
                     type = type,
                     groupId = form.groupId,
                     latencyMs = form.latencyMs,
+                    frontNodeKey = form.frontNodeKey,
                     name = form.name,
                     server = form.server,
                     port = form.port,
@@ -111,7 +128,11 @@ class ProfileEditorViewModel @Inject constructor(
     fun pasteLink(text: String): Boolean {
         val form = _uiState.value.form ?: return false
         val profile = resolver.resolve(text.trim()) ?: return false
-        val filled = EditorForm.from(profile).copy(id = form.id, groupId = form.groupId)
+        val filled = EditorForm.from(profile).copy(
+            id = form.id,
+            groupId = form.groupId,
+            frontNodeKey = form.frontNodeKey,
+        )
         _uiState.update {
             it.copy(
                 form = filled,

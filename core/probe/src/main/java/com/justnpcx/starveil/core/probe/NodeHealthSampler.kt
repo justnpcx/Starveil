@@ -33,6 +33,7 @@ class NodeHealthSampler @Inject constructor(
     private val profiles: ProfileRepository,
     private val preferences: PreferencesRepository,
     private val health: NodeHealthRepository,
+    private val chainProbe: ChainNodeProbe = ChainNodeProbe.unavailable,
 ) {
 
     /**
@@ -52,11 +53,22 @@ class NodeHealthSampler @Inject constructor(
         // A WireGuard endpoint speaks UDP only, so a TCP handshake to it can
         // only ever fail. Recording that as loss would be a lie about a node
         // that works.
-        if (profile.type == ProfileType.WIREGUARD) return null
+        if (profile.type == ProfileType.WIREGUARD && profile.frontNodeKey == null) return null
 
-        val latencyMs = when (val result = probe.probe(profile.server, profile.port)) {
+        val latencyMs = when (
+            val result = probeProfile(
+                profile = profile,
+                timeoutMs = NodeProbe.DEFAULT_TIMEOUT_MS,
+                direct = probe,
+                chain = chainProbe,
+                allProfiles = { profiles.observeAll().first() },
+            )
+        ) {
             is ProbeResult.Reached -> result.latencyMs
-            ProbeResult.TimedOut, ProbeResult.Failed -> LATENCY_UNREACHABLE
+            ProbeResult.TimedOut, ProbeResult.ConnectionFailed -> LATENCY_UNREACHABLE
+            // Private DNS produced no address. That says nothing about whether
+            // the node's own port answers, so it is not a health sample.
+            ProbeResult.ResolutionFailed, ProbeResult.Unsupported -> return id
         }
         health.record(profileId = id, latencyMs = latencyMs, atMs = atMs)
         return id

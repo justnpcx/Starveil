@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.ChainInvalidationBus
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.geo.CountryResolver
@@ -19,6 +20,7 @@ import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.core.subscription.LinkPreview
 import com.justnpcx.starveil.core.subscription.LinkExporter
+import com.justnpcx.starveil.core.subscription.SingBoxJsonExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
@@ -58,6 +60,8 @@ sealed interface NodeFilter {
 data class ProfilesUiState(
     /** The nodes to show — already narrowed by [filter]. */
     val profiles: List<Profile> = emptyList(),
+    /** Unfiltered nodes, for the cross-group front picker. */
+    val allProfiles: List<Profile> = emptyList(),
     /** Every group, for the filter chips. */
     val groups: List<ProxyGroup> = emptyList(),
     /** Groups that actually contain nodes (unfiltered), for the chip row. */
@@ -143,6 +147,9 @@ sealed interface ProfilesMessage {
     /** A folder the user just made, so the page can say so. */
     data class GroupCreated(val name: String) : ProfilesMessage
 
+    /** A deleted or refreshed-away front was cleared, and the exit is direct now. */
+    data class FrontInvalidated(val exitName: String) : ProfilesMessage
+
     /** Nothing in the node names could be recognised as a region. */
     data object NoRegionsFound : ProfilesMessage
 
@@ -178,6 +185,17 @@ data class ClipboardSuggestion(
 data class ShareTarget(
     val name: String,
     val link: String?,
+    /** Full sing-box JSON, including the front when one is set. */
+    val json: String? = null,
+    /**
+     * True when the node is chained and the link therefore does not carry the
+     * front.
+     *
+     * A share link is one node's grammar; a front is a second node. Saying so
+     * on the sheet is the only honest option — dropping it silently would hand
+     * someone a node that behaves differently from the one they were shown.
+     */
+    val omitsFront: Boolean = false,
 )
 
 /**
@@ -191,11 +209,13 @@ class ProfilesViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
     private val importer: LinkImporter,
     private val exporter: LinkExporter,
+    private val singBoxExporter: SingBoxJsonExporter = SingBoxJsonExporter { _, _ -> null },
     private val updater: SubscriptionUpdater,
     private val undo: UndoBus,
     private val refreshScheduler: SubscriptionRefreshScheduler,
     private val nodeHealth: NodeHealthRepository,
     private val countryResolver: CountryResolver,
+    private val chainInvalidations: ChainInvalidationBus = ChainInvalidationBus(),
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
@@ -248,6 +268,11 @@ class ProfilesViewModel @Inject constructor(
     private var offeredClipboardHash: String? = null
 
     init {
+        viewModelScope.launch {
+            chainInvalidations.events.collect { exitName ->
+                message.value = ProfilesMessage.FrontInvalidated(exitName)
+            }
+        }
         // Nodes learn their country once. A GeoIP answer does not change, so the
         // result is written back to the row and that host is never looked up
         // again; a node whose address cannot be resolved simply keeps no flag.
@@ -326,6 +351,7 @@ class ProfilesViewModel @Inject constructor(
         }
         ProfilesUiState(
             profiles = visible,
+            allProfiles = list,
             groups = groupList,
             nonEmptyGroups = activeGroups,
             filter = filter,
@@ -790,8 +816,33 @@ class ProfilesViewModel @Inject constructor(
      * share format resolves to a null link once instead of on every
      * recomposition.
      */
+    /**
+     * Nodes that may serve as [exit]'s front.
+     *
+     * Three exclusions, each for a reason the sheet has to state: the exit
+     * itself (a node cannot dial through itself), any node that already has a
+     * front (one hop only — this is what makes a loop impossible by
+     * construction rather than by a runtime check), and anything that no longer
+     * exists, which cannot appear in [all] in the first place.
+     */
+    fun frontCandidates(exit: Profile, all: List<Profile>): List<Profile> =
+        com.justnpcx.starveil.core.model.chainFrontCandidates(exit, all)
+
+    /** Sets or clears the front; the node keeps everything else it had. */
+    fun setFrontNode(exit: Profile, frontKey: String?) {
+        viewModelScope.launch {
+            profiles.upsert(exit.copy(frontNodeKey = frontKey))
+        }
+    }
+
     fun shareNode(profile: Profile) {
-        share.value = ShareTarget(name = profile.name, link = exporter.export(profile))
+        val front = uiState.value.allProfiles.firstOrNull { it.nodeKey == profile.frontNodeKey }
+        share.value = ShareTarget(
+            name = profile.name,
+            link = exporter.export(profile),
+            json = singBoxExporter.export(profile, front),
+            omitsFront = profile.frontNodeKey != null,
+        )
     }
 
     fun dismissShare() {
