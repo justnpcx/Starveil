@@ -1005,17 +1005,42 @@ private fun RoutePresetCard(
         // built in and applies to every preset, and sitting it directly under
         // "Global direct" made it read as part of that choice.
         StarveilDivider(startInset = TEXT_COLUMN_INSET)
-        Text(
-            text = stringResource(R.string.rules_lan_note),
-            style = StarveilType.label,
-            color = StarveilColors.ink2,
+        Row(
             modifier = Modifier.padding(
-                start = TEXT_COLUMN_INSET,
-                end = StarveilSpacing.lg,
-                top = StarveilSpacing.xs,
-                bottom = StarveilSpacing.lg,
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
             ),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.rules_lan_title),
+                    style = StarveilType.headline,
+                    color = StarveilColors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.rules_lan_desc),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                )
+            }
+            Surface(
+                color = StarveilColors.ink3.copy(alpha = 0.08f),
+                contentColor = StarveilColors.ink2,
+                shape = CircleShape,
+            ) {
+                Text(
+                    text = stringResource(R.string.rules_lan_badge),
+                    style = StarveilType.label,
+                    modifier = Modifier.padding(
+                        horizontal = StarveilSpacing.sm,
+                        vertical = StarveilSpacing.xs,
+                    ),
+                )
+            }
+        }
         // Persistent, not only the Snackbar: the condition lasts until a
         // verified download succeeds, and the counts below would otherwise go
         // on claiming rules that are not in the config.
@@ -1308,49 +1333,67 @@ private fun RuleSetVersionRow(
     onCheck: () -> Unit,
 ) {
     val checking = status.state == RulesViewModel.RuleSetStatus.State.Checking
-    Row(
+    val failed = status.state == RulesViewModel.RuleSetStatus.State.Failed
+    val statusText = when (status.state) {
+        RulesViewModel.RuleSetStatus.State.UpToDate -> stringResource(
+            R.string.rules_version_uptodate_upstream,
+            status.version ?: stringResource(R.string.rules_version_unknown),
+        )
+        RulesViewModel.RuleSetStatus.State.Updated ->
+            stringResource(R.string.rules_version_updated)
+        RulesViewModel.RuleSetStatus.State.Failed ->
+            stringResource(R.string.rules_version_failed)
+        else -> status.version ?: stringResource(R.string.rules_version_unknown)
+    }
+    val dotColor = when (status.state) {
+        RulesViewModel.RuleSetStatus.State.UpToDate,
+        RulesViewModel.RuleSetStatus.State.Updated,
+        -> StarveilColors.ok
+        RulesViewModel.RuleSetStatus.State.Failed -> StarveilColors.err
+        else -> StarveilColors.ink3
+    }
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.md),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = stringResource(R.string.rules_version_title),
-                style = StarveilType.label,
-                color = StarveilColors.ink2,
-            )
-            Text(
-                text = status.version ?: stringResource(R.string.rules_version_unknown),
-                style = StarveilType.tech,
+                style = StarveilType.headline,
                 color = StarveilColors.ink,
+                modifier = Modifier.weight(1f),
             )
-            val result = when (status.state) {
-                RulesViewModel.RuleSetStatus.State.UpToDate ->
-                    stringResource(R.string.rules_version_uptodate)
-                RulesViewModel.RuleSetStatus.State.Updated ->
-                    stringResource(R.string.rules_version_updated)
-                RulesViewModel.RuleSetStatus.State.Failed ->
-                    stringResource(R.string.rules_version_failed)
-                else -> null
-            }
-            if (result != null) {
+            TextButton(onClick = onCheck, enabled = !checking) {
                 Text(
-                    text = result,
-                    style = StarveilType.label,
-                    color = if (status.state == RulesViewModel.RuleSetStatus.State.Failed) {
-                        StarveilColors.errText
-                    } else {
-                        StarveilColors.ink3
-                    },
+                    text = stringResource(
+                        if (checking) R.string.rules_version_checking else R.string.rules_version_check,
+                    ),
                 )
             }
         }
-        TextButton(onClick = onCheck, enabled = !checking) {
+        Row(
+            modifier = Modifier.padding(top = StarveilSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(dotColor, CircleShape),
+            )
+            Spacer(modifier = Modifier.width(StarveilSpacing.sm))
             Text(
-                text = stringResource(
-                    if (checking) R.string.rules_version_checking else R.string.rules_version_check,
-                ),
+                text = statusText,
+                style = StarveilType.label,
+                color = if (failed) StarveilColors.errText else StarveilColors.ink2,
             )
         }
     }

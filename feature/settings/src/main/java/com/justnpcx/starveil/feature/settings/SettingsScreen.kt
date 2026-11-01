@@ -1195,6 +1195,13 @@ private fun AccentSwatch(
             },
         contentAlignment = Alignment.Center,
     ) {
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .border(2.dp, tone.accent, CircleShape),
+            )
+        }
         Box(
             modifier = Modifier
                 .size(30.dp)

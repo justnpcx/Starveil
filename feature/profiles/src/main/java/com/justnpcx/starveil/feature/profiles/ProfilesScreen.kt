@@ -101,6 +101,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
@@ -906,8 +907,18 @@ fun ProfilesScreen(
     // of this page's menus live. Edit is first because it is what a long-press
     // is usually for.
     rowMenu?.let { profile ->
+        val frontName = profile.frontNodeKey?.let(frontNames::get)
+        val chainState = if (frontName == null) {
+            stringResource(R.string.profiles_row_chain_unset)
+        } else {
+            stringResource(
+                R.string.profiles_row_chain_via,
+                frontName.take(FRONT_NAME_MAX) + if (frontName.length > FRONT_NAME_MAX) "…" else "",
+            )
+        }
         ModalBottomSheet(
             onDismissRequest = { rowMenu = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = StarveilColors.card,
             // Same top corners as the add sheet. Without this the menu sheet
             // took Material's default 28dp radius and the two sheets on one
@@ -915,7 +926,11 @@ fun ProfilesScreen(
             shape = StarveilShapes.sheet,
             dragHandle = null,
         ) {
-            Column(modifier = Modifier.navigationBarsPadding()) {
+            Column(
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 Text(
                     text = stringResource(R.string.profiles_row_menu_title, profile.name),
                     style = StarveilType.tech,
@@ -926,14 +941,34 @@ fun ProfilesScreen(
                         start = StarveilSpacing.pageMargin,
                         end = StarveilSpacing.pageMargin,
                         top = StarveilSpacing.xl,
+                    ),
+                )
+                Text(
+                    text = "${profile.type.name.uppercase()} · ${profile.server}:${profile.port}",
+                    style = StarveilType.label,
+                    color = StarveilColors.ink3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        top = StarveilSpacing.xs,
                         bottom = StarveilSpacing.sm,
                     ),
                 )
-                StarveilSheetRow(stringResource(R.string.profiles_row_edit)) {
+
+                // Operations, management, then the one destructive action.
+                // Bands separate the groups; individual rows stay text-only.
+                NodeMenuRow(stringResource(R.string.profiles_row_edit)) {
                     rowMenu = null
                     onEditNode(profile.type, profile.id)
                 }
-                StarveilSheetRow(
+                NodeMenuRow(stringResource(R.string.profiles_row_probe)) {
+                    rowMenu = null
+                    probeViewModel.run(profile)
+                }
+                NodeMenuGroupSeparator()
+                NodeMenuRow(
                     stringResource(
                         if (profile.favorite) R.string.profiles_favorite_remove else R.string.profiles_favorite_add,
                     ),
@@ -941,26 +976,31 @@ fun ProfilesScreen(
                     rowMenu = null
                     viewModel.toggleFavorite(profile)
                 }
-                StarveilSheetRow(stringResource(R.string.profiles_row_probe)) {
-                    rowMenu = null
-                    probeViewModel.run(profile)
-                }
-                StarveilSheetRow(stringResource(R.string.profiles_row_share)) {
+                NodeMenuRow(stringResource(R.string.profiles_row_share)) {
                     rowMenu = null
                     viewModel.shareNode(profile)
                 }
-                StarveilSheetRow(
+                NodeMenuRow(
                     text = stringResource(R.string.profiles_row_chain),
-                    icon = StarveilIcons.Link,
+                    trailing = {
+                        Text(
+                            text = chainState,
+                            style = StarveilType.label,
+                            color = StarveilColors.ink3,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                 ) {
                     rowMenu = null
                     chainingProfile = profile
                 }
-                StarveilSheetRow(stringResource(R.string.profiles_row_move)) {
+                NodeMenuRow(stringResource(R.string.profiles_row_move)) {
                     rowMenu = null
                     movingProfile = profile
                 }
-                StarveilSheetRow(
+                NodeMenuGroupSeparator()
+                NodeMenuRow(
                     text = stringResource(R.string.profiles_delete, profile.name),
                     destructive = true,
                 ) {
@@ -1906,11 +1946,15 @@ private fun StarveilSheetRow(
      * colour at the edge of the sheet.
      */
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    showDivider: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val tint = if (destructive) StarveilColors.errText else StarveilColors.accent
     Column {
-        StarveilDivider(startInset = StarveilSpacing.pageMargin, endInset = StarveilSpacing.pageMargin)
+        if (showDivider) {
+            StarveilDivider(startInset = StarveilSpacing.pageMargin, endInset = StarveilSpacing.pageMargin)
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1934,9 +1978,40 @@ private fun StarveilSheetRow(
                 color = if (destructive) StarveilColors.errText else StarveilColors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
+            if (trailing != null) {
+                Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                trailing()
+            }
         }
     }
+}
+
+@Composable
+private fun NodeMenuRow(
+    text: String,
+    destructive: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    StarveilSheetRow(
+        text = text,
+        destructive = destructive,
+        showDivider = false,
+        trailing = trailing,
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun NodeMenuGroupSeparator() {
+    Spacer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StarveilSpacing.sm)
+            .background(StarveilColors.bg),
+    )
 }
 
 /** One line in the add sheet. */

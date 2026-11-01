@@ -81,7 +81,9 @@
     <string name="rules_effective_domestic_names">Domestic names (geosite-cn) → direct</string>
     <string name="rules_effective_domestic_addresses">Domestic addresses (geoip-cn) → direct</string>
     <string name="rules_effective_lan">Local network (private addresses) → direct · built in</string>
-    <string name="rules_lan_note">Local network traffic always goes direct · built-in rule, in force for every preset.</string>
+    <string name="rules_lan_title">Local network direct</string>
+    <string name="rules_lan_desc">Built-in rule · in force for every preset</string>
+    <string name="rules_lan_badge">Always on</string>
     <string name="rules_effective_user">%1$d of your own rules</string>
 
     <!-- The rule market. The entry sits beside the ad switch; the packs are a
@@ -91,6 +93,7 @@
     <string name="rules_version_check">Check for updates</string>
     <string name="rules_version_checking">Checking…</string>
     <string name="rules_version_uptodate">Already the latest</string>
+    <string name="rules_version_uptodate_upstream">Already the latest · upstream version %1$s</string>
     <string name="rules_version_updated">Updated</string>
     <string name="rules_version_failed">Could not check — the sets in use are unchanged</string>
     <string name="rules_market_title">Rule market</string>

@@ -112,6 +112,8 @@
     <string name="profiles_msg_no_regions">No node name contains a region. Rename a node to include one — Hong Kong, Japan, US, 香港, 日本…</string>
     <string name="profiles_msg_refresh_failed">Refresh failed: %1$s</string>
     <string name="profiles_row_chain">Chain proxy</string>
+    <string name="profiles_row_chain_unset">Not set ›</string>
+    <string name="profiles_row_chain_via">via %1$s ›</string>
     <string name="profiles_chain_title">Chain proxy</string>
     <string name="profiles_chain_exit">Exit node: %1$s</string>
     <string name="profiles_chain_direct">Direct: this node connects on its own</string>

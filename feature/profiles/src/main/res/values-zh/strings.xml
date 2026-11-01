@@ -106,6 +106,8 @@
     <string name="profiles_msg_no_regions">没有节点名包含地区。把节点名改成含「香港」「日本」「US」这类词即可分组。</string>
     <string name="profiles_msg_refresh_failed">刷新失败：%1$s</string>
     <string name="profiles_row_chain">链式代理</string>
+    <string name="profiles_row_chain_unset">未设置 ›</string>
+    <string name="profiles_row_chain_via">经 %1$s ›</string>
     <string name="profiles_chain_title">链式代理</string>
     <string name="profiles_chain_exit">出口节点：%1$s</string>
     <string name="profiles_chain_direct">直连：该节点自己拨号</string>
