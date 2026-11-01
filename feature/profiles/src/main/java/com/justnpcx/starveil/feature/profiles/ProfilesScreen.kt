@@ -115,6 +115,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.material3.SnackbarDuration
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -151,6 +153,12 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.util.readClipboardText
 import com.justnpcx.starveil.core.ui.util.writeClipboard
+
+/** How long a transient message stays on screen. */
+private const val MESSAGE_VISIBLE_MS = 2_500L
+
+/** The add control's own height, plus a gap. */
+private val FAB_CLEARANCE = 72.dp
 
 /**
  * Nodes — the real list plus the import entry points. A node arrives by
@@ -313,7 +321,19 @@ fun ProfilesScreen(
         ?.text()
     LaunchedEffect(transientMessage) {
         if (transientMessage != null) {
-            snackbarHostState.showSnackbar(transientMessage)
+            // Short and self-dismissing. A reading like "延迟：210 ms" is not an
+            // event to acknowledge, and the host's own timer left it sitting
+            // over the add control long after it stopped being news. The
+            // dismissal is ours so the timing is the same on every device, and
+            // a new message replaces this one rather than queueing behind it.
+            launch {
+                delay(MESSAGE_VISIBLE_MS)
+                snackbarHostState.currentSnackbarData?.dismiss()
+            }
+            snackbarHostState.showSnackbar(
+                message = transientMessage,
+                duration = SnackbarDuration.Indefinite,
+            )
             viewModel.dismissMessage()
         }
     }
@@ -654,7 +674,10 @@ fun ProfilesScreen(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = StarveilSpacing.sm),
+                // Clear of the add control: the message used to sit on top of
+                // it, so the one control the page is built around was covered
+                // exactly while a result was on screen.
+                .padding(bottom = StarveilSpacing.plusMarginBottom + FAB_CLEARANCE),
         )
 
         // The add control: the disc, 12dp above the bar and 18dp from the
