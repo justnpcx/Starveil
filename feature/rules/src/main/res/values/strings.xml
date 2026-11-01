@@ -86,6 +86,13 @@
 
     <!-- The rule market. The entry sits beside the ad switch; the packs are a
          closed, official list in phase one. -->
+    <string name="rules_version_title">Rule sets</string>
+    <string name="rules_version_unknown">Not installed yet</string>
+    <string name="rules_version_check">Check for updates</string>
+    <string name="rules_version_checking">Checking…</string>
+    <string name="rules_version_uptodate">Already the latest</string>
+    <string name="rules_version_updated">Updated</string>
+    <string name="rules_version_failed">Could not check — the sets in use are unchanged</string>
     <string name="rules_market_title">Rule market</string>
     <string name="rules_market_desc">Curated packs, pinned and hash-checked</string>
     <string name="rules_market_subscribed">%1$d subscribed</string>

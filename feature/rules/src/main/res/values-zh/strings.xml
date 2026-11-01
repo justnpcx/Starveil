@@ -80,6 +80,13 @@
     <string name="rules_effective_user">你自己的 %1$d 条规则</string>
 
     <!-- 规则市场 -->
+    <string name="rules_version_title">规则集</string>
+    <string name="rules_version_unknown">尚未安装</string>
+    <string name="rules_version_check">检查更新</string>
+    <string name="rules_version_checking">检查中…</string>
+    <string name="rules_version_uptodate">已是最新</string>
+    <string name="rules_version_updated">已更新</string>
+    <string name="rules_version_failed">检查失败——正在使用的规则集未变</string>
     <string name="rules_market_title">规则市场</string>
     <string name="rules_market_desc">精选规则包，固定版本并校验哈希</string>
     <string name="rules_market_subscribed">已订阅 %1$d 个</string>

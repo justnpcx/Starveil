@@ -54,6 +54,9 @@ class RuleSetUpdater(
         data class Failed(val reason: String) : Result
     }
 
+    /** The generation on disk, or null before the first successful install. */
+    fun installedVersion(): RuleSetVersion? = installer.readManifest()?.version
+
     suspend fun check(): Result {
         val head = versionOf(feeds.first { it.core }) ?: return Result.Failed("no version")
         val onDisk = installer.readManifest()

@@ -11,6 +11,17 @@ package com.justnpcx.starveil.core.data.ruleset
  * be retried on the next launch either, or an unreachable mirror turns into a
  * request per app start. The next attempt is a week later, silently.
  */
+/**
+ * What the rules page needs from the pipeline: what is installed, and a way to
+ * ask for newer. Narrow on purpose — the page has no business starting a
+ * download or knowing where the files live.
+ */
+interface RuleSetUpdates {
+    fun installedVersion(): RuleSetVersion?
+
+    suspend fun runNow(): RuleSetUpdater.Result
+}
+
 class RuleSetAutoCheck(
     private val updater: RuleSetUpdater,
     private val lastCheckedAt: suspend () -> Long,
@@ -18,7 +29,10 @@ class RuleSetAutoCheck(
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val intervalMs: Long = SEVEN_DAYS_MS,
     private val warn: (String) -> Unit = {},
-) {
+) : RuleSetUpdates {
+
+    /** What is installed now, for the rules page. */
+    override fun installedVersion(): RuleSetVersion? = updater.installedVersion()
 
     /** The check's result, or null when it was throttled. */
     suspend fun runIfDue(): RuleSetUpdater.Result? {
@@ -37,7 +51,7 @@ class RuleSetAutoCheck(
     }
 
     /** A manual check: the throttle does not apply, and the timestamp moves. */
-    suspend fun runNow(): RuleSetUpdater.Result {
+    override suspend fun runNow(): RuleSetUpdater.Result {
         val now = nowMs()
         recordCheckedAt(now)
         return updater.check()

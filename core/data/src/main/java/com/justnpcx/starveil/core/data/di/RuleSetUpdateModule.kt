@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.ruleset.FileMainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.GitHubRuleSetVersionSource
 import com.justnpcx.starveil.core.data.ruleset.RuleSetAutoCheck
+import com.justnpcx.starveil.core.data.ruleset.RuleSetUpdates
 import com.justnpcx.starveil.core.data.ruleset.RuleSetInstaller
 import com.justnpcx.starveil.core.data.ruleset.RuleSetUpdater
 import dagger.Module
@@ -34,7 +35,7 @@ object RuleSetUpdateModule {
 
     @Provides
     @Singleton
-    fun provideRuleSetAutoCheck(
+    fun provideRuleSetUpdates(
         @ApplicationContext context: Context,
         preferences: PreferencesRepository,
     ): RuleSetAutoCheck {
@@ -59,4 +60,8 @@ object RuleSetUpdateModule {
             warn = ::warn,
         )
     }
+
+    @Provides
+    @Singleton
+    fun provideRuleSetUpdatesPort(check: RuleSetAutoCheck): RuleSetUpdates = check
 }
