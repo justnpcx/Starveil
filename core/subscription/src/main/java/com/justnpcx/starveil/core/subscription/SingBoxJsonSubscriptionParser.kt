@@ -185,11 +185,17 @@ class SingBoxJsonSubscriptionParser : SubscriptionParser {
             }
             ?.toMap()
             .orEmpty()
+        // A block that states the host only as the TLS server name has the same
+        // gap the link parser had: no Host header, and Cloudflare answers 403.
+        val tls = this["tls"] as? Map<*, *>
+        val serverName = (tls?.get("server_name") as? String)?.takeIf { it.isNotBlank() }
         return TransportOptions(
             type = type,
-            host = headers["Host"] ?: headers["host"],
+            host = headers["Host"] ?: headers["host"] ?: serverName,
             path = (transport["path"] as? String)?.takeIf { it.isNotBlank() },
             serviceName = (transport["service_name"] as? String)?.takeIf { it.isNotBlank() },
+            maxEarlyData = (transport["max_early_data"] as? Number)?.toInt()
+                ?.takeIf { it > 0 },
             headers = headers,
         )
     }

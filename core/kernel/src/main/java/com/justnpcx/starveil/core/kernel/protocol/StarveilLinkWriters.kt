@@ -212,13 +212,27 @@ private fun tlsParams(tls: TlsOptions, transport: TransportOptions): Array<Pair<
     )
 }
 
+/**
+ * Puts Xray's early-data hint back on the path.
+ *
+ * The parser lifted ?ed=N out of the path (see LinkParsing.splitEarlyData), so
+ * an import followed by an export has to put it back — otherwise the link this
+ * app hands to another client is a link that loses a handshake optimisation it
+ * was given.
+ */
+private fun withEarlyData(path: String, earlyData: Int?): String {
+    if (earlyData == null) return path
+    val separator = if (path.contains('?')) "&" else "?"
+    return path + separator + "ed=" + earlyData
+}
+
 /** Plain TCP is the parser's default, so it emits nothing at all. */
 private fun transportParams(transport: TransportOptions): Array<Pair<String, String?>> {
     if (transport.type == TransportType.TCP) return emptyArray()
     val params = mutableListOf(
         "type" to transport.type.wireName,
         "host" to transport.host,
-        "path" to transport.path,
+        "path" to transport.path?.let { path -> withEarlyData(path, transport.maxEarlyData) },
         "serviceName" to transport.serviceName,
         "mode" to transport.mode?.wireName,
     )

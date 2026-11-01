@@ -223,6 +223,15 @@ internal object SingBoxOutbounds {
             // the core to pick, which is what an unset mode means.
             else -> {
                 transport.path?.takeIf { it.isNotBlank() }?.let { block["path"] = it }
+                // Xray's early data, as two fields instead of a query on the
+                // path. Only WS has the concept; xhttp carries its own options
+                // in the block below.
+                if (transport.type == TransportType.WS) {
+                    transport.maxEarlyData?.let { bytes ->
+                        block["max_early_data"] = bytes
+                        block["early_data_header_name"] = EARLY_DATA_HEADER
+                    }
+                }
                 if (transport.type == TransportType.XHTTP) {
                     transport.mode?.let { block["mode"] = it.wireName }
                     // Only the keys sing-box 1.14 decodes: an unknown one here
@@ -261,6 +270,9 @@ internal object SingBoxOutbounds {
         }
         return block
     }
+
+    /** The header Xray carries the first payload in when early data is on. */
+    private const val EARLY_DATA_HEADER = "Sec-WebSocket-Protocol"
 
     /** Returns null when mux is absent or disabled. */
     fun muxBlock(mux: MuxOptions?): Map<String, Any?>? {

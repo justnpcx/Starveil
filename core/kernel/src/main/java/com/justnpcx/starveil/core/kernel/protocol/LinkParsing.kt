@@ -40,6 +40,27 @@ internal object LinkParsing {
         return out
     }
 
+    /**
+     * Splits Xray's early-data hint out of a WS path.
+     *
+     * Xray writes ?ed=2560 on the end of the path and, when it dials, sends that
+     * many bytes of the first frame alongside the upgrade request in the
+     * Sec-WebSocket-Protocol header. sing-box models the same thing as two
+     * fields on the transport, so the number has to leave the path here — a path
+     * still carrying the query is a path the server matches literally.
+     *
+     * Only ed is lifted: a path with any other query is left exactly as it was,
+     * because there is nothing in the model to put those parameters in.
+     */
+    fun splitEarlyData(path: String?): Pair<String?, Int?> {
+        if (path == null) return null to null
+        val q = path.indexOf('?')
+        if (q < 0) return path to null
+        val params = parseQuery(path.substring(q + 1))
+        val ed = params["ed"]?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: return path to null
+        return path.substring(0, q).ifEmpty { "/" } to ed
+    }
+
     /** Parses `host:port`, tolerating bracketed IPv6 (`[::1]:443`). */
     fun splitHostPort(s: String): Pair<String, Int>? {
         if (s.isEmpty()) return null
