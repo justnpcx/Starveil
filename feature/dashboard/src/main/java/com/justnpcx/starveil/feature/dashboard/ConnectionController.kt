@@ -9,6 +9,8 @@ import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.RulePackStore
+import com.justnpcx.starveil.core.kernel.ChainFailureClassifier
+import com.justnpcx.starveil.core.kernel.ChainFailureStage
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelState
@@ -237,7 +239,16 @@ class ConnectionController @Inject constructor(
         } else {
             // The bridge reports a redacted reason (PRD §8.3: tell the truth on
             // failure, never a bare "failed to start").
-            ConnectionOutcome.Refused(result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() })
+            val reason = result.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+            if (front != null) {
+                val detail = when (ChainFailureClassifier.classify(reason.orEmpty())) {
+                    ChainFailureStage.FRONT -> "cannot connect to front ${front.name}"
+                    ChainFailureStage.EXIT -> "cannot connect to exit ${(target as Target.Node).profile.name} through front ${front.name}"
+                    ChainFailureStage.UNSEGMENTED -> "chain failed (unsegmented)"
+                }
+                KernelDiagnostics.logError(detail)
+            }
+            ConnectionOutcome.Refused(reason)
         }
     }
 

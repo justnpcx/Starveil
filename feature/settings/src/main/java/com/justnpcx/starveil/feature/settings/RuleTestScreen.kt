@@ -38,6 +38,8 @@ import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.geo.DnsMetrics
 import com.justnpcx.starveil.core.data.geo.DnsSnapshot
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
+import com.justnpcx.starveil.core.data.repository.ProfileRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
@@ -45,7 +47,11 @@ import com.justnpcx.starveil.core.kernel.config.DecisionReason
 import com.justnpcx.starveil.core.kernel.config.RouteEvaluator
 import com.justnpcx.starveil.core.kernel.config.RuleDryRun
 import com.justnpcx.starveil.core.kernel.ruleset.SrsRuleSetLookup
+import com.justnpcx.starveil.core.model.LatencySample
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.NodeStatus
+import com.justnpcx.starveil.core.model.Profile
+import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.model.ruleset.Srs
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
@@ -103,6 +109,30 @@ data class RuleTestResult(
  * to be rows in Settings, which meant the page that answers "what is going on"
  * was split in two, one half of it behind a screen full of switches.
  */
+data class ChainDiagnostic(
+    val frontName: String,
+    val exitName: String,
+    val frontStatus: NodeStatus,
+    val exitStatus: NodeStatus,
+)
+
+internal fun chainDiagnostic(
+    target: com.justnpcx.starveil.core.data.preferences.ConnectionTarget,
+    nodes: List<Profile>,
+    health: Map<Long, List<LatencySample>>,
+): ChainDiagnostic? {
+    val id = (target as? com.justnpcx.starveil.core.data.preferences.ConnectionTarget.Node)?.id
+        ?: return null
+    val exit = nodes.firstOrNull { it.id == id } ?: return null
+    val front = nodes.firstOrNull { it.nodeKey == exit.frontNodeKey } ?: return null
+    return ChainDiagnostic(
+        frontName = front.name,
+        exitName = exit.name,
+        frontStatus = nodeHealthOf(health[front.id].orEmpty()).status,
+        exitStatus = nodeHealthOf(health[exit.id].orEmpty()).status,
+    )
+}
+
 data class DiagnosticsState(
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     val dnsMetricsEnabled: Boolean = true,
@@ -116,6 +146,8 @@ class RuleTestViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
     private val ruleRepository: RuleRepository,
     private val metrics: DnsMetrics,
+    private val profiles: ProfileRepository,
+    private val nodeHealth: NodeHealthRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RuleTestUiState>(RuleTestUiState.Loading)
@@ -142,6 +174,13 @@ class RuleTestViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = DiagnosticsState(),
     )
+
+    val chain: StateFlow<ChainDiagnostic?> = combine(
+        preferences.connectionTarget,
+        profiles.observeAll(),
+        nodeHealth.observeAll(),
+    ) { target, nodes, health -> chainDiagnostic(target, nodes, health) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         viewModelScope.launch { load() }
@@ -237,6 +276,7 @@ fun RuleTestScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
+    val chain by viewModel.chain.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     val context = LocalContext.current
 
@@ -374,6 +414,28 @@ fun RuleTestScreen(
                     modifier = Modifier
                         .clickable(role = Role.Button, onClick = onRunLeakCheck)
                         .padding(vertical = StarveilSpacing.xs),
+                )
+            }
+            chain?.let { diagnostic ->
+                Text(
+                    text = stringResource(
+                        R.string.chain_diagnostic_line,
+                        diagnostic.frontName,
+                        chainStatusText(diagnostic.frontStatus, viaFront = false),
+                        diagnostic.exitName,
+                        chainStatusText(diagnostic.exitStatus, viaFront = true),
+                    ),
+                    style = StarveilType.label,
+                    color = if (diagnostic.frontStatus == NodeStatus.DOWN || diagnostic.exitStatus == NodeStatus.DOWN) {
+                        StarveilColors.errText
+                    } else {
+                        StarveilColors.ink2
+                    },
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.md,
+                    ),
                 )
             }
         }
@@ -560,6 +622,17 @@ private fun reasonText(reason: DecisionReason): String = when (reason) {
     DecisionReason.PRESET_FALLBACK -> stringResource(R.string.rule_test_reason_preset)
     DecisionReason.DEFAULT_OUTBOUND -> stringResource(R.string.rule_test_reason_default)
 }
+
+@Composable
+private fun chainStatusText(status: NodeStatus, viaFront: Boolean): String = stringResource(
+    when {
+        status == NodeStatus.UNTESTED -> R.string.chain_diagnostic_untested
+        status == NodeStatus.DOWN && viaFront -> R.string.chain_diagnostic_exit_down
+        status == NodeStatus.DOWN -> R.string.chain_diagnostic_down
+        viaFront -> R.string.chain_diagnostic_exit_up
+        else -> R.string.chain_diagnostic_up
+    },
+)
 
 /** "No self-check has run yet", or when the last one ran and what it found. */
 @Composable

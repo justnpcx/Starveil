@@ -246,4 +246,10 @@
 <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_empty_title">没有匹配的设置</string>
     <string name="settings_search_empty_body">没有提到「%1$s」的设置。清空搜索可看到全部分组。</string>
+    <string name="chain_diagnostic_line">链路：%1$s %2$s · %3$s %4$s</string>
+    <string name="chain_diagnostic_up">可达</string>
+    <string name="chain_diagnostic_down">不可达</string>
+    <string name="chain_diagnostic_exit_up">经前置可达</string>
+    <string name="chain_diagnostic_exit_down">经前置不可达</string>
+    <string name="chain_diagnostic_untested">未测</string>
 </resources>

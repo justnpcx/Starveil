@@ -258,4 +258,10 @@
 <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_empty_title">No setting matches</string>
     <string name="settings_search_empty_body">Nothing here mentions "%1$s". Clear the search to see every group.</string>
+    <string name="chain_diagnostic_line">Chain: %1$s %2$s · %3$s %4$s</string>
+    <string name="chain_diagnostic_up">reachable</string>
+    <string name="chain_diagnostic_down">unreachable</string>
+    <string name="chain_diagnostic_exit_up">reachable through the front</string>
+    <string name="chain_diagnostic_exit_down">unreachable through the front</string>
+    <string name="chain_diagnostic_untested">untested</string>
 </resources>
