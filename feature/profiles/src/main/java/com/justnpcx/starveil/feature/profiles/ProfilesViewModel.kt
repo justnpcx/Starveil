@@ -58,6 +58,8 @@ sealed interface NodeFilter {
 data class ProfilesUiState(
     /** The nodes to show — already narrowed by [filter]. */
     val profiles: List<Profile> = emptyList(),
+    /** Unfiltered nodes, for the cross-group front picker. */
+    val allProfiles: List<Profile> = emptyList(),
     /** Every group, for the filter chips. */
     val groups: List<ProxyGroup> = emptyList(),
     /** Groups that actually contain nodes (unfiltered), for the chip row. */
@@ -335,6 +337,7 @@ class ProfilesViewModel @Inject constructor(
         }
         ProfilesUiState(
             profiles = visible,
+            allProfiles = list,
             groups = groupList,
             nonEmptyGroups = activeGroups,
             filter = filter,
@@ -809,9 +812,7 @@ class ProfilesViewModel @Inject constructor(
      * exists, which cannot appear in [all] in the first place.
      */
     fun frontCandidates(exit: Profile, all: List<Profile>): List<Profile> =
-        all.filter { candidate ->
-            candidate.nodeKey != exit.nodeKey && candidate.frontNodeKey == null
-        }
+        com.justnpcx.starveil.core.model.chainFrontCandidates(exit, all)
 
     /** Sets or clears the front; the node keeps everything else it had. */
     fun setFrontNode(exit: Profile, frontKey: String?) {

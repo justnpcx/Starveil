@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.justnpcx.starveil.core.ui.components.ChainProxySheet
 import com.justnpcx.starveil.core.ui.components.LocalTopBarActions
 import com.justnpcx.starveil.core.ui.components.StarveilSnackbarHost
 import com.justnpcx.starveil.core.ui.components.StarveilPlusDisc
@@ -757,9 +758,8 @@ fun ProfilesScreen(
         val exit = state.profiles.firstOrNull { it.nodeKey == captured.nodeKey } ?: captured
         ChainProxySheet(
             exit = exit,
-            all = state.profiles,
-            frontOf = { key -> state.profiles.firstOrNull { it.nodeKey == key } },
-            candidates = viewModel.frontCandidates(exit, state.profiles),
+            all = state.allProfiles,
+            groupNames = state.groups.associate { it.id to it.name },
             onPick = { candidate ->
                 viewModel.setFrontNode(exit, candidate?.nodeKey)
                 // A pick is the whole interaction: leaving the sheet open would
@@ -2178,106 +2178,4 @@ internal fun ProfileType.shortName(): String = when (this) {
     ProfileType.TUIC -> "TUIC"
     ProfileType.WIREGUARD -> "WG"
     ProfileType.OTHER -> "?"
-}
-
-/**
- * The chain editor, as a sheet.
- *
- * One component for both entry points: the node's long-press menu and the
- * editor page open the same thing, so a chain can only look one way. The picker
- * is the whole of it — the exit is already decided, and a chain has one front.
- */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-private fun ChainProxySheet(
-    exit: Profile,
-    all: List<Profile>,
-    frontOf: (String) -> Profile?,
-    candidates: List<Profile>,
-    onPick: (Profile?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val current = exit.frontNodeKey?.let(frontOf)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = StarveilColors.card,
-        shape = StarveilShapes.sheet,
-    ) {
-        Column(modifier = Modifier.navigationBarsPadding()) {
-            Text(
-                text = stringResource(R.string.profiles_chain_title),
-                style = StarveilType.headline,
-                color = StarveilColors.ink,
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.pageMargin,
-                    end = StarveilSpacing.pageMargin,
-                    top = StarveilSpacing.sm,
-                ),
-            )
-            // The exit, read-only: this sheet edits what the node dials
-            // through, not what it is.
-            Text(
-                text = stringResource(R.string.profiles_chain_exit, exit.name),
-                style = StarveilType.label,
-                color = StarveilColors.ink3,
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.pageMargin,
-                    end = StarveilSpacing.pageMargin,
-                    top = StarveilSpacing.xs,
-                    bottom = StarveilSpacing.sm,
-                ),
-            )
-            Text(
-                text = if (current == null) {
-                    stringResource(R.string.profiles_chain_direct)
-                } else {
-                    stringResource(R.string.profiles_chain_path, current.name, exit.name)
-                },
-                style = StarveilType.tech,
-                color = StarveilColors.ink,
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.pageMargin,
-                    end = StarveilSpacing.pageMargin,
-                    bottom = StarveilSpacing.sm,
-                ),
-            )
-
-            StarveilSheetRow(
-                text = stringResource(R.string.profiles_chain_none),
-                icon = if (current == null) StarveilIcons.Check else null,
-            ) { onPick(null) }
-
-            if (candidates.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.profiles_chain_no_candidates),
-                    style = StarveilType.label,
-                    color = StarveilColors.ink3,
-                    modifier = Modifier.padding(
-                        start = StarveilSpacing.pageMargin,
-                        end = StarveilSpacing.pageMargin,
-                        top = StarveilSpacing.sm,
-                        bottom = StarveilSpacing.md,
-                    ),
-                )
-            }
-            candidates.forEach { candidate ->
-                val chosen = candidate.nodeKey == exit.frontNodeKey
-                StarveilSheetRow(
-                    text = candidate.name,
-                    icon = if (chosen) StarveilIcons.Check else null,
-                ) { onPick(candidate) }
-            }
-
-            // Only when there is something to clear: an action that does
-            // nothing is a row the user has to read and discard.
-            if (current != null) {
-                Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                StarveilSheetRow(
-                    text = stringResource(R.string.profiles_chain_clear),
-                    icon = StarveilIcons.Close,
-                    destructive = true,
-                ) { onPick(null) }
-            }
-        }
-    }
 }
