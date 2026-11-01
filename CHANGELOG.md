@@ -8,9 +8,17 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.18] — 2026-11-02
+
 ### Changed
 
 - **Kernel sync:** sing-box 1.14.3 → 1.14.4 (fork branch `starveil-1.14.4`, with the six patches from `starveil-1.14.x` replayed unchanged).
+- **Node actions are grouped by purpose.** Edit and the staged test come first,
+  management actions sit together, and deletion is separated as the dangerous
+  action. The menu is text-only and shows the current front beside Chain proxy.
+- **Rule status uses rows rather than footnotes.** Rule sets put the update
+  action beside the title with a status-dot line below, and Local network direct
+  has an Always on badge. The selected accent colour has a visible outer ring.
 
 ## [0.9.17] — 2026-11-01
 
