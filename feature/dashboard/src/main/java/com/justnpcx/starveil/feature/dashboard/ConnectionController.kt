@@ -157,10 +157,17 @@ class ConnectionController @Inject constructor(
         // A chained node names its front by business key; resolving it here
         // keeps the builder pure and makes a dangling key a no-op (single hop)
         // rather than a config the core refuses.
-        val front = (target as? Target.Node)
-            ?.profile
-            ?.frontNodeKey
-            ?.let { key -> profiles.observeAll().first().firstOrNull { it.nodeKey == key } }
+        val allProfiles = if (
+            target is Target.Node || target is Target.Group
+        ) {
+            profiles.observeAll().first()
+        } else {
+            emptyList()
+        }
+        fun frontOf(profile: com.justnpcx.starveil.core.model.Profile) =
+            profile.frontNodeKey?.let { key -> allProfiles.firstOrNull { it.nodeKey == key } }
+
+        val front = (target as? Target.Node)?.profile?.let(::frontOf)
 
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
@@ -201,6 +208,7 @@ class ConnectionController @Inject constructor(
                         localApi = localApi,
                         localSubnets = subnets,
                         subscriptionProxyPort = subscriptionProxyPort,
+                        frontFor = ::frontOf,
                     )
 
                     Target.None -> null

@@ -123,25 +123,50 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         localApi: LocalApiConfig? = null,
         localSubnets: List<String> = emptyList(),
         subscriptionProxyPort: Int? = null,
+        /**
+         * The front of a member, resolved by the caller.
+         *
+         * A group is a set of nodes, and a chain is an attribute of a node, so
+         * each member carries its own — one node behind a front does not put
+         * the others behind it.
+         */
+        frontFor: (Profile) -> Profile? = { null },
     ): String {
         require(profiles.isNotEmpty()) { "profiles must not be empty" }
         require(mode != GroupMode.MANUAL) {
             "a MANUAL group is a folder; connect to one of its nodes instead"
         }
         val tags = profiles.indices.map { "proxy-$it" }
-        val fragments = profiles.mapIndexed { index, profile -> fragment(profile, tags[index]) }
+        // A front that is the member itself is not a chain: the detour would
+        // point at its own tag, which the core refuses.
+        val fronts = profiles.map { profile ->
+            frontFor(profile)?.takeIf { it.nodeKey != profile.nodeKey }
+        }
+        val fragments = profiles.mapIndexed { index, profile ->
+            val block = fragment(profile, tags[index])
+            if (fronts[index] == null) block else block + ("detour" to "front-$index")
+        }
+        // Emitted even though only the detour references them.
+        val frontFragments = profiles.indices
+            .filter { fronts[it] != null }
+            .associateWith { index -> fragment(fronts[index]!!, "front-$index") }
         // One placement lookup per profile: this runs for every node of a
         // subscription, and the builder is on a latency-sensitive path.
         val placements = profiles.map { placementOf(it) }
         val endpoints = profiles.indices
             .filter { placements[it] == ConfigPlacement.ENDPOINT }
-            .map { fragments[it] }
+            .map { fragments[it] } +
+            frontFragments.filterKeys { placementOf(fronts[it]!!) == ConfigPlacement.ENDPOINT }
+                .values
         val perAppEmission = emitPerApp(perApp)
 
         val outbounds = buildList {
             profiles.indices
                 .filter { placements[it] == ConfigPlacement.OUTBOUND }
                 .forEach { add(fragments[it]) }
+            frontFragments.forEach { (index, block) ->
+                if (placementOf(fronts[index]!!) == ConfigPlacement.OUTBOUND) add(block)
+            }
             addAll(perAppEmission.outbounds)
             add(
                 when (mode) {

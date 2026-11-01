@@ -873,6 +873,30 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `a group puts only the chained member behind its front`() {
+        val plain = vlessProfile().copy(name = "plain", server = "plain.example.com")
+        val chained = vlessProfile().copy(
+            name = "chained",
+            server = "chained.example.com",
+            frontNodeKey = "VLESS|front.example.com|443|front",
+        )
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+
+        val config = builder.build(
+            listOf(plain, chained),
+            mode = GroupMode.URL_TEST,
+            preset = RoutePreset.GLOBAL_PROXY,
+            frontFor = { profile -> if (profile.name == "chained") front else null },
+        )
+
+        // Exactly one detour, and it belongs to the chained member: a chain is
+        // an attribute of a node, not of the group.
+        assertEquals(1, Regex("\"detour\"").findAll(config).count())
+        assertTrue(config.contains("\"detour\":\"front-1\""))
+        assertTrue(config.contains("\"tag\":\"front-1\""))
+    }
+
+    @Test
     fun `a front that is the node itself is not a chain`() {
         val node = vlessProfile().copy(name = "same", server = "same.example.com")
 
