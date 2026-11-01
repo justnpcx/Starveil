@@ -110,6 +110,17 @@ data class TransportOptions(
     val mode: XhttpMode? = null,
     val headers: Map<String, String> = emptyMap(),
     /**
+     * WS only: how many bytes of the first payload the client may send with the
+     * handshake (Xray's ?ed= in the path).
+     *
+     * The link grammar has no parameter for it — Xray smuggles it into the WS
+     * path as ?ed=2560 — so the parser lifts it out of the path and the writer
+     * puts it back. Kept separate from [path] because sing-box wants the two as
+     * different fields: a path that still carries ?ed= is a path the server
+     * sees literally, and Cloudflare tolerates it only by accident.
+     */
+    val maxEarlyData: Int? = null,
+    /**
      * XHTTP only: the HTTP method for the uplink.
      *
      * The fields from here to [downloadSettings] are the part of Xray's

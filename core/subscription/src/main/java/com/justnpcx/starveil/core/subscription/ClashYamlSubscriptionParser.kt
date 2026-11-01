@@ -247,9 +247,21 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
                     ?.mapNotNull { (k, v) -> if (k is String && v is String) k to v else null }
                     ?.toMap()
                     ?: emptyMap()
+                // The same fallback the vless link parser needed: a config can
+                // name the host only as the TLS server name, and a transport
+                // with no Host header is a transport Cloudflare answers with
+                // 403. A Host in the headers still wins — it is the more
+                // specific statement.
+                val headerHost = headers.entries
+                    .firstOrNull { it.key.equals("Host", ignoreCase = true) }?.value
                 TransportOptions(
                     type = TransportType.WS,
+                    host = headerHost
+                        ?: proxy.str("servername")
+                        ?: proxy.str("sni"),
                     path = opts?.str("path"),
+                    maxEarlyData = (opts?.get("max-early-data") as? Number)?.toInt()
+                        ?.takeIf { it > 0 },
                     headers = headers,
                 )
             }

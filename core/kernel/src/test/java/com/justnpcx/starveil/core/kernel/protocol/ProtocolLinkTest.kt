@@ -14,6 +14,7 @@ import com.justnpcx.starveil.core.model.TuicUdpRelayMode
 import com.justnpcx.starveil.core.model.VlessSettings
 import com.justnpcx.starveil.core.model.VmessSettings
 import com.justnpcx.starveil.core.model.WireGuardSettings
+import com.justnpcx.starveil.core.kernel.config.SingBoxOutbounds
 import com.justnpcx.starveil.core.model.XhttpMode
 import java.util.Base64
 import org.junit.Assert.assertEquals
@@ -66,6 +67,61 @@ class VlessLinkTest {
         assertEquals("example.com", s.tls.sni)
         assertEquals(TransportType.WS, s.transport.type)
         assertEquals("/ws", s.transport.path)
+    }
+
+    @Test
+    fun `a ws link that states the name only as the sni gets a Host header`() {
+        // The edgetunnel shape: one name, used as the certificate and as the
+        // routed host, written once in the link. Before this fallback the
+        // transport had no Host header at all, the core dialled the address,
+        // and Cloudflare answered 403 — a tunnel that said "connected" and
+        // carried nothing.
+        val profile = StarveilProtocols.parseVless(
+            "vless://uuid-1234@104.16.1.1:443?security=tls&sni=ff.example.com" +
+                "&type=ws&path=%2F%3Fed%3D2560#cf",
+        )
+        assertNotNull(profile)
+        val transport = (profile!!.settings as VlessSettings).transport
+        assertEquals("ff.example.com", transport.host)
+        // The early-data hint leaves the path, and lands on the transport.
+        assertEquals("/", transport.path)
+        assertEquals(2560, transport.maxEarlyData)
+
+        val block = SingBoxOutbounds.transportBlock(transport)!!
+        @Suppress("UNCHECKED_CAST")
+        val headers = block["headers"] as Map<String, String>
+        assertEquals("ff.example.com", headers["Host"])
+        assertEquals(2560, block["max_early_data"])
+        assertEquals("Sec-WebSocket-Protocol", block["early_data_header_name"])
+    }
+
+    @Test
+    fun `an explicit host still wins over the sni`() {
+        val profile = StarveilProtocols.parseVless(
+            "vless://uuid-1234@example.com:443?security=tls&sni=ff.example.com" +
+                "&type=ws&host=cdn.example.net&path=%2Fws#cf",
+        )
+        val transport = (profile!!.settings as VlessSettings).transport
+        assertEquals("cdn.example.net", transport.host)
+        assertEquals("/ws", transport.path)
+        assertNull(transport.maxEarlyData)
+    }
+
+    @Test
+    fun `the early-data hint survives a round trip through the exporter`() {
+        val profile = StarveilProtocols.parseVless(
+            "vless://uuid-1234@104.16.1.1:443?security=tls&sni=ff.example.com" +
+                "&type=ws&path=%2Fproxyip%3D1.2.3.4%3Fed%3D2560#cf",
+        )!!
+        val link = StarveilLinkWriters.vless(profile)!!
+        // The path is back on the wire with the hint on the end of it, which is
+        // the only place another client knows to look.
+        assertTrue(link, link.contains("path=%2Fproxyip%3D1.2.3.4%3Fed%3D2560"))
+
+        val reparsed = StarveilProtocols.parseVless(link)!!
+        val transport = (reparsed.settings as VlessSettings).transport
+        assertEquals("/proxyip=1.2.3.4", transport.path)
+        assertEquals(2560, transport.maxEarlyData)
     }
 
     @Test

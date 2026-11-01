@@ -682,7 +682,29 @@ object StarveilProtocols {
                 if (key is String && value is String) headers[key] = value
             }
         }
-        val host = q["host"]?.takeIf { it.isNotBlank() }
+        // The Host header, with the same fallback chain tlsFrom uses for the
+        // SNI. A Cloudflare Worker link (edgetunnel and its many forks) carries
+        // the name in the sni parameter only, because that one name is both the
+        // certificate and the routed host; taking host alone left the transport
+        // with no Host header at all, so the core dialled the IP address,
+        // Cloudflare saw a request for a host it does not serve, and answered
+        // 403 — a tunnel that reports "connected" and carries nothing.
+        //
+        // Only the transports that have a Host header: gRPC and plain TCP do
+        // not, and writing one for them would put a value in the config that the
+        // core ignores and the exporter would echo back.
+        val host = if (type == TransportType.TCP || type == TransportType.GRPC) {
+            null
+        } else {
+            q["host"]?.takeIf { it.isNotBlank() }
+                ?: q["sni"]?.takeIf { it.isNotBlank() }
+                ?: q["peer"]?.takeIf { it.isNotBlank() }
+        }
+        // Xray puts the early-data hint on the path (?ed=2560); sing-box wants
+        // it as a field of the transport, so it is lifted out here.
+        val (path, earlyData) = LinkParsing.splitEarlyData(
+            q["path"]?.takeIf { it.isNotBlank() } ?: extra.text("path"),
+        )
 
         // The plain parameter wins: panels mirror the same value into `extra`,
         // and an unreadable mode decodes to null so the core picks its default.
@@ -690,7 +712,8 @@ object StarveilProtocols {
         return TransportOptions(
             type = type,
             host = host,
-            path = q["path"]?.takeIf { it.isNotBlank() } ?: extra.text("path"),
+            path = path,
+            maxEarlyData = earlyData,
             serviceName = (q["serviceName"] ?: q["servicename"])?.takeIf { it.isNotBlank() },
             mode = mode?.let { XhttpMode.fromWireName(it) },
             headers = headers,
