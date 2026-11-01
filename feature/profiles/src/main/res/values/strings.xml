@@ -238,4 +238,6 @@
 <string name="profiles_long_press_hint">Long-press a node to edit, pin, share, move or delete it</string>
     <string name="profiles_front_invalidated">The front node for %1$s is no longer available; it will connect directly.</string>
     <string name="profiles_delete_front_dependents">%1$d nodes use this as their front and will connect directly after deletion.</string>
+    <string name="profiles_share_copy_json">Copy sing-box JSON</string>
+    <string name="profiles_share_json_copied">JSON copied</string>
 </resources>

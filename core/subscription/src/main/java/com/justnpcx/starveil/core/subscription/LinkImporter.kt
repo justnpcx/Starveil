@@ -28,6 +28,11 @@ fun interface LinkExporter {
     fun export(profile: Profile): String?
 }
 
+/** A complete sing-box config; unlike a URI, this can preserve a detour. */
+fun interface SingBoxJsonExporter {
+    fun export(profile: Profile, front: Profile?): String?
+}
+
 /**
  * What a piece of text would import, without importing it.
  *

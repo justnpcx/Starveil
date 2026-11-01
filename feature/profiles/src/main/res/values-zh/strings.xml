@@ -228,4 +228,6 @@
 <string name="profiles_long_press_hint">长按节点可以编辑、收藏、分享、移动或删除</string>
     <string name="profiles_front_invalidated">%1$s 的前置节点已失效，已改为直连。</string>
     <string name="profiles_delete_front_dependents">有 %1$d 个节点以它为前置，删除后将改为直连。</string>
+    <string name="profiles_share_copy_json">复制 sing-box JSON</string>
+    <string name="profiles_share_json_copied">JSON 已复制</string>
 </resources>

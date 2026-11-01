@@ -1192,6 +1192,7 @@ private fun GroupNameDialog(
 private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
+    var copiedJson by remember { mutableStateOf(false) }
 
     AlertDialog(
             containerColor = StarveilColors.card,
@@ -1211,26 +1212,40 @@ private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
                         style = StarveilType.label,
                         color = StarveilColors.ink2,
                     )
-                    return@Column
-                }
-
-                QrCode(content = link, modifier = Modifier.size(QR_SIZE))
-                Text(
-                    text = link,
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                )
-                TextButton(
-                    onClick = {
-                        writeClipboard(context, link, "Starveil node")
-                        copied = true
-                    },
-                ) {
+                } else {
+                    QrCode(content = link, modifier = Modifier.size(QR_SIZE))
                     Text(
-                        stringResource(
-                            if (copied) R.string.profiles_share_copied else R.string.profiles_share_copy,
-                        ),
+                        text = link,
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
                     )
+                    TextButton(
+                        onClick = {
+                            writeClipboard(context, link, "Starveil node")
+                            copied = true
+                        },
+                    ) {
+                        Text(
+                            stringResource(
+                                if (copied) R.string.profiles_share_copied else R.string.profiles_share_copy,
+                            ),
+                        )
+                    }
+                }
+                target.json?.let { json ->
+                    TextButton(
+                        onClick = {
+                            writeClipboard(context, json, "Starveil sing-box config")
+                            copiedJson = true
+                        },
+                    ) {
+                        Text(
+                            stringResource(
+                                if (copiedJson) R.string.profiles_share_json_copied
+                                else R.string.profiles_share_copy_json,
+                            ),
+                        )
+                    }
                 }
                 // A link is one node's grammar and a front is a second node,
                 // so the front cannot travel with it. Saying that here is the

@@ -20,6 +20,7 @@ import com.justnpcx.starveil.core.subscription.ImportFailure
 import com.justnpcx.starveil.core.subscription.ImportOutcome
 import com.justnpcx.starveil.core.subscription.LinkPreview
 import com.justnpcx.starveil.core.subscription.LinkExporter
+import com.justnpcx.starveil.core.subscription.SingBoxJsonExporter
 import com.justnpcx.starveil.core.subscription.LinkImporter
 import com.justnpcx.starveil.core.subscription.SubscriptionRefreshScheduler
 import com.justnpcx.starveil.core.subscription.SubscriptionFailure
@@ -184,6 +185,8 @@ data class ClipboardSuggestion(
 data class ShareTarget(
     val name: String,
     val link: String?,
+    /** Full sing-box JSON, including the front when one is set. */
+    val json: String? = null,
     /**
      * True when the node is chained and the link therefore does not carry the
      * front.
@@ -206,6 +209,7 @@ class ProfilesViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
     private val importer: LinkImporter,
     private val exporter: LinkExporter,
+    private val singBoxExporter: SingBoxJsonExporter = SingBoxJsonExporter { _, _ -> null },
     private val updater: SubscriptionUpdater,
     private val undo: UndoBus,
     private val refreshScheduler: SubscriptionRefreshScheduler,
@@ -832,9 +836,11 @@ class ProfilesViewModel @Inject constructor(
     }
 
     fun shareNode(profile: Profile) {
+        val front = uiState.value.allProfiles.firstOrNull { it.nodeKey == profile.frontNodeKey }
         share.value = ShareTarget(
             name = profile.name,
             link = exporter.export(profile),
+            json = singBoxExporter.export(profile, front),
             omitsFront = profile.frontNodeKey != null,
         )
     }

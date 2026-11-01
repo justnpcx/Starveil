@@ -725,6 +725,29 @@ class ProfilesViewModelTest {
     }
 
     @Test
+    fun `sing-box JSON export carries the resolved front`() = runBlocking {
+        val front = profile(TWO, "front")
+        val exit = profile(ONE, "exit").copy(frontNodeKey = front.nodeKey)
+        val profiles = FakeProfiles(mutableListOf(exit, front))
+        val viewModel = viewModel(
+            profiles,
+            FakePreferences(ONE),
+            singBoxExporter = com.justnpcx.starveil.core.subscription.SingBoxJsonExporter { profile, resolved ->
+                profile.name + ":" + resolved?.name
+            },
+        )
+        val job = launch { viewModel.uiState.collect {} }
+        yield()
+
+        viewModel.shareNode(exit)
+        val share = awaitShare(viewModel)
+
+        assertEquals("exit:front", share?.json)
+        assertEquals(true, share?.omitsFront)
+        job.cancel()
+    }
+
+    @Test
     fun `a node with no share format still opens the sheet, with no link`() = runBlocking {
         // The sheet has to say "no share format" rather than draw a QR code for
         // an empty string, which would scan into nothing.
@@ -873,6 +896,8 @@ class ProfilesViewModelTest {
         refreshScheduler: SubscriptionRefreshScheduler = FakeRefreshScheduler(),
         fetcher: SubscriptionFetcher = FakeFetcher(),
         exporter: LinkExporter = LinkExporter { null },
+        singBoxExporter: com.justnpcx.starveil.core.subscription.SingBoxJsonExporter =
+            com.justnpcx.starveil.core.subscription.SingBoxJsonExporter { _, _ -> null },
         undo: UndoBus = RecordingUndo(),
         nodeHealth: NodeHealthRepository = FakeNodeHealth(),
     ): ProfilesViewModel {
@@ -905,6 +930,7 @@ class ProfilesViewModelTest {
             preferences = preferences,
             refreshScheduler = refreshScheduler,
             exporter = exporter,
+            singBoxExporter = singBoxExporter,
             updater = updater,
             undo = undo,
             nodeHealth = nodeHealth,
