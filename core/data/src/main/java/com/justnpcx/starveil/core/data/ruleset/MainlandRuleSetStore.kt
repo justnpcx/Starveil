@@ -94,6 +94,8 @@ class FileMainlandRuleSetStore(
     private val directory: File,
     private val download: suspend (String) -> ByteArray = ::httpGet,
     private val warn: (String) -> Unit = {},
+    /** Bundled copies of the core sets, by file name. See [PinnedFileCache]. */
+    private val seed: ((String) -> ByteArray?)? = null,
     // Injectable so a test can pin the hash of its own fixture. The defaults
     // are the real artifacts; nothing in the app passes these.
     private val geositeCn: PinnedRuleSet = GEOSITE_CN,
@@ -132,7 +134,7 @@ class FileMainlandRuleSetStore(
         return obtain(ads)?.absolutePath
     }
 
-    private val cache = PinnedFileCache(directory, download, warn)
+    private val cache = PinnedFileCache(directory, download, warn, seed)
 
     private suspend fun obtain(set: PinnedRuleSet): File? =
         when (val result = cache.obtain(set)) {

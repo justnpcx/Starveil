@@ -63,6 +63,14 @@ object DataModule {
         // Straight to logcat. A failed download is not worth a screen, but it
         // has to be findable when someone asks why the preset did nothing.
         warn = { android.util.Log.w("StarveilRuleSets", it) },
+        // The core three ship inside the APK: a fresh install with no network
+        // still gets a working preset. A name this build has no asset for —
+        // every market pack — comes back null and downloads as before.
+        seed = { name ->
+            runCatching {
+                context.assets.open("rulesets/" + name).use { it.readBytes() }
+            }.getOrNull()
+        },
     )
 
     /**

@@ -38,6 +38,17 @@ class MainlandRuleSetStoreTest {
         urls = listOf("https://cdn.test/$name"),
     )
 
+    private fun seeded(seed: (String) -> ByteArray?, download: suspend (String) -> ByteArray = { error("no network expected") }) =
+        FileMainlandRuleSetStore(
+            directory = temp.root,
+            download = download,
+            warn = warnings::add,
+            seed = seed,
+            geositeCn = pinned("geosite-cn.srs", geositeBody),
+            geoipCn = pinned("geoip-cn.srs", geoipBody),
+            ads = pinned("geosite-ads.srs", adsBody),
+        )
+
     private fun store(download: suspend (String) -> ByteArray) = FileMainlandRuleSetStore(
         directory = temp.root,
         download = download,
@@ -73,6 +84,44 @@ class MainlandRuleSetStoreTest {
         assertEquals(first, second)
         assertTrue("no refetch when the files are present", fetched.isEmpty())
         assertNull(store.failure.value)
+    }
+
+    @Test
+    fun `a bundled copy is used before the network is touched`() = runBlocking {
+        // A fresh install with no connection: the preset has to come up from
+        // what shipped in the APK, or the one feature that exists for a
+        // blocked network would need one.
+        val store = seeded(seed = { name ->
+            when (name) {
+                "geosite-cn.srs" -> geositeBody.toByteArray()
+                "geoip-cn.srs" -> geoipBody.toByteArray()
+                else -> adsBody.toByteArray()
+            }
+        })
+
+        val sets = store.ensure()
+        assertNotNull(sets)
+        assertEquals(geositeBody, File(sets!!.geositeCnPath).readText())
+        assertEquals(geoipBody, File(sets.geoipCnPath).readText())
+    }
+
+    @Test
+    fun `a bundled copy that does not match the pin is ignored`() = runBlocking {
+        // The seed goes through the same hash check as a download. A build
+        // that shipped the wrong bytes must not become a trusted rule set.
+        var downloaded = 0
+        val store = seeded(
+            seed = { "not-the-pinned-bytes".toByteArray() },
+            download = { url ->
+                downloaded += 1
+                honest(url)
+            },
+        )
+
+        val sets = store.ensure()
+        assertNotNull(sets)
+        assertEquals(2, downloaded)
+        assertTrue(warnings.any { it.contains("bundled copy does not match") })
     }
 
     @Test
