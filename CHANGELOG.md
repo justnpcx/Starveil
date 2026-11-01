@@ -8,6 +8,38 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.16] — 2026-11-01
+
+The rule sets stop being a snapshot taken at build time, and Play downloads stop
+stalling under the mainland preset.
+
+### Added
+
+- **Rule sets update themselves.** Once a week, in the background, the app asks
+  the upstream branch for its head, fetches the three files at that commit from
+  either mirror, checks every one of them before writing anything, and swaps the
+  batch in atomically. The previous generation is kept, so a bad batch has
+  something to go back to. A failed check changes nothing and says nothing.
+- **The core sets ship inside the APK.** A fresh install with no connection at
+  all still gets a working mainland preset — the bundled copy goes through the
+  same hash check as a download, so a build that shipped the wrong bytes is
+  refused rather than trusted.
+- **A Google exception under the mainland preset.** The hosts a Play download
+  uses are in the upstream mainland list, so the preset sent them direct and the
+  download sat at 0%. A rule ahead of the mainland set sends them through the
+  proxy instead. The set is fetched only while that preset is on.
+- **The rules page shows how old the rule sets are** — the upstream commit's
+  date, not the install time — with a button to check now.
+
+### Fixed
+
+- **An update no longer gets undone by the next connect.** The read path only
+  accepted the hash pinned at build time, so the first connect after an update
+  discarded the new files and fetched the old ones back.
+- **A file restored from the bundled copy drops the version stamp.** The stamp
+  described a generation that was no longer on disk, and the rules page showed
+  its date anyway.
+
 ## [0.9.15] — 2026-11-01
 
 Four screens were each drawing their own version of the same control, and one
