@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.model.dedupeProfiles
 import com.justnpcx.starveil.core.subscription.registry.SubscriptionFormatRegistry
 import java.io.IOException
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 import javax.inject.Singleton
 
 /** Injectable time source so the updater is deterministic in tests. */
@@ -121,6 +122,11 @@ class SubscriptionUpdater @Inject constructor(
 
         return try {
             profiles.replaceGroupProfiles(groupId, unique)
+            // The group is read back from the same column the node list reads,
+            // so a save that lands somewhere else shows up as a zero here
+            // instead of only as an empty screen.
+            val stored = profiles.observeByGroup(groupId).first().size
+            log.line("saved " + unique.size + " to group " + groupId + ", group now has " + stored)
             health.recordSuccess(clock.nowMs())
             SubscriptionUpdateOutcome.Success(unique.size, dropped = parsed.dropped, userInfo = userInfo)
         } catch (e: Exception) {
