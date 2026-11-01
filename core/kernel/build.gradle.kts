@@ -35,4 +35,5 @@ dependencies {
     implementation(files("libs/libbox.aar"))
 
     testImplementation(libs.junit)
+    testImplementation(project(":core:subscription"))
 }

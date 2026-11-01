@@ -909,6 +909,64 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `a dangling front key emits the unchanged single-hop config`() {
+        val exit = vlessProfile().copy(frontNodeKey = "VLESS|gone.example.com|443|gone")
+
+        val config = builder.build(exit, front = null)
+
+        assertFalse(config.contains("\"detour\""))
+        assertFalse(config.contains("\"tag\":\"front\""))
+    }
+
+    @Test
+    fun `a WireGuard front is emitted once as an endpoint`() {
+        val exit = vlessProfile().copy(name = "exit", server = "exit.example.com")
+        val front = Profile(
+            name = "wg-front",
+            type = ProfileType.WIREGUARD,
+            server = "wg.example.com",
+            port = 51820,
+            settings = WireGuardSettings(
+                privateKey = "priv",
+                address = listOf("10.7.0.2/32"),
+                peers = listOf(
+                    WireGuardPeer(
+                        publicKey = "pub",
+                        endpointAddress = "wg.example.com",
+                        endpointPort = 51820,
+                        allowedIps = listOf("0.0.0.0/0"),
+                    ),
+                ),
+            ),
+        )
+
+        val config = builder.build(exit, front = front)
+
+        assertEquals(1, Regex("\"tag\":\"front\"").findAll(config).count())
+        assertTrue(config.contains("\"endpoints\":[{\"type\":\"wireguard\""))
+        assertFalse(config.contains("\"outbounds\":[{\"type\":\"wireguard\""))
+        assertTrue(config.contains("\"detour\":\"front\""))
+    }
+
+    @Test
+    fun `exported sing-box JSON imports again with its chain intact`() {
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+        val exit = vlessProfile().copy(
+            name = "exit",
+            server = "exit.example.com",
+            frontNodeKey = front.nodeKey,
+        )
+
+        val exported = builder.build(exit, front = front)
+        val imported = com.justnpcx.starveil.core.subscription.SingBoxJsonSubscriptionParser()
+            .parse(exported)
+
+        val importedExit = imported.single { it.name == "proxy" }
+        val importedFront = imported.single { it.name == "front" }
+        assertEquals(importedFront.nodeKey, importedExit.frontNodeKey)
+    }
+
+    @Test
     fun `the subscription proxy listens only when it was asked for`() {
         // A loopback socket is a socket; it exists only while the user wants
         // subscription fetches to leave through the tunnel.

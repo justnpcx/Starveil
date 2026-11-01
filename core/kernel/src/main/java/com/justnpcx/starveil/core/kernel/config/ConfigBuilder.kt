@@ -70,7 +70,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                 // The front is emitted even though no rule points at it: it is
                 // reached through the detour, and a tag nothing references is
                 // still a tag the router has to know.
-                chainFront?.let { add(fragment(it, FRONT_TAG)) }
+                chainFront?.takeIf { placementOf(it) == ConfigPlacement.OUTBOUND }?.let {
+                    add(fragment(it, FRONT_TAG))
+                }
                 addAll(perAppEmission.outbounds)
                 add(directOutbound())
                 add(blockOutbound())

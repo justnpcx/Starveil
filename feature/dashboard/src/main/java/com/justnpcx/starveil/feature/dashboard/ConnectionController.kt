@@ -164,8 +164,16 @@ class ConnectionController @Inject constructor(
         } else {
             emptyList()
         }
-        fun frontOf(profile: com.justnpcx.starveil.core.model.Profile) =
-            profile.frontNodeKey?.let { key -> allProfiles.firstOrNull { it.nodeKey == key } }
+        fun frontOf(profile: com.justnpcx.starveil.core.model.Profile): Profile? {
+            val key = profile.frontNodeKey ?: return null
+            val resolved = allProfiles.firstOrNull { it.nodeKey == key }
+            if (resolved == null || resolved.nodeKey == profile.nodeKey) {
+                val reason = if (resolved == null) "missing" else "self-referenced"
+                KernelDiagnostics.log("WARN chain front $reason for ${profile.name}; using direct")
+                return null
+            }
+            return resolved
+        }
 
         val front = (target as? Target.Node)?.profile?.let(::frontOf)
 
