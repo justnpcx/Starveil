@@ -8,6 +8,10 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+### Changed
+
+- **Kernel sync:** sing-box 1.14.3 → 1.14.4 (fork branch `starveil-1.14.4`, with the six patches from `starveil-1.14.x` replayed unchanged).
+
 ## [0.9.16] — 2026-11-01
 
 The rule sets stop being a snapshot taken at build time, and Play downloads stop
