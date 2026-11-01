@@ -122,6 +122,11 @@
     <string name="profiles_no_matches_body">换一个分组，或导入订阅。</string>
 
     <string name="profiles_group_menu_body">%1$d 个节点</string>
+    <string name="profiles_group_kind_subscription">订阅组</string>
+    <string name="profiles_group_kind_local">本地组</string>
+    <string name="profiles_group_mode_folder_desc">只用来存放节点，连接时逐个挑选。</string>
+    <string name="profiles_group_mode_selector_desc">手动选一个节点，直到你换掉它。</string>
+    <string name="profiles_group_mode_urltest_desc">自动选用延迟最低的节点。</string>
     <string name="profiles_group_mode_title">模式</string>
     <string name="profiles_group_mode_folder">文件夹</string>
     <string name="profiles_group_mode_selector">手动选择</string>
