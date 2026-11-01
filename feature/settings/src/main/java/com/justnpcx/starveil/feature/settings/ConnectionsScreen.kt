@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.ConnectionDetail
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
+import com.justnpcx.starveil.core.ui.components.StarveilChipRow
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
@@ -95,13 +96,11 @@ fun ConnectionsScreen(
                 ),
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = StarveilSpacing.pageMargin),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
+            // The same row component the node list uses: one geometry, one set
+            // of edge fades, one place to change it. The row used to be a plain
+            // scrolling Row padded from the inside, which put its first chip on
+            // the page margin but let the last one be cut by the screen edge.
+            StarveilChipRow {
                 StarveilChip(
                     label = stringResource(R.string.connections_filter_active),
                     selected = state.filters.onlyActive,

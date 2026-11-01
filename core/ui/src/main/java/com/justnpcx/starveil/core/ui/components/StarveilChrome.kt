@@ -233,8 +233,20 @@ fun StarveilChipRow(
             .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.sm)
             .drawWithContent {
                 drawContent()
+                // Both edges, and only where there is something beyond them: a
+                // fade with nothing behind it dims a chip that is already fully
+                // visible.
+                val fade = CHIP_ROW_FADE.toPx()
+                if (scroll.canScrollBackward) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(fadeTo, Color.Transparent),
+                            startX = 0f,
+                            endX = fade,
+                        ),
+                    )
+                }
                 if (scroll.canScrollForward) {
-                    val fade = CHIP_ROW_FADE.toPx()
                     drawRect(
                         brush = Brush.horizontalGradient(
                             colors = listOf(Color.Transparent, fadeTo),
