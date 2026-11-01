@@ -154,6 +154,14 @@ class ConnectionController @Inject constructor(
             null
         }
 
+        // A chained node names its front by business key; resolving it here
+        // keeps the builder pure and makes a dangling key a no-op (single hop)
+        // rather than a config the core refuses.
+        val front = (target as? Target.Node)
+            ?.profile
+            ?.frontNodeKey
+            ?.let { key -> profiles.observeAll().first().firstOrNull { it.nodeKey == key } }
+
         val config = try {
             val perApp = resolvePerApp(preferences.perAppRoutes.first())
             // Which addresses are one hop away right now. Read at build time,
@@ -178,6 +186,7 @@ class ConnectionController @Inject constructor(
                         localApi = localApi,
                         localSubnets = subnets,
                         subscriptionProxyPort = subscriptionProxyPort,
+                        front = front,
                     )
 
                     is Target.Group -> configBuilder.build(
