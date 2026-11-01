@@ -101,6 +101,7 @@ class FileMainlandRuleSetStore(
     private val geositeCn: PinnedRuleSet = GEOSITE_CN,
     private val geoipCn: PinnedRuleSet = GEOIP_CN,
     private val ads: PinnedRuleSet = ADS,
+    private val google: PinnedRuleSet = GOOGLE,
 ) : MainlandRuleSetStore {
 
     private val _failure = MutableStateFlow<RuleSetFailure?>(null)
@@ -123,9 +124,16 @@ class FileMainlandRuleSetStore(
             // a missing rule set must not turn into "send everything direct".
             return null
         }
+        // Optional, and fetched on the same terms as the rest: the Google
+        // exception is what makes a Play download work under this preset, but a
+        // preset without it still routes — just not through the hosts that need
+        // the exception. So a failure here is not recorded and not fatal.
+        val google = runCatching { cache.obtain(google) }.getOrNull()
+        val googlePath = (google as? PinnedFileCache.Result.Obtained)?.file?.absolutePath
         return MainlandRuleSets(
             geositeCnPath = geosite.absolutePath,
             geoipCnPath = geoip.absolutePath,
+            googlePath = googlePath,
         )
     }
 
@@ -175,6 +183,23 @@ class FileMainlandRuleSetStore(
             urls = listOf(
                 "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@$GEOSITE_COMMIT/geosite-category-ads-all.srs",
                 "https://raw.githubusercontent.com/SagerNet/sing-geosite/$GEOSITE_COMMIT/geosite-category-ads-all.srs",
+            ),
+        )
+
+        /**
+         * The Google exception set.
+         *
+         * geosite-google, not geosite-google-play: the Play set does not match
+         * dl.google.com, and the full set is the widest one that matches every
+         * host a Play download touches (verified against the compiled sets, see
+         * the PR).
+         */
+        val GOOGLE = PinnedRuleSet(
+            name = "geosite-google.srs",
+            sha256 = "952d89c656fdb147d4f5d04541dd942b33dcce0dae906a8416e24cbc1161402a",
+            urls = listOf(
+                "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@$GEOSITE_COMMIT/geosite-google.srs",
+                "https://raw.githubusercontent.com/SagerNet/sing-geosite/$GEOSITE_COMMIT/geosite-google.srs",
             ),
         )
 

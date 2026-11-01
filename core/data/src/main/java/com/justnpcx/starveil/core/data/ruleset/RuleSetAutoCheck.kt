@@ -35,7 +35,7 @@ class RuleSetAutoCheck(
     override fun installedVersion(): RuleSetVersion? = updater.installedVersion()
 
     /** The check's result, or null when it was throttled. */
-    suspend fun runIfDue(): RuleSetUpdater.Result? {
+    suspend fun runIfDue(extra: List<RuleSetFeed> = emptyList()): RuleSetUpdater.Result? {
         val now = nowMs()
         val last = lastCheckedAt()
         if (last > 0L && now - last < intervalMs) return null
@@ -43,7 +43,7 @@ class RuleSetAutoCheck(
         // Recorded before the work, not after: a process killed mid-check would
         // otherwise come back and start the same fetch again.
         recordCheckedAt(now)
-        val result = updater.check()
+        val result = updater.check(extra)
         if (result is RuleSetUpdater.Result.Failed) {
             warn("rule sets: check failed (" + result.reason + "); next attempt in a week")
         }
@@ -51,10 +51,12 @@ class RuleSetAutoCheck(
     }
 
     /** A manual check: the throttle does not apply, and the timestamp moves. */
-    override suspend fun runNow(): RuleSetUpdater.Result {
+    override suspend fun runNow(): RuleSetUpdater.Result = runNowWith(emptyList())
+
+    suspend fun runNowWith(extra: List<RuleSetFeed>): RuleSetUpdater.Result {
         val now = nowMs()
         recordCheckedAt(now)
-        return updater.check()
+        return updater.check(extra)
     }
 
     companion object {

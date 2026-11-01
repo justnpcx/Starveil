@@ -47,6 +47,7 @@ class MainlandRuleSetStoreTest {
             geositeCn = pinned("geosite-cn.srs", geositeBody),
             geoipCn = pinned("geoip-cn.srs", geoipBody),
             ads = pinned("geosite-ads.srs", adsBody),
+            google = pinned("geosite-google.srs", adsBody),
         )
 
     private fun store(download: suspend (String) -> ByteArray) = FileMainlandRuleSetStore(
@@ -56,6 +57,7 @@ class MainlandRuleSetStoreTest {
         geositeCn = pinned("geosite-cn.srs", geositeBody),
         geoipCn = pinned("geoip-cn.srs", geoipBody),
         ads = pinned("geosite-ads.srs", adsBody),
+        google = pinned("geosite-google.srs", adsBody),
     )
 
     /** The happy path: a mirror serving exactly what was pinned. */
@@ -75,7 +77,7 @@ class MainlandRuleSetStoreTest {
 
         val first = store.ensure()
         assertNotNull(first)
-        assertEquals("one fetch per rule set", 2, fetched.size)
+        assertEquals("one fetch per rule set, the optional one included", 3, fetched.size)
 
         // Second call must not touch the network: this runs on every connect,
         // and re-downloading on each one would be a startup cost with no point.
@@ -120,7 +122,7 @@ class MainlandRuleSetStoreTest {
 
         val sets = store.ensure()
         assertNotNull(sets)
-        assertEquals(2, downloaded)
+        assertEquals(3, downloaded)
         assertTrue(warnings.any { it.contains("bundled copy does not match") })
     }
 

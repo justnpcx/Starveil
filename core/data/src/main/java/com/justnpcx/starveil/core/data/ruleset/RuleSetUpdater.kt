@@ -57,16 +57,17 @@ class RuleSetUpdater(
     /** The generation on disk, or null before the first successful install. */
     fun installedVersion(): RuleSetVersion? = installer.readManifest()?.version
 
-    suspend fun check(): Result {
-        val head = versionOf(feeds.first { it.core }) ?: return Result.Failed("no version")
+    suspend fun check(extra: List<RuleSetFeed> = emptyList()): Result {
+        val all = feeds + extra
+        val head = versionOf(all.first { it.core }) ?: return Result.Failed("no version")
         val onDisk = installer.readManifest()
         if (onDisk != null && onDisk.version.commit == head.commit) {
             return Result.UpToDate(head)
         }
 
         val bodies = HashMap<String, ByteArray>()
-        for (feed in feeds) {
-            val version = if (feed.branch == feeds.first().branch) head else versionOf(feed)
+        for (feed in all) {
+            val version = if (feed.branch == all.first().branch) head else versionOf(feed)
             if (version == null) return Result.Failed(feed.name + ": no version")
             val bytes = fetch(feed, version.commit)
                 ?: return Result.Failed(feed.name + ": download failed")
@@ -104,6 +105,18 @@ class RuleSetUpdater(
             RuleSetFeed("geosite-cn.srs", GEOSITE_REPO, "geosite-cn.srs", "rule-set"),
             RuleSetFeed("geosite-ads.srs", GEOSITE_REPO, "geosite-category-ads-all.srs", "rule-set"),
             RuleSetFeed("geoip-cn.srs", GEOIP_REPO, "srs/cn.srs", "release"),
+        )
+
+        /**
+         * Only fetched when the mainland preset is on: it exists to correct
+         * that preset, and nothing else reads it.
+         */
+        val GOOGLE_FEED = RuleSetFeed(
+            "geosite-google.srs",
+            GEOSITE_REPO,
+            "geosite-google.srs",
+            "rule-set",
+            core = false,
         )
     }
 }

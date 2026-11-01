@@ -129,7 +129,18 @@ class StarveilApp : Application() {
         // refreshed is not a thing to tell someone about on launch, and the
         // files already on disk keep working. Throttled by a timestamp, so
         // this line costs a DataStore read on the other six days.
-        scope.launch { ruleSetAutoCheck.runIfDue() }
+        scope.launch {
+            // The Google exception set is only fetched when the preset that
+            // needs it is on: it exists to correct that preset, and nothing
+            // else reads it.
+            val preset = preferences.routePreset.first()
+            val extra = if (preset == com.justnpcx.starveil.core.model.RoutePreset.BYPASS_MAINLAND) {
+                listOf(com.justnpcx.starveil.core.data.ruleset.RuleSetUpdater.GOOGLE_FEED)
+            } else {
+                emptyList()
+            }
+            ruleSetAutoCheck.runIfDue(extra)
+        }
 
         // The kernel keeps running through a screen-off, so a tunnel that died
         // in doze still reports Running. This is what notices.
