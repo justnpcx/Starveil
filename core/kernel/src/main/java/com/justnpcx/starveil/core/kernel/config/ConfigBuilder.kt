@@ -42,8 +42,23 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         localApi: LocalApiConfig? = null,
         localSubnets: List<String> = emptyList(),
         subscriptionProxyPort: Int? = null,
+        /**
+         * The node this one dials through, already resolved by the caller.
+         *
+         * Null means a single hop — the same config as before chain proxying
+         * existed. The caller resolves the reference because the builder has no
+         * repository; passing an unresolved key here would put the lookup in a
+         * pure function.
+         */
+        front: Profile? = null,
     ): String {
-        val proxy = fragment(profile, PROXY_TAG)
+        // A front that is the node itself, or one the caller could not resolve,
+        // is not a chain: emitting a detour for it produces a config the core
+        // refuses to start, and this is the last place that can prevent that.
+        val chainFront = front?.takeIf { it.nodeKey != profile.nodeKey }
+        val proxy = fragment(profile, PROXY_TAG).let { block ->
+            if (chainFront == null) block else block + ("detour" to FRONT_TAG)
+        }
         // WireGuard is an endpoint, so its fragment goes in a different
         // top-level section — and the route still points at its tag, because
         // the outbound manager resolves an endpoint tag too.
@@ -52,11 +67,19 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         return render(
             outbounds = buildList {
                 if (!isEndpoint) add(proxy)
+                // The front is emitted even though no rule points at it: it is
+                // reached through the detour, and a tag nothing references is
+                // still a tag the router has to know.
+                chainFront?.let { add(fragment(it, FRONT_TAG)) }
                 addAll(perAppEmission.outbounds)
                 add(directOutbound())
                 add(blockOutbound())
             },
-            endpoints = (if (isEndpoint) listOf(proxy) else emptyList()) + perAppEmission.endpoints,
+            endpoints = (if (isEndpoint) listOf(proxy) else emptyList()) +
+                (chainFront?.takeIf { placementOf(it) == ConfigPlacement.ENDPOINT }?.let {
+                    listOf(fragment(it, FRONT_TAG))
+                } ?: emptyList()) +
+                perAppEmission.endpoints,
             // "Direct everything" still builds the proxy outbound: the node is
             // what the user configured, and switching the policy back must not
             // require reconnecting to something else.
@@ -807,6 +830,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
     companion object {
         const val PROXY_TAG = "proxy"
+
+        /** The outbound a chained node dials through. Not a route target. */
+        const val FRONT_TAG = "front"
         const val AUTO_TAG = "auto"
         const val DIRECT_TAG = "direct"
         const val BLOCK_TAG = "block"

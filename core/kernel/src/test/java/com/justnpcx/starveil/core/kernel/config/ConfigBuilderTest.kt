@@ -859,6 +859,32 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `a chained node emits its front and the detour that reaches it`() {
+        val exit = vlessProfile().copy(name = "exit", server = "exit.example.com")
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+
+        val config = builder.build(exit, preset = RoutePreset.GLOBAL_PROXY, front = front)
+
+        // The front is a real outbound with its own tag, and the exit dials
+        // through it — no rule points at the front, the detour is the only
+        // reference, which is exactly why it has to be emitted anyway.
+        assertTrue(config.contains("\"tag\":\"front\""))
+        assertTrue(config.contains("\"detour\":\"front\""))
+    }
+
+    @Test
+    fun `a front that is the node itself is not a chain`() {
+        val node = vlessProfile().copy(name = "same", server = "same.example.com")
+
+        val config = builder.build(node, preset = RoutePreset.GLOBAL_PROXY, front = node)
+
+        // A detour to itself is a config the core refuses; the builder drops it
+        // rather than emitting something that cannot start.
+        assertFalse(config.contains("\"detour\""))
+        assertFalse(config.contains("\"tag\":\"front\""))
+    }
+
+    @Test
     fun `the subscription proxy listens only when it was asked for`() {
         // A loopback socket is a socket; it exists only while the user wants
         // subscription fetches to leave through the tunnel.
