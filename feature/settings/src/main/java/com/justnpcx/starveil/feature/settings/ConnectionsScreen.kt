@@ -269,7 +269,7 @@ private fun ConnectionRow(
                 text = stringResource(
                     R.string.connections_metrics,
                     formatBytes(row.totalBytes),
-                    formatDuration(row.durationMs(nowMs)),
+                    ConnectionsFormat.duration(row.durationMs(nowMs)),
                 ),
                 style = StarveilType.tech,
                 color = StarveilColors.ink2,
@@ -372,17 +372,3 @@ private fun formatBytes(bytes: Long): String {
     return "$bytes B"
 }
 
-/**
- * A duration in the largest unit that still says something.
- *
- * Seconds, then minutes and seconds, then hours and minutes, then days. A null
- * duration is a dash: the row exists, the start does not.
- */
-private fun formatDuration(ms: Long?): String = when {
-    ms == null -> "—"
-    ms < 1_000 -> "${ms}ms"
-    ms < 60_000 -> "${ms / 1_000}s"
-    ms < 3_600_000 -> "${ms / 60_000}m ${(ms % 60_000) / 1_000}s"
-    ms < 86_400_000 -> "${ms / 3_600_000}h ${(ms % 3_600_000) / 60_000}m"
-    else -> "${ms / 86_400_000}d ${(ms % 86_400_000) / 3_600_000}h"
-}
