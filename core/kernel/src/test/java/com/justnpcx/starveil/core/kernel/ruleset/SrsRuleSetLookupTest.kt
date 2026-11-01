@@ -3,6 +3,9 @@ package com.justnpcx.starveil.core.kernel.ruleset
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.justnpcx.starveil.core.model.ruleset.SrsRule
+import com.justnpcx.starveil.core.model.ruleset.SrsRuleSet
+import com.justnpcx.starveil.core.model.ruleset.IpRange
 
 class SrsRuleSetLookupTest {
 

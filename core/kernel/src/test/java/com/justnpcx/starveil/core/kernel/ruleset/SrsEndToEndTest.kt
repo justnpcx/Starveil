@@ -5,6 +5,7 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Test
+import com.justnpcx.starveil.core.model.ruleset.Srs
 
 /**
  * The whole chain on the real files the app ships with: three sets parsed from

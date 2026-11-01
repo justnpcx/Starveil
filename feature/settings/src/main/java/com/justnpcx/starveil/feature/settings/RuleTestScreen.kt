@@ -44,9 +44,9 @@ import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.config.DecisionReason
 import com.justnpcx.starveil.core.kernel.config.RouteEvaluator
 import com.justnpcx.starveil.core.kernel.config.RuleDryRun
-import com.justnpcx.starveil.core.kernel.ruleset.Srs
 import com.justnpcx.starveil.core.kernel.ruleset.SrsRuleSetLookup
 import com.justnpcx.starveil.core.model.LeakCheckRecord
+import com.justnpcx.starveil.core.model.ruleset.Srs
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilDivider

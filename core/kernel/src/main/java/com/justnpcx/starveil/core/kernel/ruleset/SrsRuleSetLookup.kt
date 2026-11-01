@@ -1,5 +1,8 @@
 package com.justnpcx.starveil.core.kernel.ruleset
 
+import com.justnpcx.starveil.core.model.ruleset.SrsRule
+import com.justnpcx.starveil.core.model.ruleset.SrsRuleSet
+
 /**
  * A [com.justnpcx.starveil.core.kernel.config.RuleSetLookup] over parsed
  * `.srs` files, keyed by the tag the generated config uses (`ads`,

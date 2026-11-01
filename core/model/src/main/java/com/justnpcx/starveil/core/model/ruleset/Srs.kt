@@ -1,4 +1,4 @@
-package com.justnpcx.starveil.core.kernel.ruleset
+package com.justnpcx.starveil.core.model.ruleset
 
 import java.io.ByteArrayInputStream
 import java.io.EOFException
