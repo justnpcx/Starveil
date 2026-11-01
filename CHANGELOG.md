@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.13] — 2026-11-01
+
+Two things a Cloudflare-fronted subscription found: a link shape that produced
+no Host header, and a resolver whose certificate could not be checked. 0.9.12
+was folded into this release before it shipped.
+
+### Added
+
+- **ECH.** Panels ship it on by default and this app used to drop it on the
+  floor. The link parameter, Clash's ech-opts block and sing-box's tls.ech are
+  all read now, the block is emitted to the core, and an export writes the
+  parameter back. Without it the tunnel still works — Cloudflare does not
+  require ECH — but the SNI goes out in clear.
+
+### Fixed
+
+- **A WS link that names the host only as its SNI gets a Host header.** Those
+  links carry one name, used as the certificate and as the routed host, and the
+  parser took only the host parameter: the core then dialled the address and
+  Cloudflare answered 403, which the app reported as a connected tunnel
+  carrying nothing. The Clash and sing-box JSON importers had the same gap.
+- **The proxy resolver's certificate is checked against a name.** Dialling
+  1.1.1.1 and verifying the certificate against 1.1.1.1 only works when the
+  endpoint returns an IP SAN; through a Cloudflare-fronted relay it does not,
+  and every foreign name failed to resolve while domestic names were fine. The
+  dial target is unchanged; the TLS server name is now cloudflare-dns.com.
+- **The early-data hint on a WS path becomes real early data.** ed= is lifted
+  out of the path and emitted as max_early_data with the
+  Sec-WebSocket-Protocol header, and put back on the path when the node is
+  exported.
+
 ## [0.9.11] — 2026-10-31
 
 The hub is grouped by purpose, Settings stops pretending to be a dashboard, and
