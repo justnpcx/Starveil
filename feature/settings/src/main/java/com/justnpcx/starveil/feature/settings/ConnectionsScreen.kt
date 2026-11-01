@@ -353,6 +353,10 @@ private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:
 private val BYTE_UNITS = listOf("B", "KB", "MB", "GB")
 
 private fun formatBytes(bytes: Long): String {
+    // The counters are sums of deltas the kernel reports; a negative total is
+    // not a size, and "‑1 B" would read as a corrupted row rather than as the
+    // missing data it is.
+    if (bytes <= 0L) return "0 B"
     var value = bytes.toDouble()
     for ((index, unit) in BYTE_UNITS.withIndex()) {
         val last = index == BYTE_UNITS.lastIndex
@@ -368,12 +372,17 @@ private fun formatBytes(bytes: Long): String {
     return "$bytes B"
 }
 
-private fun formatDuration(ms: Long): String = when {
-    ms < 1_000 -> "${ms} ms"
-    ms < 60_000 -> String.format(Locale.US, "%.1f s", ms / 1000.0)
-    else -> {
-        val minutes = ms / 60_000
-        val seconds = (ms % 60_000) / 1000
-        "${minutes}m ${seconds}s"
-    }
+/**
+ * A duration in the largest unit that still says something.
+ *
+ * Seconds, then minutes and seconds, then hours and minutes, then days. A null
+ * duration is a dash: the row exists, the start does not.
+ */
+private fun formatDuration(ms: Long?): String = when {
+    ms == null -> "—"
+    ms < 1_000 -> "${ms}ms"
+    ms < 60_000 -> "${ms / 1_000}s"
+    ms < 3_600_000 -> "${ms / 60_000}m ${(ms % 60_000) / 1_000}s"
+    ms < 86_400_000 -> "${ms / 3_600_000}h ${(ms % 3_600_000) / 60_000}m"
+    else -> "${ms / 86_400_000}d ${(ms % 86_400_000) / 3_600_000}h"
 }

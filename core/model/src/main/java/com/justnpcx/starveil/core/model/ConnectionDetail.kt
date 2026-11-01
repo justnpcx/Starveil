@@ -41,7 +41,19 @@ data class ConnectionDetail(
     /** Bytes in both directions; what the row's "bytes" column shows. */
     val totalBytes: Long get() = uplinkBytes + downlinkBytes
 
-    /** How long it ran, or has been running, as of [nowMs]. */
-    fun durationMs(nowMs: Long): Long =
-        ((if (closedAtMs > 0L) closedAtMs else nowMs) - startedAtMs).coerceAtLeast(0L)
+    /**
+     * How long it ran, or has been running, as of [nowMs].
+     *
+     * Null when the start is not a usable instant: 0, negative, or later than
+     * [nowMs]. The kernel reports a start of 0 for a connection it only saw the
+     * end of, and subtracting that from the current time produced a duration of
+     * about thirty-nine years — a number that reads as a bug in the app rather
+     * than as a gap in the data.
+     */
+    fun durationMs(nowMs: Long): Long? =
+        if (startedAtMs <= 0L || startedAtMs > nowMs) {
+            null
+        } else {
+            ((if (closedAtMs > 0L) closedAtMs else nowMs) - startedAtMs).coerceAtLeast(0L)
+        }
 }
