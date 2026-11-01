@@ -73,6 +73,7 @@ class ProfilesViewModelTest {
         Dispatchers.resetMain()
     }
 
+
     @Test
     fun `deleting the selected node clears the selection`() = runBlocking {
         val profiles = FakeProfiles(mutableListOf(profile(ONE, "one"), profile(TWO, "two")))
@@ -843,6 +844,27 @@ class ProfilesViewModelTest {
     }
 
     private fun groupsWithSub() = FakeGroups(listOf(ProxyGroup(id = SUB, name = "sub")))
+
+    @Test
+    fun `a front candidate is neither the exit nor already behind a front`() {
+        val exit = Profile(name = "exit", type = ProfileType.VLESS, server = "e.example.com", port = 443)
+        val plain = Profile(name = "plain", type = ProfileType.VLESS, server = "p.example.com", port = 443)
+        val chained = Profile(
+            name = "chained",
+            type = ProfileType.VLESS,
+            server = "c.example.com",
+            port = 443,
+            frontNodeKey = "VLESS|p.example.com|443|plain",
+        )
+        val model = viewModel(profiles = FakeProfiles(mutableListOf()), preferences = FakePreferences(0L))
+
+        // One hop only, and a node cannot dial through itself: those two rules
+        // are what make a loop impossible without a runtime check.
+        assertEquals(
+            listOf("plain"),
+            model.frontCandidates(exit, listOf(exit, plain, chained)).map { it.name },
+        )
+    }
 
     private fun viewModel(
         profiles: ProfileRepository,
