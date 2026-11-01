@@ -116,7 +116,10 @@ class ConnectionsViewModel @Inject constructor(
             filters,
             now,
             combine(latencyByTag, nodeNameByTag) { latency, names -> latency to names },
-        ) { rows, currentFilters, clock, latencyAndNames ->
+        ) { realRows, currentFilters, clock, latencyAndNames ->
+            // A debug build adds the two rows a device will not produce on
+            // demand; the release build's DebugConnections returns nothing.
+            val rows = realRows + DebugConnections.extraRows(clock)
             ConnectionsUiState(
                 rows = filterRows(rows, currentFilters),
                 total = rows.size,
