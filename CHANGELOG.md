@@ -216,6 +216,11 @@ Three things the phone found that the desk did not.
 
 复查整改：首页在短屏上够得着，导航栏只剩一种选中信号，证据页重拍。
 
+### Removed
+
+- Two dead row composables in the settings screen, left behind when the about
+  section moved to its own page.
+
 ### Fixed
 
 - **The home page scrolls in portrait too.** It only scrolled in landscape, so a
@@ -226,11 +231,6 @@ Three things the phone found that the desk did not.
 - **Navigation selection is colour, not a pill.** The selected item is the
   accent — icon, label and a heavier label weight — and the bar no longer draws
   a shape behind it. Press feedback is Material's own ripple, one layer.
-
-### Removed
-
-- Two dead row composables in the settings screen, left behind when the about
-  section moved to its own page.
 
 ## [0.9.3] — 2026-10-31
 
