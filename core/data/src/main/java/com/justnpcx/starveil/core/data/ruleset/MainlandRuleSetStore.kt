@@ -144,6 +144,24 @@ class FileMainlandRuleSetStore(
 
     private val cache = PinnedFileCache(directory, download, warn, seed)
 
+    /**
+     * Drops the version stamp when a file is not the generation it names.
+     *
+     * A corrupted file is restored from the APK's seed, which is the pinned
+     * generation — not the one the manifest recorded. Leaving the stamp alone
+     * would make the rules page report a date for bytes that are not on disk,
+     * which is exactly the kind of quiet lie this feature exists to avoid.
+     * Dropping it costs the next check one download and is self-healing.
+     */
+    private fun reconcileManifest(set: PinnedRuleSet, file: File) {
+        val recorded = installedHash(set) ?: return
+        val actual = runCatching { PinnedFileCache.sha256(file.readBytes()) }.getOrNull() ?: return
+        if (!actual.equals(recorded, ignoreCase = true)) {
+            File(directory, "version.json").delete()
+            warn("rule sets: " + set.name + " is not the recorded generation; version stamp dropped")
+        }
+    }
+
     /** Hash the updater recorded for [set], when it installed a generation. */
     private fun installedHash(set: PinnedRuleSet): String? =
         runCatching {
@@ -155,7 +173,10 @@ class FileMainlandRuleSetStore(
 
     private suspend fun obtain(set: PinnedRuleSet): File? =
         when (val result = cache.obtain(set, installedHash(set))) {
-            is PinnedFileCache.Result.Obtained -> result.file
+            is PinnedFileCache.Result.Obtained -> {
+                reconcileManifest(set, result.file)
+                result.file
+            }
             is PinnedFileCache.Result.Failed -> {
                 _failure.value = RuleSetFailure(name = set.name, reason = result.reason)
                 null
