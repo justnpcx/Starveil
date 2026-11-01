@@ -40,6 +40,17 @@ sealed interface SubscriptionUpdateOutcome {
 }
 
 /**
+ * One line of subscription diagnostics.
+ *
+ * Deliberately a function rather than a logging framework: the module has no
+ * business deciding where the lines go, and a no-op default keeps every test
+ * and every caller that does not care exactly as it was.
+ */
+fun interface SubscriptionLog {
+    fun line(text: String)
+}
+
+/**
  * Fetches a subscription, parses it, and replaces the group's profiles.
  *
  * Failure policy: on any error the existing profiles are left untouched (the
@@ -55,23 +66,41 @@ class SubscriptionUpdater @Inject constructor(
     private val health: SubscriptionHealthSink,
     private val fetcher: SubscriptionFetcher,
     private val clock: Clock,
+    /**
+     * Where the diagnostic lines go.
+     *
+     * A subscription that fails to import used to be indistinguishable from one
+     * that imported nothing: the list simply stayed empty. These lines are the
+     * difference — how many bytes came back, which format was recognised, how
+     * many nodes survived dedupe — and they never carry the URL or the body,
+     * both of which hold credentials.
+     */
+    private val log: SubscriptionLog = SubscriptionLog { },
 ) {
 
     suspend fun update(groupId: Long, url: String): SubscriptionUpdateOutcome {
         val fetched = try {
             fetcher.fetchWithMeta(url)
         } catch (e: HttpStatusException) {
+            log.line("fetch failed: HTTP " + e.code)
             return fail(SubscriptionFailure.Http(e.code))
         } catch (e: IOException) {
+            // The exception's kind, never its message: a connect failure can
+            // quote the address, and the address is the credential.
+            log.line("fetch failed: " + e.javaClass.simpleName)
             return fail(SubscriptionFailure.Network)
         } catch (e: Exception) {
+            log.line("fetch failed: " + e.javaClass.simpleName)
             return fail(SubscriptionFailure.Network)
         }
         val body = fetched.body
+        log.line("fetched " + body.length + " chars")
         val userInfo = com.justnpcx.starveil.core.model.parseSubscriptionUserInfo(fetched.userInfoHeader)
 
+        val parser = registry.resolve(body)
+        log.line("format: " + parser.javaClass.simpleName)
         val parsed = try {
-            registry.resolve(body).parseDetailed(body)
+            parser.parseDetailed(body)
         } catch (e: MalformedSubscriptionException) {
             // The line, not the text: a body is credentials, and the parser's
             // message can quote the offending line.
@@ -85,6 +114,7 @@ class SubscriptionUpdater @Inject constructor(
         // grow the list on every update. Deduplication is not a parse failure,
         // so it does not add to [ParseOutcome.dropped].
         val unique = dedupeProfiles(parsed.profiles)
+        log.line("parsed " + parsed.profiles.size + ", kept " + unique.size)
         if (unique.isEmpty()) {
             return fail(SubscriptionFailure.NoUsableNodes)
         }

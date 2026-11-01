@@ -4,6 +4,7 @@ import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelState
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.subscription.SubscriptionLog
 import com.justnpcx.starveil.core.subscription.SubscriptionProxy
 import dagger.Module
 import dagger.Provides
@@ -46,4 +47,17 @@ object SubscriptionProxyModule {
     @Provides
     @Singleton
     fun provideSubscriptionProxy(route: SubscriptionRoute): SubscriptionProxy = route
+
+    /**
+     * Subscription diagnostics go to logcat under one tag.
+     *
+     * Not the in-app log page: that stream is the kernel's, and a fetch that
+     * fails before the tunnel is up has no kernel to write to. Filtering
+     * logcat on StarveilSub is the one place that works in every state.
+     */
+    @Provides
+    @Singleton
+    fun provideSubscriptionLog(): SubscriptionLog = SubscriptionLog { line ->
+        android.util.Log.i("StarveilSub", line)
+    }
 }
