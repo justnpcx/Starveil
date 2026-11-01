@@ -1,7 +1,9 @@
 package com.justnpcx.starveil.core.probe
 
 import android.content.Context
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelPaths
+import com.justnpcx.starveil.core.kernel.LogRedactor
 import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.libbox.StarveilCommandServerHandler
 import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
@@ -64,8 +66,9 @@ class SingBoxChainNodeProbe @Inject constructor(
         var server: CommandServer? = null
         var client: HTTPClient? = null
         val cacheName = "cache-chain-probe-${System.nanoTime()}.db"
+        var started = 0L
         return try {
-            val port = Libbox.availablePort(0)
+            val port = java.net.ServerSocket(0).use { it.localPort }
             val config = configBuilder.buildProbe(exit, front, port, cacheName)
             Libbox.setup(
                 SetupOptions().apply {
@@ -82,7 +85,7 @@ class SingBoxChainNodeProbe @Inject constructor(
             server.start()
             server.startOrReloadService(config, OverrideOptions())
             client = Libbox.newHTTPClient().apply { trySocks5(port) }
-            val started = System.nanoTime()
+            started = System.nanoTime()
             withTimeout(timeoutMs.toLong()) {
                 client.newRequest().apply {
                     setURL(PROBE_URL)
@@ -93,6 +96,13 @@ class SingBoxChainNodeProbe @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             ProbeResult.TimedOut
         } catch (e: Exception) {
+            // libbox reports non-2xx statuses as exceptions. An HTTP response
+            // (including cp.cloudflare.com's expected 204) already proves the
+            // complete chain answered; it is not a dial failure.
+            if (started > 0L && e.message?.matches(Regex("HTTP \\d{3}.*")) == true) {
+                return ProbeResult.Reached((System.nanoTime() - started) / 1_000_000)
+            }
+            KernelDiagnostics.logError("chain probe failed: ${LogRedactor.redact(e.message ?: e.javaClass.simpleName)}")
             val text = e.message.orEmpty().lowercase()
             if (listOf("resolve", "dns", "name resolution").any(text::contains)) {
                 ProbeResult.ResolutionFailed

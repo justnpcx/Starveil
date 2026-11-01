@@ -978,6 +978,7 @@ class ConfigBuilderTest {
         assertTrue(config.contains("\"detour\":\"front\""))
         assertTrue(config.contains("\"default_domain_resolver\":{\"server\":\"local\""))
         assertFalse(config.contains("\"type\":\"tun\""))
+        assertTrue(config.contains("\"experimental\":{\"cache_file\""))
         // The real protocol fragment, not a bare server:port replacement.
         assertTrue(config.contains("\"reality\""))
         assertTrue(config.contains("\"transport\""))

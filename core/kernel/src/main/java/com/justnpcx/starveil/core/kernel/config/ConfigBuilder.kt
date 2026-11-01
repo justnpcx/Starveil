@@ -292,7 +292,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                         "strategy" to NODE_RESOLVE_STRATEGY,
                     ),
                 ),
-                "cache_file" to linkedMapOf("path" to cacheFileName),
+                "experimental" to linkedMapOf(
+                    "cache_file" to linkedMapOf("path" to cacheFileName),
+                ),
             ),
         )
     }
