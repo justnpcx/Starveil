@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [Unreleased]
+
 ## [0.9.14] — 2026-11-01
 
 A subscription that could only be reached from outside the network, and an
@@ -429,8 +431,6 @@ engine and the node picker are unchanged.
 - Dark-mode text that had fallen back to Compose's default black on the scene,
   rule-flow, editor, empty-state, keep-alive, per-app and privacy screens.
 - System-bar seams on secondary pages.
-
-## [Unreleased]
 
 ## [0.8.7] — 2026-10-26
 
