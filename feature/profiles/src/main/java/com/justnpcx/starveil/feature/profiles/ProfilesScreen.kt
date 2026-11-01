@@ -314,6 +314,9 @@ fun ProfilesScreen(
     // the title is one line with an ellipsis. Both cases need a suffix, so the
     // test is on the truncated prefix, over the rows that are on screen.
     val disambiguators = remember(state.profiles) { disambiguate(state.profiles) }
+    // Key to name, so a row can say what it dials through without walking the
+    // whole list for every row.
+    val frontNames = remember(state.profiles) { state.profiles.associate { it.nodeKey to it.name } }
 
     val snackbarHostState = remember { SnackbarHostState() }
     // A Snackbar instead of a banner above the list: the banner pushed the
@@ -609,6 +612,7 @@ fun ProfilesScreen(
                             SwipeToDeleteRow(onDelete = { viewModel.deleteWithUndo(profile) }) {
                                 NodeRow(
                                     profile = profile,
+                                    frontName = profile.frontNodeKey?.let { key -> frontNames[key] },
                                     health = state.health[profile.id],
                                     disambiguator = disambiguators[profile.id],
                                     groupLabel = groupNames[profile.groupId]
@@ -1420,6 +1424,12 @@ private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Un
 private fun NodeRow(
     profile: Profile,
     health: NodeHealth?,
+    /**
+     * The name of the node this one dials through, when it has one.
+     *
+     * Resolved by the caller: the row has a node, not a directory of nodes.
+     */
+    frontName: String? = null,
     /** Non-null only when another row shows the same name. */
     disambiguator: String?,
     groupLabel: String,
@@ -1563,7 +1573,21 @@ private fun NodeRow(
                 // The host is elided in the middle, and the port is its own
                 // Text so it can never be the part that gets cut: "which port"
                 // is what tells two nodes on one host apart.
-                append(middleEllipsis(profile.server))
+                // The host gives way first: with a front on the row the chain
+                // is the new information, and the host is the part a user can
+                // afford to lose to an ellipsis. The compact form is
+                // "via <front>" — the exit is this row, so the arrow would be
+                // pointing at itself; the arrow order lives on the home card.
+                append(middleEllipsis(profile.server, if (frontName != null) SHORT_HOST_CHARS else HOST_CHARS))
+                if (frontName != null) {
+                    append(" · ")
+                    append(stringResource(R.string.profiles_row_via))
+                    append(" ")
+                    // The front's own name gives way next, but never past the
+                    // point where "via ..." stops reading as a chain.
+                    append(frontName.take(FRONT_NAME_MAX))
+                    if (frontName.length > FRONT_NAME_MAX) append("…")
+                }
             }
             Row(
                 modifier = Modifier
@@ -2123,6 +2147,15 @@ private const val NAME_PREFIX_CHARS = 12
 private const val HOST_CHARS = 20
 
 /** "a-very-long-subdomain.example.com" -> "a-very-lon…ample.com". */
+/**
+ * How much of the host survives when the row also has to say what it dials
+ * through. The chain is the new information, so the host is what gives way.
+ */
+private const val SHORT_HOST_CHARS = 16
+
+/** Long enough to recognise a node, short enough to leave room for "via". */
+private const val FRONT_NAME_MAX = 14
+
 internal fun middleEllipsis(text: String, max: Int = HOST_CHARS): String =
     if (text.length <= max) text else text.take(max / 2) + "…" + text.takeLast(max - max / 2 - 1)
 

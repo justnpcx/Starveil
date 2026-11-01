@@ -116,6 +116,7 @@
     <string name="profiles_chain_exit">Exit node: %1$s</string>
     <string name="profiles_chain_direct">Direct: this node connects on its own</string>
     <string name="profiles_chain_path">%1$s → %2$s</string>
+    <string name="profiles_row_via">via</string>
     <string name="profiles_chain_none">No front node</string>
     <string name="profiles_chain_clear">Clear the front node</string>
     <string name="profiles_chain_no_candidates">No node can be a front here: a node already behind one cannot front another.</string>

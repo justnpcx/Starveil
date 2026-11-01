@@ -110,6 +110,7 @@
     <string name="profiles_chain_exit">出口节点：%1$s</string>
     <string name="profiles_chain_direct">直连：该节点自己拨号</string>
     <string name="profiles_chain_path">%1$s → %2$s</string>
+    <string name="profiles_row_via">经</string>
     <string name="profiles_chain_none">无前置节点</string>
     <string name="profiles_chain_clear">清除前置</string>
     <string name="profiles_chain_no_candidates">没有可用作前置的节点：已经带前置的节点不能再当前置。</string>
