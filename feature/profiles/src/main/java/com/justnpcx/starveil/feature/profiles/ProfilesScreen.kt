@@ -781,10 +781,10 @@ fun ProfilesScreen(
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     Spacer(modifier = Modifier.width(StarveilSpacing.sm))
-                    GroupKindBadge(
-                        subscription = subscription,
-                        modifier = Modifier.weight(0f, fill = false),
-                    )
+                    // No weight here: a weight of zero throws, and the badge
+                    // is the one thing in this row that should keep its own
+                    // width while the name takes what is left.
+                    GroupKindBadge(subscription = subscription)
                 }
                 Text(
                     text = stringResource(R.string.profiles_group_menu_body, group.profileIds.size),
