@@ -44,10 +44,19 @@ internal class PinnedFileCache(
      * written by an older pin, or replaced. Either way it is not what this
      * build vetted.
      */
-    suspend fun obtain(set: PinnedRuleSet): Result {
+    suspend fun obtain(set: PinnedRuleSet, installedHash: String? = null): Result {
         val target = File(directory, set.name)
         if (target.isFile && target.length() > 0) {
-            if (matches(target, set.sha256)) return Result.Obtained(target)
+            // Either the pin this build shipped with, or the hash the updater
+            // recorded for the generation it installed. Without the second
+            // case the read path undoes every update: a newer file does not
+            // match the pin, so it is discarded and the pinned bytes come back
+            // on the next connect.
+            if (matches(target, set.sha256) ||
+                (installedHash != null && matches(target, installedHash))
+            ) {
+                return Result.Obtained(target)
+            }
             warn("rule set ${set.name}: on disk but does not match its hash; discarding")
             target.delete()
         }

@@ -128,7 +128,7 @@ class FileMainlandRuleSetStore(
         // exception is what makes a Play download work under this preset, but a
         // preset without it still routes — just not through the hosts that need
         // the exception. So a failure here is not recorded and not fatal.
-        val google = runCatching { cache.obtain(google) }.getOrNull()
+        val google = runCatching { cache.obtain(google, installedHash(google)) }.getOrNull()
         val googlePath = (google as? PinnedFileCache.Result.Obtained)?.file?.absolutePath
         return MainlandRuleSets(
             geositeCnPath = geosite.absolutePath,
@@ -144,8 +144,17 @@ class FileMainlandRuleSetStore(
 
     private val cache = PinnedFileCache(directory, download, warn, seed)
 
+    /** Hash the updater recorded for [set], when it installed a generation. */
+    private fun installedHash(set: PinnedRuleSet): String? =
+        runCatching {
+            val file = File(directory, "version.json")
+            if (!file.isFile) return null
+            val hashes = com.justnpcx.starveil.core.model.json.Json.parseObject(file.readText())["hashes"]
+            (hashes as? Map<*, *>)?.get(set.name) as? String
+        }.getOrNull()
+
     private suspend fun obtain(set: PinnedRuleSet): File? =
-        when (val result = cache.obtain(set)) {
+        when (val result = cache.obtain(set, installedHash(set))) {
             is PinnedFileCache.Result.Obtained -> result.file
             is PinnedFileCache.Result.Failed -> {
                 _failure.value = RuleSetFailure(name = set.name, reason = result.reason)
