@@ -187,6 +187,16 @@ internal object SingBoxOutbounds {
         if (tls.security == com.justnpcx.starveil.core.model.SecurityMode.REALITY) {
             tls.reality?.let { block["reality"] = realityBlock(it) }
         }
+        // ECH is emitted even when disabled, if the panel said anything about
+        // it: enabled=false is a decision the node made, and dropping the block
+        // would let the core fall back to a default the panel did not choose.
+        tls.ech?.let { ech ->
+            block["ech"] = linkedMapOf<String, Any?>("enabled" to ech.enabled).apply {
+                ech.config?.takeIf { it.isNotEmpty() }?.let { put("config", it) }
+                ech.queryServerName?.takeIf { it.isNotBlank() }
+                    ?.let { put("query_server_name", it) }
+            }
+        }
         return block
     }
 

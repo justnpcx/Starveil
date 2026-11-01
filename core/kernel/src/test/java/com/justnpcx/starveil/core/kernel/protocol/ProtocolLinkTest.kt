@@ -70,6 +70,31 @@ class VlessLinkTest {
     }
 
     @Test
+    fun `ECH rides from the link into the outbound`() {
+        val profile = StarveilProtocols.parseVless(
+            "vless://uuid-1234@104.16.1.1:443?security=tls&sni=ff.example.com&type=ws" +
+                "&path=%2F%3Fed%3D2048&ech=cloudflare-ech.com%2Bhttps%3A%2F%2Fdns.alidns.com" +
+                "%2Fdns-query#cf",
+        )!!
+        val ech = (profile.settings as VlessSettings).tls.ech!!
+        assertTrue(ech.enabled)
+        assertEquals("cloudflare-ech.com", ech.queryServerName)
+        assertEquals("https://dns.alidns.com/dns-query", ech.queryServerUrl)
+
+        val block = SingBoxOutbounds.tlsBlock((profile.settings as VlessSettings).tls)!!
+        @Suppress("UNCHECKED_CAST")
+        val emitted = block["ech"] as Map<String, Any?>
+        assertEquals(true, emitted["enabled"])
+        assertEquals("cloudflare-ech.com", emitted["query_server_name"])
+        // The DoH endpoint is not a field sing-box has; it must not leak in.
+        assertNull(emitted["query_server_url"])
+
+        // ... and the export says what the panel said.
+        val link = StarveilLinkWriters.vless(profile)!!
+        assertTrue(link, link.contains("ech=cloudflare-ech.com%2Bhttps%3A%2F%2Fdns.alidns.com"))
+    }
+
+    @Test
     fun `a ws link that states the name only as the sni gets a Host header`() {
         // The edgetunnel shape: one name, used as the certificate and as the
         // routed host, written once in the link. Before this fallback the

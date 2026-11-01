@@ -654,6 +654,7 @@ object StarveilProtocols {
                 q["allowInsecure"] ?: q["insecure"] ?: q["allow_insecure"],
             ),
             reality = reality,
+            ech = LinkParsing.parseEch(q["ech"]),
         )
 
     private fun transportFrom(q: Map<String, String>): TransportOptions {

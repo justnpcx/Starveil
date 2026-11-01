@@ -87,6 +87,7 @@ data class TlsOptions(
     val fingerprint: String? = null,
     val allowInsecure: Boolean = false,
     val reality: RealityOptions? = null,
+    val ech: EchOptions? = null,
 ) {
     val enabled: Boolean get() = security != SecurityMode.NONE
 
@@ -98,6 +99,28 @@ data class TlsOptions(
         val Plain = TlsOptions(security = SecurityMode.TLS)
     }
 }
+
+/**
+ * Encrypted Client Hello.
+ *
+ * Cloudflare-fronted nodes ship this on by default: the panel tells the client
+ * to fetch the real ECH config and use it, which is the part of the handshake
+ * that hides which site is being visited. Without it the tunnel still works —
+ * Cloudflare does not require ECH — but the SNI goes out in clear.
+ *
+ * [queryServerName] is the name the ECH config is fetched for, and
+ * [queryServerUrl] is the endpoint the panel named for that fetch. sing-box has
+ * no field for the endpoint: it queries through its own DNS stack (dns-cn for
+ * mainland names, dns-proxy for the rest), so the URL is kept only so an export
+ * says what the panel said.
+ */
+data class EchOptions(
+    val enabled: Boolean = true,
+    /** A pre-fetched config, when the panel handed one over instead of a name. */
+    val config: List<String>? = null,
+    val queryServerName: String? = null,
+    val queryServerUrl: String? = null,
+)
 
 /** Stream transport options. Fields that do not apply are simply null. */
 data class TransportOptions(

@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.kernel.protocol
 
+import com.justnpcx.starveil.core.model.EchOptions
 import com.justnpcx.starveil.core.model.ProfileValidation
 import java.util.Base64
 
@@ -38,6 +39,29 @@ internal object LinkParsing {
             else out[percentDecode(pair.substring(0, eq))] = percentDecode(pair.substring(eq + 1))
         }
         return out
+    }
+
+    /**
+     * Reads the ech parameter of a share link.
+     *
+     * Xray writes it as <queryServerName>+<dohUrl>, and the panel may instead
+     * hand over a pre-fetched config, which is long and base64-shaped. The two
+     * are told apart by shape: a config is one long token with no dots, a name
+     * is a hostname. 0 and false mean the panel turned it off.
+     */
+    fun parseEch(raw: String?): EchOptions? {
+        val value = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (value == "0" || value.equals("false", ignoreCase = true)) return null
+        val plus = value.indexOf('+')
+        val head = (if (plus < 0) value else value.substring(0, plus)).trim()
+        val url = if (plus < 0) null else value.substring(plus + 1).trim().takeIf { it.isNotEmpty() }
+        if (head.isEmpty()) return null
+        val looksLikeConfig = head.length > 60 || !head.contains('.')
+        return if (looksLikeConfig) {
+            EchOptions(config = listOf(head), queryServerUrl = url)
+        } else {
+            EchOptions(queryServerName = head, queryServerUrl = url)
+        }
     }
 
     /**

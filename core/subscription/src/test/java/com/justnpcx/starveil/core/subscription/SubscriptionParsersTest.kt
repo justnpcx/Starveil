@@ -287,6 +287,51 @@ class ClashYamlSubscriptionParserTest {
     }
 }
 
+class EchSubscriptionTest {
+
+    private val clash = """
+        port: 7890
+        proxies:
+          - name: "cf"
+            type: vless
+            server: 104.16.1.1
+            port: 443
+            uuid: 11111111-2222-3333-4444-555555555555
+            tls: true
+            servername: ff.example.com
+            ech-opts:
+              enable: true
+              query-server-name: cloudflare-ech.com
+            network: ws
+            ws-opts:
+              path: /?ed=2048
+    """.trimIndent()
+
+    @Test
+    fun `clash ech-opts reaches the model`() {
+        val profiles = ClashYamlSubscriptionParser().parse(clash)
+        val ech = (profiles.single().settings as VlessSettings).tls.ech
+        assertNotNull(ech)
+        assertEquals("cloudflare-ech.com", ech!!.queryServerName)
+        assertTrue(ech.enabled)
+    }
+
+    @Test
+    fun `a sing-box ech block reaches the model`() {
+        val json = """
+            {"outbounds":[{"type":"vless","tag":"cf","server":"104.16.1.1","server_port":443,
+            "uuid":"11111111-2222-3333-4444-555555555555",
+            "tls":{"enabled":true,"server_name":"ff.example.com",
+                   "ech":{"enabled":true,"query_server_name":"cloudflare-ech.com"}},
+            "transport":{"type":"ws","path":"/","headers":{"Host":"ff.example.com"}}}]}
+        """.trimIndent()
+        val profile = SingBoxJsonSubscriptionParser().parse(json).single()
+        val ech = (profile.settings as VlessSettings).tls.ech
+        assertNotNull(ech)
+        assertEquals("cloudflare-ech.com", ech!!.queryServerName)
+    }
+}
+
 class SubscriptionRegistryOrderTest {
 
     private val registry = SubscriptionFormatRegistry.default { null }

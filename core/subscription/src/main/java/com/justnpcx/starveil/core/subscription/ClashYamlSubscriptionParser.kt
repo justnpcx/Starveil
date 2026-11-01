@@ -2,6 +2,7 @@ package com.justnpcx.starveil.core.subscription
 
 import com.justnpcx.starveil.core.model.Hysteria2Settings
 import com.justnpcx.starveil.core.model.ObfsOptions
+import com.justnpcx.starveil.core.model.EchOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -209,6 +210,15 @@ class ClashYamlSubscriptionParser : SubscriptionParser {
             fingerprint = proxy.str("client-fingerprint"),
             allowInsecure = proxy.bool("skip-cert-verify") ?: false,
             reality = reality,
+            // Clash states ECH as its own block rather than a link parameter.
+            ech = (proxy["ech-opts"] as? Map<*, *>)?.let { opts ->
+                EchOptions(
+                    enabled = opts["enable"] as? Boolean ?: true,
+                    queryServerName = opts.str("query-server-name"),
+                    config = (opts["config"] as? List<*>)?.filterIsInstance<String>()
+                        ?.takeIf { it.isNotEmpty() },
+                )
+            },
         )
     }
 
