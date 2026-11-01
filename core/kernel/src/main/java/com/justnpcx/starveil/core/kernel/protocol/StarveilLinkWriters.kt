@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.kernel.protocol
 
 import com.justnpcx.starveil.core.model.Hysteria2Settings
+import com.justnpcx.starveil.core.model.EchOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileSettings
 import com.justnpcx.starveil.core.model.SecurityMode
@@ -209,6 +210,7 @@ private fun tlsParams(tls: TlsOptions, transport: TransportOptions): Array<Pair<
         "pbk" to tls.reality?.publicKey,
         "sid" to tls.reality?.shortId,
         "support-x25519mlkem768" to if (tls.reality?.mlKem == true) "true" else null,
+        "ech" to echParam(tls.ech),
     )
 }
 
@@ -224,6 +226,19 @@ private fun withEarlyData(path: String, earlyData: Int?): String {
     if (earlyData == null) return path
     val separator = if (path.contains('?')) "&" else "?"
     return path + separator + "ed=" + earlyData
+}
+
+/**
+ * Renders ECH back into the link parameter.
+ *
+ * The panel's own shape is name+dohUrl, and the URL is not something sing-box
+ * can take — it queries through its own DNS — but writing it back keeps the
+ * link this app hands out saying what the link it took in said.
+ */
+private fun echParam(ech: EchOptions?): String? {
+    if (ech == null || !ech.enabled) return null
+    val head = ech.queryServerName ?: ech.config?.firstOrNull() ?: return null
+    return if (ech.queryServerUrl != null) head + "+" + ech.queryServerUrl else head
 }
 
 /** Plain TCP is the parser's default, so it emits nothing at all. */

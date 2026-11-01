@@ -1,6 +1,7 @@
 package com.justnpcx.starveil.core.subscription
 
 import com.justnpcx.starveil.core.model.Hysteria2Settings
+import com.justnpcx.starveil.core.model.EchOptions
 import com.justnpcx.starveil.core.model.Profile
 import com.justnpcx.starveil.core.model.ProfileType
 import com.justnpcx.starveil.core.model.RealityOptions
@@ -155,6 +156,15 @@ class SingBoxJsonSubscriptionParser : SubscriptionParser {
             alpn = (tls["alpn"] as? List<*>)?.filterIsInstance<String>().orEmpty(),
             fingerprint = (utls?.get("fingerprint") as? String)?.takeIf { it.isNotBlank() },
             allowInsecure = tls["insecure"] == true,
+            ech = (tls["ech"] as? Map<*, *>)?.let { ech ->
+                EchOptions(
+                    enabled = ech["enabled"] != false,
+                    config = (ech["config"] as? List<*>)?.filterIsInstance<String>()
+                        ?.takeIf { it.isNotEmpty() },
+                    queryServerName = (ech["query_server_name"] as? String)
+                        ?.takeIf { it.isNotBlank() },
+                )
+            },
             reality = publicKey?.let {
                 RealityOptions(
                     publicKey = it,
