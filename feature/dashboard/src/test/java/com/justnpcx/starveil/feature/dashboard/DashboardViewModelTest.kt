@@ -660,6 +660,20 @@ class DashboardViewModelTest {
         assertNull(viewModel.uiState.value.health)
     }
 
+    @Test
+    fun `a successful exit probe overwrites stale unreachable health`() = runBlocking {
+        val health = FakeNodeHealth()
+        val viewModel = viewModel(
+            preferences = FakePreferences(ONE),
+            kernel = RecordingKernel(),
+            nodeHealth = health,
+        )
+
+        viewModel.recordExitReached(ExitInfo(address = "203.0.113.8", rttMs = 73, atEpochMs = 1_234L))
+
+        assertEquals(listOf(FakeNodeHealth.Recorded(ONE, 73, 1_234L, 10)), health.recorded)
+    }
+
     /** The exit probe is a network call; the tests here are not about it. */
     private object NoExit : ExitProbe() {
         override suspend fun probe(): ExitInfo? = null
@@ -988,13 +1002,19 @@ private class RecordingKernel : KernelBridge {
 private class FakeNodeHealth(
     private val byNode: Map<Long, List<LatencySample>> = emptyMap(),
 ) : NodeHealthRepository {
+    data class Recorded(val profileId: Long, val latencyMs: Long, val atMs: Long, val weightTenths: Int)
+
+    val recorded = mutableListOf<Recorded>()
+
     override fun observeAll(): Flow<Map<Long, List<LatencySample>>> = flowOf(byNode)
     override suspend fun record(
         profileId: Long,
         latencyMs: Long,
         atMs: Long,
         weightTenths: Int,
-    ) = notUsed()
+    ) {
+        recorded += Recorded(profileId, latencyMs, atMs, weightTenths)
+    }
     override suspend fun forget(profileId: Long) = notUsed()
 }
 

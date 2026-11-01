@@ -90,12 +90,15 @@ data class NodeHealth(
     /** The most recent probe, or null when the window is empty. */
     val latest: LatencySample? get() = samples.lastOrNull()
 
-    /** The status dot's colour, from the latest probe and the window's band. */
+    /**
+     * The status dot reports only the latest sample, never the window's band.
+     * Availability and band remain on the health card, where a percentage is
+     * honest; letting POOR force DOWN here would contradict a fresh success.
+     */
     val status: NodeStatus
         get() = when {
             samples.isEmpty() -> NodeStatus.UNTESTED
             latest?.reachable != true -> NodeStatus.DOWN
-            band == AvailabilityBand.POOR -> NodeStatus.DOWN
             else -> NodeStatus.UP
         }
 

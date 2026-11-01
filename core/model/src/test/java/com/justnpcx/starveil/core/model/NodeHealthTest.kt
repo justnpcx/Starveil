@@ -113,17 +113,18 @@ class NodeHealthTest {
     }
 
     @Test
-    fun `the status dot follows the latest probe and the band`() {
+    fun `the status dot follows only the latest probe`() {
         assertEquals(NodeStatus.UP, nodeHealthOf(samples(100, 90, 80, 70, 60)).status)
         // The last probe failed, whatever the window looked like before.
         assertEquals(NodeStatus.DOWN, nodeHealthOf(samples(100, 90, 80, 70, -1)).status)
-        // Answering now, but the window is mostly loss: still red.
+        // Answering now clears DOWN immediately, even while the window is
+        // still mostly loss. The POOR band stays on the health card.
         val lossy = List(20) { LatencySample(atMs = it * 1_000L, latencyMs = -1) } +
             LatencySample(atMs = 20_000L, latencyMs = 50)
         val health = nodeHealthOf(lossy)
         assertEquals(AvailabilityBand.POOR, health.band)
         assertTrue("the latest probe answered", health.latest?.reachable == true)
-        assertEquals(NodeStatus.DOWN, health.status)
+        assertEquals(NodeStatus.UP, health.status)
     }
 
     @Test

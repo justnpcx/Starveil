@@ -19,6 +19,7 @@ import com.justnpcx.starveil.core.model.STICKINESS_MARGIN
 import com.justnpcx.starveil.core.model.pickerPolicySummary
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.RoutePreset
+import com.justnpcx.starveil.core.model.WEIGHT_FULL
 import com.justnpcx.starveil.core.model.displayName
 import com.justnpcx.starveil.core.model.nodeHealthOf
 import com.justnpcx.starveil.core.ui.components.ConnectionState
@@ -260,6 +261,7 @@ class DashboardViewModel @Inject constructor(
                                 ),
                             )
                         }
+                        recordExitReached(info)
                     }
                 } else if (_uiState.value.exit != null) {
                     // A tunnel that went down has no exit to describe, and no
@@ -275,6 +277,18 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * A successful exit request is end-to-end evidence, including every detour.
+     * Feed it back at full weight so a stale TCP-probe verdict cannot keep a
+     * working node marked DOWN. GLOBAL_DIRECT proves nothing about the node.
+     */
+    internal suspend fun recordExitReached(info: com.justnpcx.starveil.core.data.network.ExitInfo) {
+        if (preferences.routePreset.first() == RoutePreset.GLOBAL_DIRECT) return
+        val id = preferences.selectedProfileId.first()
+        if (id == 0L) return
+        nodeHealth.record(id, info.rttMs, info.atEpochMs, WEIGHT_FULL)
     }
 
     init {
