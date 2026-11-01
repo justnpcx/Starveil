@@ -341,22 +341,6 @@ class StarveilPlatformInterface(
     override fun usePlatformBridge(): Boolean = false
 
     override fun usePlatformShell(): Boolean = false
-
-    /**
-     * False, and this is what makes `package_name` rules work at all.
-     *
-     * True sends the kernel's connection-owner lookup to its procfs searcher,
-     * which cannot read another app's `/proc/<pid>/fd` on Android and fails
-     * every time with "procfs: not found". The failure is logged at info and
-     * otherwise ignored, so the rule is emitted, never matched, and the traffic
-     * falls through to the default route — a per-app rule that silently does
-     * nothing, which is the exact failure this whole lookup exists to avoid.
-     *
-     * False routes the same question to [findConnectionOwner] below, which uses
-     * `ConnectivityManager.getConnectionOwnerUid` — the API Android provides
-     * for precisely this.
-     */
-    override fun useProcFS(): Boolean = false
 }
 
 /**
