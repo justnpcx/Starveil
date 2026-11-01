@@ -862,7 +862,19 @@ class DashboardViewModel @Inject constructor(
         // Nodes tab and in the connect outcome, and a preference write that
         // makes this collector run again must not be the moment the flag
         // disappears. It did, on device.
-        is ConnectionTarget.Node -> profiles.getById(target.id)?.displayName()
+        is ConnectionTarget.Node -> {
+            val node = profiles.getById(target.id)
+            // A chained node is named by the whole path: the user picked two
+            // nodes, and showing only the exit would hide half of what is
+            // running. Order is always front then exit, here and everywhere.
+            val front = node?.frontNodeKey
+                ?.let { key -> profiles.observeAll().first().firstOrNull { it.nodeKey == key } }
+            if (node != null && front != null) {
+                front.displayName() + " → " + node.displayName()
+            } else {
+                node?.displayName()
+            }
+        }
         is ConnectionTarget.Group -> groups.getById(target.id)?.name
         ConnectionTarget.None -> null
     }
