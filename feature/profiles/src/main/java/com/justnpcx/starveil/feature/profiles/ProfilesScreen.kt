@@ -750,13 +750,22 @@ fun ProfilesScreen(
     }
 
 
-    chainingProfile?.let { exit ->
+    chainingProfile?.let { captured ->
+        // Read through to the live row: the captured value is a snapshot, so a
+        // pick would otherwise leave the sheet showing the old chain — the same
+        // trap the group sheet had.
+        val exit = state.profiles.firstOrNull { it.nodeKey == captured.nodeKey } ?: captured
         ChainProxySheet(
             exit = exit,
             all = state.profiles,
             frontOf = { key -> state.profiles.firstOrNull { it.nodeKey == key } },
             candidates = viewModel.frontCandidates(exit, state.profiles),
-            onPick = { candidate -> viewModel.setFrontNode(exit, candidate?.nodeKey) },
+            onPick = { candidate ->
+                viewModel.setFrontNode(exit, candidate?.nodeKey)
+                // A pick is the whole interaction: leaving the sheet open would
+                // ask the user to close something they are done with.
+                chainingProfile = null
+            },
             onDismiss = { chainingProfile = null },
         )
     }
