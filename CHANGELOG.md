@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
+## [0.9.14] — 2026-11-01
+
+A subscription that could only be reached from outside the network, and an
+import that said it worked while the group stayed empty.
+
+### Added
+
+- **Updating a subscription through the tunnel.** Android keeps an app's own
+  traffic out of its own tunnel, so a subscription URL this network cannot
+  reach always failed — even with a working node connected. Settings → Advanced
+  now offers the choice; off (the default) fetches directly, on dials the
+  loopback proxy the kernel listens on. It only applies while the tunnel is up:
+  a port with no kernel behind it would hang the fetch.
+- **Subscription diagnostics.** One line each for the byte count, the format
+  recognised, how many nodes survived, and the kind of failure — enough to tell
+  a blocked URL from an unreadable one. Logcat tag StarveilSub.
+
+### Fixed
+
+- **An import into an existing empty group reported success and stored
+  nothing.** A group left behind by a failed first import kept that state
+  forever: the refresh said "41 nodes" and the group stayed empty. The importer
+  now reads the group back through the same column the node list uses, and
+  rebuilds the group and writes again when it comes back empty.
+
 ## [0.9.13] — 2026-11-01
 
 Two things a Cloudflare-fronted subscription found: a link shape that produced
