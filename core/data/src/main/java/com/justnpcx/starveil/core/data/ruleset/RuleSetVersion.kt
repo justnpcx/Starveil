@@ -35,10 +35,12 @@ fun interface RuleSetVersionSource {
 class GitHubRuleSetVersionSource(
     private val get: suspend (String) -> ByteArray = ::httpGetJson,
     private val warn: (String) -> Unit = {},
+    /** The branch this source reports on; two repositories, two URLs. */
+    private val url: String = DEFAULT_URL,
 ) : RuleSetVersionSource {
 
     override suspend fun latest(): RuleSetVersion? = try {
-        val root = Json.parseObject(get(URL).toString(Charsets.UTF_8))
+        val root = Json.parseObject(get(url).toString(Charsets.UTF_8))
         val commit = root["commit"] as? Map<*, *>
         val sha = (commit?.get("sha") as? String)?.takeIf { it.isNotBlank() }
         val inner = commit?.get("commit") as? Map<*, *>
@@ -53,7 +55,7 @@ class GitHubRuleSetVersionSource(
     }
 
     private companion object {
-        const val URL = "https://api.github.com/repos/SagerNet/sing-geosite/branches/rule-set"
+        const val DEFAULT_URL = "https://api.github.com/repos/SagerNet/sing-geosite/branches/rule-set"
         const val CONNECT_TIMEOUT_MS = 15_000
         const val READ_TIMEOUT_MS = 15_000
 

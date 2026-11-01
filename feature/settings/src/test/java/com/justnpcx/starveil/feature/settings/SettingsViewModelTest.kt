@@ -187,6 +187,8 @@ private class FakePreferences : PreferencesRepository {
     override suspend fun setRulePackSubscribed(id: String, subscribed: Boolean) { notUsed() }
         override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
     override suspend fun setSubscriptionViaProxy(enabled: Boolean) { /* no-op */ }
+    override val ruleSetsCheckedAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) { /* no-op */ }
 override suspend fun setLocalApiEnabled(enabled: Boolean) { localApi.value = enabled }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setAutoReconnect(enabled: Boolean) = notUsed()

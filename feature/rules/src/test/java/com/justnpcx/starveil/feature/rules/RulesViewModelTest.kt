@@ -251,6 +251,8 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
     override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
     override suspend fun setSubscriptionViaProxy(enabled: Boolean) { notUsed() }
+    override val ruleSetsCheckedAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) { /* no-op */ }
     override val manualPresetAt: Flow<Long> = flowOf(0L)
     override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)

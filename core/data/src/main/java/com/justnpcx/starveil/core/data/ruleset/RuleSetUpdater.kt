@@ -35,7 +35,7 @@ data class RuleSetFeed(
  * only moves a batch that passed its checks. This class decides what to fetch
  * and what the result means.
  */
-internal class RuleSetUpdater(
+class RuleSetUpdater(
     private val directory: File,
     private val installer: RuleSetInstaller,
     private val versionOf: suspend (RuleSetFeed) -> RuleSetVersion?,

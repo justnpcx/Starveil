@@ -11,7 +11,7 @@ package com.justnpcx.starveil.core.data.ruleset
  * be retried on the next launch either, or an unreachable mirror turns into a
  * request per app start. The next attempt is a week later, silently.
  */
-internal class RuleSetAutoCheck(
+class RuleSetAutoCheck(
     private val updater: RuleSetUpdater,
     private val lastCheckedAt: suspend () -> Long,
     private val recordCheckedAt: suspend (Long) -> Unit,

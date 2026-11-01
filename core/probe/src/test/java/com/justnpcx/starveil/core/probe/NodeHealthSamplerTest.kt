@@ -225,6 +225,8 @@ private class FakePreferences(selectedId: Long) : PreferencesRepository {
     override suspend fun setLocalApiEnabled(enabled: Boolean) { samplerNotUsed() }
     override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
     override suspend fun setSubscriptionViaProxy(enabled: Boolean) { samplerNotUsed() }
+    override val ruleSetsCheckedAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) { /* no-op */ }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setAutoReconnect(enabled: Boolean) = samplerNotUsed()
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) = samplerNotUsed()

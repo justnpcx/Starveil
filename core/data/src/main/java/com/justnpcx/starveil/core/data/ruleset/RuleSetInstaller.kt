@@ -23,7 +23,7 @@ data class RuleSetManifest(
  * generation, not a history. It is what a rollback reads, and it is the only
  * thing that makes a bad batch recoverable without a download.
  */
-internal class RuleSetInstaller(
+class RuleSetInstaller(
     private val directory: File,
     private val warn: (String) -> Unit = {},
     /** How much of the current set a new one must still cover. */
