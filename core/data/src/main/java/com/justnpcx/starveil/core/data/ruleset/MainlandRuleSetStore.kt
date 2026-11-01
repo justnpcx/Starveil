@@ -94,11 +94,14 @@ class FileMainlandRuleSetStore(
     private val directory: File,
     private val download: suspend (String) -> ByteArray = ::httpGet,
     private val warn: (String) -> Unit = {},
+    /** Bundled copies of the core sets, by file name. See [PinnedFileCache]. */
+    private val seed: ((String) -> ByteArray?)? = null,
     // Injectable so a test can pin the hash of its own fixture. The defaults
     // are the real artifacts; nothing in the app passes these.
     private val geositeCn: PinnedRuleSet = GEOSITE_CN,
     private val geoipCn: PinnedRuleSet = GEOIP_CN,
     private val ads: PinnedRuleSet = ADS,
+    private val google: PinnedRuleSet = GOOGLE,
 ) : MainlandRuleSetStore {
 
     private val _failure = MutableStateFlow<RuleSetFailure?>(null)
@@ -121,9 +124,16 @@ class FileMainlandRuleSetStore(
             // a missing rule set must not turn into "send everything direct".
             return null
         }
+        // Optional, and fetched on the same terms as the rest: the Google
+        // exception is what makes a Play download work under this preset, but a
+        // preset without it still routes — just not through the hosts that need
+        // the exception. So a failure here is not recorded and not fatal.
+        val google = runCatching { cache.obtain(google, installedHash(google)) }.getOrNull()
+        val googlePath = (google as? PinnedFileCache.Result.Obtained)?.file?.absolutePath
         return MainlandRuleSets(
             geositeCnPath = geosite.absolutePath,
             geoipCnPath = geoip.absolutePath,
+            googlePath = googlePath,
         )
     }
 
@@ -132,11 +142,41 @@ class FileMainlandRuleSetStore(
         return obtain(ads)?.absolutePath
     }
 
-    private val cache = PinnedFileCache(directory, download, warn)
+    private val cache = PinnedFileCache(directory, download, warn, seed)
+
+    /**
+     * Drops the version stamp when a file is not the generation it names.
+     *
+     * A corrupted file is restored from the APK's seed, which is the pinned
+     * generation — not the one the manifest recorded. Leaving the stamp alone
+     * would make the rules page report a date for bytes that are not on disk,
+     * which is exactly the kind of quiet lie this feature exists to avoid.
+     * Dropping it costs the next check one download and is self-healing.
+     */
+    private fun reconcileManifest(set: PinnedRuleSet, file: File) {
+        val recorded = installedHash(set) ?: return
+        val actual = runCatching { PinnedFileCache.sha256(file.readBytes()) }.getOrNull() ?: return
+        if (!actual.equals(recorded, ignoreCase = true)) {
+            File(directory, "version.json").delete()
+            warn("rule sets: " + set.name + " is not the recorded generation; version stamp dropped")
+        }
+    }
+
+    /** Hash the updater recorded for [set], when it installed a generation. */
+    private fun installedHash(set: PinnedRuleSet): String? =
+        runCatching {
+            val file = File(directory, "version.json")
+            if (!file.isFile) return null
+            val hashes = com.justnpcx.starveil.core.model.json.Json.parseObject(file.readText())["hashes"]
+            (hashes as? Map<*, *>)?.get(set.name) as? String
+        }.getOrNull()
 
     private suspend fun obtain(set: PinnedRuleSet): File? =
-        when (val result = cache.obtain(set)) {
-            is PinnedFileCache.Result.Obtained -> result.file
+        when (val result = cache.obtain(set, installedHash(set))) {
+            is PinnedFileCache.Result.Obtained -> {
+                reconcileManifest(set, result.file)
+                result.file
+            }
             is PinnedFileCache.Result.Failed -> {
                 _failure.value = RuleSetFailure(name = set.name, reason = result.reason)
                 null
@@ -173,6 +213,23 @@ class FileMainlandRuleSetStore(
             urls = listOf(
                 "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@$GEOSITE_COMMIT/geosite-category-ads-all.srs",
                 "https://raw.githubusercontent.com/SagerNet/sing-geosite/$GEOSITE_COMMIT/geosite-category-ads-all.srs",
+            ),
+        )
+
+        /**
+         * The Google exception set.
+         *
+         * geosite-google, not geosite-google-play: the Play set does not match
+         * dl.google.com, and the full set is the widest one that matches every
+         * host a Play download touches (verified against the compiled sets, see
+         * the PR).
+         */
+        val GOOGLE = PinnedRuleSet(
+            name = "geosite-google.srs",
+            sha256 = "952d89c656fdb147d4f5d04541dd942b33dcce0dae906a8416e24cbc1161402a",
+            urls = listOf(
+                "https://cdn.jsdelivr.net/gh/SagerNet/sing-geosite@$GEOSITE_COMMIT/geosite-google.srs",
+                "https://raw.githubusercontent.com/SagerNet/sing-geosite/$GEOSITE_COMMIT/geosite-google.srs",
             ),
         )
 

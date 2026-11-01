@@ -58,7 +58,7 @@ class RulesViewModelTest {
     @Test
     fun `add appends after the last rule`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN_SUFFIX, "example.com", RuleAction.DIRECT)
@@ -78,7 +78,7 @@ class RulesViewModelTest {
     @Test
     fun `subscribing to a pack is a preference change and shows in force`() = runBlocking {
         val preferences = FakePreferences()
-        val viewModel = RulesViewModel(FakeRules(), FakeFlowLog(), preferences, NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(FakeRules(), FakeFlowLog(), preferences, NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.setPackSubscribed("ads-enhanced", subscribed = true)
@@ -102,7 +102,7 @@ class RulesViewModelTest {
             seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 1))
             seed(Rule(id = 3L, matcher = RuleMatcher(MatcherKind.DOMAIN, "c"), action = RuleAction.PROXY, order = 2))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -123,7 +123,7 @@ class RulesViewModelTest {
     @Test
     fun `a blank value is not stored`() = runBlocking {
         val repository = FakeRules()
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
 
         viewModel.add(MatcherKind.DOMAIN, "   ", RuleAction.PROXY)
@@ -141,7 +141,7 @@ class RulesViewModelTest {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY, order = 0))
             seed(Rule(id = 2L, matcher = RuleMatcher(MatcherKind.DOMAIN, "b"), action = RuleAction.PROXY, order = 0))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -158,7 +158,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -174,7 +174,7 @@ class RulesViewModelTest {
         val repository = FakeRules().apply {
             seed(Rule(id = 1L, matcher = RuleMatcher(MatcherKind.DOMAIN, "a"), action = RuleAction.PROXY))
         }
-        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks)
+        val viewModel = RulesViewModel(repository, FakeFlowLog(), FakePreferences(), NoRuleSets, NoRulePacks, NoRuleSetUpdates)
         val job = launch { viewModel.uiState.collect {} }
         yield()
 
@@ -251,6 +251,8 @@ private class FakePreferences(initiallyBypass: Boolean = false) : PreferencesRep
     override suspend fun setScenes(scenes: List<Scene>) { notUsed() }
     override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
     override suspend fun setSubscriptionViaProxy(enabled: Boolean) { notUsed() }
+    override val ruleSetsCheckedAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) { /* no-op */ }
     override val manualPresetAt: Flow<Long> = flowOf(0L)
     override suspend fun recordManualPresetChange(atEpochMs: Long) { notUsed() }
     override val lastHealthProbeAt: Flow<Long> get() = flowOf(0L)
@@ -293,4 +295,11 @@ private object NoRuleSets : MainlandRuleSetStore {
 private object NoRulePacks : RulePackStore {
     override suspend fun ensure(ids: Set<String>) = emptyList<InstalledRulePack>()
     override val failure: StateFlow<RulePackFailure?> = MutableStateFlow(null)
+}
+
+/** No pipeline in a test that is about rules. */
+private object NoRuleSetUpdates : com.justnpcx.starveil.core.data.ruleset.RuleSetUpdates {
+    override fun installedVersion() = null
+    override suspend fun runNow() =
+        com.justnpcx.starveil.core.data.ruleset.RuleSetUpdater.Result.Failed("test")
 }

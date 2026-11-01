@@ -165,6 +165,8 @@ private class DropFakePrefs : PreferencesRepository {
     override suspend fun setLocalApiEnabled(enabled: Boolean) = dropNotUsed()
     override val subscriptionViaProxy: Flow<Boolean> get() = flowOf(false)
     override suspend fun setSubscriptionViaProxy(enabled: Boolean) = dropNotUsed()
+    override val ruleSetsCheckedAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) { /* no-op */ }
     override suspend fun setDnsMetricsEnabled(enabled: Boolean) {}
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) = dropNotUsed()
     override suspend fun setScenes(scenes: List<Scene>) = dropNotUsed()

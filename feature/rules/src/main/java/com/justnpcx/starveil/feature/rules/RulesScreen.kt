@@ -124,6 +124,7 @@ fun RulesScreen(
     viewModel: RulesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val ruleSetStatus by viewModel.ruleSetState.collectAsStateWithLifecycle()
     val highlight by viewModel.highlight.collectAsStateWithLifecycle()
     LaunchedEffect(highlight) {
         if (highlight != null) {
@@ -198,6 +199,8 @@ fun RulesScreen(
                         onToggleAds = viewModel::setBlockAds,
                         onOpenMarket = { showMarket = true },
                         onOpenPerApp = onOpenPerApp,
+                        ruleSetStatus = ruleSetStatus,
+                        onCheckRuleSets = viewModel::checkRuleSets,
                     )
                 }
 
@@ -966,6 +969,8 @@ private fun RoutePresetCard(
     onToggleAds: (Boolean) -> Unit,
     onOpenMarket: () -> Unit,
     onOpenPerApp: () -> Unit,
+    ruleSetStatus: RulesViewModel.RuleSetStatus,
+    onCheckRuleSets: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     StarveilCard {
@@ -990,6 +995,12 @@ private fun RoutePresetCard(
             selected = preset == RoutePreset.GLOBAL_DIRECT,
             onSelect = { onSelect(RoutePreset.GLOBAL_DIRECT) },
         )
+        // Freshness, in the same card as the policy it applies to: the preset
+        // is only as good as the snapshot it routes by, and the date is the
+        // only way to see how old that snapshot is.
+        StarveilDivider(startInset = TEXT_COLUMN_INSET)
+        RuleSetVersionRow(status = ruleSetStatus, onCheck = onCheckRuleSets)
+
         // A footer of the card, not a footnote to the last option: this rule is
         // built in and applies to every preset, and sitting it directly under
         // "Global direct" made it read as part of that choice.
@@ -1284,3 +1295,63 @@ private fun BeginnerCard(onCustomize: () -> Unit) {
 
 /** How long a freshly created rule stays highlighted. */
 private const val HIGHLIGHT_MS = 1200L
+
+/**
+ * How old the rule sets are, and a way to ask for newer ones.
+ *
+ * The date is the upstream commit's, not the install's: what matters is when
+ * the rules were published, and a commit hash answers a different question.
+ */
+@Composable
+private fun RuleSetVersionRow(
+    status: RulesViewModel.RuleSetStatus,
+    onCheck: () -> Unit,
+) {
+    val checking = status.state == RulesViewModel.RuleSetStatus.State.Checking
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = StarveilSpacing.pageMargin, vertical = StarveilSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.rules_version_title),
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+            )
+            Text(
+                text = status.version ?: stringResource(R.string.rules_version_unknown),
+                style = StarveilType.tech,
+                color = StarveilColors.ink,
+            )
+            val result = when (status.state) {
+                RulesViewModel.RuleSetStatus.State.UpToDate ->
+                    stringResource(R.string.rules_version_uptodate)
+                RulesViewModel.RuleSetStatus.State.Updated ->
+                    stringResource(R.string.rules_version_updated)
+                RulesViewModel.RuleSetStatus.State.Failed ->
+                    stringResource(R.string.rules_version_failed)
+                else -> null
+            }
+            if (result != null) {
+                Text(
+                    text = result,
+                    style = StarveilType.label,
+                    color = if (status.state == RulesViewModel.RuleSetStatus.State.Failed) {
+                        StarveilColors.errText
+                    } else {
+                        StarveilColors.ink3
+                    },
+                )
+            }
+        }
+        TextButton(onClick = onCheck, enabled = !checking) {
+            Text(
+                text = stringResource(
+                    if (checking) R.string.rules_version_checking else R.string.rules_version_check,
+                ),
+            )
+        }
+    }
+}

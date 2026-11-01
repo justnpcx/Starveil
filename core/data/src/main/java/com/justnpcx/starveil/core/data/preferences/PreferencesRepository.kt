@@ -302,6 +302,16 @@ interface PreferencesRepository {
     /** See [subscriptionViaProxy]. */
     suspend fun setSubscriptionViaProxy(enabled: Boolean)
 
+    /**
+     * When the rule sets were last checked upstream, epoch millis; 0 for never.
+     *
+     * A timestamp rather than a flag: the check is throttled by how long ago it
+     * ran, and the rules page shows the date the sets were published.
+     */
+    val ruleSetsCheckedAt: Flow<Long>
+
+    suspend fun setRuleSetsCheckedAt(atEpochMs: Long)
+
     suspend fun setDnsMetricsEnabled(enabled: Boolean)
 
     suspend fun setScenes(scenes: List<Scene>)
@@ -367,6 +377,9 @@ class DataStorePreferencesRepository @Inject constructor(
 
         /** Subscription fetches leave through the loopback proxy. */
         val SUBSCRIPTION_VIA_PROXY = booleanPreferencesKey("subscription_via_proxy")
+
+        /** Epoch millis of the last upstream rule-set check; 0 when never. */
+        val RULE_SETS_CHECKED_AT = longPreferencesKey("rule_sets_checked_at")
 
         val DNS_METRICS = booleanPreferencesKey("dns_metrics_enabled")
         val PER_APP_DIRECT = stringPreferencesKey("per_app_routes")
@@ -547,6 +560,14 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override val dnsMetricsEnabled: Flow<Boolean> = dataStore.data
         .map { it[Keys.DNS_METRICS] ?: true }
+
+    override val ruleSetsCheckedAt: Flow<Long> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.RULE_SETS_CHECKED_AT] ?: 0L }
+
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) {
+        dataStore.edit { it[Keys.RULE_SETS_CHECKED_AT] = atEpochMs }
+    }
 
     override val subscriptionViaProxy: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }

@@ -18,6 +18,9 @@ import com.justnpcx.starveil.core.model.RuleAction
 import com.justnpcx.starveil.core.model.RuleMatcher
 import com.justnpcx.starveil.core.model.RulePack
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.justnpcx.starveil.core.data.ruleset.RuleSetUpdates
+import com.justnpcx.starveil.core.data.ruleset.RuleSetUpdater
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -127,7 +130,44 @@ class RulesViewModel @Inject constructor(
     private val preferences: PreferencesRepository,
     private val ruleSets: MainlandRuleSetStore,
     private val packStore: RulePackStore,
+    private val ruleSetUpdates: RuleSetUpdates,
 ) : ViewModel() {
+
+    /**
+     * What the rule sets page says about freshness.
+     *
+     * The version is the upstream commit date, not a hash: "2026-10-16" answers
+     * "how old are these rules", and a commit id does not.
+     */
+    data class RuleSetStatus(
+        val version: String? = null,
+        val state: State = State.Idle,
+    ) {
+        enum class State { Idle, Checking, UpToDate, Updated, Failed }
+    }
+
+    private val ruleSetStatus = MutableStateFlow(
+        RuleSetStatus(version = ruleSetUpdates.installedVersion()?.date),
+    )
+    val ruleSetState: StateFlow<RuleSetStatus> = ruleSetStatus.asStateFlow()
+
+    /** A manual check. The automatic one is throttled; this is not. */
+    fun checkRuleSets() {
+        if (ruleSetStatus.value.state == RuleSetStatus.State.Checking) return
+        viewModelScope.launch {
+            ruleSetStatus.value = ruleSetStatus.value.copy(state = RuleSetStatus.State.Checking)
+            val result = ruleSetUpdates.runNow()
+            val version = ruleSetUpdates.installedVersion()?.date
+            ruleSetStatus.value = when (result) {
+                is RuleSetUpdater.Result.UpToDate ->
+                    RuleSetStatus(version, RuleSetStatus.State.UpToDate)
+                is RuleSetUpdater.Result.Updated ->
+                    RuleSetStatus(version, RuleSetStatus.State.Updated)
+                is RuleSetUpdater.Result.Failed ->
+                    RuleSetStatus(version, RuleSetStatus.State.Failed)
+            }
+        }
+    }
 
     /** The market's two signals, paired so the outer combine stays at five. */
     private val packs = combine(

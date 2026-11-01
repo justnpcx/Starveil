@@ -15,4 +15,13 @@ package com.justnpcx.starveil.core.model
 data class MainlandRuleSets(
     val geositeCnPath: String,
     val geoipCnPath: String,
+    /**
+     * Domains that must be proxied even though geosite-cn lists them.
+     *
+     * The Google download hosts are in the upstream direct list — Play fetches
+     * from googlevideo hosts that geosite-cn matches — so a mainland preset
+     * sends them direct and the download stalls at 0%. Null when the file is
+     * not on disk, and then the exception simply is not emitted.
+     */
+    val googlePath: String? = null,
 )

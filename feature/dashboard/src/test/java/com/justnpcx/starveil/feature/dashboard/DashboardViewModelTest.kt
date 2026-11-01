@@ -864,6 +864,9 @@ private class FakePreferences(
         /* no-op */
     }
 
+    override val ruleSetsCheckedAt: Flow<Long> get() = flowOf(0L)
+    override suspend fun setRuleSetsCheckedAt(atEpochMs: Long) { /* no-op */ }
+
     override suspend fun recordLeakCheck(record: LeakCheckRecord) { notUsed() }
     override suspend fun recordSubscriptionSuccess(atEpochMs: Long) { notUsed() }
     override suspend fun recordSubscriptionFailure(atEpochMs: Long, reason: String) { notUsed() }

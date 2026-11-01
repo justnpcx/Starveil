@@ -324,7 +324,21 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         // exception out of it. geosite-cn is a domain match, so a domestic
         // name is sent direct before any DNS answer is needed; geoip-cn then
         // catches the addresses that were already resolved elsewhere.
-        return sniff + ads + perApp + packs + lan + userRules + listOf(
+        // Google first, and deliberately inside the preset block: the download
+        // hosts Play uses are in the upstream mainland list, so the direct rule
+        // below would win and the download would stall. The outbound is named
+        // explicitly — a rule that relied on the route final would be undone by
+        // any later change to it.
+        val googleException = mainland.googlePath?.let {
+            listOf(
+                linkedMapOf<String, Any?>(
+                    "rule_set" to GOOGLE_TAG,
+                    "action" to "route",
+                    "outbound" to proxyTag,
+                ),
+            )
+        }.orEmpty()
+        return sniff + ads + perApp + packs + lan + userRules + googleException + listOf(
             linkedMapOf<String, Any?>(
                 "rule_set" to GEOSITE_CN_TAG,
                 "action" to "route",
@@ -397,20 +411,36 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
      * `format` is inferred from the `.srs` extension anyway; stating it means a
      * renamed file cannot quietly change how it is parsed.
      */
-    private fun mainlandRuleSets(mainland: MainlandRuleSets): List<Map<String, Any?>> = listOf(
-        linkedMapOf<String, Any?>(
-            "type" to "local",
-            "tag" to GEOSITE_CN_TAG,
-            "format" to "binary",
-            "path" to mainland.geositeCnPath,
-        ),
-        linkedMapOf<String, Any?>(
-            "type" to "local",
-            "tag" to GEOIP_CN_TAG,
-            "format" to "binary",
-            "path" to mainland.geoipCnPath,
-        ),
-    )
+    private fun mainlandRuleSets(mainland: MainlandRuleSets): List<Map<String, Any?>> = buildList {
+        // The exception set is emitted only when the file is there: a rule that
+        // names a missing set is a config the core refuses to start.
+        mainland.googlePath?.let { path ->
+            add(
+                linkedMapOf<String, Any?>(
+                    "type" to "local",
+                    "tag" to GOOGLE_TAG,
+                    "format" to "binary",
+                    "path" to path,
+                ),
+            )
+        }
+        add(
+            linkedMapOf<String, Any?>(
+                "type" to "local",
+                "tag" to GEOSITE_CN_TAG,
+                "format" to "binary",
+                "path" to mainland.geositeCnPath,
+            ),
+        )
+        add(
+            linkedMapOf<String, Any?>(
+                "type" to "local",
+                "tag" to GEOIP_CN_TAG,
+                "format" to "binary",
+                "path" to mainland.geoipCnPath,
+            ),
+        )
+    }
 
     /**
      * The ad set, on the same terms as the preset's: a local file the app
@@ -791,6 +821,9 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         const val DNS_CN_TAG = "dns-cn"
         const val DNS_PROXY_TAG = "dns-proxy"
         const val GEOSITE_CN_TAG = "geosite-cn"
+
+        /** Google, ahead of the mainland set: Play downloads hit both. */
+        const val GOOGLE_TAG = "geosite-google"
         const val ADS_TAG = "ads"
 
         /**

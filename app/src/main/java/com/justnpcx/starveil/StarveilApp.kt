@@ -65,6 +65,10 @@ class StarveilApp : Application() {
     @Inject
     lateinit var preferences: PreferencesRepository
 
+    /** The weekly rule-set check; does nothing on almost every launch. */
+    @Inject
+    lateinit var ruleSetAutoCheck: com.justnpcx.starveil.core.data.ruleset.RuleSetAutoCheck
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -120,6 +124,23 @@ class StarveilApp : Application() {
         // the tunnel is up: the VpnService keeps it alive. With no process
         // there is no tunnel to switch, so nothing is lost.
         scenes.start()
+
+        // Once a week, and silent either way: a rule set that cannot be
+        // refreshed is not a thing to tell someone about on launch, and the
+        // files already on disk keep working. Throttled by a timestamp, so
+        // this line costs a DataStore read on the other six days.
+        scope.launch {
+            // The Google exception set is only fetched when the preset that
+            // needs it is on: it exists to correct that preset, and nothing
+            // else reads it.
+            val preset = preferences.routePreset.first()
+            val extra = if (preset == com.justnpcx.starveil.core.model.RoutePreset.BYPASS_MAINLAND) {
+                listOf(com.justnpcx.starveil.core.data.ruleset.RuleSetUpdater.GOOGLE_FEED)
+            } else {
+                emptyList()
+            }
+            ruleSetAutoCheck.runIfDue(extra)
+        }
 
         // The kernel keeps running through a screen-off, so a tunnel that died
         // in doze still reports Running. This is what notices.

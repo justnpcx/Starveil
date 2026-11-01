@@ -17,6 +17,17 @@ internal class PinnedFileCache(
     private val directory: File,
     private val download: suspend (String) -> ByteArray,
     private val warn: (String) -> Unit,
+    /**
+     * Bytes shipped inside the APK, by file name, or null when this build has
+     * none for that name.
+     *
+     * A fresh install has an empty cache and may have no network at all — which
+     * is the situation the mainland preset exists for. Seeding writes the same
+     * bytes the pin names, so it goes through the same hash check as a
+     * download: a seed that does not match is a build mistake and must not
+     * become a trusted file.
+     */
+    private val seed: ((String) -> ByteArray?)? = null,
 ) {
 
     sealed interface Result {
@@ -33,12 +44,39 @@ internal class PinnedFileCache(
      * written by an older pin, or replaced. Either way it is not what this
      * build vetted.
      */
-    suspend fun obtain(set: PinnedRuleSet): Result {
+    suspend fun obtain(set: PinnedRuleSet, installedHash: String? = null): Result {
         val target = File(directory, set.name)
         if (target.isFile && target.length() > 0) {
-            if (matches(target, set.sha256)) return Result.Obtained(target)
+            // Either the pin this build shipped with, or the hash the updater
+            // recorded for the generation it installed. Without the second
+            // case the read path undoes every update: a newer file does not
+            // match the pin, so it is discarded and the pinned bytes come back
+            // on the next connect.
+            if (matches(target, set.sha256) ||
+                (installedHash != null && matches(target, installedHash))
+            ) {
+                return Result.Obtained(target)
+            }
             warn("rule set ${set.name}: on disk but does not match its hash; discarding")
             target.delete()
+        }
+
+        // Before the network: a cache miss on a fresh install should not need
+        // a connection to become a working preset.
+        val seeded = seed?.invoke(set.name)
+        if (seeded != null && seeded.isNotEmpty()) {
+            if (sha256(seeded).equals(set.sha256, ignoreCase = true)) {
+                directory.mkdirs()
+                val partial = File(directory, "${set.name}.part")
+                partial.writeBytes(seeded)
+                if (partial.renameTo(target)) {
+                    warn("rule set ${set.name}: seeded from the APK")
+                    return Result.Obtained(target)
+                }
+                partial.delete()
+            } else {
+                warn("rule set ${set.name}: the bundled copy does not match its hash; ignored")
+            }
         }
 
         var sawMismatch = false
