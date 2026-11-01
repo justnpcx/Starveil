@@ -144,6 +144,7 @@
     <string name="profiles_group_cancel">取消</string>
 
     <string name="profiles_share_title">分享 %1$s</string>
+    <string name="profiles_share_no_front">该节点经前置节点拨号。分享链接不包含前置设置——接收方会直连。</string>
     <string name="profiles_share_copy">复制链接</string>
     <string name="profiles_share_copied">链接已复制</string>
     <string name="profiles_share_qr_description">该节点的二维码</string>

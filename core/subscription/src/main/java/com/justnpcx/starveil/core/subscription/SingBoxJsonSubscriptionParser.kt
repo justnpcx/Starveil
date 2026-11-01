@@ -51,7 +51,20 @@ class SingBoxJsonSubscriptionParser : SubscriptionParser {
             throw MalformedSubscriptionException(DocumentFormat.JSON, cause = e)
         }
         val outbounds = root["outbounds"] as? List<*> ?: return ParseOutcome(emptyList())
-        val profiles = outbounds.mapNotNull { entry -> (entry as? Map<*, *>)?.toProfile() }
+        // Two passes: a detour names another outbound by tag, and the tag of a
+        // node this app keeps is its business key, so the reference can only be
+        // resolved once every profile exists.
+        val parsed = outbounds.mapNotNull { entry ->
+            val map = entry as? Map<*, *> ?: return@mapNotNull null
+            val profile = map.toProfile() ?: return@mapNotNull null
+            val tag = (map["tag"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            Triple(profile, tag, (map["detour"] as? String)?.trim()?.takeIf { it.isNotEmpty() })
+        }
+        val keyByTag = parsed.mapNotNull { (profile, tag, _) -> tag?.let { it to profile.nodeKey } }.toMap()
+        val profiles = parsed.map { (profile, _, detour) ->
+            val front = detour?.let { keyByTag[it] }?.takeIf { it != profile.nodeKey }
+            if (front == null) profile else profile.copy(frontNodeKey = front)
+        }
         return ParseOutcome(profiles, dropped = outbounds.size - profiles.size)
     }
 

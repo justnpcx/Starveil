@@ -1192,6 +1192,17 @@ private fun ShareDialog(target: ShareTarget, onDismiss: () -> Unit) {
                         ),
                     )
                 }
+                // A link is one node's grammar and a front is a second node,
+                // so the front cannot travel with it. Saying that here is the
+                // difference between a shared node and a shared node that
+                // silently behaves differently.
+                if (target.omitsFront) {
+                    Text(
+                        text = stringResource(R.string.profiles_share_no_front),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink3,
+                    )
+                }
             }
         },
         confirmButton = {

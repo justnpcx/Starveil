@@ -178,6 +178,15 @@ data class ClipboardSuggestion(
 data class ShareTarget(
     val name: String,
     val link: String?,
+    /**
+     * True when the node is chained and the link therefore does not carry the
+     * front.
+     *
+     * A share link is one node's grammar; a front is a second node. Saying so
+     * on the sheet is the only honest option — dropping it silently would hand
+     * someone a node that behaves differently from the one they were shown.
+     */
+    val omitsFront: Boolean = false,
 )
 
 /**
@@ -791,7 +800,11 @@ class ProfilesViewModel @Inject constructor(
      * recomposition.
      */
     fun shareNode(profile: Profile) {
-        share.value = ShareTarget(name = profile.name, link = exporter.export(profile))
+        share.value = ShareTarget(
+            name = profile.name,
+            link = exporter.export(profile),
+            omitsFront = profile.frontNodeKey != null,
+        )
     }
 
     fun dismissShare() {
