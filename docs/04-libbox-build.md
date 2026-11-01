@@ -7,27 +7,31 @@ built from the Starveil fork and consumed as an Android AAR.
 
 | | |
 |---|---|
-| Upstream | `SagerNet/sing-box`, tag **`v1.14.3`** (`7054cac`) |
-| Fork | `justnpcx/sing-box`, branch **`starveil-1.14.x`** |
-| Pinned commit | **`647c447`** |
-| Reported version | **`1.14.3-647c447`** |
+| Upstream | `SagerNet/sing-box`, tag **`v1.14.4`** |
+| Fork | `justnpcx/sing-box`, branch **`starveil-1.14.4`** |
+| Pinned commit | **`e15eab12f`** |
+| Reported version | **`1.14.4-e15eab12f`** |
 | Local tree | `$SINGBOX_DIR` |
 
-The branch is upstream v1.14.3 plus four commits, and nothing else:
+The branch is upstream v1.14.4 plus six commits, and nothing else. The four
+patch themes were replayed from `starveil-1.14.x` without changing their
+content; `git range-diff` reports every old/new pair as equivalent:
 
 | Commit | What | Why it exists |
 |---|---|---|
-| `a267ba4` | XHTTP `stream-one` transport | not in upstream |
-| `74f4725` | XHTTP `stream-up` + `downloadSettings` | not in upstream |
-| `c7e5523` | REALITY `support_x25519mlkem768` | upstream still strips X25519MLKEM768 from the ClientHello unconditionally |
-| `647c447` | VLESS: multiplex wins over flow | upstream sends both when a node carries both |
+| `9c6f77e4e` | XHTTP `stream-one` transport | not in upstream |
+| `a956e02c6` | XHTTP `stream-up` + `downloadSettings` | not in upstream |
+| `2f8622182` | XHTTP REALITY handshake uses uTLS | keeps the handshake on the REALITY path |
+| `acf082882` | REALITY `support_x25519mlkem768` | upstream still strips X25519MLKEM768 from the ClientHello unconditionally |
+| `397f9143d` | VLESS: multiplex wins over flow | upstream sends both when a node carries both |
+| `e15eab12f` | `LIBBOX_TAGS` replaces the default tags | lets the build select its tag set |
 
 **The reported version is derived, not written down.** `cmd/internal/build_libbox`
 runs `git describe --tags` and injects the result as
 `-X github.com/sagernet/sing-box/constant.Version=…`, overriding the literal in
-`constant/version.go`. Because the four commits sit on top of the tag,
-`ReadTag()` returns the tag plus the short sha — which is exactly what a bug
-report needs. This is also why an untagged tree builds a core that reports
+`constant/version.go`. Because the six commits sit on top of the tag,
+`ReadTag()` returns the tag plus the short sha when patches sit on top of it —
+which is exactly what a bug report needs. This is also why an untagged tree builds a core that reports
 `unknown`: the tag is the source of truth, and a tree without one has nothing
 to report. (`ReadTag` is in `cmd/internal/build_shared/tag.go`.)
 
@@ -71,10 +75,10 @@ Produces, in the fork tree:
 
 | Artifact | API | ABIs | Tags | sha256 | Size |
 |---|---|---|---|---|---|
-| `libbox.aar` (checked in) | 24 | arm64-v8a, armeabi-v7a, x86_64 | the `LIBBOX_TAGS` list below | `52a6f2ebc7e76fbf8a915795d9df66a051dfbaf17099741a1428bd43c727705b` | 58 MB |
+| `libbox.aar` (checked in) | 24 | arm64-v8a, armeabi-v7a, x86_64 | the `LIBBOX_TAGS` list below | `5b758c4dbe279ff0799f4cdcf73aaea5cb64c33846cbbaedc21c132a9de0d3ac` | 81 MB |
 
 The hash is of the file actually consumed, not of a build that was thrown away:
-`core/kernel/libs/libbox.aar`, built from `starveil-1.14.x@7333b9be` with all
+`core/kernel/libs/libbox.aar`, built from `starveil-1.14.4@e15eab12f` with all
 three ABIs. A rebuild changes the AAR contents and therefore the hash — update
 this line in the same change that replaces the file, or the document starts
 lying about the binary the app ships.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Build sing-box `libbox` AARs for Android from the Starveil fork
-# (justnpcx/sing-box, starveil-1.14.x — the tree at $SINGBOX_DIR).
+# (justnpcx/sing-box, starveil-1.14.4 — the tree at $SINGBOX_DIR).
 #
 # Reproducibility notes (learned the hard way — see docs/04-libbox-build.md):
 #   * Build ONE ABI at a time. `gomobile bind` compiles every ABI in parallel
