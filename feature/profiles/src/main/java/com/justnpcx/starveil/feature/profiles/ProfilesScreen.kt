@@ -111,10 +111,14 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.material3.SnackbarDuration
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -151,6 +155,12 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.util.readClipboardText
 import com.justnpcx.starveil.core.ui.util.writeClipboard
+
+/** How long a transient message stays on screen. */
+private const val MESSAGE_VISIBLE_MS = 2_500L
+
+/** The add control's own height, plus a gap. */
+private val FAB_CLEARANCE = 72.dp
 
 /**
  * Nodes — the real list plus the import entry points. A node arrives by
@@ -313,7 +323,19 @@ fun ProfilesScreen(
         ?.text()
     LaunchedEffect(transientMessage) {
         if (transientMessage != null) {
-            snackbarHostState.showSnackbar(transientMessage)
+            // Short and self-dismissing. A reading like "延迟：210 ms" is not an
+            // event to acknowledge, and the host's own timer left it sitting
+            // over the add control long after it stopped being news. The
+            // dismissal is ours so the timing is the same on every device, and
+            // a new message replaces this one rather than queueing behind it.
+            launch {
+                delay(MESSAGE_VISIBLE_MS)
+                snackbarHostState.currentSnackbarData?.dismiss()
+            }
+            snackbarHostState.showSnackbar(
+                message = transientMessage,
+                duration = SnackbarDuration.Indefinite,
+            )
             viewModel.dismissMessage()
         }
     }
@@ -654,7 +676,10 @@ fun ProfilesScreen(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = StarveilSpacing.sm),
+                // Clear of the add control: the message used to sit on top of
+                // it, so the one control the page is built around was covered
+                // exactly while a result was on screen.
+                .padding(bottom = StarveilSpacing.plusMarginBottom + FAB_CLEARANCE),
         )
 
         // The add control: the disc, 12dp above the bar and 18dp from the
@@ -725,101 +750,130 @@ fun ProfilesScreen(
         // changing the mode would otherwise leave the chips showing the old one.
         val group = state.groups.firstOrNull { it.id == menuGroup.id } ?: menuGroup
         val inUse = state.selectedGroupId == group.id
-        AlertDialog(
-            containerColor = StarveilColors.card,
-            shape = StarveilShapes.dialog,
+        val subscription = !group.subscriptionUrl.isNullOrBlank()
+        // A sheet, not a dialog. The dialog put four text buttons in the middle
+        // of the screen and explained its own constraints in a sentence under a
+        // greyed-out button; a sheet is where this page's other menus live, and
+        // it has room for the group's identity and its mode in one glance.
+        ModalBottomSheet(
             onDismissRequest = { groupMenu = null },
-            title = { Text(group.name) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                    Text(stringResource(R.string.profiles_group_menu_body, group.profileIds.size))
-
+            containerColor = StarveilColors.card,
+            shape = StarveilShapes.sheet,
+        ) {
+            Column(modifier = Modifier.navigationBarsPadding()) {
+                // Identity: the name, what kind of group it is, how many nodes
+                // it holds. A domain-shaped name wraps rather than pushing the
+                // badge off the sheet.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        top = StarveilSpacing.sm,
+                    ),
+                ) {
                     Text(
-                        text = stringResource(R.string.profiles_group_mode_title),
-                        style = StarveilType.label,
+                        text = group.name,
+                        style = StarveilType.headline,
+                        color = StarveilColors.ink,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
-                        GroupMode.entries.forEach { mode ->
-                            StarveilChip(
-                                label = stringResource(mode.labelRes()),
-                                selected = group.mode == mode,
-                                onClick = { viewModel.setGroupMode(group, mode) },
-                                surface = ChipSurface.Dialog,
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                    // No weight here: a weight of zero throws, and the badge
+                    // is the one thing in this row that should keep its own
+                    // width while the name takes what is left.
+                    GroupKindBadge(subscription = subscription)
+                }
+                Text(
+                    text = stringResource(R.string.profiles_group_menu_body, group.profileIds.size),
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink3,
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        top = StarveilSpacing.xs,
+                    ),
+                )
 
-                    // Say why the button is unavailable rather than leaving a
-                    // dead control with no explanation.
-                    when {
-                        group.profileIds.isEmpty() -> Hint(
-                            stringResource(R.string.profiles_group_connect_empty_hint),
-                        )
-
-                        group.mode == GroupMode.MANUAL -> Hint(
-                            stringResource(R.string.profiles_group_connect_folder_hint),
-                        )
-                    }
-
-                    TextButton(
-                        enabled = group.mode != GroupMode.MANUAL && group.profileIds.isNotEmpty(),
-                        onClick = {
-                            if (inUse) viewModel.stopUsingGroup() else viewModel.selectGroup(group)
-                            groupMenu = null
-                        },
-                    ) {
-                        Text(
-                            stringResource(
-                                if (inUse) {
-                                    R.string.profiles_group_connect_stop
-                                } else {
-                                    R.string.profiles_group_connect
-                                },
-                            ),
+                // Mode: the three choices, applied on tap, with one line that
+                // describes the choice that is in force. The description is the
+                // whole explanation — there is no second paragraph anywhere in
+                // this sheet.
+                StarveilChipRow(modifier = Modifier.padding(top = StarveilSpacing.md)) {
+                    GroupMode.entries.forEach { mode ->
+                        StarveilChip(
+                            label = stringResource(mode.labelRes()),
+                            selected = group.mode == mode,
+                            onClick = { viewModel.setGroupMode(group, mode) },
+                            surface = ChipSurface.Dialog,
                         )
                     }
+                }
+                Text(
+                    text = stringResource(group.mode.descriptionRes()),
+                    style = StarveilType.body,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        top = StarveilSpacing.sm,
+                        bottom = StarveilSpacing.md,
+                    ),
+                )
 
-                    // Only a subscription-backed group has something to fetch;
-                    // a folder would just be a button that does nothing.
-                    if (!group.subscriptionUrl.isNullOrBlank()) {
-                        TextButton(
-                            enabled = !state.importing,
-                            onClick = {
-                                groupMenu = null
-                                viewModel.refreshSubscription(group)
+                // Actions. A folder is not something you connect through, so the
+                // row is absent rather than disabled: a dead control plus a
+                // sentence explaining why is the dialog's answer, and the mode
+                // line above already says what a folder is for.
+                if (group.mode != GroupMode.MANUAL && group.profileIds.isNotEmpty()) {
+                    StarveilSheetRow(
+                        text = stringResource(
+                            if (inUse) {
+                                R.string.profiles_group_connect_stop
+                            } else {
+                                R.string.profiles_group_connect
                             },
-                        ) {
-                            Text(stringResource(R.string.profiles_group_refresh))
-                        }
+                        ),
+                        icon = StarveilIcons.Activity,
+                    ) {
+                        if (inUse) viewModel.stopUsingGroup() else viewModel.selectGroup(group)
+                        groupMenu = null
                     }
+                }
+                // Only a subscription-backed group has something to fetch; a
+                // folder would just be a button that does nothing.
+                if (subscription) {
+                    StarveilSheetRow(
+                        text = stringResource(R.string.profiles_group_refresh),
+                        icon = StarveilIcons.Refresh,
+                    ) {
+                        groupMenu = null
+                        viewModel.refreshSubscription(group)
+                    }
+                }
+                StarveilSheetRow(
+                    text = stringResource(R.string.profiles_group_rename),
+                    icon = StarveilIcons.Pencil,
+                ) {
+                    groupMenu = null
+                    groupToRename = group
+                }
 
-                    TextButton(
-                        onClick = {
-                            groupMenu = null
-                            groupToRename = group
-                        },
-                    ) {
-                        Text(stringResource(R.string.profiles_group_rename))
-                    }
-                    TextButton(
-                        onClick = {
-                            groupMenu = null
-                            groupToDelete = group
-                        },
-                    ) {
-                        Text(
-                            text = stringResource(R.string.profiles_group_delete),
-                            color = StarveilColors.errText,
-                        )
-                    }
+                // Delete stands apart, below a gap, and goes through the same
+                // confirmation the rest of the app uses.
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                StarveilSheetRow(
+                    text = stringResource(R.string.profiles_group_delete),
+                    icon = StarveilIcons.Close,
+                    destructive = true,
+                ) {
+                    groupMenu = null
+                    groupToDelete = group
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { groupMenu = null }) {
-                    Text(stringResource(R.string.profiles_group_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // The row's actions, as a sheet rather than a dialog: a dialog puts four
@@ -1695,6 +1749,47 @@ private fun GroupMode.labelRes(): Int = when (this) {
     GroupMode.URL_TEST -> R.string.profiles_group_mode_urltest
 }
 
+/** One line describing the mode in force. The sheet's only explanation. */
+private fun GroupMode.descriptionRes(): Int = when (this) {
+    GroupMode.MANUAL -> R.string.profiles_group_mode_folder_desc
+    GroupMode.SELECTOR -> R.string.profiles_group_mode_selector_desc
+    GroupMode.URL_TEST -> R.string.profiles_group_mode_urltest_desc
+}
+
+/**
+ * The group's kind, as a badge.
+ *
+ * Subscription-backed and local groups behave differently — one refreshes from
+ * an address, the other is a folder someone made — and the sheet is the only
+ * place that difference is worth naming.
+ */
+@Composable
+private fun GroupKindBadge(subscription: Boolean, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = if (subscription) StarveilColors.selBg else StarveilColors.chipB,
+        border = BorderStroke(1.dp, if (subscription) StarveilColors.selBg else StarveilColors.chipB),
+    ) {
+        Text(
+            text = stringResource(
+                if (subscription) {
+                    R.string.profiles_group_kind_subscription
+                } else {
+                    R.string.profiles_group_kind_local
+                },
+            ),
+            style = StarveilType.label,
+            color = if (subscription) StarveilColors.selInk else StarveilColors.ink2,
+            maxLines = 1,
+            modifier = Modifier.padding(
+                horizontal = StarveilSpacing.sm,
+                vertical = StarveilSpacing.xs,
+            ),
+        )
+    }
+}
+
 private fun ProfileType.editorLabel(): String = when (this) {
     ProfileType.VLESS -> "VLESS"
     ProfileType.VMESS -> "VMess"
@@ -1716,18 +1811,36 @@ private fun ProfileType.editorLabel(): String = when (this) {
 private fun StarveilSheetRow(
     text: String,
     destructive: Boolean = false,
+    /**
+     * A glyph that says what the row does before the label does.
+     *
+     * Tinted by meaning, not by decoration: destructive rows carry the error
+     * colour, the rest the accent, so a row can be recognised by shape and
+     * colour at the edge of the sheet.
+     */
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: () -> Unit,
 ) {
+    val tint = if (destructive) StarveilColors.errText else StarveilColors.accent
     Column {
         StarveilDivider(startInset = StarveilSpacing.pageMargin, endInset = StarveilSpacing.pageMargin)
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = StarveilSpacing.pageMargin),
-            contentAlignment = Alignment.CenterStart,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(StarveilSpacing.md))
+            }
             Text(
                 text = text,
                 style = StarveilType.headline,

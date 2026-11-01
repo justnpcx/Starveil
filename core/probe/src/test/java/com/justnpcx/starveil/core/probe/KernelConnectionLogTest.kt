@@ -5,6 +5,7 @@ import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.model.ConnectionDetail
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,7 +59,35 @@ class KernelConnectionLogTest {
         val row = closed.single()
         assertFalse(row.open)
         assertEquals(4_000, row.closedAtMs)
-        assertEquals(3_000, row.durationMs(nowMs = 9_999))
+        assertEquals(3_000L, row.durationMs(nowMs = 9_999))
+    }
+
+    @Test
+    fun `a start that is not an instant has no duration`() {
+        // The kernel reports a start of 0 for a connection it only saw the
+        // end of. Subtracting that from now produced a duration of about
+        // thirty-nine years, which the connections page rendered as
+        // "20891617m 43s".
+        fun row(startedAtMs: Long) = ConnectionDetail(
+            id = "a",
+            appPackage = "com.example.app",
+            destination = "1.2.3.4:443",
+            domain = "",
+            rule = "",
+            outbound = "direct",
+            outboundType = "direct",
+            startedAtMs = startedAtMs,
+            closedAtMs = 0L,
+            uplinkBytes = 0,
+            downlinkBytes = 0,
+            network = "tcp",
+            protocol = "tls",
+        )
+
+        assertNull(row(startedAtMs = 0L).durationMs(nowMs = 9_999))
+        assertNull(row(startedAtMs = -1L).durationMs(nowMs = 9_999))
+        assertNull(row(startedAtMs = 20_000L).durationMs(nowMs = 9_999))
+        assertEquals(8_999L, row(startedAtMs = 1_000L).durationMs(nowMs = 9_999))
     }
 
     @Test

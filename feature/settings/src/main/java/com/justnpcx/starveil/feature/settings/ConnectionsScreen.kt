@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.model.ConnectionDetail
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
+import com.justnpcx.starveil.core.ui.components.StarveilChipRow
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
@@ -95,13 +96,11 @@ fun ConnectionsScreen(
                 ),
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = StarveilSpacing.pageMargin),
-                horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
-            ) {
+            // The same row component the node list uses: one geometry, one set
+            // of edge fades, one place to change it. The row used to be a plain
+            // scrolling Row padded from the inside, which put its first chip on
+            // the page margin but let the last one be cut by the screen edge.
+            StarveilChipRow {
                 StarveilChip(
                     label = stringResource(R.string.connections_filter_active),
                     selected = state.filters.onlyActive,
@@ -270,7 +269,7 @@ private fun ConnectionRow(
                 text = stringResource(
                     R.string.connections_metrics,
                     formatBytes(row.totalBytes),
-                    formatDuration(row.durationMs(nowMs)),
+                    ConnectionsFormat.duration(row.durationMs(nowMs)),
                 ),
                 style = StarveilType.tech,
                 color = StarveilColors.ink2,
@@ -354,6 +353,10 @@ private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:
 private val BYTE_UNITS = listOf("B", "KB", "MB", "GB")
 
 private fun formatBytes(bytes: Long): String {
+    // The counters are sums of deltas the kernel reports; a negative total is
+    // not a size, and "‑1 B" would read as a corrupted row rather than as the
+    // missing data it is.
+    if (bytes <= 0L) return "0 B"
     var value = bytes.toDouble()
     for ((index, unit) in BYTE_UNITS.withIndex()) {
         val last = index == BYTE_UNITS.lastIndex
@@ -369,12 +372,3 @@ private fun formatBytes(bytes: Long): String {
     return "$bytes B"
 }
 
-private fun formatDuration(ms: Long): String = when {
-    ms < 1_000 -> "${ms} ms"
-    ms < 60_000 -> String.format(Locale.US, "%.1f s", ms / 1000.0)
-    else -> {
-        val minutes = ms / 60_000
-        val seconds = (ms % 60_000) / 1000
-        "${minutes}m ${seconds}s"
-    }
-}
