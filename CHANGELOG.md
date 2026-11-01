@@ -284,15 +284,6 @@ Interaction and ergonomics overhaul, critical bugfixes, power saving, and databa
   `ProfileDao` and `ProfileRepository` for high-throughput node imports and
   in-place GeoIP updates without rewrites or UI re-render storms.
 
-### Fixed
-
-- **Group filter isolation.** Selecting a node group chip in `ProfilesScreen` no
-  longer causes other group chips to vanish; valid non-empty groups are preserved
-  globally from the unfiltered dataset.
-- **Rules list bottom clearance.** Replaced short bottom padding with
-  `StarveilSpacing.fabClearance` so the final rules card is not obscured by the
-  FAB or capsule.
-
 ### Changed
 
 - **Background radio and JNI hibernation.** Dashboard ViewModel now observes
@@ -302,6 +293,15 @@ Interaction and ergonomics overhaul, critical bugfixes, power saving, and databa
 - **Macrobenchmark suite.** Upgraded `BaselineProfileGenerator` and
   `NodesScrollBenchmark` with robust bilingual UI Automator selectors and
   capsule/drawer compatibility.
+
+### Fixed
+
+- **Group filter isolation.** Selecting a node group chip in `ProfilesScreen` no
+  longer causes other group chips to vanish; valid non-empty groups are preserved
+  globally from the unfiltered dataset.
+- **Rules list bottom clearance.** Replaced short bottom padding with
+  `StarveilSpacing.fabClearance` so the final rules card is not obscured by the
+  FAB or capsule.
 
 ## [0.9.1] — 2026-10-30
 
@@ -693,6 +693,11 @@ engine and the node picker are unchanged.
 - **The log is bare.** Mono 12.5sp on black, no card and no row rules; a level
   is a word colour, not a block.
 
+### Removed
+
+- The theme preference (`ThemeMode`, `dynamicColor`) and the appearance group
+  in Settings, along with their strings. There is one theme.
+
 ### Fixed
 
 - The bottom navigation clears the system navigation inset, so its labels are no
@@ -700,11 +705,6 @@ engine and the node picker are unchanged.
   the system.
 - A floating button sits 16dp above the bar again; the content was being inset
   by the navigation bar twice.
-
-### Removed
-
-- The theme preference (`ThemeMode`, `dynamicColor`) and the appearance group
-  in Settings, along with their strings. There is one theme.
 
 ## [0.7.14] — 2026-10-21
 
