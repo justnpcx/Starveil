@@ -16,8 +16,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-private class ImpProfiles : ProfileRepository {
+private class ImpProfiles(
+    /** Simulates a write that reports success and stores nothing. */
+    private val dropFirstReplace: Boolean = false,
+) : ProfileRepository {
     val rows = LinkedHashMap<Long, Profile>()
+    var replaceCalls = 0
+        private set
     override fun observeAll(): Flow<List<Profile>> = flow { emit(rows.values.toList()) }
     override fun observeByGroup(groupId: Long): Flow<List<Profile>> = flow { emit(rows.values.filter { it.groupId == groupId }) }
     override suspend fun getById(id: Long): Profile? = rows[id]
@@ -40,6 +45,8 @@ private class ImpProfiles : ProfileRepository {
     }
 
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
+        replaceCalls++
+        if (dropFirstReplace && replaceCalls == 1) return
         rows.values.removeAll { it.groupId == groupId }
         profiles.forEach { upsert(it.copy(groupId = groupId)) }
     }
@@ -207,6 +214,25 @@ class LinkImporterTest {
         assertEquals(2, profiles.rows.size)
         assertEquals(1, groups.rows.size)
         assertEquals("https://sub.example.com/x?token=t", groups.rows.values.single().subscriptionUrl)
+    }
+
+    @Test
+    fun `a group that stays empty after a successful import is written again`() = runBlocking {
+        // The field failure: the update reports success, the rows go somewhere
+        // the group does not read, and the list stays empty. The importer has to
+        // notice — an import that says "1 node" must not leave an empty group.
+        val body = Base64.getEncoder().encodeToString(
+            "vless://a@h1.example:443#n1".toByteArray(),
+        )
+        val profiles = ImpProfiles(dropFirstReplace = true)
+        val (import_, _, groups) = importer(profiles = profiles, fetcher = ImpFetcher(body = body))
+
+        val outcome = import_.import("https://sub.example.com/x")
+
+        assertEquals(ImportOutcome.AddedSubscription(1), outcome)
+        assertEquals(2, profiles.replaceCalls)
+        assertEquals(1, profiles.rows.size)
+        assertEquals(1, groups.rows.size)
     }
 
     @Test
