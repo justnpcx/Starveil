@@ -8,6 +8,40 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.15] — 2026-11-01
+
+Four screens were each drawing their own version of the same control, and one
+of them was printing a number that read as a bug.
+
+### Changed
+
+- **Every filter row is one component now.** The connections page had its own
+  scrolling row: its first chip sat on the page margin, its last chip was cut
+  by the screen edge, and there was no fade to say the row continued. It uses
+  the same row the node list and the log page use, which now fades at both ends
+  — and only where there is something beyond the edge.
+- **The group panel is a bottom sheet.** A dialog put four text buttons in the
+  middle of the screen and explained its own constraints under a greyed-out
+  control. The sheet has three parts: what the group is (name, subscription or
+  local, how many nodes), what mode it runs in (the three choices, applied on
+  tap, with one line about the one in force), and what can be done with it
+  (connect, refresh, rename), with delete set apart below a gap.
+- **A folder hides the connect row rather than disabling it.** A folder is not
+  something you connect through; the mode line already says what it is for, so
+  the row is simply not there.
+
+### Fixed
+
+- **A transient message no longer sits over the add control.** The latency
+  reading stayed on screen long after it stopped being news, on top of the one
+  control the page is built around. It now clears itself after 2.5 seconds, a
+  new message replaces the old one instead of queueing behind it, and the
+  message sits above the add control rather than on it.
+- **A connection with no usable start shows a dash, not thirty-nine years.**
+  The kernel reports a start of 0 for a connection it only saw the end of, and
+  subtracting that from the current time produced "20891617m 43s". Durations
+  now read in seconds, minutes, hours or days, and an unusable start is a dash.
+
 ## [0.9.14] — 2026-11-01
 
 A subscription that could only be reached from outside the network, and an
