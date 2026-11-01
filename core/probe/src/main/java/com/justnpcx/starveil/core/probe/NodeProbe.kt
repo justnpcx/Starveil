@@ -30,6 +30,9 @@ sealed interface ProbeResult {
 
     /** An address existed, but the node refused or reset the connection. */
     data object ConnectionFailed : ProbeResult
+
+    /** This probe cannot measure the node (for example, a direct WireGuard endpoint). */
+    data object Unsupported : ProbeResult
 }
 
 /**

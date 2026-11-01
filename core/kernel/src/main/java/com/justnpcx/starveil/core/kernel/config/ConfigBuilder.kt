@@ -240,6 +240,64 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
         )
 
     /**
+     * A no-tun probe config. Its proxy and front fragments come from the same
+     * [fragment] calls as the production config, so a chained measurement
+     * exercises the real protocol handshakes and complete detour path.
+     */
+    fun buildProbe(
+        profile: Profile,
+        front: Profile,
+        socksPort: Int,
+        cacheFileName: String,
+    ): String {
+        require(socksPort in 1..65535) { "invalid socks port" }
+        val chainFront = front.takeIf { it.nodeKey != profile.nodeKey }
+        val proxy = fragment(profile, PROXY_TAG).let { block ->
+            if (chainFront == null) block else block + ("detour" to FRONT_TAG)
+        }
+        val fragments = buildList {
+            if (placementOf(profile) == ConfigPlacement.OUTBOUND) add(proxy)
+            if (chainFront != null && placementOf(chainFront) == ConfigPlacement.OUTBOUND) {
+                add(fragment(chainFront, FRONT_TAG))
+            }
+        }
+        val endpoints = buildList {
+            if (placementOf(profile) == ConfigPlacement.ENDPOINT) add(proxy)
+            if (chainFront != null && placementOf(chainFront) == ConfigPlacement.ENDPOINT) {
+                add(fragment(chainFront, FRONT_TAG))
+            }
+        }
+        return Json.write(
+            linkedMapOf(
+                "log" to linkedMapOf("level" to "warn", "timestamp" to true),
+                "dns" to linkedMapOf(
+                    "servers" to listOf(
+                        linkedMapOf<String, Any?>("type" to "local", "tag" to LOCAL_DNS_TAG),
+                    ),
+                ),
+                "inbounds" to listOf(
+                    linkedMapOf(
+                        "type" to "mixed",
+                        "tag" to "probe-in",
+                        "listen" to "127.0.0.1",
+                        "listen_port" to socksPort,
+                    ),
+                ),
+                "outbounds" to fragments,
+                "endpoints" to endpoints,
+                "route" to linkedMapOf(
+                    "final" to PROXY_TAG,
+                    "default_domain_resolver" to linkedMapOf(
+                        "server" to LOCAL_DNS_TAG,
+                        "strategy" to NODE_RESOLVE_STRATEGY,
+                    ),
+                ),
+                "cache_file" to linkedMapOf("path" to cacheFileName),
+            ),
+        )
+    }
+
+    /**
      * Enabled rules, in the order the user arranged them — the first match
      * wins, so this order is the routing decision.
      *

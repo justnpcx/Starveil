@@ -37,6 +37,7 @@ class NodeHealthBatchProbe @Inject constructor(
     private val probe: NodeProbe,
     private val profiles: ProfileRepository,
     private val health: NodeHealthRepository,
+    private val chainProbe: ChainNodeProbe = ChainNodeProbe.unavailable,
 ) {
 
     /**
@@ -49,7 +50,7 @@ class NodeHealthBatchProbe @Inject constructor(
         val nodes = profiles.observeAll().first()
             // WireGuard is UDP only: a TCP handshake to it can only fail, and
             // recording that would be a lie about a node that works.
-            .filter { it.type != ProfileType.WIREGUARD }
+            .filter { it.type != ProfileType.WIREGUARD || it.frontNodeKey != null }
         if (nodes.isEmpty()) return 0
 
         val known = health.observeAll().first()
@@ -74,11 +75,17 @@ class NodeHealthBatchProbe @Inject constructor(
 
     private suspend fun sample(profile: Profile, nowMs: Long) {
         val latency = when (
-            val result = probe.probe(profile.server, profile.port, NodeProbe.BATCH_TIMEOUT_MS)
+            val result = probeProfile(
+                profile = profile,
+                timeoutMs = NodeProbe.BATCH_TIMEOUT_MS,
+                direct = probe,
+                chain = chainProbe,
+                allProfiles = { profiles.observeAll().first() },
+            )
         ) {
             is ProbeResult.Reached -> result.latencyMs
             ProbeResult.TimedOut, ProbeResult.ConnectionFailed -> LATENCY_UNREACHABLE
-            ProbeResult.ResolutionFailed -> return
+            ProbeResult.ResolutionFailed, ProbeResult.Unsupported -> return
         }
         health.record(profile.id, latency, nowMs, WEIGHT_FULL)
     }

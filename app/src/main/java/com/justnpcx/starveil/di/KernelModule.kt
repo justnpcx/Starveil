@@ -16,7 +16,9 @@ import com.justnpcx.starveil.core.kernel.libbox.StarveilPlatformInterface
 import com.justnpcx.starveil.core.kernel.vpn.StarveilVpnService
 import com.justnpcx.starveil.core.probe.TunnelProbe
 import com.justnpcx.starveil.core.probe.VpnServiceTunnelProbe
+import com.justnpcx.starveil.core.probe.ChainNodeProbe
 import com.justnpcx.starveil.core.probe.NodeProbe
+import com.justnpcx.starveil.core.probe.SingBoxChainNodeProbe
 import com.justnpcx.starveil.core.probe.StagedNodeProbe
 import com.justnpcx.starveil.core.probe.TcpNodeProbe
 import com.justnpcx.starveil.core.probe.KernelLogStream
@@ -118,6 +120,10 @@ object KernelModule {
     @Singleton
     fun provideNodeProbe(dns: com.justnpcx.starveil.core.data.geo.DohResolver): NodeProbe =
         TcpNodeProbe(dns)
+
+    @Provides
+    @Singleton
+    fun provideChainNodeProbe(probe: SingBoxChainNodeProbe): ChainNodeProbe = probe
 
     /**
      * The staged diagnostic behind the node long-press menu. Bound here for the

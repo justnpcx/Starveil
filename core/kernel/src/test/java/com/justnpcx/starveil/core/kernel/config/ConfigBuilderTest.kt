@@ -967,6 +967,23 @@ class ConfigBuilderTest {
     }
 
     @Test
+    fun `the standalone probe uses the production chain fragments without a tun`() {
+        val exit = vlessProfile().copy(name = "exit", server = "exit.example.com")
+        val front = vlessProfile().copy(name = "front", server = "front.example.com")
+
+        val config = builder.buildProbe(exit, front, socksPort = 2081, cacheFileName = "probe.db")
+
+        assertTrue(config.contains("\"type\":\"mixed\""))
+        assertTrue(config.contains("\"listen_port\":2081"))
+        assertTrue(config.contains("\"detour\":\"front\""))
+        assertTrue(config.contains("\"default_domain_resolver\":{\"server\":\"local\""))
+        assertFalse(config.contains("\"type\":\"tun\""))
+        // The real protocol fragment, not a bare server:port replacement.
+        assertTrue(config.contains("\"reality\""))
+        assertTrue(config.contains("\"transport\""))
+    }
+
+    @Test
     fun `the subscription proxy listens only when it was asked for`() {
         // A loopback socket is a socket; it exists only while the user wants
         // subscription fetches to leave through the tunnel.
