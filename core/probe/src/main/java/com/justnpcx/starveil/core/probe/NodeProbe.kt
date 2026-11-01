@@ -25,8 +25,11 @@ sealed interface ProbeResult {
     /** The node never answered inside the probe window. */
     data object TimedOut : ProbeResult
 
-    /** The name did not resolve, or the connection was refused outright. */
-    data object Failed : ProbeResult
+    /** DNS gave no address; no connection to the node was attempted. */
+    data object ResolutionFailed : ProbeResult
+
+    /** An address existed, but the node refused or reset the connection. */
+    data object ConnectionFailed : ProbeResult
 }
 
 /**
@@ -79,7 +82,7 @@ class TcpNodeProbe @Inject constructor(
                 resolve(server)
             } catch (e: UnknownHostException) {
                 null
-            } ?: return@withContext ProbeResult.Failed
+            } ?: return@withContext ProbeResult.ResolutionFailed
             val socket = Socket()
             try {
                 val started = System.nanoTime()
@@ -88,7 +91,7 @@ class TcpNodeProbe @Inject constructor(
             } catch (e: SocketTimeoutException) {
                 ProbeResult.TimedOut
             } catch (e: IOException) {
-                ProbeResult.Failed
+                ProbeResult.ConnectionFailed
             } finally {
                 runCatching { socket.close() }
             }

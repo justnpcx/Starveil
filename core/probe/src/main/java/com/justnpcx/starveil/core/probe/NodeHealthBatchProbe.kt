@@ -77,7 +77,8 @@ class NodeHealthBatchProbe @Inject constructor(
             val result = probe.probe(profile.server, profile.port, NodeProbe.BATCH_TIMEOUT_MS)
         ) {
             is ProbeResult.Reached -> result.latencyMs
-            ProbeResult.TimedOut, ProbeResult.Failed -> LATENCY_UNREACHABLE
+            ProbeResult.TimedOut, ProbeResult.ConnectionFailed -> LATENCY_UNREACHABLE
+            ProbeResult.ResolutionFailed -> return
         }
         health.record(profile.id, latency, nowMs, WEIGHT_FULL)
     }

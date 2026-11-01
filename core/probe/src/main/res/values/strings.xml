@@ -7,5 +7,6 @@
     <string name="latency_no_node">Pick a node first.</string>
     <string name="latency_timeout">No reply from the node within the probe window.</string>
     <string name="latency_unreachable">Could not reach the node — no TCP reply on its port.</string>
+    <string name="latency_resolution_failed">Could not resolve the node's domain name.</string>
     <string name="latency_not_applicable">Not measurable — WireGuard speaks UDP only, and this probe is a TCP handshake.</string>
 </resources>

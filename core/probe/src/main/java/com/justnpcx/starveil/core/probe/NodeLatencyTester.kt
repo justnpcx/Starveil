@@ -95,10 +95,21 @@ class NodeLatencyTester @Inject constructor(
                 LatencyTestResult(context.getString(R.string.latency_timeout), false)
             }
 
-            ProbeResult.Failed -> {
+            ProbeResult.ConnectionFailed -> {
                 health.record(id, LATENCY_UNREACHABLE, nowMs, WEIGHT_MANUAL)
-                LatencyTestResult(context.getString(R.string.latency_unreachable), false)
+                LatencyTestResult(context.getString(manualFailureMessage(ProbeResult.ConnectionFailed)), false)
+            }
+
+            ProbeResult.ResolutionFailed -> {
+                // No address means no node connection was attempted. Do not
+                // turn a private-DNS failure into evidence that the node died.
+                LatencyTestResult(context.getString(manualFailureMessage(ProbeResult.ResolutionFailed)), false)
             }
         }
     }
+}
+
+internal fun manualFailureMessage(result: ProbeResult): Int = when (result) {
+    ProbeResult.ResolutionFailed -> R.string.latency_resolution_failed
+    else -> R.string.latency_unreachable
 }

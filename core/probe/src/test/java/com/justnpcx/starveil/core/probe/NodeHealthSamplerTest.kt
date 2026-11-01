@@ -73,9 +73,19 @@ class NodeHealthSamplerTest {
     @Test
     fun `an unreachable node is recorded as loss too`() = runTest {
         val health = FakeHealth()
-        sampler(probe = FakeProbe(ProbeResult.Failed), health = health).sampleOnce(atMs = 1L)
+        sampler(probe = FakeProbe(ProbeResult.ConnectionFailed), health = health).sampleOnce(atMs = 1L)
 
         assertEquals(LATENCY_UNREACHABLE, health.recorded.single().second)
+    }
+
+    @Test
+    fun `a resolution failure is not evidence of node loss`() = runTest {
+        val health = FakeHealth()
+        val id = sampler(probe = FakeProbe(ProbeResult.ResolutionFailed), health = health)
+            .sampleOnce(atMs = 1L)
+
+        assertEquals(1L, id)
+        assertTrue(health.recorded.isEmpty())
     }
 
     @Test
@@ -110,7 +120,7 @@ class NodeHealthSamplerTest {
         // It speaks UDP only, so a TCP handshake can only fail — recording that
         // would be a lie about a node that works.
         val wg = node.copy(type = ProfileType.WIREGUARD)
-        val probe = FakeProbe(ProbeResult.Failed)
+        val probe = FakeProbe(ProbeResult.ConnectionFailed)
         val health = FakeHealth()
 
         val id = sampler(

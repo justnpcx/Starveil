@@ -56,7 +56,10 @@ class NodeHealthSampler @Inject constructor(
 
         val latencyMs = when (val result = probe.probe(profile.server, profile.port)) {
             is ProbeResult.Reached -> result.latencyMs
-            ProbeResult.TimedOut, ProbeResult.Failed -> LATENCY_UNREACHABLE
+            ProbeResult.TimedOut, ProbeResult.ConnectionFailed -> LATENCY_UNREACHABLE
+            // Private DNS produced no address. That says nothing about whether
+            // the node's own port answers, so it is not a health sample.
+            ProbeResult.ResolutionFailed -> return id
         }
         health.record(profileId = id, latencyMs = latencyMs, atMs = atMs)
         return id
