@@ -105,6 +105,14 @@
     <string name="profiles_msg_grouped">按地区分组：%1$d 个分组</string>
     <string name="profiles_msg_no_regions">没有节点名包含地区。把节点名改成含「香港」「日本」「US」这类词即可分组。</string>
     <string name="profiles_msg_refresh_failed">刷新失败：%1$s</string>
+    <string name="profiles_row_chain">链式代理</string>
+    <string name="profiles_chain_title">链式代理</string>
+    <string name="profiles_chain_exit">出口节点：%1$s</string>
+    <string name="profiles_chain_direct">直连：该节点自己拨号</string>
+    <string name="profiles_chain_path">%1$s → %2$s</string>
+    <string name="profiles_chain_none">无前置节点</string>
+    <string name="profiles_chain_clear">清除前置</string>
+    <string name="profiles_chain_no_candidates">没有可用作前置的节点：已经带前置的节点不能再当前置。</string>
     <string name="profiles_row_move">移到分组</string>
     <string name="profiles_row_menu_title">%1$s</string>
     <string name="profiles_group_all">全部</string>

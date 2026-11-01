@@ -799,6 +799,27 @@ class ProfilesViewModel @Inject constructor(
      * share format resolves to a null link once instead of on every
      * recomposition.
      */
+    /**
+     * Nodes that may serve as [exit]'s front.
+     *
+     * Three exclusions, each for a reason the sheet has to state: the exit
+     * itself (a node cannot dial through itself), any node that already has a
+     * front (one hop only — this is what makes a loop impossible by
+     * construction rather than by a runtime check), and anything that no longer
+     * exists, which cannot appear in [all] in the first place.
+     */
+    fun frontCandidates(exit: Profile, all: List<Profile>): List<Profile> =
+        all.filter { candidate ->
+            candidate.nodeKey != exit.nodeKey && candidate.frontNodeKey == null
+        }
+
+    /** Sets or clears the front; the node keeps everything else it had. */
+    fun setFrontNode(exit: Profile, frontKey: String?) {
+        viewModelScope.launch {
+            profiles.upsert(exit.copy(frontNodeKey = frontKey))
+        }
+    }
+
     fun shareNode(profile: Profile) {
         share.value = ShareTarget(
             name = profile.name,
