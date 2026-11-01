@@ -842,8 +842,35 @@ class ConfigBuilderTest {
         val single = builder.build(vlessProfile(), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
         val group = builder.build(listOf(vlessProfile()), mainland = mainland, preset = RoutePreset.BYPASS_MAINLAND)
 
-        assertTrue(single.contains("\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\",\"detour\":\"proxy\""))
-        assertTrue(group.contains("\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\",\"detour\":\"auto\""))
+        assertTrue(
+            single.contains(
+                "\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\"" +
+                    ",\"tls\":{\"enabled\":true,\"server_name\":\"cloudflare-dns.com\"}" +
+                    ",\"detour\":\"proxy\"",
+            ),
+        )
+        assertTrue(
+            group.contains(
+                "\"tag\":\"dns-proxy\",\"server\":\"1.1.1.1\"" +
+                    ",\"tls\":{\"enabled\":true,\"server_name\":\"cloudflare-dns.com\"}" +
+                    ",\"detour\":\"auto\"",
+            ),
+        )
+    }
+
+    @Test
+    fun `the proxy resolver is validated against a name, not the address`() {
+        // Dialling 1.1.1.1 and checking the certificate against 1.1.1.1 is
+        // only valid when the endpoint answers with an IP SAN. Through a
+        // Cloudflare-fronted relay it answers with a certificate for a name,
+        // and every foreign lookup dies with x509: cannot validate
+        // certificate for 1.1.1.1 because it doesn't contain any IP SANs.
+        val config = builder.build(
+            vlessProfile(),
+            mainland = mainland,
+            preset = RoutePreset.BYPASS_MAINLAND,
+        )
+        assertTrue(config.contains("\"server_name\":\"cloudflare-dns.com\""))
     }
 
     @Test

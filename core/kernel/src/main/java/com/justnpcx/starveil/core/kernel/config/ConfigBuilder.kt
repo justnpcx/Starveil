@@ -474,6 +474,13 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
                     "type" to "https",
                     "tag" to DNS_PROXY_TAG,
                     "server" to DNS_PROXY_SERVER,
+                    // Verified with the shipped 1.14.3 binary: an https DNS
+                    // server accepts a tls block, and server_name is the field
+                    // that decides which name the certificate must cover.
+                    "tls" to linkedMapOf<String, Any?>(
+                        "enabled" to true,
+                        "server_name" to DNS_PROXY_TLS_NAME,
+                    ),
                     // The tag this build actually defines: `auto` for a group,
                     // `proxy` for a single node. Naming one the config does not
                     // define fails the start with "outbound detour not found",
@@ -797,6 +804,24 @@ class ConfigBuilder(private val registry: ProtocolRegistry) {
 
         /** Cloudflare, reached through the tunnel, for everything else. */
         const val DNS_PROXY_SERVER = "1.1.1.1"
+
+        /**
+         * The name the proxy resolver's certificate is issued to.
+         *
+         * Dialling 1.1.1.1 and verifying the certificate against 1.1.1.1 only
+         * works when the endpoint returns a certificate that carries the
+         * address as an IP SAN. Through a Cloudflare-fronted relay it does not:
+         * the answer is a certificate for a name, and the handshake dies with
+         * "x509: cannot validate certificate for 1.1.1.1 because it doesn't
+         * contain any IP SANs". Every foreign name then fails to resolve, and
+         * the tunnel looks connected while nothing loads.
+         *
+         * So the address stays as the dial target — it needs no lookup of its
+         * own — and the name goes in as the TLS server name, which is what the
+         * certificate is checked against and what Cloudflare expects in the
+         * SNI anyway.
+         */
+        const val DNS_PROXY_TLS_NAME = "cloudflare-dns.com"
 
         /**
          * IPv4 only, like every mainstream Android client's default.
