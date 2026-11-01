@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
+import com.justnpcx.starveil.core.data.repository.ChainInvalidationBus
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.geo.CountryResolver
@@ -145,6 +146,9 @@ sealed interface ProfilesMessage {
     /** A folder the user just made, so the page can say so. */
     data class GroupCreated(val name: String) : ProfilesMessage
 
+    /** A deleted or refreshed-away front was cleared, and the exit is direct now. */
+    data class FrontInvalidated(val exitName: String) : ProfilesMessage
+
     /** Nothing in the node names could be recognised as a region. */
     data object NoRegionsFound : ProfilesMessage
 
@@ -207,6 +211,7 @@ class ProfilesViewModel @Inject constructor(
     private val refreshScheduler: SubscriptionRefreshScheduler,
     private val nodeHealth: NodeHealthRepository,
     private val countryResolver: CountryResolver,
+    private val chainInvalidations: ChainInvalidationBus = ChainInvalidationBus(),
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
@@ -259,6 +264,11 @@ class ProfilesViewModel @Inject constructor(
     private var offeredClipboardHash: String? = null
 
     init {
+        viewModelScope.launch {
+            chainInvalidations.events.collect { exitName ->
+                message.value = ProfilesMessage.FrontInvalidated(exitName)
+            }
+        }
         // Nodes learn their country once. A GeoIP answer does not change, so the
         // result is written back to the row and that host is never looked up
         // again; a node whose address cannot be resolved simply keeps no flag.

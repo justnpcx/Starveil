@@ -236,4 +236,6 @@
     <string name="profiles_favorite_add">Pin to top</string>
     <string name="profiles_favorite_remove">Unpin</string>
 <string name="profiles_long_press_hint">Long-press a node to edit, pin, share, move or delete it</string>
+    <string name="profiles_front_invalidated">The front node for %1$s is no longer available; it will connect directly.</string>
+    <string name="profiles_delete_front_dependents">%1$d nodes use this as their front and will connect directly after deletion.</string>
 </resources>

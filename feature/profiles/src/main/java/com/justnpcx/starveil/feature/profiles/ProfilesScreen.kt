@@ -979,7 +979,15 @@ fun ProfilesScreen(
             shape = StarveilShapes.dialog,
             onDismissRequest = { nodeToDelete = null },
             title = { Text(stringResource(R.string.profiles_node_delete_title)) },
-            text = { Text(stringResource(R.string.profiles_node_delete_body, profile.name)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm)) {
+                    Text(stringResource(R.string.profiles_node_delete_body, profile.name))
+                    val dependents = state.allProfiles.count { it.frontNodeKey == profile.nodeKey }
+                    if (dependents > 0) {
+                        Text(stringResource(R.string.profiles_delete_front_dependents, dependents))
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1316,6 +1324,7 @@ private fun ProfilesMessage.text(): String = when (this) {
     is ProfilesMessage.RefreshFailed -> stringResource(R.string.profiles_msg_refresh_failed, reason.text())
     is ProfilesMessage.GroupedByRegion -> stringResource(R.string.profiles_msg_grouped, regions)
     is ProfilesMessage.GroupCreated -> stringResource(R.string.profiles_msg_group_created, name)
+    is ProfilesMessage.FrontInvalidated -> stringResource(R.string.profiles_front_invalidated, exitName)
     ProfilesMessage.NoRegionsFound -> stringResource(R.string.profiles_msg_no_regions)
     is ProfilesMessage.External -> text
 }

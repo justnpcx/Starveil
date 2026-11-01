@@ -1,9 +1,11 @@
 package com.justnpcx.starveil.di
 
 import android.content.Context
+import com.justnpcx.starveil.core.data.repository.ChainWarningSink
 import com.justnpcx.starveil.core.kernel.ConnectionLog
 import com.justnpcx.starveil.core.kernel.FlowLog
 import com.justnpcx.starveil.core.kernel.KernelBridge
+import com.justnpcx.starveil.core.kernel.KernelDiagnostics
 import com.justnpcx.starveil.core.kernel.KernelPaths
 import com.justnpcx.starveil.core.kernel.LogStream
 import com.justnpcx.starveil.core.kernel.RealKernelBridge
@@ -43,6 +45,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object KernelModule {
+
+    @Provides
+    @Singleton
+    fun provideChainWarningSink(): ChainWarningSink = ChainWarningSink { KernelDiagnostics.log(it) }
 
     @Provides
     @Singleton

@@ -26,6 +26,7 @@ import com.justnpcx.starveil.core.data.ruleset.FileRulePackStore
 import com.justnpcx.starveil.core.data.ruleset.MainlandRuleSetStore
 import com.justnpcx.starveil.core.data.ruleset.RulePackStore
 import java.io.File
+import com.justnpcx.starveil.core.data.repository.ChainReferenceIntegrity
 import com.justnpcx.starveil.core.data.repository.GroupRepository
 import com.justnpcx.starveil.core.data.repository.NodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.ProfileRepository
@@ -145,8 +146,10 @@ object DataModule {
 
     @Provides
     @Singleton
-    fun provideProfileRepository(dao: ProfileDao): ProfileRepository =
-        RoomProfileRepository(dao)
+    fun provideProfileRepository(
+        dao: ProfileDao,
+        chainIntegrity: ChainReferenceIntegrity,
+    ): ProfileRepository = RoomProfileRepository(dao, chainIntegrity)
 
     @Provides
     @Singleton
@@ -155,8 +158,11 @@ object DataModule {
 
     @Provides
     @Singleton
-    fun provideGroupRepository(groupDao: GroupDao, profileDao: ProfileDao): GroupRepository =
-        RoomGroupRepository(groupDao, profileDao)
+    fun provideGroupRepository(
+        groupDao: GroupDao,
+        profileDao: ProfileDao,
+        chainIntegrity: ChainReferenceIntegrity,
+    ): GroupRepository = RoomGroupRepository(groupDao, profileDao, chainIntegrity)
 
     @Provides
     @Singleton

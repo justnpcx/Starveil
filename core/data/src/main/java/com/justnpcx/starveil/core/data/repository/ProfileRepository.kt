@@ -69,6 +69,8 @@ interface ProfileRepository {
 
 class RoomProfileRepository @Inject constructor(
     private val dao: ProfileDao,
+    /** Null only in small DAO fakes; production supplies the shared repair service. */
+    private val chainIntegrity: ChainReferenceIntegrity? = null,
 ) : ProfileRepository {
     override fun observeAll(): Flow<List<Profile>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain() } }
@@ -91,7 +93,10 @@ class RoomProfileRepository @Inject constructor(
         return dao.upsert(profile.toEntity(settingsJson = settingsJson))
     }
 
-    override suspend fun deleteById(id: Long) = dao.deleteById(id)
+    override suspend fun deleteById(id: Long) {
+        dao.deleteById(id)
+        chainIntegrity?.repair()
+    }
 
     override suspend fun upsertAll(profiles: List<Profile>): List<Long> {
         if (profiles.isEmpty()) return emptyList()
@@ -110,10 +115,16 @@ class RoomProfileRepository @Inject constructor(
 
     override suspend fun setCountry(id: Long, country: String) = dao.setCountry(id, country)
 
-    override suspend fun deleteByGroup(groupId: Long) = dao.deleteByGroup(groupId)
+    override suspend fun deleteByGroup(groupId: Long) {
+        dao.deleteByGroup(groupId)
+        chainIntegrity?.repair()
+    }
 
     override suspend fun replaceGroupProfiles(groupId: Long, profiles: List<Profile>) {
-        dao.replaceGroup(groupId, profiles.map { it.copy(groupId = groupId).toEntity() })
+        val previous = dao.getAll().filter { it.groupId == groupId }.map { it.toDomain() }
+        val preserved = preserveFronts(previous, profiles)
+        dao.replaceGroup(groupId, preserved.map { it.copy(groupId = groupId).toEntity() })
+        chainIntegrity?.repair()
     }
 
     private companion object {
