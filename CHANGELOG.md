@@ -8,6 +8,16 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.19] — 2026-11-02
+
+### Fixed
+
+- **Restore the trimmed libbox build.** Starveil's build script now owns the
+  protocol tag list, so the 1.14.4 rebuild no longer pulls unused
+  OpenVPN/OpenConnect, Tailscale and other outbounds into the APK. arm64
+  `libbox.so` returns to 58.90 MiB and the arm64 release APK to 31.42 MiB.
+  All seven supported protocols pass device connectivity checks.
+
 ## [0.9.18] — 2026-11-02
 
 ### Changed
