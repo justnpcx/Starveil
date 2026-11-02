@@ -26,6 +26,29 @@ content; `git range-diff` reports every old/new pair as equivalent:
 | `397f9143d` | VLESS: multiplex wins over flow | upstream sends both when a node carries both |
 | `e15eab12f` | `LIBBOX_TAGS` replaces the default tags | lets the build select its tag set |
 
+### Branch roles and discipline
+
+The fork carries three lines, each with one job. Mixing them up is what produced
+the 2026-11-01 incident below, so the split is written down here.
+
+| Branch | Role | May do | Must not do |
+|---|---|---|---|
+| `testing` | Mirror of upstream `SagerNet/sing-box`; the only entry point for upstream sync | Track upstream verbatim | Carry Starveil patches |
+| `starveil-1.14.x` | Patch source line: the four patch themes (six commits) are developed and kept here; every version line is replayed from it | Receive new patch commits; serve as the replay source | Be built for shipping; be merged into from upstream |
+| `starveil-1.14.4` | Shipping pinned line: upstream `v1.14.4` plus the six commits | Be the only line the build script and the checked-in `libbox.aar` take source from | Receive new work; be rebased or moved |
+
+Two rules follow from that table:
+
+1. **Upstream sync happens only as "replay the patches onto a new version line".**
+   Never merge `testing` into `starveil-1.14.x` again. The 2026-11-01 23:25 merge
+   that did exactly that (`34fb5ed`, 45 upstream 1.15-dev commits pulled into the
+   patch source) is kept as an incident record in
+   `archive/starveil-1.14.x-merged-20261101`; the line itself was reset to
+   `7333b9b`, which is `v1.14.3` + the six patches.
+2. **Only a `starveil-<version>` line may be built.** `starveil-1.14.x` is a patch
+   source, never a build source — building from it would ship whatever the patch
+   incubator happens to contain that day.
+
 **The reported version is derived, not written down.** `cmd/internal/build_libbox`
 runs `git describe --tags` and injects the result as
 `-X github.com/sagernet/sing-box/constant.Version=…`, overriding the literal in
