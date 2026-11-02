@@ -29,6 +29,8 @@ ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/opt/android-sdk}"
 NDK_VERSION="28.2.13676358"
 GOMOBILE_VERSION="v0.1.13"
 PLATFORM="${PLATFORM:-}"
+readonly LIBBOX_TAGS="with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0"
+export LIBBOX_TAGS
 
 NDK_DIR="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
 
@@ -46,6 +48,7 @@ export ANDROID_NDK_ROOT="$NDK_DIR"
 echo "go:        $("$GO_BIN/go" version)"
 echo "ndk:       $NDK_DIR"
 echo "gomobile:  $GOMOBILE_VERSION"
+echo "tags:      $LIBBOX_TAGS"
 echo "fork HEAD: $(git -C "$SINGBOX_DIR" rev-parse --short HEAD)"
 
 echo "==> installing gomobile/gobind $GOMOBILE_VERSION"

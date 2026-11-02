@@ -75,7 +75,7 @@ Produces, in the fork tree:
 
 | Artifact | API | ABIs | Tags | sha256 | Size |
 |---|---|---|---|---|---|
-| `libbox.aar` (checked in) | 24 | arm64-v8a, armeabi-v7a, x86_64 | the `LIBBOX_TAGS` list below | `5b758c4dbe279ff0799f4cdcf73aaea5cb64c33846cbbaedc21c132a9de0d3ac` | 81 MB |
+| `libbox.aar` (checked in) | 24 | arm64-v8a, armeabi-v7a, x86_64 | the `LIBBOX_TAGS` list below | `3f601b53667bb2378e78c18b9b0e3ad10493c8e452bed0222a2ea0700f7762bb` | 58 MB |
 
 The hash is of the file actually consumed, not of a build that was thrown away:
 `core/kernel/libs/libbox.aar`, built from `starveil-1.14.4@e15eab12f` with all
@@ -352,11 +352,11 @@ arm64 split.
 
 sing-box 的 Android 构建默认把**所有**出站协议都编进去，包括 tailscale、naive（会链入
 cronet-go）、openvpn、openconnect、usbip —— Starveil 一个都到不了。默认标签表在
-`cmd/internal/build_libbox/main.go`，`LIBBOX_TAGS` 可以整体替换它：
+`cmd/internal/build_libbox/main.go`；Starveil 在 `tools/build-libbox.sh` 中显式持有并导出
+`LIBBOX_TAGS`，整体替换默认表，不依赖调用者或 fork 侧的环境变量：
 
 ```bash
-export LIBBOX_TAGS="with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0"
-bash /root/build-one-abi.sh android/arm64
+PLATFORM=android/arm64 bash tools/build-libbox.sh
 ```
 
 保留的五项对应 App 真正支持的协议：gvisor（tun 栈）、quic（Hysteria2/TUIC）、
