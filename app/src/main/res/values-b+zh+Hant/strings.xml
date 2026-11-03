@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The brand name, so it does not fall back to the merged library value. -->
+    <string name="app_name">Starveil</string>
+    <string name="nav_home">首頁</string>
+    <string name="nav_nodes">節點</string>
+    <string name="nav_rules">規則</string>
+    <string name="nav_logs">日誌</string>
+    <string name="nav_settings">設定</string>
+    <string name="nav_scenes">場景</string>
+    <string name="nav_diagnostics">診斷自檢</string>
+    <string name="nav_more">更多</string>
+    <string name="nav_about">關於</string>
+    <string name="nav_back">返回</string>
+    <!-- 导航栏朗读的选中状态，接在名称之后。 -->
+    <string name="nav_item_selected">已選中</string>
+    <string name="nav_item_unselected">未選中</string>
+
+    <!-- The one global action in the top bar. -->
+    <string name="theme_to_dark">切換到深色</string>
+    <string name="theme_to_light">切換到淺色</string>
+
+    <!-- 导航栏负责绘制的页面标题；页面本身不再自带标题。 -->
+    <string name="nav_per_app">分應用路由</string>
+    <string name="nav_keep_alive">背景保持運作</string>
+    <string name="nav_connections">連線</string>
+    <string name="nav_dns_log">DNS 日誌</string>
+    <string name="nav_privacy">隱私</string>
+    <string name="nav_language">語言</string>
+
+    <!-- 聚合页：导航栏未列出的每个去处一行。 -->
+    <string name="hub_group_tools">診斷工具</string>
+    <string name="hub_group_app">功能與系統</string>
+    <string name="hub_connections_title">連線明細</string>
+    <string name="hub_connections_sub">誰連了哪裡、命中哪條規則、走的哪個節點</string>
+    <string name="hub_export_title">匯出診斷包</string>
+    <string name="hub_export_sub">版本、核心、DNS 統計、洩漏自檢與最近日誌，分享前先預覽</string>
+    <string name="hub_scenes_sub">自動化預設與場景切換</string>
+    <string name="hub_logs_sub">連線日誌與最近流向</string>
+    <string name="hub_diagnostics_title">診斷自檢</string>
+    <string name="hub_diagnostics_sub">DNS、探測與連通性檢查</string>
+    <string name="hub_settings_sub">外觀、連線、安全與備份</string>
+    <string name="hub_about_sub">版本、功能介紹、隱私與許可</string>
+
+    <!-- 关于。 -->
+    <string name="about_name">Starveil 星紗</string>
+    <string name="about_version_line">版本 %1$s</string>
+    <string name="about_update_title">版本更新</string>
+    <string name="about_update_checking">檢查中…</string>
+    <string name="about_update_latest">已是最新</string>
+    <string name="about_update_available">有新版本 %1$s</string>
+    <string name="about_update_downloading">下載中…</string>
+    <string name="about_update_check_failed">檢查失敗 · 點選重試</string>
+    <string name="about_update_download_failed">下載失敗 · 點選重試</string>
+    <string name="about_update_ready">可以安裝</string>
+    <string name="about_features_title">功能介紹</string>
+    <string name="about_features_body">Starveil 讓這臺裝置的流量走你選的節點，並且把每一個決定攤開給你看。\n\n· 節點可以透過二維碼、剪貼簿、訂閱或手動輸入進來。\n· 規則決定哪些流量進隧道、哪些直連；規則頁會把核心實際做出的判斷擺在你寫的規則旁邊。\n· 場景依 Wi-Fi 名稱或行動網路自動切換策略。\n· 首頁顯示狀態、速率、出口位址，以及目前節點的健康曲線。\n· 全部在本機：沒有帳號，沒有統計，只有一份可關閉的崩潰報告。</string>
+    <string name="about_privacy_title">隱私政策</string>
+    <string name="about_licences_title">開源許可</string>
+    <string name="about_github_title">GitHub 專案主頁</string>
+    <string name="about_licences_body">Starveil 以 GNU 通用公共許可證第 3 版釋出。原始碼公開，修改後的版本同樣必須開源。\n\n它內建了自維護的 sing-box fork（GPL-3.0），隧道本體由它承擔。\n\n它還連結了 AndroidX 與 Jetpack Compose（Apache-2.0）、Hilt 與 Dagger（Apache-2.0）、Room 與 SQLCipher（Apache-2.0 / BSD 類）、ZXing（Apache-2.0）與 Sentry（MIT）。完整文字隨各自依賴分發。</string>
+    <string name="about_footer_kernel">核心 sing-box %1$s · 本應用基於 GPL-3.0 開源</string>
+    <string name="about_footer_copyright">© 2026 justnpcx</string>
+    <string name="about_close">關閉</string>
+
+    <!-- Appearance. -->
+    <string name="appearance_title">外觀</string>
+    <string name="appearance_system">跟隨系統</string>
+    <string name="appearance_light">白天</string>
+    <string name="appearance_dark">黑夜</string>
+
+
+
+    <!-- Quick-settings tile. The label is the app name; the subtitle is the state. -->
+    <string name="tile_connected">已連線</string>
+    <string name="tile_disconnected">未連線</string>
+
+    <!-- Home-screen widget. -->
+    <string name="widget_description">連線狀態，點一下即可開關。</string>
+    <string name="widget_connected">已連線</string>
+    <string name="widget_disconnected">未連線</string>
+    <string name="widget_tap_connect">點一下連線</string>
+    <string name="widget_tap_disconnect">點一下斷開</string>
+
+    <string name="scene_channel_name">場景</string>
+    <string name="scene_channel_desc">自動切換策略的記錄。</string>
+    <string name="scene_applied_title">已應用場景</string>
+    <string name="scene_applied_body">%1$s：已切換到 %2$s。</string>
+
+    <!-- 首次启动引导：仅一次，可跳过 -->
+</resources>

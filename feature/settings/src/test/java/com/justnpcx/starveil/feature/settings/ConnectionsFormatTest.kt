@@ -1,5 +1,7 @@
 package com.justnpcx.starveil.feature.settings
 
+import java.time.Instant
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -30,6 +32,36 @@ class ConnectionsFormatTest {
         assertEquals("59m 59s", ConnectionsFormat.duration(3_599_000))
         assertEquals("1h 0m", ConnectionsFormat.duration(3_600_000))
         assertEquals("23h 59m", ConnectionsFormat.duration(86_340_000))
+    }
+
+    @Test
+    fun `a start the kernel never reported is a dash`() {
+        // Rows inherited from a previous session arrive with 0, and the old
+        // code formatted that as 08:00:00 — a wrong time that looked right.
+        assertEquals("—", ConnectionsFormat.clock(0L, 1_700_000_000_000L))
+        assertEquals("—", ConnectionsFormat.clock(-1L, 1_700_000_000_000L))
+    }
+
+    @Test
+    fun `a start after now is a dash`() {
+        val now = 1_700_000_000_000L
+        // A start exactly now is not the future: it is a real start and gets a
+        // real clock. Only a start after now has no wall-clock meaning.
+        assertEquals("—", ConnectionsFormat.clock(now + 1, now))
+        assertEquals(
+            "22:13:20",
+            ConnectionsFormat.clock(now, now, ZoneId.of("UTC")),
+        )
+    }
+
+    @Test
+    fun `a real start reads as a wall clock`() {
+        val zone = ZoneId.of("UTC")
+        val start = Instant.parse("2026-01-01T00:05:09Z").toEpochMilli()
+        assertEquals(
+            "00:05:09",
+            ConnectionsFormat.clock(start, start + 60_000, zone),
+        )
     }
 
     @Test

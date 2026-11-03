@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_message_dismiss">關閉</string>
+    <string name="core_undo">復原</string>
+    <string name="core_health_collecting">正在生成健康曲線…</string>
+    <string name="core_search_clear">清除搜尋</string>
+    <string name="core_chain_title">鏈式代理</string>
+    <string name="core_chain_exit">出口節點：%1$s</string>
+    <string name="core_chain_direct">直連：該節點自己撥號</string>
+    <string name="core_chain_path">%1$s → %2$s</string>
+    <string name="core_chain_none">無前置節點</string>
+    <string name="core_chain_clear">清除前置</string>
+    <string name="core_chain_no_candidates">沒有可用作前置的節點。</string>
+    <string name="core_chain_excluded_self">出口節點自身</string>
+    <string name="core_chain_excluded_chained">已帶前置，僅允許一層</string>
+    <string name="core_chain_ungrouped">不分組</string>
+    <string name="core_chain_latency">%1$d ms</string>
+    <string name="core_chain_latency_untested">延遲未測</string>
+    <string name="core_chain_field">前置節點</string>
+</resources>

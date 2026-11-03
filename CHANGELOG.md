@@ -8,6 +8,38 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.20] — 2026-11-03
+
+### Added
+
+- **Traditional Chinese (zh-Hant).** All 829 strings are translated, the
+  language page lists 繁體中文, and `values-b+zh+Hant` serves zh-TW, zh-HK and
+  zh-MO. The page now compares the full locale tag instead of the bare
+  language code, so the simplified and traditional rows no longer light up
+  together; Android 13's per-app language list offers it too.
+- **GitHub entry on About.** One row under Open-source licences opens the
+  project page in the browser. The repository address comes from the update
+  checker's constant rather than a second copy of the string.
+
+### Changed
+
+- **Home shows one number per meaning.** The health card is gone: the node
+  card's sub-line carries latency and availability and opens the curve, the
+  latency label reads "node latency", and the exit card's second row reads
+  "exit latency". A disconnected tunnel leaves one grey "last exit" line
+  instead of a live-looking card.
+- **Nodes page keeps its bottom corners.** The list card now has the same
+  bottom margin as its sides, so the lower rounded edge is no longer cut by
+  the navigation bar; an empty list shows a line instead of a blank card.
+
+### Fixed
+
+- **Connections clock column.** Rows whose start the kernel never reported
+  (0) were formatted as 08:00:00; they now show —, as do starts in the future.
+- **Stale exit values on Home.** While disconnected, the exit IP and smoothed
+  latency keep the last reading and are prefixed with "last" instead of
+  reading as current.
+
 ## [0.9.19] — 2026-11-02
 
 ### Fixed

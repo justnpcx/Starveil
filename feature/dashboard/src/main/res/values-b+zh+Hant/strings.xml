@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dashboard_current_node">目前節點</string>
+    <string name="dashboard_no_node_hint">在「節點」頁選擇一個。</string>
+
+    <!-- The core's accessibility description: state + what tapping does. -->
+    <string name="dashboard_core_disconnected">連線狀態：未連線。點按連線。</string>
+    <string name="dashboard_core_connecting">連線狀態：連線中。請稍候。</string>
+    <string name="dashboard_core_connected">連線狀態：已連線。點按斷開。</string>
+    <string name="dashboard_core_blocked">連線狀態：已阻斷。點按重試。</string>
+    <string name="dashboard_core_warning">連線狀態：已連線，但有警告。點按斷開。</string>
+
+    <string name="dashboard_no_node">未選擇節點</string>
+    <string name="dashboard_state_disconnected">未連線</string>
+    <string name="dashboard_state_connecting">連線中</string>
+    <string name="dashboard_state_connected">已連線</string>
+    <string name="dashboard_state_blocked">阻斷中</string>
+    <string name="dashboard_state_warning">有警告</string>
+    <string name="dashboard_speed_down">↓ 下行</string>
+    <string name="dashboard_speed_up">↑ 上行</string>
+    <string name="dashboard_speed_total">累計 %1$s</string>
+
+    <string name="dashboard_notice_kill_switch">Kill Switch 正在阻斷全部流量</string>
+    <string name="dashboard_notice_kill_switch_failed">Kill Switch 啟動失敗，流量未被阻斷。</string>
+    <string name="dashboard_notice_tunnel_dropped">隧道已斷開</string>
+    <string name="dashboard_notice_tunnel_reconnecting">隧道已斷開，正在重新連線…</string>
+    <string name="dashboard_notice_tunnel_keeps_dropping">隧道反覆斷開，不再重新連線</string>
+    <string name="dashboard_notice_no_target">請先在「節點」頁選擇節點或分組</string>
+    <string name="dashboard_notice_config">無法為該目標生成配置</string>
+    <string name="dashboard_notice_kernel_refused">核心啟動失敗</string>
+
+    <!-- §7.2 node health history. -->
+    <string name="dashboard_latency_label">節點延遲</string>
+    <string name="dashboard_node_health_inline">節點延遲 %1$d ms · 線上 %2$d%%</string>
+    <string name="dashboard_node_health_line">延遲 %1$d ms</string>
+    <string name="dashboard_health_chart_desc">%1$d 次探測的延遲曲線：最低 %2$d ms，最高 %3$d ms。</string>
+    <string name="dashboard_health_chart_empty">延遲曲線：該時間窗內沒有成功探測。</string>
+    <string name="dashboard_traffic_chart_desc">最近 %1$d 秒的流量，下行峰值 %2$s。</string>
+
+    <string name="dashboard_auto_select">自動選擇</string>
+    <string name="dashboard_notice_auto_selected">已自動選擇 %1$s——%2$s。</string>
+    <string name="dashboard_notice_switching_node">連線已斷開，正在嘗試另一個節點。</string>
+    <string name="dashboard_notice_tunnel_silent">已連線，但沒有任何流量透過。節點可能已失效或配置有誤。</string>
+    <string name="dashboard_reason_health">線上率 %1$d%% · 延遲 %2$d ms</string>
+    <string name="dashboard_reason_health_no_latency">線上率 %1$d%%</string>
+    <string name="dashboard_reason_tied">%1$s（同分）</string>
+    <string name="dashboard_reason_tied_region">%1$s（同分，優先 %2$s）</string>
+    <string name="dashboard_reason_cooling_down">所有節點都在冷卻，還剩 %1$d 分鐘</string>
+    <string name="dashboard_reason_unmeasured">尚無測量資料</string>
+    <string name="dashboard_failure_title">失敗原因</string>
+    <string name="dashboard_failure_hint">這是核心傳回的原始資訊，敏感內容已脫敏。複製它是最快的反饋方式。</string>
+    <string name="dashboard_failure_close">關閉</string>
+    <string name="dashboard_failure_copy">複製</string>
+    <string name="dashboard_notice_kernel_refused_reason">核心啟動失敗：%1$s</string>
+    <string name="dashboard_mode_auto">自動</string>
+    <string name="dashboard_mode_manual">手動</string>
+    <string name="dashboard_exit">出口 IP %1$s · 出口往返 %2$d ms（經節點實測）</string>
+<string name="dashboard_first_connect_hint">點按圓環連線</string>
+    <string name="dashboard_hint_connect">點按連線</string>
+    <string name="dashboard_hint_disconnect">點按斷開</string>
+    <string name="dashboard_hint_connecting">正在建立隧道</string>
+    <string name="dashboard_hint_blocked">點按重試</string>
+
+    <string name="dashboard_health_collecting">正在取樣：%1$d / %2$d 次。夠畫出形狀時才顯示曲線。</string>
+    <string name="dashboard_health_all_unreachable">該時間窗內 %1$d 次探測全部不可達，沒有可畫的延遲樣本。</string>
+    <string name="dashboard_health_details_title">節點健康</string>
+    <string name="dashboard_health_legend_availability">線上率——探測有回應的比例。</string>
+    <string name="dashboard_health_legend_ema">延遲 EMA——只對成功回來的探測做平滑。</string>
+    <string name="dashboard_health_legend_loss">丟包點——每次沒有回應的探測畫一個點，不參與延遲曲線。</string>
+    <string name="dashboard_exit_details_title">出口</string>
+    <string name="dashboard_exit_address">出口 IP</string>
+    <string name="dashboard_exit_rtt_smoothed">出口延遲</string>
+    <string name="dashboard_exit_last">上次出口 %1$s</string>
+    <string name="dashboard_exit_rtt">往返延遲</string>
+    <string name="dashboard_exit_rtt_value">%1$d ms</string>
+    <string name="dashboard_exit_measured">偵測時間</string>
+    <string name="dashboard_exit_note">往返延遲包含一次第三方請求的 DNS、連線與 TLS 耗時，不是 ping。</string>
+</resources>

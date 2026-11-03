@@ -45,9 +45,6 @@ import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -209,9 +206,7 @@ private fun ConnectionRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = TIME_FORMAT.format(
-                    Instant.ofEpochMilli(row.startedAtMs).atZone(ZoneId.systemDefault()),
-                ),
+                text = ConnectionsFormat.clock(row.startedAtMs, nowMs),
                 style = StarveilType.tech,
                 color = StarveilColors.ink3,
             )
@@ -348,7 +343,6 @@ private fun Empty(title: String, body: String) {
     }
 }
 
-private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
 private val BYTE_UNITS = listOf("B", "KB", "MB", "GB")
 

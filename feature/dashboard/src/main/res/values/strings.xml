@@ -36,10 +36,9 @@
     <string name="dashboard_notice_kernel_refused">Kernel failed to start</string>
 
     <!-- §7.2 node health history. -->
-    <string name="dashboard_latency_label">Latency</string>
-    <string name="dashboard_health_title">Node health · last 30 min</string>
+    <string name="dashboard_latency_label">Node latency</string>
+    <string name="dashboard_node_health_inline">Node latency %1$d ms · online %2$d%%</string>
     <string name="dashboard_node_health_line">%1$d ms</string>
-    <string name="dashboard_health_availability">%1$d%% up</string>
     <string name="dashboard_health_chart_desc">Latency curve over %1$d probes: lowest %2$d ms, highest %3$d ms.</string>
     <string name="dashboard_health_chart_empty">Latency curve: no successful probes in this window.</string>
     <string name="dashboard_traffic_chart_desc">Traffic history for the last %1$d seconds, peak downlink %2$s.</string>
@@ -70,14 +69,14 @@
 
     <string name="dashboard_health_collecting">Sampling: %1$d of %2$d probes. The curve appears when there is a shape to draw.</string>
     <string name="dashboard_health_all_unreachable">%1$d probes in this window, none reachable — there is no latency sample to draw.</string>
-    <string name="dashboard_health_summary">Latency EMA %1$d ms (smoothed from node probes) · %2$d of %3$d reachable</string>
     <string name="dashboard_health_details_title">Node health</string>
     <string name="dashboard_health_legend_availability">Availability — the share of probes that came back at all.</string>
     <string name="dashboard_health_legend_ema">Latency EMA — the smoothed round trip of the probes that did come back.</string>
     <string name="dashboard_health_legend_loss">Loss dots — one per probe that did not come back. They are not part of the latency line.</string>
     <string name="dashboard_exit_details_title">Exit</string>
     <string name="dashboard_exit_address">Exit IP</string>
-    <string name="dashboard_exit_rtt_smoothed">Latency (smoothed)</string>
+    <string name="dashboard_exit_rtt_smoothed">Exit latency</string>
+    <string name="dashboard_exit_last">Last exit %1$s</string>
     <string name="dashboard_exit_rtt">Round trip</string>
     <string name="dashboard_exit_rtt_value">%1$d ms</string>
     <string name="dashboard_exit_measured">Measured at</string>

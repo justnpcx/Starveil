@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="latency_measured">延遲：%1$d ms</string>
+    <string name="latency_no_node">請先選擇節點。</string>
+    <string name="latency_timeout">探測視窗內節點沒有回應。</string>
+    <string name="latency_unreachable">無法連到節點——其埠沒有 TCP 回應。</string>
+    <string name="latency_resolution_failed">節點網域解析失敗。</string>
+    <string name="latency_not_applicable">無法測量——WireGuard 只走 UDP，而這次探測是 TCP 握手。</string>
+</resources>

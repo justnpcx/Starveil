@@ -29,17 +29,36 @@ import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
 
 /** The languages the app ships, in the order the page lists them. */
-private enum class AppLanguage(val tag: String?) {
+internal enum class AppLanguage(val tag: String?) {
     /** Follow the device. An empty locale list is how AppCompat spells it. */
     SYSTEM(null),
     CHINESE("zh-CN"),
+    TRADITIONAL("zh-TW"),
     ENGLISH("en"),
+}
+
+/**
+ * Which row is ticked for a BCP 47 tag, or null when no row matches.
+ *
+ * Compared on the whole tag rather than on `Locale.getLanguage()`: that answers
+ * "zh" for both Chinese rows, which is how the simplified row used to light up
+ * for a traditional user (and would now light up both at once). The traditional
+ * test follows the resource lookup: `values-b+zh+Hant` serves zh-TW, zh-HK and
+ * zh-MO, so those are the tags that tick that row.
+ */
+internal fun selectedLanguage(tag: String?): AppLanguage? = when {
+    tag.isNullOrEmpty() -> AppLanguage.SYSTEM
+    tag.startsWith("zh-CN") || tag.startsWith("zh-Hans") -> AppLanguage.CHINESE
+    tag.startsWith("zh-Hant") || tag == "zh-TW" || tag == "zh-HK" || tag == "zh-MO" ->
+        AppLanguage.TRADITIONAL
+    tag == "en" || tag.startsWith("en-") -> AppLanguage.ENGLISH
+    else -> null
 }
 
 /**
  * The language page.
  *
- * The list is three rows rather than a dropdown because there are three, and a
+ * The list is four rows rather than a dropdown because there are four, and a
  * row with a tick is one tap where a menu is two. The choice goes through
  * AppCompat's per-app locale: the same mechanism Android 13 shows under
  * Settings → Apps → Starveil → Language, so the two entry points cannot
@@ -51,7 +70,8 @@ private enum class AppLanguage(val tag: String?) {
 @Composable
 fun LanguageScreen() {
     val current = remember { AppCompatDelegate.getApplicationLocales() }
-    val currentTag = if (current.isEmpty) null else current.get(0)?.language
+    val currentTag = if (current.isEmpty) null else current.get(0)?.toLanguageTag()
+    val selected = selectedLanguage(currentTag)
 
     Column(
         modifier = Modifier
@@ -67,14 +87,11 @@ fun LanguageScreen() {
                     when (language) {
                         AppLanguage.SYSTEM -> R.string.language_system
                         AppLanguage.CHINESE -> R.string.language_chinese
+                        AppLanguage.TRADITIONAL -> R.string.language_traditional
                         AppLanguage.ENGLISH -> R.string.language_english
                     },
                 ),
-                selected = when (language) {
-                    AppLanguage.SYSTEM -> current.isEmpty
-                    AppLanguage.CHINESE -> currentTag?.startsWith("zh") == true
-                    AppLanguage.ENGLISH -> currentTag?.startsWith("en") == true
-                },
+                selected = selected == language,
                 onSelect = {
                     val locales = language.tag
                         ?.let { LocaleListCompat.forLanguageTags(it) }
