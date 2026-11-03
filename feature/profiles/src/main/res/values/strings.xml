@@ -3,6 +3,7 @@
     <string name="profiles_title">Nodes</string>
     <string name="profiles_empty_title">No nodes yet</string>
     <string name="profiles_empty_body">Import a subscription or a share link to add nodes.</string>
+    <string name="profiles_list_empty">Nothing to show here. Long-press a node to favourite or manage it.</string>
     <string name="profiles_latency_untested">Untested</string>
     <string name="profiles_latency_ms">%1$d ms</string>
     <!-- §6.3: the last probe did not come back. -->

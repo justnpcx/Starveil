@@ -3,6 +3,7 @@
     <string name="profiles_title">節點</string>
     <string name="profiles_empty_title">還沒有節點</string>
     <string name="profiles_empty_body">匯入訂閱或分享連結來新增節點。</string>
+    <string name="profiles_list_empty">這裡還沒有可顯示的節點。長按節點可以收藏或管理。</string>
     <string name="profiles_latency_untested">未測</string>
     <string name="profiles_latency_ms">%1$d ms</string>
     <string name="profiles_latency_timeout">逾時</string>

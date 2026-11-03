@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.kernel.TrafficStats
-import com.justnpcx.starveil.core.model.AvailabilityBand
 import com.justnpcx.starveil.core.model.NodeHealth
 import com.justnpcx.starveil.core.model.RecommendationReason
 import com.justnpcx.starveil.core.model.NodeSelectionMode
@@ -247,32 +246,19 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(metrics.cardGap))
 
+            // The node's latency and availability belong to the node, so they
+            // sit on its card rather than on a second card that repeated the
+            // same number. The curve is still one tap away: the sub-line is the
+            // entry point.
             CurrentNodeCard(
                 name = state.selectedNodeName ?: stringResource(R.string.dashboard_no_node),
                 health = state.health,
                 mode = state.selectionMode,
                 onOpen = onOpenNodes,
+                onOpenHealth = { healthOpen = true },
                 onModeChange = viewModel::setSelectionMode,
                 padding = metrics.cardPadding,
             )
-
-            // §7.2: the selected node's health over the window. Only for a
-            // node — a group has no single curve — and the chart says
-            // "collecting" in words until there is a shape worth drawing.
-            state.health?.let { health ->
-                Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                // A summary, not the chart: a curve with three reachable
-                // samples reads as "broken" at a glance even when the tunnel is
-                // fine. The chart is one tap away, with the sentence that says
-                // what each mark on it means.
-                NodeHealthSummary(
-                    health = health,
-                    onClick = { healthOpen = true },
-                    padding = metrics.cardPadding,
-                    showDetail = metrics.healthDetail,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
 
             // Where the traffic appears to come from, and how long the round
             // trip to a third party took. Always visible while connected: a
@@ -280,32 +266,43 @@ fun DashboardScreen(
             // exactly like one that works until this line says so.
             state.exit?.let { exit ->
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                // While the tunnel is down these rows still hold the last
-                // reading, and a bare IP beside "all nodes unreachable" reads
-                // as if it were current. The prefix says whose numbers these
-                // are without hiding them — the value is the last one known,
-                // not a fabricated zero.
                 val exitLive = state.connectionState == ConnectionState.CONNECTED ||
                     state.connectionState == ConnectionState.WARNING
-                val rtt = stringResource(
-                    R.string.dashboard_exit_rtt_value,
-                    state.exitSmoothedRttMs ?: exit.rttMs,
-                )
-                StarveilCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { exitOpen = true },
-                ) {
-                    ExitRow(
-                        label = stringResource(R.string.dashboard_exit_address),
-                        value = if (exitLive) exit.address
-                        else stringResource(R.string.dashboard_exit_stale_value, exit.address),
-                    )
-                    StarveilDivider(startInset = StarveilSpacing.lg)
-                    ExitRow(
-                        label = stringResource(R.string.dashboard_exit_rtt_smoothed),
-                        value = if (exitLive) rtt
-                        else stringResource(R.string.dashboard_exit_stale_value, rtt),
-                    )
+                if (exitLive) {
+                    StarveilCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { exitOpen = true },
+                    ) {
+                        ExitRow(
+                            label = stringResource(R.string.dashboard_exit_address),
+                            value = exit.address,
+                        )
+                        StarveilDivider(startInset = StarveilSpacing.lg)
+                        ExitRow(
+                            label = stringResource(R.string.dashboard_exit_rtt_smoothed),
+                            value = stringResource(
+                                R.string.dashboard_exit_rtt_value,
+                                state.exitSmoothedRttMs ?: exit.rttMs,
+                            ),
+                        )
+                    }
+                } else {
+                    // The tunnel is down, so this is no longer a live reading.
+                    // The card stops being a card: one grey line that says what
+                    // the number is, with no latency row and nothing to tap.
+                    StarveilCard(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = stringResource(R.string.dashboard_exit_last, exit.address),
+                            style = StarveilType.label,
+                            color = StarveilColors.ink3,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = StarveilSpacing.lg,
+                                    vertical = StarveilSpacing.md,
+                                ),
+                        )
+                    }
                 }
             }
 
@@ -381,89 +378,6 @@ private fun FailureDetailsDialog(notice: DashboardNotice, onDismiss: () -> Unit)
             }
         },
     )
-}
-
-/**
- * The health card as a summary.
- *
- * A diagnostic chart does not belong on the home screen: with three reachable
- * samples it is a flat line and a row of red dots, which reads as "the tunnel
- * is broken" while the tunnel is fine. The home screen answers "am I
- * protected, where, how fast"; the curve answers "how has this node been
- * behaving", and that is one tap away.
- *
- * The summary still refuses to flatter a node: an empty reachable set says so
- * in words, and it says why — too few samples, or every probe unreachable.
- */
-@Composable
-private fun NodeHealthSummary(
-    health: NodeHealth,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    padding: Dp = StarveilSpacing.lg,
-    /** False on a short screen: the sentence is in the dialog one tap away. */
-    showDetail: Boolean = true,
-) {
-    val reachable = health.samples.count { it.reachable }
-    StarveilCard(onClick = onClick, modifier = modifier) {
-        Column(modifier = Modifier.padding(padding)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(HEALTH_HEADER_HEIGHT),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.dashboard_health_title),
-                    style = StarveilType.headline,
-                    color = StarveilColors.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                if (!health.collecting) {
-                    Text(
-                        text = stringResource(
-                            R.string.dashboard_health_availability,
-                            health.availabilityPct.roundToInt(),
-                        ),
-                        style = StarveilType.label,
-                        color = when (health.band) {
-                            AvailabilityBand.GOOD -> StarveilColors.ok
-                            AvailabilityBand.FAIR -> StarveilColors.warn
-                            AvailabilityBand.POOR -> StarveilColors.errText
-                        },
-                    )
-                }
-            }
-            if (showDetail) {
-                Spacer(modifier = Modifier.height(StarveilSpacing.xs))
-                Text(
-                    text = when {
-                        health.collecting -> stringResource(
-                            R.string.dashboard_health_collecting,
-                            health.samples.size,
-                            NodeHealth.MIN_SAMPLES,
-                        )
-                        reachable == 0 -> stringResource(
-                            R.string.dashboard_health_all_unreachable,
-                            health.samples.size,
-                        )
-                        else -> stringResource(
-                            R.string.dashboard_health_summary,
-                            health.emaMs ?: 0L,
-                            reachable,
-                            health.samples.size,
-                        )
-                    },
-                    style = StarveilType.label,
-                    color = StarveilColors.ink2,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
 }
 
 /**
@@ -795,6 +709,8 @@ private fun CurrentNodeCard(
     health: NodeHealth?,
     mode: NodeSelectionMode,
     onOpen: () -> Unit,
+    /** The health dialog's only entry point now that its card is gone. */
+    onOpenHealth: () -> Unit,
     onModeChange: (NodeSelectionMode) -> Unit,
     padding: Dp = StarveilSpacing.lg,
 ) {
@@ -829,12 +745,36 @@ private fun CurrentNodeCard(
                 Row(verticalAlignment = Alignment.Top) {
                     Column(modifier = Modifier.weight(1f)) {
                         NodeName(name = name)
-                        health?.takeIf { !it.collecting }?.emaMs?.let { latency ->
+                        health?.let { h ->
+                            // One line, two facts: the latency and the share of
+                            // probes that came back. It is also the way into
+                            // the curve, which no longer has a card of its own.
+                            val ema = h.emaMs
+                            val text = when {
+                                h.collecting -> stringResource(
+                                    R.string.dashboard_health_collecting,
+                                    h.samples.size,
+                                    NodeHealth.MIN_SAMPLES,
+                                )
+                                ema == null -> stringResource(
+                                    R.string.dashboard_health_all_unreachable,
+                                    h.samples.size,
+                                )
+                                else -> stringResource(
+                                    R.string.dashboard_node_health_inline,
+                                    ema,
+                                    h.availabilityPct.roundToInt(),
+                                )
+                            }
                             Text(
-                                text = stringResource(R.string.dashboard_latency_label) + " " + latency + " ms",
+                                text = text,
                                 style = StarveilType.label,
                                 color = StarveilColors.ink2,
-                                modifier = Modifier.padding(top = 2.dp),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .clickable(role = Role.Button, onClick = onOpenHealth),
                             )
                         }
                     }
@@ -939,7 +879,6 @@ private data class HomeMetrics(
     val cardPadding: Dp,
     /** Air under the last card, before the navigation bar. */
     val bottomGap: Dp,
-    val healthDetail: Boolean,
     /**
      * Whether an empty status slot collapses to nothing.
      *
@@ -967,7 +906,6 @@ private fun homeMetricsFor(contentHeight: Dp): HomeMetrics = when {
         cardGap = StarveilSpacing.xl,
         cardPadding = StarveilSpacing.lg,
         bottomGap = 24.dp,
-        healthDetail = true,
         collapseEmptySlot = false,
     )
     contentHeight + CHROME_HEIGHT >= 680.dp -> HomeMetrics(
@@ -977,7 +915,6 @@ private fun homeMetricsFor(contentHeight: Dp): HomeMetrics = when {
         cardGap = StarveilSpacing.sm,
         cardPadding = StarveilSpacing.lg,
         bottomGap = 12.dp,
-        healthDetail = true,
         collapseEmptySlot = true,
     )
     else -> HomeMetrics(
@@ -987,7 +924,6 @@ private fun homeMetricsFor(contentHeight: Dp): HomeMetrics = when {
         cardGap = StarveilSpacing.sm,
         cardPadding = StarveilSpacing.md,
         bottomGap = 8.dp,
-        healthDetail = false,
         collapseEmptySlot = true,
     )
 }

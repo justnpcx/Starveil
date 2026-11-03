@@ -21,6 +21,17 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
   project page in the browser. The repository address comes from the update
   checker's constant rather than a second copy of the string.
 
+### Changed
+
+- **Home shows one number per meaning.** The health card is gone: the node
+  card's sub-line carries latency and availability and opens the curve, the
+  latency label reads "node latency", and the exit card's second row reads
+  "exit latency". A disconnected tunnel leaves one grey "last exit" line
+  instead of a live-looking card.
+- **Nodes page keeps its bottom corners.** The list card now has the same
+  bottom margin as its sides, so the lower rounded edge is no longer cut by
+  the navigation bar; an empty list shows a line instead of a blank card.
+
 ### Fixed
 
 - **Connections clock column.** Rows whose start the kernel never reported

@@ -30,10 +30,9 @@
     <string name="dashboard_notice_kernel_refused">内核启动失败</string>
 
     <!-- §7.2 node health history. -->
-    <string name="dashboard_latency_label">延迟</string>
-    <string name="dashboard_health_title">节点健康 · 最近 30 分钟</string>
+    <string name="dashboard_latency_label">节点延迟</string>
+    <string name="dashboard_node_health_inline">节点延迟 %1$d ms · 在线 %2$d%%</string>
     <string name="dashboard_node_health_line">延迟 %1$d ms</string>
-    <string name="dashboard_health_availability">在线 %1$d%%</string>
     <string name="dashboard_health_chart_desc">%1$d 次探测的延迟曲线：最低 %2$d ms，最高 %3$d ms。</string>
     <string name="dashboard_health_chart_empty">延迟曲线：该时间窗内没有成功探测。</string>
     <string name="dashboard_traffic_chart_desc">最近 %1$d 秒的流量，下行峰值 %2$s。</string>
@@ -64,15 +63,14 @@
 
     <string name="dashboard_health_collecting">正在采样：%1$d / %2$d 次。够画出形状时才显示曲线。</string>
     <string name="dashboard_health_all_unreachable">该时间窗内 %1$d 次探测全部不可达，没有可画的延迟样本。</string>
-    <string name="dashboard_health_summary">延迟 EMA %1$d ms（节点探测的平滑值）· %2$d / %3$d 次可达</string>
     <string name="dashboard_health_details_title">节点健康</string>
     <string name="dashboard_health_legend_availability">在线率——探测有回应的比例。</string>
     <string name="dashboard_health_legend_ema">延迟 EMA——只对成功回来的探测做平滑。</string>
     <string name="dashboard_health_legend_loss">丢包点——每次没有回应的探测画一个点，不参与延迟曲线。</string>
     <string name="dashboard_exit_details_title">出口</string>
     <string name="dashboard_exit_address">出口 IP</string>
-    <string name="dashboard_exit_rtt_smoothed">延迟（平滑）</string>
-    <string name="dashboard_exit_stale_value">上次 %1$s</string>
+    <string name="dashboard_exit_rtt_smoothed">出口延迟</string>
+    <string name="dashboard_exit_last">上次出口 %1$s</string>
     <string name="dashboard_exit_rtt">往返时延</string>
     <string name="dashboard_exit_rtt_value">%1$d ms</string>
     <string name="dashboard_exit_measured">检测时间</string>

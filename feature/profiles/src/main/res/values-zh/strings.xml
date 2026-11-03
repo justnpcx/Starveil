@@ -3,6 +3,7 @@
     <string name="profiles_title">节点</string>
     <string name="profiles_empty_title">还没有节点</string>
     <string name="profiles_empty_body">导入订阅或分享链接来添加节点。</string>
+    <string name="profiles_list_empty">这里还没有可显示的节点。长按节点可以收藏或管理。</string>
     <string name="profiles_latency_untested">未测</string>
     <string name="profiles_latency_ms">%1$d ms</string>
     <string name="profiles_latency_timeout">超时</string>

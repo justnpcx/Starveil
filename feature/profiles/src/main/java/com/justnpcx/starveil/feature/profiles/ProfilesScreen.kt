@@ -585,11 +585,7 @@ fun ProfilesScreen(
                 // One card holds the whole list: a column of separate cards
                 // reads as a stack of unrelated things, and the rows are one
                 // list. The FAB clears the last row by its own height.
-                else -> StarveilCard(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = StarveilSpacing.pageMargin),
-                ) {
+                else -> {
                     // Timed-out nodes are hidden by default: a subscription
                     // with hundreds of dead rows is a list you scroll once and
                     // never again. The rows are not deleted — a footer says how
@@ -601,6 +597,19 @@ fun ProfilesScreen(
                         if (showTimedOut) state.profiles else
                             state.profiles.filterNot { state.health[it.id]?.status == NodeStatus.DOWN }
                     }
+                    StarveilCard(
+                        modifier = Modifier
+                            .then(if (shown.isEmpty()) Modifier else Modifier.weight(1f))
+                            .padding(
+                                start = StarveilSpacing.pageMargin,
+                                end = StarveilSpacing.pageMargin,
+                                // The card's own edge needs the same air as its
+                                // sides, or its lower corners are swallowed by
+                                // the navigation bar. The list's bottom padding
+                                // only clears the FAB.
+                                bottom = StarveilSpacing.pageMargin,
+                            ),
+                    ) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -634,6 +643,25 @@ fun ProfilesScreen(
                             }
                         }
                     }
+                    // Nothing to show (an empty favourites filter, or a group
+                    // whose every node timed out) used to be a blank card the
+                    // height of the screen. One line says why the card is
+                    // short, and the card now ends where the line does.
+                    if (shown.isEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.profiles_list_empty),
+                                style = StarveilType.label,
+                                color = StarveilColors.ink2,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = StarveilSpacing.lg,
+                                        vertical = StarveilSpacing.lg,
+                                    ),
+                            )
+                        }
+                    }
                     if (timedOut.isNotEmpty()) {
                         item {
                             StarveilDivider(startInset = StarveilSpacing.lg)
@@ -664,6 +692,7 @@ fun ProfilesScreen(
                                 )
                             }
                         }
+                    }
                     }
                     }
                 }
