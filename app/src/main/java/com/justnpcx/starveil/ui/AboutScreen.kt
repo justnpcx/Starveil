@@ -1,5 +1,10 @@
 package com.justnpcx.starveil.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +50,9 @@ import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilShapes
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
 import com.justnpcx.starveil.core.ui.theme.StarveilType
+import com.justnpcx.starveil.core.data.update.UpdateChecker
 import com.justnpcx.starveil.core.data.update.UpdateInstaller
+import com.justnpcx.starveil.feature.settings.R as SettingsR
 import com.justnpcx.starveil.feature.settings.SettingsViewModel
 import com.justnpcx.starveil.feature.settings.UpdateUiState
 
@@ -79,7 +86,7 @@ fun AboutScreen(
     val kernel = state.kernelVersion
         .takeIf { it.isNotBlank() }
         ?.substringBefore('-')
-        ?: "1.14.3"
+        ?: "1.14.4"
 
     Column(
         modifier = Modifier
@@ -167,6 +174,18 @@ fun AboutScreen(
                 title = stringResource(R.string.about_licences_title),
                 onClick = { showLicences = true },
             )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            // One row, not two: the repository is where issues and releases
+            // both live, and a second row pointing at either would be the
+            // same address twice. The value says where the tap goes before it
+            // is taken.
+            AboutRow(
+                icon = StarveilIcons.GitHub,
+                title = stringResource(R.string.about_github_title),
+                value = UpdateChecker.REPO,
+                valueStyle = StarveilType.tech,
+                onClick = { openProjectRepo(context) },
+            )
         }
 
         Spacer(modifier = Modifier.height(StarveilSpacing.xl))
@@ -227,12 +246,32 @@ private fun updateText(state: UpdateUiState): String = when (state) {
     else -> ""
 }
 
+/**
+ * Opens the project page in whatever the system uses for links.
+ *
+ * A device with no browser at all is the one case that can fail, and it fails
+ * silently unless it is caught — a row that does nothing is worse than one that
+ * says why. The message is the settings page's: the same failure, the same
+ * sentence.
+ */
+private fun openProjectRepo(context: Context) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.REPO_URL))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, SettingsR.string.settings_link_failed, Toast.LENGTH_SHORT).show()
+    }
+}
+
 /** One line of the card: glyph, title, optional value, chevron. */
 @Composable
 private fun AboutRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     value: String = "",
+    /** How the value reads: the default for prose, `tech` for a repository path. */
+    valueStyle: androidx.compose.ui.text.TextStyle = StarveilType.label,
     enabled: Boolean = true,
     /** True while a check or a download is in flight: a small spinner. */
     busy: Boolean = false,
@@ -270,7 +309,7 @@ private fun AboutRow(
         if (value.isNotEmpty()) {
             Text(
                 text = value,
-                style = StarveilType.label,
+                style = valueStyle,
                 color = StarveilColors.ink2,
                 maxLines = 1,
             )

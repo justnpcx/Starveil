@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_paste_hint">貼上連結自動填入</string>
+    <string name="editor_paste_fill">填入</string>
+    <string name="editor_paste_filled">已從連結填入 ✓</string>
+    <string name="editor_paste_undo">復原</string>
+    <string name="editor_paste_failed">這條連結無法解析</string>
+    <string name="editor_advanced">進階設定</string>
+    <string name="editor_missing_field">還差：%1$s</string>
+    <string name="editor_title_new">新增 %1$s 節點</string>
+    <string name="editor_title_edit">編輯 %1$s 節點</string>
+    <string name="editor_save">儲存</string>
+    <string name="editor_cancel">取消</string>
+    <string name="editor_missing">該節點已不存在。</string>
+
+    <string name="editor_section_basic">基本</string>
+    <string name="editor_section_security">安全</string>
+    <string name="editor_section_transport">傳輸</string>
+    <string name="editor_section_protocol">%1$s 設定</string>
+    <string name="editor_section_wireguard">WireGuard</string>
+
+    <string name="editor_field_name">名稱（可選）</string>
+    <string name="editor_field_server">伺服器</string>
+    <string name="editor_field_port">埠</string>
+    <string name="editor_field_uuid">UUID</string>
+    <string name="editor_field_password">密碼</string>
+    <string name="editor_field_flow">Flow（可選）</string>
+    <string name="editor_field_alter_id">Alter ID</string>
+    <string name="editor_field_vmess_security">加密方式</string>
+    <string name="editor_field_method">加密方法</string>
+    <string name="editor_field_sni">SNI（可選）</string>
+    <string name="editor_field_fingerprint">uTLS 指紋（可選）</string>
+    <string name="editor_field_allow_insecure">允許不安全憑證</string>
+    <string name="editor_field_reality_public_key">REALITY 公鑰</string>
+    <string name="editor_field_reality_short_id">短 ID（可選）</string>
+    <string name="editor_field_reality_mlkem">ML-KEM 混合握手</string>
+    <string name="editor_field_transport_path">路徑</string>
+    <string name="editor_field_transport_host">Host</string>
+    <string name="editor_mode_auto">自動</string>
+    <string name="editor_field_transport_service">服務名</string>
+    <string name="editor_field_obfs">混淆</string>
+    <string name="editor_field_obfs_password">混淆密碼</string>
+    <string name="editor_field_up_mbps">上行（Mbps，可選）</string>
+    <string name="editor_field_down_mbps">下行（Mbps，可選）</string>
+    <string name="editor_field_congestion">擁塞控制</string>
+    <string name="editor_field_udp_relay">UDP 轉發方式</string>
+    <string name="editor_field_wg_private_key">私鑰</string>
+    <string name="editor_field_wg_address">位址（逗號分隔）</string>
+    <string name="editor_field_wg_peer_public_key">對端公鑰</string>
+    <string name="editor_field_wg_peer_endpoint">對端位址</string>
+    <string name="editor_field_wg_peer_port">對端埠</string>
+    <string name="editor_field_wg_allowed_ips">允許的 IP（逗號分隔）</string>
+    <string name="editor_field_wg_mtu">MTU（可選）</string>
+
+    <string name="editor_error_required">必填</string>
+    <string name="editor_error_number">請輸入 1 到 65535 之間的數字</string>
+
+    <string name="editor_security_none">無</string>
+    <string name="editor_security_tls">TLS</string>
+    <string name="editor_security_reality">REALITY</string>
+
+    <string name="editor_transport_tcp">TCP</string>
+    <string name="editor_transport_ws">WebSocket</string>
+    <string name="editor_transport_grpc">gRPC</string>
+    <string name="editor_transport_http">HTTP</string>
+    <string name="editor_transport_xhttp">XHTTP</string>
+
+    <string name="editor_obfs_none">無</string>
+
+    <string name="editor_hint_wireguard">WireGuard 是 endpoint 而不是 outbound——核心從頂層 endpoints 段載入它。</string>
+</resources>

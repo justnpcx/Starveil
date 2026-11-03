@@ -1,5 +1,9 @@
 package com.justnpcx.starveil.feature.settings
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
 /**
  * How the connections table renders a number.
  *
@@ -9,6 +13,25 @@ package com.justnpcx.starveil.feature.settings
  * is reachable by waiting.
  */
 internal object ConnectionsFormat {
+
+    /**
+     * The clock column: when the connection started, or a dash when the start
+     * is not a fact.
+     *
+     * The kernel reports 0 for rows it inherited rather than opened, and the
+     * old code formatted that epoch unconditionally — every such row read
+     * "08:00:00", a time that is both wrong and plausible. A start in the
+     * future is not a start either, so it takes the same dash as the duration
+     * column uses for an unknown value.
+     */
+    fun clock(startedAtMs: Long, nowMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+        when {
+            startedAtMs <= 0L -> "—"
+            startedAtMs > nowMs -> "—"
+            else -> CLOCK_FORMAT.format(Instant.ofEpochMilli(startedAtMs).atZone(zone))
+        }
+
+    private val CLOCK_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
     /**
      * A duration in the largest unit that still says something.

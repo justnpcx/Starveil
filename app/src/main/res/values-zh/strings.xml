@@ -57,6 +57,7 @@
     <string name="about_features_body">Starveil 让这台设备的流量走你选的节点，并且把每一个决定摊开给你看。\n\n· 节点可以通过二维码、剪贴板、订阅或手动录入进来。\n· 规则决定哪些流量进隧道、哪些直连；规则页会把内核实际做出的判断摆在你写的规则旁边。\n· 场景按 Wi-Fi 名称或移动网络自动切换策略。\n· 首页显示状态、速率、出口地址，以及当前节点的健康曲线。\n· 全部在本地：没有账号，没有统计，只有一份可关闭的崩溃报告。</string>
     <string name="about_privacy_title">隐私政策</string>
     <string name="about_licences_title">开源许可</string>
+    <string name="about_github_title">GitHub 项目主页</string>
     <string name="about_licences_body">Starveil 以 GNU 通用公共许可证第 3 版发布。源码公开，修改后的版本同样必须开源。\n\n它内置了自维护的 sing-box fork（GPL-3.0），隧道本体由它承担。\n\n它还链接了 AndroidX 与 Jetpack Compose（Apache-2.0）、Hilt 与 Dagger（Apache-2.0）、Room 与 SQLCipher（Apache-2.0 / BSD 类）、ZXing（Apache-2.0）与 Sentry（MIT）。完整文本随各自依赖分发。</string>
     <string name="about_footer_kernel">内核 sing-box %1$s · 本应用基于 GPL-3.0 开源</string>
     <string name="about_footer_copyright">© 2026 justnpcx</string>

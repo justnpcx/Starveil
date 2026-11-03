@@ -116,7 +116,7 @@ class UpdateChecker internal constructor(
     private fun deviceAbi(): String? =
         Build.SUPPORTED_ABIS.firstOrNull { it in SUPPORTED_ABIS }
 
-    private companion object {
+    companion object {
         /**
          * The repository the updater reads releases from.
          *
@@ -127,6 +127,15 @@ class UpdateChecker internal constructor(
          * private.
          */
         const val REPO = "justnpcx/Starveil"
+
+        /**
+         * The same repository as a browsable address.
+         *
+         * Built from [REPO] rather than written out again: the About page
+         * links here and the updater reads releases from there, and a copy of
+         * the owner/name in a second place is a copy that can drift.
+         */
+        const val REPO_URL = "https://github.com/$REPO"
 
         /** The three libbox ships; x86 32-bit is deliberately absent. */
         val SUPPORTED_ABIS = setOf("arm64-v8a", "armeabi-v7a", "x86_64")

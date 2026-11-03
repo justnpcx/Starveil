@@ -78,6 +78,7 @@
     <string name="dashboard_exit_details_title">Exit</string>
     <string name="dashboard_exit_address">Exit IP</string>
     <string name="dashboard_exit_rtt_smoothed">Latency (smoothed)</string>
+    <string name="dashboard_exit_stale_value">Last %1$s</string>
     <string name="dashboard_exit_rtt">Round trip</string>
     <string name="dashboard_exit_rtt_value">%1$d ms</string>
     <string name="dashboard_exit_measured">Measured at</string>

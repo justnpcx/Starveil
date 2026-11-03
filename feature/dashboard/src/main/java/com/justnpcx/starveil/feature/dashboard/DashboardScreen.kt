@@ -280,26 +280,31 @@ fun DashboardScreen(
             // exactly like one that works until this line says so.
             state.exit?.let { exit ->
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                // Where the traffic appears to come from, and how long the
-                // round trip took: the only visible evidence that the tunnel is
-                // not silently falling back to the local connection. Two rows,
-                // labelled — a bare "IP · 43 ms" line left the reader guessing
-                // which number was which.
+                // While the tunnel is down these rows still hold the last
+                // reading, and a bare IP beside "all nodes unreachable" reads
+                // as if it were current. The prefix says whose numbers these
+                // are without hiding them — the value is the last one known,
+                // not a fabricated zero.
+                val exitLive = state.connectionState == ConnectionState.CONNECTED ||
+                    state.connectionState == ConnectionState.WARNING
+                val rtt = stringResource(
+                    R.string.dashboard_exit_rtt_value,
+                    state.exitSmoothedRttMs ?: exit.rttMs,
+                )
                 StarveilCard(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { exitOpen = true },
                 ) {
                     ExitRow(
                         label = stringResource(R.string.dashboard_exit_address),
-                        value = exit.address,
+                        value = if (exitLive) exit.address
+                        else stringResource(R.string.dashboard_exit_stale_value, exit.address),
                     )
                     StarveilDivider(startInset = StarveilSpacing.lg)
                     ExitRow(
                         label = stringResource(R.string.dashboard_exit_rtt_smoothed),
-                        value = stringResource(
-                            R.string.dashboard_exit_rtt_value,
-                            state.exitSmoothedRttMs ?: exit.rttMs,
-                        ),
+                        value = if (exitLive) rtt
+                        else stringResource(R.string.dashboard_exit_stale_value, rtt),
                     )
                 }
             }

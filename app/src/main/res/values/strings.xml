@@ -66,6 +66,7 @@
     <string name="about_features_body">Starveil routes this device through a node you choose, and keeps the decision legible.\n\n· Nodes arrive by QR code, clipboard, subscription or by hand.\n· Rules decide what goes through the tunnel and what goes direct; the rules page shows what the kernel actually did, next to the rules you wrote.\n· Scenes switch the policy on a Wi-Fi name or a mobile network.\n· The home page shows the state, the rate, the exit address and a health curve for the node in force.\n· Everything local: no account, no analytics, one optional crash report.</string>
     <string name="about_privacy_title">Privacy policy</string>
     <string name="about_licences_title">Open-source licences</string>
+    <string name="about_github_title">GitHub</string>
     <string name="about_licences_body">Starveil is licensed under the GNU General Public License v3.0. Its source is published, and a modified version must stay open too.\n\nIt embeds a self-maintained sing-box fork (GPL-3.0), which is the tunnel itself.\n\nIt also links AndroidX and Jetpack Compose (Apache-2.0), Hilt and Dagger (Apache-2.0), Room and SQLCipher (Apache-2.0 / BSD-style), ZXing (Apache-2.0) and Sentry (MIT). The full texts ship with their libraries.</string>
     <string name="about_footer_kernel">Kernel sing-box %1$s · this app is open source under GPL-3.0</string>
     <string name="about_footer_copyright">© 2026 justnpcx</string>

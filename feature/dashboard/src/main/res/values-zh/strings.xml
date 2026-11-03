@@ -72,6 +72,7 @@
     <string name="dashboard_exit_details_title">出口</string>
     <string name="dashboard_exit_address">出口 IP</string>
     <string name="dashboard_exit_rtt_smoothed">延迟（平滑）</string>
+    <string name="dashboard_exit_stale_value">上次 %1$s</string>
     <string name="dashboard_exit_rtt">往返时延</string>
     <string name="dashboard_exit_rtt_value">%1$d ms</string>
     <string name="dashboard_exit_measured">检测时间</string>
