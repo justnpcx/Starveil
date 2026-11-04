@@ -44,7 +44,7 @@ data class SettingsUiState(
     /** The text-size multiplier. */
     val fontScale: FontScale = FontScale.STANDARD,
     /**
-     * The core's own version string, e.g. 1.14.3-647c447. Empty until the first
+     * The core's own version string, e.g. 1.14.4-e15eab12. Empty until the first
      * read lands. The About page shows it.
      */
     val kernelVersion: String = "",
