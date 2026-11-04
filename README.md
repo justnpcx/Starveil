@@ -11,7 +11,7 @@
 [![Release](https://img.shields.io/github/v/release/justnpcx/Starveil?label=下载最新版)](https://github.com/justnpcx/Starveil/releases)
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-10%2B-green.svg)](#下载与安装)
-[![Kernel](https://img.shields.io/badge/kernel-sing--box%201.14.3-orange.svg)](docs/04-libbox-build.md)
+[![Kernel](https://img.shields.io/badge/kernel-sing--box%201.14.4-orange.svg)](docs/04-libbox-build.md)
 
 [下载](#下载与安装) · [特性](#特性) · [快速上手](#快速上手) · [文档](#文档) · [更新日志](CHANGELOG.md)
 
@@ -82,7 +82,7 @@
   ├── :feature:editor      节点编辑
   ├── :feature:logs        日志
   └── :feature:settings    设置 / 诊断 / 备份
-:core:kernel       ── sing-box 1.14.3 自维护 fork（libbox）+ KernelBridge 唯一契约
+:core:kernel       ── sing-box 1.14.4 自维护 fork（libbox）+ KernelBridge 唯一契约
 :core:probe        ── 延迟探测 / 健康采样 / DNS 采样 / 泄漏自检
 :core:ui           ── 设计系统（主题 / 组件 / 图标）
 :core:model        ── 数据模型（Profile / ProxyGroup / Rule / 健康评分 / 选点）

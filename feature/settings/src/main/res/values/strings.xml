@@ -77,7 +77,7 @@
     <string name="leak_check_leaking">Last check: LEAK DETECTED (%1$s).</string>
     <string name="leak_check_run">Run self-check</string>
 
-    <!-- The core's own version string, e.g. "1.14.3-647c447". -->
+    <!-- The core's own version string, e.g. "1.14.4-e15eab12". -->
     <string name="settings_kernel_version">sing-box core %1$s</string>
     <string name="settings_kernel_unknown">Version unavailable.</string>
 

@@ -26,7 +26,7 @@ class DiagnosticBundleTest {
 
     private val input = DiagnosticInput(
         appVersion = "0.8.6",
-        kernelVersion = "1.14.3-647c447",
+        kernelVersion = "1.14.4-e15eab12",
         androidSdk = 36,
         dns = DnsSnapshot(samples = 23, p50Ms = 81, p95Ms = 587, cacheHitPct = 0, fallbackPct = 0),
         leakCheckedAtMs = 1_700_000_000_000,
@@ -54,7 +54,7 @@ class DiagnosticBundleTest {
         val text = DiagnosticBundle.build(input, nowMs = 1_700_000_100_000)
 
         assertTrue(text.contains("app=0.8.6"))
-        assertTrue(text.contains("kernel=1.14.3-647c447"))
+        assertTrue(text.contains("kernel=1.14.4-e15eab12"))
         assertTrue(text.contains("samples=23"))
         assertTrue(text.contains("p50=81ms"))
         assertTrue(text.contains("result=no leak found"))
