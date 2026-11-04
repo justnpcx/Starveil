@@ -111,8 +111,45 @@ object StarveilMigrations {
         }
     }
 
+    /**
+     * v7 → v8: the rule hit counters (RC).
+     *
+     * Purely additive — two new tables, nothing existing touched. The window
+     * row is stamped with the migration's own time, which is the honest
+     * answer: nothing was counted before this version existed.
+     */
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `rule_hits` (
+                    `ruleText` TEXT NOT NULL,
+                    `outbound` TEXT NOT NULL,
+                    `count` INTEGER NOT NULL,
+                    `lastHitAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`ruleText`, `outbound`)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `rule_hit_window` (
+                    `id` INTEGER NOT NULL,
+                    `startedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "INSERT OR REPLACE INTO `rule_hit_window`(id, startedAt) " +
+                    "VALUES(0, CAST(strftime('%s','now') AS INTEGER) * 1000)",
+            )
+        }
+    }
+
     val ALL: Array<Migration> =
         arrayOf(
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+        MIGRATION_7_8,
     )
 }

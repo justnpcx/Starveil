@@ -6,10 +6,13 @@ import com.justnpcx.starveil.core.data.dao.GroupDao
 import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
+import com.justnpcx.starveil.core.data.dao.RuleHitDao
 import com.justnpcx.starveil.core.data.entity.GroupEntity
 import com.justnpcx.starveil.core.data.entity.LatencySampleEntity
 import com.justnpcx.starveil.core.data.entity.ProfileEntity
 import com.justnpcx.starveil.core.data.entity.RuleEntity
+import com.justnpcx.starveil.core.data.entity.RuleHitEntity
+import com.justnpcx.starveil.core.data.entity.RuleHitWindowEntity
 
 /**
  * The app's only Room database.
@@ -31,8 +34,10 @@ import com.justnpcx.starveil.core.data.entity.RuleEntity
         GroupEntity::class,
         RuleEntity::class,
         LatencySampleEntity::class,
+        RuleHitEntity::class,
+        RuleHitWindowEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class StarveilDatabase : RoomDatabase() {
@@ -40,6 +45,7 @@ abstract class StarveilDatabase : RoomDatabase() {
     abstract fun groupDao(): GroupDao
     abstract fun ruleDao(): RuleDao
     abstract fun latencySampleDao(): LatencySampleDao
+    abstract fun ruleHitDao(): RuleHitDao
 
     companion object {
         const val DATABASE_NAME = "starveil.db"

@@ -41,6 +41,7 @@
 - 场景自动化：按 Wi-Fi SSID / 移动数据自动切换路由预设
 - Kill Switch 双模式：隧道断开时阻断（黑洞式）与始终阻断；局域网地址恒直连
 - 按应用分流、自动选择最优节点、断线自动切换、节点健康评分（最近 30 分钟可达率与平滑延迟）
+- 外部自动化：Tasker / MacroDroid / adb 通过 START · STOP · TOGGLE 三个 Intent 启停隧道，无界面、幂等（见 [docs/23](docs/23-automation.md)）
 
 **协议与订阅**
 - 7 种协议：VLESS · VMess · Trojan · Shadowsocks · Hysteria2 · TUIC · WireGuard
@@ -121,7 +122,8 @@
 ## 文档
 
 - [产品指南与里程碑定义](docs/03-top-tier-product-guide.md) · [隐私政策](docs/10-privacy-policy.md) · [真机验证记录](docs/11-device-verification.md)
-- [本地 API](docs/14-local-api.md) · [规则市场](docs/15-rule-market.md) · [libbox 构建](docs/04-libbox-build.md) · [发布流程](docs/12-release.md)
+- [本地 API](docs/14-local-api.md) · [外部自动化](docs/23-automation.md) · [规则市场](docs/15-rule-market.md)
+- [libbox 构建](docs/04-libbox-build.md) · [发布流程](docs/12-release.md) · [技术裁定](docs/24-decisions.md)
 - [更新日志](CHANGELOG.md) · [安全策略](SECURITY.md)
 
 ## 许可证

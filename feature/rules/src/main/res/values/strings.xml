@@ -154,4 +154,6 @@
     <string name="rules_hint_cidr">One address or a CIDR block</string>
     <string name="rules_move_top">Move to top</string>
     <string name="rules_move_bottom">Move to bottom</string>
+    <!-- Hit counts from the kernel's connection stream (RC). -->
+    <string name="rules_hits_suffix">· %1$d hits</string>
 </resources>

@@ -21,7 +21,7 @@ data class RouteDecision(
  */
 object RouteEvaluator {
 
-    private const val REJECT = "reject"
+    private const val REJECT = RuleLabels.REJECT
 
     fun evaluate(
         rules: List<Map<String, Any?>>,
@@ -38,7 +38,7 @@ object RouteEvaluator {
                 "route" -> rule["outbound"] as? String ?: finalTag
                 else -> return@forEachIndexed
             }
-            val label = labelOf(rule)
+            val label = RuleLabels.of(rule)
             val reason = when (label) {
                 "rule_set=geosite-cn", "rule_set=geoip-cn" -> DecisionReason.PRESET_FALLBACK
                 else -> DecisionReason.FIRST_MATCH
@@ -85,14 +85,6 @@ object RouteEvaluator {
             if (ip != null && lookup.matchesIp(tag, ip)) return true
         }
         return !tested
-    }
-
-    private fun labelOf(rule: Map<String, Any?>): String {
-        (rule["rule_set"] as? String)?.let { return "rule_set=" + it }
-        val key = rule.keys.firstOrNull { it != "action" && it != "outbound" }
-        val value = key?.let { rule[it] } as? List<*>
-        val first = value?.firstOrNull()?.toString()
-        return if (key != null && first != null) key + "=" + first else "rule"
     }
 
     private fun cidrContains(cidr: String, ip: String): Boolean {

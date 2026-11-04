@@ -62,6 +62,10 @@ class StarveilApp : Application() {
     @Inject
     lateinit var connection: ConnectionController
 
+    /** Counts rule hits off the kernel's connection stream, batched. */
+    @Inject
+    lateinit var ruleHits: com.justnpcx.starveil.rulehits.RuleHitRecorder
+
     @Inject
     lateinit var preferences: PreferencesRepository
 
@@ -97,6 +101,11 @@ class StarveilApp : Application() {
         // app quietly ignoring a setting; it belongs in the log the user can
         // actually read.
         ruleSetFailures.start(scope)
+
+        // Starts counting with the process: the kernel's connection flow is
+        // the only source, and a counter that only runs while a screen is open
+        // would describe the screen, not the tunnel.
+        ruleHits.start(scope)
 
         // Before scenes: they evaluate the network, and a tunnel left over from
         // a previous process would be read as a live connection.

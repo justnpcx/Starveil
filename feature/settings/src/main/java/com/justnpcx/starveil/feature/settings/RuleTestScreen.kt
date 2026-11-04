@@ -46,6 +46,8 @@ import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
 import com.justnpcx.starveil.core.kernel.config.DecisionReason
 import com.justnpcx.starveil.core.kernel.config.RouteEvaluator
 import com.justnpcx.starveil.core.kernel.config.RuleDryRun
+import com.justnpcx.starveil.core.kernel.config.RuleLabels
+import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.kernel.ruleset.SrsRuleSetLookup
 import com.justnpcx.starveil.core.model.LatencySample
 import com.justnpcx.starveil.core.model.LeakCheckRecord
@@ -133,6 +135,34 @@ internal fun chainDiagnostic(
     )
 }
 
+/**
+ * The hit counters, as the diagnostics card needs them.
+ *
+ * [knownLabels] is the set of rules the config in force would emit, built from
+ * the same list the dry run uses — so "never matched" means "this rule is in
+ * force and did not match", not "I could not find it". Counts whose text is not
+ * in that set are [unmapped] and shown as raw text rather than dropped: an
+ * unattributable count is still evidence something is matching.
+ */
+data class RuleHitsState(
+    val hits: List<com.justnpcx.starveil.core.model.RuleHit> = emptyList(),
+    val windowStart: Long? = null,
+    val knownLabels: List<String> = emptyList(),
+) {
+    /** The busiest few; the whole distribution is not a table worth reading. */
+    val top: List<com.justnpcx.starveil.core.model.RuleHit> get() = hits.take(TOP_HITS)
+
+    val zeroHit: List<String>
+        get() = knownLabels.filter { label -> hits.none { it.ruleText == label } }
+
+    val unmapped: List<com.justnpcx.starveil.core.model.RuleHit>
+        get() = hits.filter { it.ruleText !in knownLabels }
+
+    companion object {
+        const val TOP_HITS = 5
+    }
+}
+
 data class DiagnosticsState(
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     val dnsMetricsEnabled: Boolean = true,
@@ -151,6 +181,7 @@ class RuleTestViewModel @Inject constructor(
     private val profiles: ProfileRepository,
     private val nodeHealth: NodeHealthRepository,
     private val exitProbe: com.justnpcx.starveil.core.data.network.ExitProbe,
+    private val ruleHits: com.justnpcx.starveil.core.data.repository.RuleHitRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RuleTestUiState>(RuleTestUiState.Loading)
@@ -183,6 +214,21 @@ class RuleTestViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = DiagnosticsState(),
     )
+
+    /** The rule texts the config in force would emit, filled by [load]. */
+    private val knownLabels = MutableStateFlow<List<String>>(emptyList())
+
+    val ruleHitsState: StateFlow<RuleHitsState> = combine(
+        ruleHits.observeAll(),
+        ruleHits.observeWindowStart(),
+        knownLabels,
+    ) { hits, window, labels -> RuleHitsState(hits, window, labels) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RuleHitsState())
+
+    /** Clears every count and opens a new window, from now. */
+    fun resetHits() {
+        viewModelScope.launch { ruleHits.reset(System.currentTimeMillis()) }
+    }
 
     val chain: StateFlow<ChainDiagnostic?> = combine(
         preferences.connectionTarget,
@@ -230,6 +276,22 @@ class RuleTestViewModel @Inject constructor(
                 mainland = mainland,
                 adsPath = ads,
             )
+            // The rules in force, by the text the kernel would print for each.
+            // Same producer as the labels in the hit table (RuleLabels), so a
+            // rule cannot be "never matched" here and counted there.
+            knownLabels.value = buildList {
+                userRules.filter { it.enabled }.forEach { add(RuleLabels.matcherText(it.matcher)) }
+                if (ads != null) add(RuleLabels.ruleSet(ConfigBuilder.ADS_TAG))
+                if (preset == com.justnpcx.starveil.core.model.RoutePreset.BYPASS_MAINLAND &&
+                    mainland != null
+                ) {
+                    add(RuleLabels.ruleSet(ConfigBuilder.GEOSITE_CN_TAG))
+                    add(RuleLabels.ruleSet(ConfigBuilder.GEOIP_CN_TAG))
+                }
+                val subscribed = preferences.subscribedRulePacks.first()
+                RulePacks.ALL.filter { it.id in subscribed }
+                    .forEach { add(RuleLabels.ruleSet(it.tag)) }
+            }
             _state.value = RuleTestUiState.Ready(sets.keys.toList())
         } catch (e: Exception) {
             _state.value = RuleTestUiState.Failed(e.message ?: e::class.java.simpleName)
@@ -286,6 +348,7 @@ fun RuleTestScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
     val chain by viewModel.chain.collectAsStateWithLifecycle()
+    val hits by viewModel.ruleHitsState.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
     val context = LocalContext.current
 
@@ -470,6 +533,11 @@ fun RuleTestScreen(
 
         Spacer(modifier = Modifier.height(StarveilSpacing.md))
 
+        // ---- Rule hits -----------------------------------------------------
+        RuleHitsCard(state = hits, onReset = viewModel::resetHits)
+
+        Spacer(modifier = Modifier.height(StarveilSpacing.md))
+
         // ---- DNS -----------------------------------------------------------
         StarveilCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(StarveilSpacing.lg)) {
@@ -546,6 +614,194 @@ fun RuleTestScreen(
         }
     }
 }
+
+/**
+ * Which rules actually matched, and which never did.
+ *
+ * "Never matched" is the reason this card exists: a rule set that is in force
+ * and has not caught anything in a week is either redundant or wrong, and
+ * nothing else on the page can say so. The window is stated rather than implied
+ * — a count without its start is not a fact about anything.
+ */
+@Composable
+private fun RuleHitsCard(state: RuleHitsState, onReset: () -> Unit) {
+    var confirmReset by remember { mutableStateOf(false) }
+
+    StarveilCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.md,
+                top = StarveilSpacing.lg,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.diagnostics_hits_title),
+                style = StarveilType.headline,
+                color = StarveilColors.ink,
+                modifier = Modifier.weight(1f),
+            )
+            if (state.hits.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.diagnostics_hits_reset),
+                    style = StarveilType.label,
+                    color = StarveilColors.accent,
+                    modifier = Modifier
+                        .clickable(role = Role.Button, onClick = { confirmReset = true })
+                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.xs,
+                bottom = StarveilSpacing.md,
+            ),
+        ) {
+            Text(
+                text = stringResource(R.string.diagnostics_hits_scope),
+                style = StarveilType.label,
+                color = StarveilColors.ink3,
+            )
+            state.windowStart?.let { start ->
+                Text(
+                    text = stringResource(R.string.diagnostics_hits_since, windowLabel(start)),
+                    style = StarveilType.tech,
+                    color = StarveilColors.ink3,
+                )
+            }
+        }
+
+        StarveilDivider(startInset = StarveilSpacing.lg)
+        Column(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
+        ) {
+            Text(
+                text = stringResource(R.string.diagnostics_hits_top_title),
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+            )
+            if (state.top.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.diagnostics_hits_top_empty),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink3,
+                )
+            } else {
+                state.top.forEach { hit ->
+                    Text(
+                        // Raw kernel text on purpose: this list must be able to
+                        // show a count whose rule no longer exists.
+                        text = stringResource(
+                            R.string.diagnostics_hits_row,
+                            hit.ruleText,
+                            hit.outbound,
+                            hit.count,
+                        ),
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink,
+                    )
+                }
+            }
+        }
+
+        StarveilDivider(startInset = StarveilSpacing.lg)
+        Column(
+            modifier = Modifier.padding(
+                start = StarveilSpacing.lg,
+                end = StarveilSpacing.lg,
+                top = StarveilSpacing.md,
+                bottom = StarveilSpacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
+        ) {
+            Text(
+                text = stringResource(R.string.diagnostics_hits_zero_title),
+                style = StarveilType.label,
+                color = StarveilColors.ink2,
+            )
+            if (state.zeroHit.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.diagnostics_hits_zero_empty),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink3,
+                )
+            } else {
+                state.zeroHit.forEach { label ->
+                    Text(
+                        text = label,
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink3,
+                    )
+                }
+            }
+            if (state.unmapped.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.diagnostics_hits_unmapped_title),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.padding(top = StarveilSpacing.sm),
+                )
+                state.unmapped.forEach { hit ->
+                    Text(
+                        text = stringResource(
+                            R.string.diagnostics_hits_row,
+                            hit.ruleText,
+                            hit.outbound,
+                            hit.count,
+                        ),
+                        style = StarveilType.tech,
+                        color = StarveilColors.ink3,
+                    )
+                }
+            }
+        }
+    }
+
+    if (confirmReset) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text(stringResource(R.string.diagnostics_hits_reset_confirm_title)) },
+            text = { Text(stringResource(R.string.diagnostics_hits_reset_confirm_body)) },
+            confirmButton = {
+                Text(
+                    text = stringResource(R.string.diagnostics_hits_reset),
+                    style = StarveilType.label,
+                    color = StarveilColors.accent,
+                    modifier = Modifier
+                        .clickable(role = Role.Button) {
+                            confirmReset = false
+                            onReset()
+                        }
+                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = stringResource(R.string.settings_cancel),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier
+                        .clickable(role = Role.Button) { confirmReset = false }
+                        .padding(horizontal = StarveilSpacing.sm, vertical = StarveilSpacing.xs),
+                )
+            },
+        )
+    }
+}
+
+/** The window start, in the user's own clock format. */
+private fun windowLabel(atMs: Long): String =
+    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(atMs))
 
 /** The verdict, or the sentence that says where it will appear. */
 @Composable

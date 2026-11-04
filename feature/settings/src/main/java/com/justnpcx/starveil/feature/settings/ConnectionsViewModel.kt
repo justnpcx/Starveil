@@ -12,6 +12,7 @@ import com.justnpcx.starveil.core.model.nodeHealthOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -67,7 +68,18 @@ class ConnectionsViewModel @Inject constructor(
     profiles: ProfileRepository,
     health: NodeHealthRepository,
     preferences: PreferencesRepository,
+    private val closer: ConnectionCloser,
 ) : ViewModel() {
+
+    /**
+     * A close that the kernel refused.
+     *
+     * An event rather than state: the failure is about one tap, and a sticky
+     * flag would make the Snackbar reappear on the next visit for a connection
+     * that no longer exists.
+     */
+    private val _closeFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val closeFailed: kotlinx.coroutines.flow.SharedFlow<Unit> = _closeFailed
 
     private val filters = MutableStateFlow(ConnectionsFilters())
     private val now = MutableStateFlow(System.currentTimeMillis())
@@ -136,6 +148,27 @@ class ConnectionsViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = ConnectionsUiState(),
         )
+
+    /**
+     * Ends one connection.
+     *
+     * Nothing is removed here: the kernel answers with a CLOSE event, and the
+     * table is folded from those events. Removing the row optimistically would
+     * make a refused close look like it worked.
+     */
+    fun closeConnection(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            if (!closer.close(id)) _closeFailed.emit(Unit)
+        }
+    }
+
+    /** Ends every connection the kernel is carrying. */
+    fun closeAll() {
+        viewModelScope.launch {
+            if (!closer.closeAll()) _closeFailed.emit(Unit)
+        }
+    }
 
     fun setOnlyActive(onlyActive: Boolean) {
         filters.value = filters.value.copy(onlyActive = onlyActive)

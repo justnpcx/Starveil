@@ -153,6 +153,8 @@ class SettingsViewModelTest {
 }
 
 private class FakeKernel(private val reportedVersion: String) : KernelBridge {
+    override suspend fun closeConnection(id: String): Result<Unit> = Result.success(Unit)
+    override suspend fun closeConnections(): Result<Unit> = Result.success(Unit)
     override val state: StateFlow<KernelState> = MutableStateFlow(KernelState.Stopped)
     override val logs: SharedFlow<KernelLogLine> = MutableSharedFlow()
     override val connections: SharedFlow<KernelConnection> = MutableSharedFlow()

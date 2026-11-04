@@ -254,4 +254,28 @@
     <string name="chain_diagnostic_exit_up">经前置可达</string>
     <string name="chain_diagnostic_exit_down">经前置不可达</string>
     <string name="chain_diagnostic_untested">未测</string>
+    <!-- 连接级处置（CD）。 -->
+    <string name="connections_close_action">关闭此连接</string>
+    <string name="connections_close_all">关闭全部</string>
+    <string name="connections_close_all_confirm_title">关闭全部连接？</string>
+    <string name="connections_close_all_confirm_body">隧道当前承载的所有连接都会立即结束，应用会自行重连。</string>
+    <string name="connections_close_failed">关闭连接失败</string>
+
+    <!-- 规则命中计数（RC）。 -->
+    <string name="diagnostics_hits_title">规则命中</string>
+    <string name="diagnostics_hits_since">自 %1$s 起统计</string>
+    <string name="diagnostics_hits_top_title">命中最多</string>
+    <string name="diagnostics_hits_top_empty">本窗口内还没有规则命中。</string>
+    <string name="diagnostics_hits_zero_title">零命中</string>
+    <string name="diagnostics_hits_zero_empty">所有已启用规则都至少命中过一次。</string>
+    <string name="diagnostics_hits_unmapped_title">未匹配到规则的计数</string>
+    <string name="diagnostics_hits_row">%1$s → %2$s · %3$d 次</string>
+    <string name="diagnostics_hits_reset">重置计数</string>
+    <string name="diagnostics_hits_reset_confirm_title">重置计数？</string>
+    <string name="diagnostics_hits_reset_confirm_body">所有计数清零，统计窗口从现在重新开始。</string>
+    <string name="diagnostics_hits_scope">只统计本应用运行期间看到的连接，不记录目标地址。</string>
+
+    <!-- CD-2：切换目标时打断已有连接。 -->
+    <string name="settings_interrupt_title">切换节点时打断已有连接</string>
+    <string name="settings_interrupt_desc">目标节点或分组变化时关闭已打开的连接，而不是让它们在旧节点上继续。</string>
 </resources>

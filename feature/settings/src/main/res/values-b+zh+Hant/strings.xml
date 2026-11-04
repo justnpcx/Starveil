@@ -254,4 +254,28 @@
     <string name="chain_diagnostic_exit_up">經前置可達</string>
     <string name="chain_diagnostic_exit_down">經前置不可達</string>
     <string name="chain_diagnostic_untested">未測</string>
+    <!-- 連線級處置（CD）。 -->
+    <string name="connections_close_action">關閉此連線</string>
+    <string name="connections_close_all">關閉全部</string>
+    <string name="connections_close_all_confirm_title">關閉全部連線？</string>
+    <string name="connections_close_all_confirm_body">通道目前承載的所有連線都會立即結束，應用程式會自行重新連線。</string>
+    <string name="connections_close_failed">關閉連線失敗</string>
+
+    <!-- 規則命中計數（RC）。 -->
+    <string name="diagnostics_hits_title">規則命中</string>
+    <string name="diagnostics_hits_since">自 %1$s 起統計</string>
+    <string name="diagnostics_hits_top_title">命中最多</string>
+    <string name="diagnostics_hits_top_empty">本視窗內還沒有規則命中。</string>
+    <string name="diagnostics_hits_zero_title">零命中</string>
+    <string name="diagnostics_hits_zero_empty">所有已啟用規則都至少命中過一次。</string>
+    <string name="diagnostics_hits_unmapped_title">未對應到規則的計數</string>
+    <string name="diagnostics_hits_row">%1$s → %2$s · %3$d 次</string>
+    <string name="diagnostics_hits_reset">重設計數</string>
+    <string name="diagnostics_hits_reset_confirm_title">重設計數？</string>
+    <string name="diagnostics_hits_reset_confirm_body">所有計數歸零，統計視窗從現在重新開始。</string>
+    <string name="diagnostics_hits_scope">只統計本應用程式執行期間看到的連線，不記錄目標位址。</string>
+
+    <!-- CD-2：切換目標時打斷既有連線。 -->
+    <string name="settings_interrupt_title">切換節點時打斷既有連線</string>
+    <string name="settings_interrupt_desc">目標節點或群組變更時關閉已開啟的連線，而不是讓它們在舊節點上繼續。</string>
 </resources>

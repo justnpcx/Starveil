@@ -8,6 +8,37 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.22] — 2026-11-04
+
+### Added
+
+- **Rule hit counts.** Every routing decision the kernel reports is counted by
+  rule and outbound — once per connection, not once per event — and shown on
+  the rules page (per rule, per subscribed pack, per preset set). The
+  diagnostics page gains a distribution card: the busiest rules, the rules in
+  force that have never matched, any count whose rule is gone, the window's
+  start time, and a confirmed reset. Counts are batched in memory and written
+  every 30 seconds or every 100 events; destinations are not recorded.
+- **Connection-level actions.** Each open row on the connections page can be
+  closed, and the header closes every connection after a confirmation. A
+  refusal is reported in a Snackbar. Built on `CommandClient.closeConnection`
+  / `closeConnections`, which libbox already exposes — no fork change.
+- **End connections on node switch (off by default).** A settings switch: when
+  on, changing the node or group closes every open connection before the
+  tunnel is rebuilt, instead of letting sockets finish on the old node.
+- **External automation.** A no-UI exported activity accepts
+  `com.justnpcx.starveil.action.START` / `.STOP` / `.TOGGLE` from Tasker,
+  MacroDroid or `adb shell am start`. Idempotent, asynchronous, and it opens
+  the app when VPN consent is missing rather than failing silently. See
+  `docs/23-automation.md`.
+
+### Decided
+
+- **No fallback or load-balance outbound groups.** sing-box's outbound groups
+  are selector and urltest only; availability is already handled in the app
+  (urltest health selection plus drop recovery). Recorded with the rest of the
+  gap analysis in `docs/24-decisions.md`.
+
 ## [0.9.21] — 2026-11-04
 
 ### Fixed
