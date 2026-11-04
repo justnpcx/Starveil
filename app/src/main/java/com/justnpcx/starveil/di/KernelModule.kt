@@ -23,6 +23,7 @@ import com.justnpcx.starveil.core.probe.NodeProbe
 import com.justnpcx.starveil.core.probe.SingBoxChainNodeProbe
 import com.justnpcx.starveil.core.probe.StagedNodeProbe
 import com.justnpcx.starveil.core.probe.TcpNodeProbe
+import com.justnpcx.starveil.core.data.log.AppLogSink
 import com.justnpcx.starveil.core.probe.KernelLogStream
 import dagger.Module
 import dagger.Provides
@@ -90,7 +91,8 @@ object KernelModule {
      */
     @Provides
     @Singleton
-    fun provideLogStream(bridge: KernelBridge): LogStream = KernelLogStream(bridge)
+    fun provideLogStream(bridge: KernelBridge, appLog: AppLogSink): LogStream =
+        KernelLogStream(bridge, appLog)
 
     /**
      * The Rules screen's view of the kernel's routing decisions, on the same

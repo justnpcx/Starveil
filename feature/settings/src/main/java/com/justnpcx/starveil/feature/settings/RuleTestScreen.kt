@@ -137,6 +137,8 @@ data class DiagnosticsState(
     val lastLeakCheck: LeakCheckRecord = LeakCheckRecord(),
     val dnsMetricsEnabled: Boolean = true,
     val dnsStats: DnsSnapshot = DnsSnapshot.EMPTY,
+    /** Why the last exit probe failed, or null when it did not. */
+    val exitProbeFailure: com.justnpcx.starveil.core.data.network.ExitProbeFailure? = null,
 )
 
 @HiltViewModel
@@ -148,6 +150,7 @@ class RuleTestViewModel @Inject constructor(
     private val metrics: DnsMetrics,
     private val profiles: ProfileRepository,
     private val nodeHealth: NodeHealthRepository,
+    private val exitProbe: com.justnpcx.starveil.core.data.network.ExitProbe,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<RuleTestUiState>(RuleTestUiState.Loading)
@@ -167,8 +170,14 @@ class RuleTestViewModel @Inject constructor(
         preferences.lastLeakCheck,
         preferences.dnsMetricsEnabled,
         dnsStats,
-    ) { leak, enabled, stats ->
-        DiagnosticsState(lastLeakCheck = leak, dnsMetricsEnabled = enabled, dnsStats = stats)
+        exitProbe.lastFailure,
+    ) { leak, enabled, stats, exitFailure ->
+        DiagnosticsState(
+            lastLeakCheck = leak,
+            dnsMetricsEnabled = enabled,
+            dnsStats = stats,
+            exitProbeFailure = exitFailure,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -431,6 +440,25 @@ fun RuleTestScreen(
                     } else {
                         StarveilColors.ink2
                     },
+                    modifier = Modifier.padding(
+                        start = StarveilSpacing.lg,
+                        end = StarveilSpacing.lg,
+                        bottom = StarveilSpacing.md,
+                    ),
+                )
+            }
+            // The exit probe's own last failure. It is a log line first — the
+            // ring has it too — but this is the page someone opens when the
+            // dashboard shows a hole, so it is repeated where the question is.
+            diagnostics.exitProbeFailure?.let { failure ->
+                Text(
+                    text = stringResource(
+                        R.string.diagnostics_exit_probe_failed,
+                        failure.endpoint,
+                        failure.reason,
+                    ),
+                    style = StarveilType.tech,
+                    color = StarveilColors.errText,
                     modifier = Modifier.padding(
                         start = StarveilSpacing.lg,
                         end = StarveilSpacing.lg,

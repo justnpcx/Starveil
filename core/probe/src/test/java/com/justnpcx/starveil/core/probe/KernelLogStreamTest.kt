@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.probe
 
+import com.justnpcx.starveil.core.data.log.AppLogSink
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelConnection
 import com.justnpcx.starveil.core.kernel.KernelLogLine
@@ -29,7 +30,7 @@ class KernelLogStreamTest {
     @Test
     fun `identical lines in the same millisecond get distinct ids`() = runBlocking {
         val bridge = LogRecordingBridge()
-        val stream = KernelLogStream(bridge)
+        val stream = KernelLogStream(bridge, AppLogSink())
 
         val line = KernelLogLine(LogLevel.INFO, "sing-box", "same text", timestampMs = 1_000L)
         bridge.emit(line)

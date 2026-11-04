@@ -82,6 +82,15 @@ data class DashboardUiState(
     val exitSmoothedRttMs: Long? = null,
 
     /**
+     * Connected, but the whole endpoint chain failed.
+     *
+     * Different from "no exit yet": this is a verdict about a running tunnel.
+     * The card says so instead of leaving a hole where a number should be —
+     * the 0.9.20 gap, where a probe that always failed simply drew nothing.
+     */
+    val exitProbeFailed: Boolean = false,
+
+    /**
      * False only on an install that has never had a tunnel up. The ring's
      * hint is shown exactly then.
      */
@@ -251,7 +260,8 @@ class DashboardViewModel @Inject constructor(
         exitProbeJob = scope.launch {
             while (isActive && screenVisible) {
                 if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
-                    exitProbe.probe()?.let { info ->
+                    val info = exitProbe.probe()
+                    if (info != null) {
                         _uiState.update { state ->
                             state.copy(
                                 exit = info,
@@ -259,14 +269,25 @@ class DashboardViewModel @Inject constructor(
                                     previous = state.exitSmoothedRttMs,
                                     sample = info.rttMs,
                                 ),
+                                exitProbeFailed = false,
                             )
                         }
                         recordExitReached(info)
+                    } else {
+                        // The chain ran and nothing answered. The old value is
+                        // not a reading of this tunnel any more, so it goes —
+                        // and the card says the measurement failed rather than
+                        // showing the previous node's exit.
+                        _uiState.update {
+                            it.copy(exit = null, exitSmoothedRttMs = null, exitProbeFailed = true)
+                        }
                     }
-                } else if (_uiState.value.exit != null) {
+                } else if (_uiState.value.exit != null || _uiState.value.exitProbeFailed) {
                     // A tunnel that went down has no exit to describe, and no
                     // history worth carrying into the next one.
-                    _uiState.update { it.copy(exit = null, exitSmoothedRttMs = null) }
+                    _uiState.update {
+                        it.copy(exit = null, exitSmoothedRttMs = null, exitProbeFailed = false)
+                    }
                 }
                 delay(
                     if (_uiState.value.connectionState == ConnectionState.CONNECTED) {
@@ -277,6 +298,19 @@ class DashboardViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * Runs the chain now instead of waiting out the 30-second loop.
+     *
+     * Restarting the loop is the retry: its first iteration probes, and
+     * cancelling the job also drops the delay that would otherwise hold the
+     * next attempt back. Ignored when there is no tunnel — nothing outside can
+     * describe an exit that does not exist.
+     */
+    fun retryExitProbe() {
+        if (_uiState.value.connectionState != ConnectionState.CONNECTED) return
+        startExitProbeLoop()
     }
 
     /**
@@ -457,6 +491,12 @@ class DashboardViewModel @Inject constructor(
      * is the test that keeps that true.
      */
     private fun applyConfigChange() {
+        // A new node has a different exit. Until the first probe of the new
+        // tunnel answers, the old address is not a fact about anything on
+        // screen, so it is dropped rather than left to look current.
+        _uiState.update {
+            it.copy(exit = null, exitSmoothedRttMs = null, exitProbeFailed = false)
+        }
         scope.launch {
             recovery.rearm()
             connection.restart()
@@ -646,6 +686,11 @@ class DashboardViewModel @Inject constructor(
                 // The tunnel exists; whether it carries anything is a separate
                 // question, and the one the user finds out about the hard way.
                 startTrafficWatch()
+                // Ask the exit now rather than on the old loop's next tick: the
+                // first round is what decides between a number and "not
+                // measured", and waiting out a delay from the previous
+                // connection makes the card look broken for half a minute.
+                startExitProbeLoop()
             }
 
             is ConnectionOutcome.Blocked -> {

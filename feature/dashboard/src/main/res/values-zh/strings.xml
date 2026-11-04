@@ -71,6 +71,7 @@
     <string name="dashboard_exit_address">出口 IP</string>
     <string name="dashboard_exit_rtt_smoothed">出口延迟</string>
     <string name="dashboard_exit_last">上次出口 %1$s</string>
+    <string name="dashboard_exit_unmeasured">出口未测得 · 点按重试</string>
     <string name="dashboard_exit_rtt">往返时延</string>
     <string name="dashboard_exit_rtt_value">%1$d ms</string>
     <string name="dashboard_exit_measured">检测时间</string>

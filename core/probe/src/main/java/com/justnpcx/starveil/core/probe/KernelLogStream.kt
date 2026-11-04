@@ -1,5 +1,6 @@
 package com.justnpcx.starveil.core.probe
 
+import com.justnpcx.starveil.core.data.log.AppLogSink
 import com.justnpcx.starveil.core.kernel.KernelBridge
 import com.justnpcx.starveil.core.kernel.KernelLogLine
 import com.justnpcx.starveil.core.kernel.LogLevel
@@ -22,7 +23,7 @@ import kotlinx.coroutines.launch
  * lines are already redacted by the bridge; this only maps types and keeps a
  * bounded ring, so a long session cannot grow the list without limit.
  */
-class KernelLogStream(bridge: KernelBridge) : LogStream {
+class KernelLogStream(bridge: KernelBridge, appLog: AppLogSink) : LogStream {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val ring = MutableStateFlow<List<AppLogLine>>(emptyList())
@@ -49,6 +50,15 @@ class KernelLogStream(bridge: KernelBridge) : LogStream {
                 if (line.level == LogLevel.DEBUG && line.tag != DIAGNOSTIC_TAG) return@collect
                 val seq = nextSeq++
                 ring.update { (it + line.toAppLogLine(seq)).takeLast(RING_SIZE) }
+            }
+        }
+
+        // Lines this app writes itself land in the same ring: one place to
+        // look, and the diagnostics export already reads this one.
+        scope.launch {
+            appLog.lines.collect { line ->
+                val seq = nextSeq++
+                ring.update { (it + line.copy(seq = seq)).takeLast(RING_SIZE) }
             }
         }
     }

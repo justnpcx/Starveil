@@ -264,10 +264,34 @@ fun DashboardScreen(
             // trip to a third party took. Always visible while connected: a
             // proxy that silently fell back to the local connection looks
             // exactly like one that works until this line says so.
-            state.exit?.let { exit ->
+            // Connected but nothing answered is its own state, not a blank:
+            // the card says the measurement failed and takes a tap to retry.
+            // It is deliberately not the disconnected line — one is a verdict
+            // about a running tunnel, the other is a leftover.
+            val exitLive = state.connectionState == ConnectionState.CONNECTED ||
+                state.connectionState == ConnectionState.WARNING
+            val exit = state.exit
+            if (exitLive && exit == null && state.exitProbeFailed) {
                 Spacer(modifier = Modifier.height(StarveilSpacing.md))
-                val exitLive = state.connectionState == ConnectionState.CONNECTED ||
-                    state.connectionState == ConnectionState.WARNING
+                StarveilCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = viewModel::retryExitProbe,
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_exit_unmeasured),
+                        style = StarveilType.label,
+                        color = StarveilColors.ink2,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = StarveilSpacing.lg,
+                                vertical = StarveilSpacing.md,
+                            ),
+                    )
+                }
+            }
+            if (exit != null) {
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
                 if (exitLive) {
                     StarveilCard(
                         modifier = Modifier.fillMaxWidth(),

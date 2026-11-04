@@ -2,6 +2,7 @@ package com.justnpcx.starveil.feature.dashboard
 
 import com.justnpcx.starveil.core.data.preferences.ConnectionTarget
 import com.justnpcx.starveil.core.data.network.ExitInfo
+import com.justnpcx.starveil.core.data.log.AppLogSink
 import com.justnpcx.starveil.core.data.network.ExitProbe
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.crypto.LocalApiTokenStore
@@ -674,8 +675,57 @@ class DashboardViewModelTest {
         assertEquals(listOf(FakeNodeHealth.Recorded(ONE, 73, 1_234L, 10)), health.recorded)
     }
 
+    @Test
+    fun `a failed exit chain reads as unmeasured until a probe answers`() = runBlocking {
+        var answer: ExitInfo? = null
+        val probe = object : ExitProbe(AppLogSink()) {
+            override suspend fun probe(): ExitInfo? = answer
+        }
+        val viewModel = viewModel(FakePreferences(ONE), RecordingKernel(), exitProbe = probe)
+
+        viewModel.onCoreClick()
+        yield()
+        assertEquals(ConnectionState.CONNECTED, viewModel.uiState.value.connectionState)
+        // The first round runs as soon as the tunnel is up: no grace period, so
+        // a chain that fails immediately reads as unmeasured immediately.
+        assertTrue(viewModel.uiState.value.exitProbeFailed)
+        assertNull(viewModel.uiState.value.exit)
+
+        // A tap on the card runs the chain now instead of waiting out the loop.
+        viewModel.retryExitProbe()
+        yield()
+        assertTrue(viewModel.uiState.value.exitProbeFailed)
+
+        answer = ExitInfo(address = "203.0.113.9", rttMs = 42, atEpochMs = 1_000L)
+        viewModel.retryExitProbe()
+        yield()
+        assertEquals("203.0.113.9", viewModel.uiState.value.exit?.address)
+        assertFalse(viewModel.uiState.value.exitProbeFailed)
+    }
+
+    @Test
+    fun `switching node drops the previous exit before the new one answers`() = runBlocking {
+        var answer: ExitInfo? = ExitInfo("203.0.113.9", 42, 1_000L)
+        val probe = object : ExitProbe(AppLogSink()) {
+            override suspend fun probe(): ExitInfo? = answer
+        }
+        val preferences = FakePreferences(ONE)
+        val viewModel = viewModel(preferences, RecordingKernel(), exitProbe = probe)
+
+        viewModel.onCoreClick()
+        yield()
+        assertEquals("203.0.113.9", viewModel.uiState.value.exit?.address)
+
+        // The next tunnel has a different exit; until it is measured, the old
+        // address describes nothing on screen.
+        answer = null
+        preferences.setSelectedProfileId(TWO)
+        assertNull(viewModel.uiState.value.exit)
+        assertNull(viewModel.uiState.value.exitSmoothedRttMs)
+    }
+
     /** The exit probe is a network call; the tests here are not about it. */
-    private object NoExit : ExitProbe() {
+    private object NoExit : ExitProbe(AppLogSink()) {
         override suspend fun probe(): ExitInfo? = null
     }
 
@@ -685,6 +735,7 @@ class DashboardViewModelTest {
         groups: FakeGroups = FakeGroups(emptyList()),
         nodeHealth: NodeHealthRepository = FakeNodeHealth(),
         nodes: List<Profile> = listOf(profile(ONE, "one"), profile(TWO, "two")),
+        exitProbe: ExitProbe = NoExit,
     ): DashboardViewModel {
         val profiles = FakeProfiles(nodes)
         // The view model delegates the connect path to this; giving both the
@@ -716,7 +767,7 @@ class DashboardViewModelTest {
             nodeHealth = nodeHealth,
             recovery = DropRecovery(profiles, nodeHealth, preferences),
             sceneApply = SceneApplyState(),
-            exitProbe = NoExit,
+            exitProbe = exitProbe,
         )
     }
 
