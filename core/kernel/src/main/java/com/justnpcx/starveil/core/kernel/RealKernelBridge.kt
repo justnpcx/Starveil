@@ -514,6 +514,28 @@ class RealKernelBridge(
 
     override suspend fun version(): String = Libbox.version()
 
+    /**
+     * `CommandClient.closeConnection` — libbox exposes it natively, so closing
+     * one connection needs no fork patch. The client is only non-null while a
+     * kernel is running; without one there is nothing to close and saying
+     * "closed" would be a lie.
+     */
+    override suspend fun closeConnection(id: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val current = client ?: return@withContext Result.failure(
+                IllegalStateException("kernel not running"),
+            )
+            runCatching { current.closeConnection(id) }
+        }
+
+    override suspend fun closeConnections(): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            val current = client ?: return@withContext Result.failure(
+                IllegalStateException("kernel not running"),
+            )
+            runCatching { current.closeConnections() }
+        }
+
     /** Maps a start failure to a typed error the UI can branch on. */
     private fun classifyStartFailure(e: Exception): KernelError {
         val message = e.message.orEmpty()

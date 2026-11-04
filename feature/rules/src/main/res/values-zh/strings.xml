@@ -148,4 +148,6 @@
     <string name="rules_value_example_cidr">192.168.1.0/24</string>
     <string name="rules_move_top">置顶</string>
     <string name="rules_move_bottom">置底</string>
+    <!-- 内核连接事件流统计的命中数（RC）。 -->
+    <string name="rules_hits_suffix">· %1$d 次</string>
 </resources>

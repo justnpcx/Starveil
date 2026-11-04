@@ -256,6 +256,17 @@ interface PreferencesRepository {
     suspend fun setAutoSwitchOnDrop(enabled: Boolean)
 
     /**
+     * End open connections when the target node or group changes.
+     *
+     * Off by default: a switch already rebuilds the tunnel, and existing
+     * sockets survive it because sing-box keeps the old outbound alive. Turning
+     * this on trades that continuity for a clean slate — useful when a long
+     * download is stuck on a node the user just moved away from.
+     */
+    val interruptOnNodeSwitch: Flow<Boolean> get() = kotlinx.coroutines.flow.flowOf(false)
+    suspend fun setInterruptOnNodeSwitch(enabled: Boolean) = Unit
+
+    /**
      * Light, dark, or follow the system.
      *
      * A default implementation keeps every test fake source-compatible; the
@@ -369,6 +380,7 @@ class DataStorePreferencesRepository @Inject constructor(
     private object Keys {
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         val AUTO_SWITCH_ON_DROP = booleanPreferencesKey("auto_switch_on_drop")
+        val INTERRUPT_ON_NODE_SWITCH = booleanPreferencesKey("interrupt_on_node_switch")
         val BYPASS_MAINLAND = booleanPreferencesKey("bypass_mainland")
         val ROUTE_PRESET = stringPreferencesKey("route_preset")
         val BLOCK_ADS = booleanPreferencesKey("block_ads")
@@ -412,6 +424,10 @@ class DataStorePreferencesRepository @Inject constructor(
     override val autoSwitchOnDrop: Flow<Boolean> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
         .map { prefs -> prefs[Keys.AUTO_SWITCH_ON_DROP] ?: true }
+
+    override val interruptOnNodeSwitch: Flow<Boolean> = dataStore.data
+        .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
+        .map { prefs -> prefs[Keys.INTERRUPT_ON_NODE_SWITCH] ?: false }
 
     override val themeMode: Flow<ThemeMode> = dataStore.data
         .catch { if (it is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw it }
@@ -616,6 +632,10 @@ class DataStorePreferencesRepository @Inject constructor(
 
     override suspend fun setAutoSwitchOnDrop(enabled: Boolean) {
         dataStore.edit { it[Keys.AUTO_SWITCH_ON_DROP] = enabled }
+    }
+
+    override suspend fun setInterruptOnNodeSwitch(enabled: Boolean) {
+        dataStore.edit { it[Keys.INTERRUPT_ON_NODE_SWITCH] = enabled }
     }
 
     override suspend fun setKillSwitchMode(mode: KillSwitchMode) {

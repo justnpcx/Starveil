@@ -62,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.core.ui.components.StarveilSnackbarHost
 import com.justnpcx.starveil.core.ui.components.StarveilTextField
 import com.justnpcx.starveil.core.data.ruleset.RulePackFailure
+import com.justnpcx.starveil.core.kernel.config.ConfigBuilder
+import com.justnpcx.starveil.core.kernel.config.RuleHitIndex
 import com.justnpcx.starveil.core.data.ruleset.RulePacks
 import com.justnpcx.starveil.core.model.FlowOutcome
 import com.justnpcx.starveil.core.model.FlowRecord
@@ -195,6 +197,8 @@ fun RulesScreen(
                         userRuleCount = state.enabledUserRules,
                         subscribedPacks = state.subscribedPacks,
                         availablePacks = state.availablePacks,
+                        hitCounts = state.hitCounts,
+                        proxyTag = state.proxyTag,
                         onSelect = viewModel::setPreset,
                         onToggleAds = viewModel::setBlockAds,
                         onOpenMarket = { showMarket = true },
@@ -239,6 +243,7 @@ fun RulesScreen(
                                 RuleRow(
                                     rule = rule,
                                     position = index + 1,
+                                    hits = state.hitsFor(rule),
                                     highlighted = rule.id == highlight,
                                     canMoveUp = index > 0,
                                     canMoveDown = index < state.rules.lastIndex,
@@ -431,6 +436,8 @@ private fun packDescription(context: android.content.Context, id: String): Strin
 private fun RuleRow(
     rule: Rule,
     position: Int,
+    /** Matches in the current window; 0 is a fact, not "unknown". */
+    hits: Long,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onToggle: (Boolean) -> Unit,
@@ -473,7 +480,11 @@ private fun RuleRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = actionLabel(rule.action),
+                    // The count rides on the action line rather than a row of
+                    // its own: it qualifies the action, and a fourth line
+                    // would make this row taller than every other row.
+                    text = actionLabel(rule.action) + " " +
+                        stringResource(R.string.rules_hits_suffix, hits),
                     style = StarveilType.label,
                     color = StarveilColors.ink2,
                 )
@@ -965,6 +976,9 @@ private fun RoutePresetCard(
     userRuleCount: Int,
     subscribedPacks: Set<String>,
     availablePacks: List<RulePack>,
+    /** Counts keyed by (kernel rule text, outbound); see [RuleHitIndex]. */
+    hitCounts: Map<Pair<String, String>, Long>,
+    proxyTag: String,
     onSelect: (RoutePreset) -> Unit,
     onToggleAds: (Boolean) -> Unit,
     onOpenMarket: () -> Unit,
@@ -1132,6 +1146,17 @@ private fun RoutePresetCard(
                 verticalArrangement = Arrangement.spacedBy(StarveilSpacing.xs),
             ) {
                 presetRules.forEach { rule ->
+                    val tag = when (rule) {
+                        PresetRule.ADS -> ConfigBuilder.ADS_TAG to "reject"
+                        PresetRule.DOMESTIC_NAMES -> ConfigBuilder.GEOSITE_CN_TAG to ConfigBuilder.DIRECT_TAG
+                        PresetRule.DOMESTIC_ADDRESSES -> ConfigBuilder.GEOIP_CN_TAG to ConfigBuilder.DIRECT_TAG
+                        // Infrastructure, not a rule set: it has no count of
+                        // its own and the row says nothing about hits.
+                        PresetRule.LAN_DIRECT -> null
+                    }
+                    val hits = tag?.let { (t, out) ->
+                        hitCounts[RuleHitIndex.keyForRuleSet(t, out)] ?: 0L
+                    }
                     Text(
                         text = stringResource(
                             when (rule) {
@@ -1140,7 +1165,7 @@ private fun RoutePresetCard(
                                 PresetRule.DOMESTIC_NAMES -> R.string.rules_effective_domestic_names
                                 PresetRule.DOMESTIC_ADDRESSES -> R.string.rules_effective_domestic_addresses
                             },
-                        ),
+                        ) + if (hits != null) " " + stringResource(R.string.rules_hits_suffix, hits) else "",
                         style = StarveilType.label,
                         color = StarveilColors.ink2,
                     )
@@ -1148,6 +1173,8 @@ private fun RoutePresetCard(
                 // Named, not counted: "3 rules in force" answers how many, and
                 // the next question is which pack is doing it.
                 availablePacks.filter { it.id in subscribedPacks }.forEach { pack ->
+                    val outbound = if (pack.action == RulePackAction.REJECT) "reject" else proxyTag
+                    val hits = hitCounts[RuleHitIndex.keyForRuleSet(pack.tag, outbound)] ?: 0L
                     Text(
                         text = stringResource(
                             R.string.rules_effective_pack,
@@ -1159,7 +1186,7 @@ private fun RoutePresetCard(
                                     R.string.rules_action_proxy
                                 },
                             ),
-                        ),
+                        ) + " " + stringResource(R.string.rules_hits_suffix, hits),
                         style = StarveilType.label,
                         color = StarveilColors.ink2,
                     )

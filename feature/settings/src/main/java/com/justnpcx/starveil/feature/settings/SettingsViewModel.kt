@@ -37,6 +37,8 @@ data class SettingsUiState(
     val killSwitchMode: KillSwitchMode = KillSwitchMode.OFF,
     val autoReconnect: Boolean = true,
     val autoSwitchOnDrop: Boolean = true,
+    /** End open connections when the target node or group changes. */
+    val interruptOnNodeSwitch: Boolean = false,
     /** Light, dark, or follow the system. */
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Which accent family the app is wearing. */
@@ -237,9 +239,11 @@ class SettingsViewModel @Inject constructor(
         appearanceState,
         // Paired so the typed three-argument combine stays available; the two
         // reconnect switches are read together and always shown together.
-        combine(preferences.autoReconnect, preferences.autoSwitchOnDrop) { reconnect, switch ->
-            reconnect to switch
-        },
+        combine(
+            preferences.autoReconnect,
+            preferences.autoSwitchOnDrop,
+            preferences.interruptOnNodeSwitch,
+        ) { reconnect, switch, interrupt -> Triple(reconnect, switch, interrupt) },
     ) { mode, appearance, reconnect ->
         SettingsUiState(
             killSwitchMode = mode,
@@ -248,6 +252,7 @@ class SettingsViewModel @Inject constructor(
             fontScale = appearance.third,
             autoReconnect = reconnect.first,
             autoSwitchOnDrop = reconnect.second,
+            interruptOnNodeSwitch = reconnect.third,
         )
     }
 
@@ -294,6 +299,15 @@ class SettingsViewModel @Inject constructor(
 
     fun setLocalApiEnabled(enabled: Boolean) {
         viewModelScope.launch { preferences.setLocalApiEnabled(enabled) }
+    }
+
+    /**
+     * Read by the dashboard at the moment the target changes, not applied here:
+     * the setting describes what a switch should do, and the switch happens
+     * there.
+     */
+    fun setInterruptOnNodeSwitch(enabled: Boolean) {
+        viewModelScope.launch { preferences.setInterruptOnNodeSwitch(enabled) }
     }
 
     /** Revoke the current token; every dashboard must be reconfigured. */

@@ -205,6 +205,42 @@ class StarveilMigrationTest {
             )
         }
     }
+
+    /**
+     * v7 → v8: the rule hit counters.
+     *
+     * Additive, and the window row must exist from the start: a count with no
+     * window is a number the page cannot date.
+     */
+    @Test
+    fun migration_7_to_8_adds_the_hit_tables_and_opens_a_window() {
+        val name = "migration-${System.nanoTime()}.db"
+
+        helper.createDatabase(name, 7).use { db ->
+            db.execSQL(
+                "INSERT INTO profiles (name, type, server, port, latencyMs, groupId, settingsJson) " +
+                    "VALUES ('reality-node', 'VLESS', 'r.example.com', 443, 42, 0, '{}')",
+            )
+        }
+
+        helper.runMigrationsAndValidate(name, 8, true, *StarveilMigrations.ALL).use { db ->
+            assertEquals(1, db.rowCount("profiles"))
+            assertEquals(0, db.rowCount("rule_hits"))
+            assertEquals(1, db.rowCount("rule_hit_window"))
+
+            // The composite key is (ruleText, outbound): the same matcher can
+            // reject in one rule and proxy in another.
+            db.execSQL(
+                "INSERT INTO rule_hits (ruleText, outbound, count, lastHitAt) " +
+                    "VALUES ('rule_set=ads', 'reject', 3, 1000)",
+            )
+            db.execSQL(
+                "INSERT INTO rule_hits (ruleText, outbound, count, lastHitAt) " +
+                    "VALUES ('rule_set=ads', 'proxy', 1, 1000)",
+            )
+            assertEquals(2, db.rowCount("rule_hits"))
+        }
+    }
 }
 
 private fun SupportSQLiteDatabase.rowCount(table: String): Int =

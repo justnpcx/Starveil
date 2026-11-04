@@ -106,6 +106,31 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `switching node ends open connections only when the setting says so`() = runBlocking {
+        // Off (the default): the restart is the whole change, and sockets
+        // already established finish on the node they started on.
+        val off = FakePreferences(ONE)
+        val offKernel = RecordingKernel()
+        val offViewModel = viewModel(off, offKernel)
+
+        offViewModel.onCoreClick()
+        off.setSelectedProfileId(TWO)
+
+        assertEquals(0, offKernel.closeAlls)
+
+        // On: the same switch first closes everything, then rebuilds.
+        val on = FakePreferences(ONE, interruptOnSwitch = true)
+        val onKernel = RecordingKernel()
+        val onViewModel = viewModel(on, onKernel)
+
+        onViewModel.onCoreClick()
+        on.setSelectedProfileId(TWO)
+
+        assertEquals(1, onKernel.closeAlls)
+        assertEquals(2, onKernel.starts)
+    }
+
+    @Test
     fun `the node label keeps its flag when another setting changes`() = runBlocking {
         val preferences = FakePreferences(ONE)
         val viewModel = viewModel(
@@ -820,6 +845,7 @@ private class FakePreferences(
     initialKillSwitch: KillSwitchMode = KillSwitchMode.OFF,
     autoReconnect: Boolean = true,
     switchOnDrop: Boolean = true,
+    interruptOnSwitch: Boolean = false,
 ) : PreferencesRepository {
 
     private val killSwitch = MutableStateFlow(initialKillSwitch)
@@ -858,6 +884,7 @@ private class FakePreferences(
     override val autoReconnect: Flow<Boolean> = autoReconnectFlow
     // Real: the drop handler reads it before deciding whether to switch.
     override val autoSwitchOnDrop: Flow<Boolean> = flowOf(switchOnDrop)
+    override val interruptOnNodeSwitch: Flow<Boolean> = flowOf(interruptOnSwitch)
     // Off, like the app's default: a test that wants the preset on says so.
     override val bypassMainland: Flow<Boolean> = flowOf(false)
     private val preset = MutableStateFlow(RoutePreset.GLOBAL_PROXY)
@@ -1047,6 +1074,21 @@ private class RecordingKernel : KernelBridge {
 
     override suspend fun queryStats(): TrafficStats = TrafficStats()
     override suspend fun version(): String = "test"
+
+    /** Ids passed to [closeConnection], and how often everything was closed. */
+    val closedIds = mutableListOf<String>()
+    var closeAlls = 0
+        private set
+
+    override suspend fun closeConnection(id: String): Result<Unit> {
+        closedIds += id
+        return Result.success(Unit)
+    }
+
+    override suspend fun closeConnections(): Result<Unit> {
+        closeAlls++
+        return Result.success(Unit)
+    }
 }
 
 /** Health history, keyed by node id. */

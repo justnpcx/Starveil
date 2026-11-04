@@ -120,6 +120,29 @@ interface KernelBridge {
     suspend fun queryStats(): TrafficStats
 
     /**
+     * Close one connection by the id its NEW event carried.
+     *
+     * The kernel owns the socket, so this is the only way to end one: the app
+     * has no handle on it. A successful call makes the kernel emit CLOSE for
+     * that id, which is how the row leaves the table — the caller must not
+     * remove it from any list itself, or the table and the kernel disagree.
+     *
+     * Fails when the kernel is not running, or when the id is no longer known
+     * (already closed). Failure is reported, never swallowed: a close button
+     * that does nothing is indistinguishable from a broken app.
+     */
+    suspend fun closeConnection(id: String): Result<Unit>
+
+    /**
+     * Close every connection the kernel is carrying.
+     *
+     * Same semantics as [closeConnection], for the whole table. Used by the
+     * connections page's "close all" and by the switch that interrupts open
+     * connections when the target node changes.
+     */
+    suspend fun closeConnections(): Result<Unit>
+
+    /**
      * The kernel's own version string, e.g. `1.14.4-e15eab12`.
      *
      * Read from the core rather than hard-coded here: the app ships a built

@@ -453,6 +453,16 @@ fun SettingsScreen(
                 checked = state.autoSwitchOnDrop,
                 onCheckedChange = viewModel::setAutoSwitchOnDrop,
             )
+            StarveilDivider(startInset = StarveilSpacing.lg)
+            // Off by default: a switch already rebuilds the tunnel, and letting
+            // open sockets finish on the old node is the behaviour people
+            // expect unless they are deliberately starting over.
+            SwitchRow(
+                title = stringResource(R.string.settings_interrupt_title),
+                description = stringResource(R.string.settings_interrupt_desc),
+                checked = state.interruptOnNodeSwitch,
+                onCheckedChange = viewModel::setInterruptOnNodeSwitch,
+            )
         }
 
         }

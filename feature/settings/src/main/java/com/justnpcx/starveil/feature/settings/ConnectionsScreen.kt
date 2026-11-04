@@ -15,15 +15,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +46,7 @@ import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilChip
 import com.justnpcx.starveil.core.ui.components.StarveilChipRow
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
+import com.justnpcx.starveil.core.ui.components.StarveilIconAction
 import com.justnpcx.starveil.core.ui.icons.StarveilIcons
 import com.justnpcx.starveil.core.ui.theme.StarveilColors
 import com.justnpcx.starveil.core.ui.theme.StarveilSpacing
@@ -64,6 +70,16 @@ fun ConnectionsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+    var confirmCloseAll by remember { mutableStateOf(false) }
+
+    // A refused close is said out loud: a button that appears to do nothing is
+    // indistinguishable from a frozen screen.
+    LaunchedEffect(Unit) {
+        viewModel.closeFailed.collect {
+            snackbar.showSnackbar(context.getString(R.string.connections_close_failed))
+        }
+    }
 
     // Package labels are resolved once per distinct package, not per row: a
     // busy tunnel repeats the same five packages hundreds of times.
@@ -80,18 +96,38 @@ fun ConnectionsScreen(
     // No bar of its own: the shell draws the title and the arrow back.
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Text(
-                text = stringResource(R.string.connections_intro),
-                style = StarveilType.label,
-                color = StarveilColors.ink2,
-                modifier = Modifier.padding(
-                    start = StarveilSpacing.pageMargin,
-                    end = StarveilSpacing.pageMargin,
-                    bottom = StarveilSpacing.md,
-                ),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = StarveilSpacing.pageMargin,
+                        end = StarveilSpacing.pageMargin,
+                        bottom = StarveilSpacing.md,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.connections_intro),
+                    style = StarveilType.label,
+                    color = StarveilColors.ink2,
+                    modifier = Modifier.weight(1f),
+                )
+                // Only when there is something to close: an action that can
+                // only fail is not offered.
+                if (state.rows.any { it.open }) {
+                    Spacer(modifier = Modifier.width(StarveilSpacing.sm))
+                    TextButton(onClick = { confirmCloseAll = true }) {
+                        Text(
+                            text = stringResource(R.string.connections_close_all),
+                            style = StarveilType.label,
+                            color = StarveilColors.accent,
+                        )
+                    }
+                }
+            }
 
             // The same row component the node list uses: one geometry, one set
             // of edge fades, one place to change it. The row used to be a plain
@@ -157,6 +193,11 @@ fun ConnectionsScreen(
                                 appLabel = appLabels[row.appPackage] ?: row.appPackage,
                                 nodeLabel = state.nodeNameByTag[row.outbound] ?: row.outbound,
                                 latencyMs = state.latencyByTag[row.outbound],
+                                onClose = if (row.open) {
+                                    { viewModel.closeConnection(row.id) }
+                                } else {
+                                    null
+                                },
                             )
                             if (row != state.rows.last()) {
                                 StarveilDivider(startInset = StarveilSpacing.lg)
@@ -179,6 +220,34 @@ fun ConnectionsScreen(
             )
         }
     }
+
+    // Confirmed, not one tap: closing every connection interrupts whatever is
+    // in flight, and the page offers it while the tunnel looks busiest.
+    if (confirmCloseAll) {
+        AlertDialog(
+            onDismissRequest = { confirmCloseAll = false },
+            title = { Text(stringResource(R.string.connections_close_all_confirm_title)) },
+            text = { Text(stringResource(R.string.connections_close_all_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmCloseAll = false
+                        viewModel.closeAll()
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.connections_close_all),
+                        color = StarveilColors.accent,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmCloseAll = false }) {
+                    Text(text = stringResource(R.string.settings_cancel))
+                }
+            },
+        )
+    }
 }
 
 /**
@@ -195,6 +264,8 @@ private fun ConnectionRow(
     appLabel: String,
     nodeLabel: String,
     latencyMs: Long?,
+    /** Non-null only for a row that is still open: closed rows cannot be. */
+    onClose: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier
@@ -278,6 +349,15 @@ private fun ConnectionRow(
                 color = StarveilColors.ink3,
                 maxLines = 1,
             )
+            if (onClose != null) {
+                Spacer(modifier = Modifier.width(StarveilSpacing.xs))
+                StarveilIconAction(
+                    icon = StarveilIcons.Close,
+                    contentDescription = stringResource(R.string.connections_close_action),
+                    onClick = onClose,
+                    tint = StarveilColors.ink2,
+                )
+            }
         }
     }
 }

@@ -66,7 +66,24 @@ data class RulesUiState(
     val subscribedPacks: Set<String> = emptySet(),
     /** A subscribed pack whose file could not be verified; it is not in force. */
     val rulePackFailure: RulePackFailure? = null,
+    /**
+     * Counts from the kernel's connection stream, keyed by (rule text,
+     * outbound). Empty until the first flush, which is honest: nothing has been
+     * counted yet.
+     */
+    val hitCounts: Map<Pair<String, String>, Long> = emptyMap(),
 ) {
+
+    /** The outbound a proxying rule names under this preset. */
+    val proxyTag: String get() = com.justnpcx.starveil.core.kernel.config.RuleDryRun.finalTag(preset)
+
+    /** How often this user rule matched in the current window. */
+    fun hitsFor(rule: Rule): Long =
+        hitCounts[com.justnpcx.starveil.core.kernel.config.RuleHitIndex.keyFor(rule, proxyTag)] ?: 0L
+
+    /** How often a rule set matched. */
+    fun hitsForRuleSet(tag: String, outbound: String): Long =
+        hitCounts[com.justnpcx.starveil.core.kernel.config.RuleHitIndex.keyForRuleSet(tag, outbound)] ?: 0L
     val isEmpty: Boolean get() = !loading && rules.isEmpty()
 
     /**
@@ -131,6 +148,7 @@ class RulesViewModel @Inject constructor(
     private val ruleSets: MainlandRuleSetStore,
     private val packStore: RulePackStore,
     private val ruleSetUpdates: RuleSetUpdates,
+    private val ruleHits: com.justnpcx.starveil.core.data.repository.RuleHitRepository,
 ) : ViewModel() {
 
     /**
@@ -198,6 +216,11 @@ class RulesViewModel @Inject constructor(
                 rulePackFailure = packFailure,
                 beginnerMode = beginner,
             )
+        }.combine(ruleHits.observeAll()) { state, hits ->
+            // Keyed here rather than in the screen: the screen shows one
+            // number per row and must not be the place where a rule is joined
+            // to its count by hand.
+            state.copy(hitCounts = com.justnpcx.starveil.core.kernel.config.RuleHitIndex.byKey(hits))
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

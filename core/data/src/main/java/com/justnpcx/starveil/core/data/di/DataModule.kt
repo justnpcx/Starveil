@@ -13,6 +13,7 @@ import com.justnpcx.starveil.core.data.dao.GroupDao
 import com.justnpcx.starveil.core.data.dao.LatencySampleDao
 import com.justnpcx.starveil.core.data.dao.ProfileDao
 import com.justnpcx.starveil.core.data.dao.RuleDao
+import com.justnpcx.starveil.core.data.dao.RuleHitDao
 import com.justnpcx.starveil.core.data.preferences.DataStorePreferencesRepository
 import com.justnpcx.starveil.core.data.preferences.PreferencesRepository
 import com.justnpcx.starveil.core.data.backup.RestoreTransaction
@@ -34,6 +35,8 @@ import com.justnpcx.starveil.core.data.repository.RoomGroupRepository
 import com.justnpcx.starveil.core.data.repository.RoomNodeHealthRepository
 import com.justnpcx.starveil.core.data.repository.RoomProfileRepository
 import com.justnpcx.starveil.core.data.repository.RoomRuleRepository
+import com.justnpcx.starveil.core.data.repository.RoomRuleHitRepository
+import com.justnpcx.starveil.core.data.repository.RuleHitRepository
 import com.justnpcx.starveil.core.data.repository.RuleRepository
 import dagger.Module
 import dagger.Provides
@@ -143,6 +146,14 @@ object DataModule {
     @Provides
     fun provideLatencySampleDao(database: StarveilDatabase): LatencySampleDao =
         database.latencySampleDao()
+
+    @Provides
+    fun provideRuleHitDao(database: StarveilDatabase): RuleHitDao = database.ruleHitDao()
+
+    @Provides
+    @Singleton
+    fun provideRuleHitRepository(dao: RuleHitDao): RuleHitRepository =
+        RoomRuleHitRepository(dao)
 
     @Provides
     @Singleton

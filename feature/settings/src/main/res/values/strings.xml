@@ -266,4 +266,28 @@
     <string name="chain_diagnostic_exit_up">reachable through the front</string>
     <string name="chain_diagnostic_exit_down">unreachable through the front</string>
     <string name="chain_diagnostic_untested">untested</string>
+    <!-- Connection-level actions (CD). -->
+    <string name="connections_close_action">Close this connection</string>
+    <string name="connections_close_all">Close all</string>
+    <string name="connections_close_all_confirm_title">Close every connection?</string>
+    <string name="connections_close_all_confirm_body">Every connection the tunnel is carrying ends now. Apps reconnect on their own.</string>
+    <string name="connections_close_failed">Could not close the connection</string>
+
+    <!-- Rule hit counters (RC). -->
+    <string name="diagnostics_hits_title">Rule hits</string>
+    <string name="diagnostics_hits_since">Counting since %1$s</string>
+    <string name="diagnostics_hits_top_title">Busiest</string>
+    <string name="diagnostics_hits_top_empty">No rule has matched in this window.</string>
+    <string name="diagnostics_hits_zero_title">Never matched</string>
+    <string name="diagnostics_hits_zero_empty">Every enabled rule has matched at least once.</string>
+    <string name="diagnostics_hits_unmapped_title">Counts with no matching rule</string>
+    <string name="diagnostics_hits_row">%1$s → %2$s · %3$d</string>
+    <string name="diagnostics_hits_reset">Reset counters</string>
+    <string name="diagnostics_hits_reset_confirm_title">Reset the counters?</string>
+    <string name="diagnostics_hits_reset_confirm_body">All counts are cleared and the window starts again now.</string>
+    <string name="diagnostics_hits_scope">Only connections seen while this app was running are counted. Destinations are not recorded.</string>
+
+    <!-- CD-2: interrupt open connections when the target changes. -->
+    <string name="settings_interrupt_title">End connections on node switch</string>
+    <string name="settings_interrupt_desc">Close open connections when the node or group changes, instead of letting them finish on the old one.</string>
 </resources>

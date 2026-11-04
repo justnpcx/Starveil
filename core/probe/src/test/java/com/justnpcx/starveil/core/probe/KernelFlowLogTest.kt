@@ -132,4 +132,6 @@ private class RecordingBridge : KernelBridge {
     override suspend fun block(): Result<Unit> = Result.success(Unit)
     override suspend fun queryStats(): TrafficStats = TrafficStats()
     override suspend fun version(): String = "test"
+    override suspend fun closeConnection(id: String): Result<Unit> = Result.success(Unit)
+    override suspend fun closeConnections(): Result<Unit> = Result.success(Unit)
 }

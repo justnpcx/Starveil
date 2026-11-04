@@ -136,6 +136,31 @@
         </activity>
 
         <!--
+            External automation (AT). Exported on purpose: Tasker, MacroDroid
+            and adb have no other way in. NoDisplay + noHistory + not in
+            recents: the activity finishes in onCreate, so nothing is shown and
+            no task is left behind.
+
+            The contract is the three actions only — start, stop, toggle. It
+            reads and writes no data, which is what makes an exported entry
+            point acceptable. See docs/23-automation.md.
+        -->
+        <activity
+            android:name=".automation.AutomationActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="com.justnpcx.starveil.action.START" />
+                <action android:name="com.justnpcx.starveil.action.STOP" />
+                <action android:name="com.justnpcx.starveil.action.TOGGLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!--
             The notification's Disconnect action. Not exported: the broadcast is
             package-scoped by the service that sends it, so only this app can
             deliver it, and nothing outside can stop the tunnel.

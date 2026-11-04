@@ -385,6 +385,14 @@ class DashboardViewModel @Inject constructor(
                     return@collect
                 }
                 if (!_uiState.value.isBusy && _uiState.value.connectionState == ConnectionState.CONNECTED) {
+                    // Optional: end what is still open before the exit changes.
+                    // A restart keeps the old outbound alive for connections
+                    // already established, which is usually what a user wants
+                    // and occasionally exactly what they do not — a download
+                    // stuck on the node they just left. Off unless asked.
+                    if (preferences.interruptOnNodeSwitch.first()) {
+                        kernel.closeConnections()
+                    }
                     applyConfigChange()
                 }
             }
