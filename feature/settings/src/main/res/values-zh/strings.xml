@@ -161,6 +161,7 @@
     <string name="settings_group_diagnostics">数据、安全与诊断</string>
     <string name="diagnostics_card_check_title">自检</string>
     <string name="diagnostics_card_dns_title">DNS</string>
+    <string name="diagnostics_exit_probe_failed">出口探测失败：%1$s（%2$s）</string>
     <string name="settings_dns_metrics_title">DNS 采样</string>
     <string name="settings_dns_metrics_desc">记录每次解析耗时，保留最近 512 次。</string>
     <string name="settings_dns_metrics_empty">暂无样本。</string>

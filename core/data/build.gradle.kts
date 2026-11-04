@@ -19,6 +19,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    testOptions {
+        // The exit probe writes a WARN to logcat on every endpoint failure.
+        // android.util.Log is a stub in a JVM test, and the default stub throws;
+        // the value it returns does not matter, only that the call is harmless.
+        unitTests.isReturnDefaultValues = true
+    }
+
     sourceSets {
         // MigrationTestHelper reads the exported schemas as assets, so a
         // migration can be validated against the exact v1 file Room shipped.

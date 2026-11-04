@@ -173,6 +173,7 @@
     <string name="settings_group_diagnostics">Data, security and diagnostics</string>
     <string name="diagnostics_card_check_title">Self-check</string>
     <string name="diagnostics_card_dns_title">DNS</string>
+    <string name="diagnostics_exit_probe_failed">Exit probe failed: %1$s (%2$s)</string>
     <string name="settings_dns_metrics_title">DNS sampling</string>
     <string name="settings_dns_metrics_desc">Times every lookup, keeps the last 512.</string>
     <string name="settings_dns_metrics_empty">No samples yet.</string>

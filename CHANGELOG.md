@@ -8,6 +8,18 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.21] — 2026-11-04
+
+### Fixed
+
+- **Exit card appears behind a Cloudflare front.** The probe now tries three
+  endpoints in order — the trace behind a hostname, the IP literal, then a
+  non-Cloudflare echo — instead of one IP literal whose certificate the edge
+  does not always match. A connected tunnel that cannot be measured says so
+  ("exit not measured", tap to retry) instead of drawing nothing, and every
+  failed endpoint leaves a WARN with its reason in the log ring and on the
+  diagnostics page.
+
 ## [0.9.20] — 2026-11-03
 
 ### Added
