@@ -177,13 +177,12 @@ fun AboutScreen(
             StarveilDivider(startInset = StarveilSpacing.lg)
             // One row, not two: the repository is where issues and releases
             // both live, and a second row pointing at either would be the
-            // same address twice. The value says where the tap goes before it
-            // is taken.
+            // same address twice. No value: this is a jump row like the three
+            // above it, and the icon plus the full title already say where the
+            // tap goes.
             AboutRow(
                 icon = StarveilIcons.GitHub,
                 title = stringResource(R.string.about_github_title),
-                value = UpdateChecker.REPO,
-                valueStyle = StarveilType.tech,
                 onClick = { openProjectRepo(context) },
             )
         }
