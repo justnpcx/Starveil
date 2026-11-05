@@ -292,10 +292,4 @@
     <!-- CD-2: interrupt open connections when the target changes. -->
     <string name="settings_interrupt_title">End connections on node switch</string>
     <string name="settings_interrupt_desc">Close open connections when the node or group changes, instead of letting them finish on the old one.</string>
-    <!-- Appearance preview (PV): a miniature of the home page. -->
-    <string name="preview_badge">Preview</string>
-    <string name="preview_node_latency">Node latency</string>
-    <string name="preview_exit_ip">Exit IP</string>
-    <string name="preview_exit_latency">Exit latency</string>
-    <string name="preview_exit">Current exit</string>
 </resources>

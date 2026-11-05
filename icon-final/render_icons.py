@@ -96,10 +96,13 @@ icons = os.path.join(root, "icon-final")
 for n in (512, 192, 144, 96, 72, 48):
     render_composite(n, 15, 15, 0.70, 35, 35, 0.30, 100).save(f"{icons}/icon-composite-{n}.png")
 
-# --- adaptive layers (108-unit canvas, star at 18.36 scale .7128, cutout .324 at 37.8)
+# --- adaptive layers (108-unit canvas)
+# Star 0.60 at 24 (54% of the canvas), cutout 0.2728 at 40.36 — the master
+# ratio (0.4545) is preserved, the whole mark just sits smaller inside the
+# adaptive canvas so a launcher that enlarges it does not clip the corners.
 render_background(432, 108).save(f"{icons}/ic_launcher_background-432.png")
-render_layer(432, 18.36, 18.36, 0.7128, 37.8, 37.8, 0.324, 108).save(f"{icons}/starveil-icon-foreground-432.png")
-render_layer(432, 18.36, 18.36, 0.7128, 37.8, 37.8, 0.324, 108).save(f"{icons}/starveil-icon-monochrome-432.png")
+render_layer(432, 24, 24, 0.60, 40.36, 40.36, 0.2728, 108).save(f"{icons}/starveil-icon-foreground-432.png")
+render_layer(432, 24, 24, 0.60, 40.36, 40.36, 0.2728, 108).save(f"{icons}/starveil-icon-monochrome-432.png")
 
 # --- Android resources
 res = os.path.join(root, "app/src/main/res")

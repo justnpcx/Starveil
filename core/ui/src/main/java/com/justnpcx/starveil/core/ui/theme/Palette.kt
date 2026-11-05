@@ -232,10 +232,6 @@ private val PRESET_TONES: Map<AccentPreset, Pair<AccentTone, AccentTone>> = mapO
         AccentTone(Color(0xFF6C4BD8), Color(0xFFE9E2FF), Color(0xFF4A2FA0)) to
             AccentTone(Color(0xFFCDBDFF), Color(0xFF3A2A6E), Color(0xFFE4DAFF))
         ),
-    AccentPreset.TEAL to (
-        AccentTone(Color(0xFF00707E), Color(0xFFCFEDF2), Color(0xFF005863)) to
-            AccentTone(Color(0xFF7FD8E0), Color(0xFF0C3B44), Color(0xFFC4F0F5))
-        ),
     AccentPreset.PINE to (
         AccentTone(Color(0xFF1E7A3C), Color(0xFFD3F0DB), Color(0xFF14532A)) to
             AccentTone(Color(0xFF8FD6A4), Color(0xFF0E3D22), Color(0xFFC9F2D6))
@@ -285,7 +281,11 @@ private fun toneFor(dark: Boolean, preset: AccentPreset, dynamicTone: AccentTone
     if (preset == AccentPreset.SYSTEM_DYNAMIC) {
         return dynamicTone ?: fallbackTone(dark)
     }
-    return PRESET_TONES.getValue(preset).let { if (dark) it.second else it.first }
+    // A preset the table no longer carries — TEAL, retired in 0.9.25 — must
+    // not throw: a stored value, or a stray reference, falls back to the
+    // default exactly as fromStorage does.
+    val tones = PRESET_TONES[preset] ?: return fallbackTone(dark)
+    return if (dark) tones.second else tones.first
 }
 
 private fun fallbackTone(dark: Boolean): AccentTone =

@@ -126,7 +126,11 @@ class ContrastTest {
      */
     @Test
     fun everyAccentPresetClearsTheTextThreshold() {
-        for (preset in com.justnpcx.starveil.core.model.AccentPreset.entries) {
+        // TEAL is retired and no longer in the table; its stored value falls
+        // back to STAR_BLUE, which the loop already covers.
+        for (preset in com.justnpcx.starveil.core.model.AccentPreset.entries.filter {
+            it != com.justnpcx.starveil.core.model.AccentPreset.TEAL
+        }) {
             for (dark in listOf(false, true)) {
                 val p = paletteFor(dark, preset)
                 val where = preset.name + (if (dark) " dark" else " light")
@@ -139,7 +143,9 @@ class ContrastTest {
 
     @Test
     fun reportEveryAccentPreset() {
-        for (preset in com.justnpcx.starveil.core.model.AccentPreset.entries) {
+        for (preset in com.justnpcx.starveil.core.model.AccentPreset.entries.filter {
+            it != com.justnpcx.starveil.core.model.AccentPreset.TEAL
+        }) {
             for (dark in listOf(false, true)) {
                 val p = paletteFor(dark, preset)
                 val where = "PRESET_" + preset.name + (if (dark) "_DARK" else "_LIGHT")
