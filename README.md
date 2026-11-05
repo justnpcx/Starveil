@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/icon/starveil-c2.png" width="96" alt="Starveil 图标">
+<img src="docs/icon/starveil-icon-512.png" width="96" alt="Starveil 图标">
 
 # Starveil 星纱
 

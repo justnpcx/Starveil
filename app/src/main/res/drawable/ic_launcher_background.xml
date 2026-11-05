@@ -1,35 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adaptive background: pearl, with a blue bloom high right and a pink one low left. -->
+<!--
+    Adaptive background: the final full-bleed brand gradient, 108 canvas.
+    Stops and direction from the delivered composite master (135 degrees,
+    blue 0 / violet .55 / pink 1).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFF7F5F0"
-        android:pathData="M0,0 H108 V108 H0 Z" />
-    <path android:pathData="M86,22 m-60,0 a60,60 0 1,0 120,0 a60,60 0 1,0 -120,0">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:type="radial"
-                android:centerX="86"
-                android:centerY="22"
-                android:gradientRadius="60">
-                <item android:offset="0" android:color="#4D4285F4" />
-                <item android:offset="1" android:color="#004285F4" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <path android:pathData="M20,92 m-64,0 a64,64 0 1,0 128,0 a64,64 0 1,0 -128,0">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="radial"
-                android:centerX="20"
-                android:centerY="92"
-                android:gradientRadius="64">
-                <item android:offset="0" android:color="#42E85D9E" />
-                <item android:offset="1" android:color="#00E85D9E" />
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item android:offset="0" android:color="#FF4285F4" />
+                <item android:offset="0.55" android:color="#FF7C6CF0" />
+                <item android:offset="1" android:color="#FFE85D9E" />
             </gradient>
         </aapt:attr>
     </path>
