@@ -8,6 +8,32 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.25] — 2026-11-05
+
+## [0.9.25] — 2026-11-05
+
+### Changed
+
+- **Launcher star sits smaller.** The adaptive foreground and monochrome
+  layers now place the star at 54% of the canvas (was 59.4%), which on a
+  launcher that enlarges the adaptive canvas reads as the same margin as its
+  neighbours instead of touching the corners. Background, composite, legacy
+  PNGs and the README image are unchanged — the static square keeps its
+  original proportions.
+- **About mark has rounded corners.** The 84dp brand image is clipped at the
+  same corner ratio as the launcher mask, so the icon and the About page show
+  one shape rather than a tile and a square.
+- **Teal accent retired.** Five accents become four plus "follow system":
+  teal sat a hue away from pine and made the row read as two greens. A stored
+  TEAL resolves to the default blue; nothing else in the settings is touched.
+
+### Removed
+
+- **Appearance preview card.** The miniature under the appearance card is
+  gone. The settings page already recomposes live — the segmented control, the
+  swatches and the text size change the page itself the moment they are
+  touched — and the card's static ring did not match the home ring's shape, so
+  it taught the wrong picture rather than a preview of the right one.
 ## [0.9.24] — 2026-11-05
 
 ### Added

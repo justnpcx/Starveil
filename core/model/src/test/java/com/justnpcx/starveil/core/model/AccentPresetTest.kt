@@ -13,6 +13,16 @@ class AccentPresetTest {
         )
     }
 
+    /**
+     * TEAL shipped through 0.9.24 and was retired in 0.9.25. A phone that had
+     * it selected keeps working: the stored name no longer resolves, and the
+     * same fallback that covers a corrupt value covers this one.
+     */
+    @Test
+    fun `the retired teal falls back to the default`() {
+        assertEquals(AccentPreset.STAR_BLUE, AccentPreset.fromStorage("TEAL"))
+    }
+
     @Test
     fun `an unknown value falls back to the default`() {
         assertEquals(AccentPreset.STAR_BLUE, AccentPreset.fromStorage("SOLAR_FLARE"))

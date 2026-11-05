@@ -64,8 +64,20 @@ enum class AccentPreset {
     ;
 
     companion object {
+        /**
+         * TEAL shipped through 0.9.24 and was retired in 0.9.25: it sat a hue
+         * away from PINE and made the row read as two greens. The value stays
+         * in the enum so an old preference still parses, but it resolves to
+         * the default — the same answer an unknown value gets.
+         */
+        private const val RETIRED_TEAL = "TEAL"
+
         fun fromStorage(value: String?): AccentPreset =
-            entries.firstOrNull { it.name == value } ?: STAR_BLUE
+            if (value == RETIRED_TEAL) {
+                STAR_BLUE
+            } else {
+                entries.firstOrNull { it.name == value } ?: STAR_BLUE
+            }
     }
 }
 
