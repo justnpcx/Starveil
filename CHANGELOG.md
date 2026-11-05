@@ -8,6 +8,17 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.26] — 2026-11-05
+
+### Changed
+
+- **The hub's about row is an icon like the others.** It carried the full
+  composite mark inside its bed — a filled tile inside a rounded square, and
+  the loudest pixel on a page of stroked glyphs. It now draws the brand star as
+  a stroke in the purple pair (light violet ink, light violet on the dark
+  page), matching the six rows beside it. The composite mark keeps its proper
+  homes: the launcher, the About page and the README facade.
+
 ## [0.9.25] — 2026-11-05
 
 ## [0.9.25] — 2026-11-05
