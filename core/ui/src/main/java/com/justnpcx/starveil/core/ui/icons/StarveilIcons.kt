@@ -51,6 +51,28 @@ object StarveilIcons {
         }
     }
 
+    /**
+     * Star: the brand's four-point star as a stroke.
+     *
+     * The path is the brand star's 0..100 geometry scaled into the 24 viewport
+     * (extents 2..22, so it sits at the same weight as the other glyphs). The
+     * concentric cutout is deliberately absent: at 20dp it is a dot of noise,
+     * and the signature belongs on the launcher and the About page, not in a
+     * list row.
+     */
+    val Star: ImageVector by lazy {
+        strokeIcon("Brand.Star") {
+            iconPath {
+                moveTo(12f, 2f)
+                curveTo(14.11f, 8.78f, 15.22f, 9.89f, 22f, 12f)
+                curveTo(15.22f, 14.11f, 14.11f, 15.22f, 12f, 22f)
+                curveTo(9.89f, 15.22f, 8.78f, 14.11f, 2f, 12f)
+                curveTo(8.78f, 9.89f, 9.89f, 8.78f, 12f, 2f)
+                close()
+            }
+        }
+    }
+
     /** Nodes: a list of rows. */
     val Nodes: ImageVector by lazy {
         strokeIcon("Line.Nodes") {
