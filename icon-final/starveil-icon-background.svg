@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!--
+    Adaptive background layer, 108 canvas.
+    Derived from the delivered composite master: the same gradient stops, the
+    same 135-degree direction, scaled to the adaptive canvas. No geometry of
+    its own — a background is only the bed.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4285F4"/><stop offset=".55" stop-color="#7C6CF0"/><stop offset="1" stop-color="#E85D9E"/>
+    </linearGradient>
+  </defs>
+  <rect width="108" height="108" fill="url(#bg)"/>
+</svg>

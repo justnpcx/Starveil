@@ -8,6 +8,30 @@ Milestone N ships as `0.N.0`; `versionCode` is derived from it.
 
 ## [Unreleased]
 
+## [0.9.24] — 2026-11-05
+
+### Added
+
+- **Follow-system accent.** The accent list gains "follow system" as its first
+  entry: on Android 12+ the theme resolves the wallpaper's Material palette
+  (primary / primaryContainer / onPrimaryContainer) and follows it; on older
+  platforms the row is greyed with a caption rather than hidden, and the theme
+  falls back to the default blue. The default does not change.
+- **Appearance preview.** A miniature of the home page under the appearance
+  card — the brand gradient ring, the star, four sample lines and a corner
+  badge — redrawn from the theme it is drawn in, so day/night, accent and text
+  size land the moment they change. It reads no state and holds no data.
+
+### Changed
+
+- **Final icon.** The launcher (adaptive background / foreground / monochrome),
+  the in-app mark (hub about row, About page) and the README facade all move to
+  the delivered final artwork: full-bleed brand gradient with the white
+  four-point star and its concentric cutout. The old C2 artwork is removed.
+- **Accent naming.** The accent setting reads 强调色 / 強調色 in Chinese
+  (English was already "Accent colour"); storage keys and enum names are
+  unchanged.
+
 ## [0.9.22] — 2026-11-04
 
 ### Added

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    C2 "the star in the gauze". The in-app mark, 100x100, full bleed: the
-    launcher's mask provides the corners, so there is no rounded rectangle and
-    no fake border here. One file, used by the hub's about row and the about page.
+    The final in-app mark: the composite (gradient bed, white star, concentric
+    cutout), used by the hub's about row and the about page. Same geometry as
+    the launcher's layers, on the 100-unit canvas the mark has always had.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -10,38 +10,22 @@
     android:height="100dp"
     android:viewportWidth="100"
     android:viewportHeight="100">
-    <path android:pathData="M50,3 C54,38 62,46 97,50 C62,54 54,62 50,97 C46,62 38,54 3,50 C38,46 46,38 50,3 Z">
+    <path android:pathData="M0,0 H100 V100 H0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
-                android:startX="3"
-                android:startY="3"
-                android:endX="97"
-                android:endY="97">
+                android:startX="0"
+                android:startY="0"
+                android:endX="100"
+                android:endY="100">
                 <item android:offset="0" android:color="#FF4285F4" />
                 <item android:offset="0.55" android:color="#FF7C6CF0" />
                 <item android:offset="1" android:color="#FFE85D9E" />
             </gradient>
         </aapt:attr>
     </path>
-    <group>
-        <clip-path android:pathData="M50,3 C54,38 62,46 97,50 C62,54 54,62 50,97 C46,62 38,54 3,50 C38,46 46,38 50,3 Z" />
-        <group
-            android:pivotX="50"
-            android:pivotY="50"
-            android:rotation="-24">
-            <path
-                android:fillColor="#33FFFFFF"
-                android:pathData="M-10,36 H110 V45 H-10 Z" />
-            <path
-                android:fillColor="#21FFFFFF"
-                android:pathData="M-10,55 H110 V68 H-10 Z" />
-            <path
-                android:fillColor="#1F1B2350"
-                android:pathData="M-10,76 H110 V102 H-10 Z" />
-        </group>
-    </group>
     <path
-        android:fillColor="#FFFBEB"
-        android:pathData="M50,41.5 C50.7,47.8 52.2,49.3 58.5,50 C52.2,50.7 50.7,52.2 50,58.5 C49.3,52.2 47.8,50.7 41.5,50 C47.8,49.3 49.3,47.8 50,41.5 Z" />
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M50,18.5 C56.65,39.85,60.15,43.35,81.5,50 C60.15,56.65,56.65,60.15,50,81.5 C43.35,60.15,39.85,56.65,18.5,50 C39.85,43.35,43.35,39.85,50,18.5 Z M50,36.5 C52.85,45.65,54.35,47.15,63.5,50 C54.35,52.85,52.85,54.35,50,63.5 C47.15,54.35,45.65,52.85,36.5,50 C45.65,47.15,47.15,45.65,50,36.5 Z" />
 </vector>
