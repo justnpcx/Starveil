@@ -11,6 +11,8 @@
 
     <string name="appearance_title">Appearance</string>
     <string name="appearance_accent_title">Accent colour</string>
+    <string name="accent_system">Follow system</string>
+    <string name="accent_system_needs_android12">Needs Android 12+</string>
     <string name="appearance_font_title">Text size</string>
     <string name="font_standard">Standard</string>
     <string name="font_large">Large</string>
@@ -290,4 +292,10 @@
     <!-- CD-2: interrupt open connections when the target changes. -->
     <string name="settings_interrupt_title">End connections on node switch</string>
     <string name="settings_interrupt_desc">Close open connections when the node or group changes, instead of letting them finish on the old one.</string>
+    <!-- Appearance preview (PV): a miniature of the home page. -->
+    <string name="preview_badge">Preview</string>
+    <string name="preview_node_latency">Node latency</string>
+    <string name="preview_exit_ip">Exit IP</string>
+    <string name="preview_exit_latency">Exit latency</string>
+    <string name="preview_exit">Current exit</string>
 </resources>

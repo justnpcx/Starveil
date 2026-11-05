@@ -246,13 +246,47 @@ private val PRESET_TONES: Map<AccentPreset, Pair<AccentTone, AccentTone>> = mapO
         ),
 )
 
-/** The palette for a mode and a preset: the base table with its accent family swapped. */
-fun paletteFor(dark: Boolean, preset: AccentPreset): StarveilPalette {
+/**
+ * The palette for a mode and a preset: the base table with its accent family
+ * swapped.
+ *
+ * [dynamicTone] is the resolved Material dynamic colour, when the platform
+ * offers one. It only matters for [AccentPreset.SYSTEM_DYNAMIC]; every other
+ * preset ignores it, which is what keeps this a pure function of its arguments
+ * — the caller does the platform lookup, this decides what to do with it. A
+ * null dynamic tone on SYSTEM_DYNAMIC falls back to the default preset rather
+ * than to a half-themed palette.
+ */
+fun paletteFor(
+    dark: Boolean,
+    preset: AccentPreset,
+    dynamicTone: AccentTone? = null,
+): StarveilPalette {
     val base = if (dark) DarkPalette else LightPalette
-    val tone = PRESET_TONES.getValue(preset).let { if (dark) it.second else it.first }
+    val tone = toneFor(dark, preset, dynamicTone)
     return base.copy(accent = tone.accent, selBg = tone.selBg, selInk = tone.selInk)
 }
 
 /** The tone a preset uses in a mode, for the settings page's swatches. */
-fun accentToneFor(dark: Boolean, preset: AccentPreset): AccentTone =
-    PRESET_TONES.getValue(preset).let { if (dark) it.second else it.first }
+fun accentToneFor(
+    dark: Boolean,
+    preset: AccentPreset,
+    dynamicTone: AccentTone? = null,
+): AccentTone = toneFor(dark, preset, dynamicTone)
+
+/**
+ * The three colours a preset remaps.
+ *
+ * SYSTEM_DYNAMIC is the one preset whose tone is not in the table: it comes
+ * from the wallpaper, and when the platform cannot supply one the default
+ * preset stands in.
+ */
+private fun toneFor(dark: Boolean, preset: AccentPreset, dynamicTone: AccentTone?): AccentTone {
+    if (preset == AccentPreset.SYSTEM_DYNAMIC) {
+        return dynamicTone ?: fallbackTone(dark)
+    }
+    return PRESET_TONES.getValue(preset).let { if (dark) it.second else it.first }
+}
+
+private fun fallbackTone(dark: Boolean): AccentTone =
+    PRESET_TONES.getValue(AccentPreset.STAR_BLUE).let { if (dark) it.second else it.first }

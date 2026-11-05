@@ -9,7 +9,9 @@
     <string name="language_traditional">繁體中文</string>
 
     <string name="appearance_title">外觀</string>
-    <string name="appearance_accent_title">主題色</string>
+    <string name="appearance_accent_title">強調色</string>
+    <string name="accent_system">跟隨系統</string>
+    <string name="accent_system_needs_android12">需 Android 12+</string>
     <string name="appearance_font_title">字號</string>
     <string name="font_standard">標準</string>
     <string name="font_large">較大</string>
@@ -278,4 +280,10 @@
     <!-- CD-2：切換目標時打斷既有連線。 -->
     <string name="settings_interrupt_title">切換節點時打斷既有連線</string>
     <string name="settings_interrupt_desc">目標節點或群組變更時關閉已開啟的連線，而不是讓它們在舊節點上繼續。</string>
+    <!-- 外觀即時預覽（PV）：首頁縮小版。 -->
+    <string name="preview_badge">預覽</string>
+    <string name="preview_node_latency">節點延遲</string>
+    <string name="preview_exit_ip">出口 IP</string>
+    <string name="preview_exit_latency">出口延遲</string>
+    <string name="preview_exit">目前出口</string>
 </resources>
