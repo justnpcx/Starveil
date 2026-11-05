@@ -73,8 +73,16 @@ data class StarveilPalette(
     val hubLogs: HubTone,
     val hubDiagnostics: HubTone,
     val hubSettings: HubTone,
-    /** The hub's about row: a bed for the C2 mark, which never re-tints. */
+    /** The hub's about row: a bed for the star glyph. */
     val hubAboutBed: Color,
+    /**
+     * The hub's about row: the star's ink.
+     *
+     * The purple family, paired with [hubAboutBed] the same way the other hub
+     * rows pair their tone: the mark is a destination icon here, not a brand
+     * tile, so it follows the list's grammar instead of re-tinting the logo.
+     */
+    val hubAboutInk: Color,
     /** The gauze woven across the connection card. */
     val veil: Color,
     /** Page bloom: pink, blue, purple. Static, never animated. */
@@ -162,6 +170,7 @@ val LightPalette = StarveilPalette(
     hubDiagnostics = HubTone(bg = Color(0xFFE4F3EC), ink = Color(0xFF137333)),
     hubSettings = HubTone(bg = Color(0xFFFDEEE2), ink = Color(0xFFD96C00)),
     hubAboutBed = Color(0xFFF1EFFD),
+    hubAboutInk = Color(0xFF6C4BD8),
     veil = Color(0x177C6CF0),
     washPink = Color(0x1AE85D9E),
     washBlue = Color(0x1A4285F4),
@@ -198,6 +207,7 @@ val DarkPalette = StarveilPalette(
     hubDiagnostics = HubTone(bg = Color(0xFF1E3328), ink = Color(0xFF81C995)),
     hubSettings = HubTone(bg = Color(0xFF3A2A1A), ink = Color(0xFFF0A35E)),
     hubAboutBed = Color(0xFF2A2440),
+    hubAboutInk = Color(0xFFB79CFF),
     veil = Color(0x12A8C7FA),
     washPink = Color(0x1FE85D9E),
     washBlue = Color(0x1F4285F4),

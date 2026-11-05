@@ -1,6 +1,5 @@
 package com.justnpcx.starveil.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -26,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,7 +33,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.justnpcx.starveil.BuildConfig
 import com.justnpcx.starveil.R
-import com.justnpcx.starveil.core.ui.R as UiR
 import com.justnpcx.starveil.core.ui.components.StarveilCard
 import com.justnpcx.starveil.core.ui.components.StarveilDivider
 import com.justnpcx.starveil.core.ui.components.StarveilGroupHeader
@@ -222,7 +219,7 @@ private fun HubRow(
 }
 
 /**
- * The about row: the C2 mark, and the version at the end of the line.
+ * The about row: the star glyph, and the version at the end of the line.
  *
  * The version is here rather than in a footer because this is the row that
  * leads to the page where the version is explained; a second copy at the
@@ -244,10 +241,16 @@ private fun HubAboutRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconBed(tone = StarveilColors.hubAboutBed) {
-            Image(
-                painter = painterResource(UiR.drawable.ic_starveil_mark),
+            // The star as a stroke, like every other row on this page. The
+            // composite mark is a brand tile, not a list icon: at 20dp the
+            // gradient square was the loudest pixel on the screen and its
+            // cutout was unreadable. It stays where a brand belongs — the
+            // launcher, the About page and the store/README facade.
+            Icon(
+                imageVector = StarveilIcons.Star,
                 contentDescription = null,
-                modifier = Modifier.size(22.dp),
+                tint = StarveilColors.hubAboutInk,
+                modifier = Modifier.size(20.dp),
             )
         }
         Spacer(modifier = Modifier.width(StarveilSpacing.md))
