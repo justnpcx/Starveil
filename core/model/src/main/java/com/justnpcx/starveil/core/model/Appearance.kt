@@ -45,6 +45,16 @@ enum class NodeSelectionMode {
  * semantic colours never follow it.
  */
 enum class AccentPreset {
+    /**
+     * The wallpaper's own accent, via Material dynamic colour (Android 12+).
+     *
+     * First in the list because it is the "take it from the system" answer,
+     * and a list of five fixed colours reads as if those were the only
+     * choices. On an older platform it resolves to [STAR_BLUE]; the settings
+     * page says why instead of hiding the row.
+     */
+    SYSTEM_DYNAMIC,
+
     /** The default: the blue the app shipped with. */
     STAR_BLUE,
     VIOLET,

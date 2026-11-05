@@ -1,9 +1,12 @@
 package com.justnpcx.starveil.core.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -11,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -213,8 +217,20 @@ fun StarveilTheme(
     fontScale: FontScale = FontScale.STANDARD,
     content: @Composable () -> Unit,
 ) {
-    val palette = remember(darkTheme, accent) { paletteFor(darkTheme, accent) }
-    val scheme = remember(darkTheme, accent) {
+    // The one preset whose colour is not ours: resolved here, at the theme
+    // entry, because this is the first place with a Context. Reading it in the
+    // composition (rather than caching it in a ViewModel) is what makes a
+    // wallpaper change reach the app: the system reports a configuration
+    // change, the composition re-runs, and the palette is rebuilt.
+    val dynamicTone = if (accent == AccentPreset.SYSTEM_DYNAMIC) {
+        rememberDynamicAccentTone(darkTheme)
+    } else {
+        null
+    }
+    val palette = remember(darkTheme, accent, dynamicTone) {
+        paletteFor(darkTheme, accent, dynamicTone)
+    }
+    val scheme = remember(darkTheme, accent, dynamicTone) {
         palette.scheme(if (darkTheme) darkColorScheme() else lightColorScheme())
     }
     // The type scale is fixed in sp, so the size setting is applied where sp is
@@ -235,6 +251,30 @@ fun StarveilTheme(
             content = content,
         )
     }
+}
+
+/**
+ * The wallpaper's accent, or null where the platform has none.
+ *
+ * API 31 is where Material You arrived; below it there is no dynamic palette
+ * and the caller falls back. The pair is deliberately the Material roles that
+ * are designed to work together — primary on primaryContainer with
+ * onPrimaryContainer on top — so no contrast correction is invented here.
+ */
+@Composable
+fun rememberDynamicAccentTone(dark: Boolean): AccentTone? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    val context = LocalContext.current
+    val scheme = if (dark) {
+        dynamicDarkColorScheme(context)
+    } else {
+        dynamicLightColorScheme(context)
+    }
+    return AccentTone(
+        accent = scheme.primary,
+        selBg = scheme.primaryContainer,
+        selInk = scheme.onPrimaryContainer,
+    )
 }
 
 /**

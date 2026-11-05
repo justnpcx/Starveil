@@ -12,6 +12,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,12 +20,24 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.semantics.selected
 import com.justnpcx.starveil.core.model.AccentPreset
 import com.justnpcx.starveil.core.model.FontScale
+import com.justnpcx.starveil.core.ui.components.StarveilBadge
+import com.justnpcx.starveil.core.ui.components.StarveilStar
+import com.justnpcx.starveil.core.ui.theme.StarveilBrand
 import com.justnpcx.starveil.core.ui.theme.accentToneFor
+import com.justnpcx.starveil.core.ui.theme.rememberDynamicAccentTone
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +55,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -99,6 +113,7 @@ import com.justnpcx.starveil.core.ui.theme.StarveilType
 /**
  * Settings — theme, the Kill Switch three-way choice, and the leak self-check.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -345,17 +360,37 @@ fun SettingsScreen(
                         color = StarveilColors.ink2,
                     )
                     Spacer(modifier = Modifier.height(StarveilSpacing.sm))
-                    Row(
+                    // The system's own colour is resolved here, once, and
+                    // handed to every swatch: the row has to draw the same
+                    // colour the theme is about to use.
+                    val dynamicTone = rememberDynamicAccentTone(StarveilColors.isDark)
+                    val dynamicSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.md),
+                        horizontalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(StarveilSpacing.sm),
                     ) {
                         AccentPreset.entries.forEach { preset ->
                             AccentSwatch(
                                 preset = preset,
                                 selected = preset == state.accentPreset,
+                                enabled = preset != AccentPreset.SYSTEM_DYNAMIC || dynamicSupported,
+                                dynamicTone = dynamicTone,
                                 onClick = { viewModel.setAccentPreset(preset) },
                             )
                         }
+                    }
+                    // Said, not hidden: on an older phone the row is greyed and
+                    // this line explains why, so nobody reports the missing
+                    // feature as a bug.
+                    if (!dynamicSupported) {
+                        Spacer(modifier = Modifier.height(StarveilSpacing.xs))
+                        Text(
+                            text = stringResource(R.string.accent_system) + " · " +
+                                stringResource(R.string.accent_system_needs_android12),
+                            style = StarveilType.label,
+                            color = StarveilColors.ink3,
+                        )
                     }
                 }
                 StarveilDivider(startInset = StarveilSpacing.lg)
@@ -390,6 +425,11 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // The preview sits outside the settings card: it is not a control,
+            // and putting it inside would make it read as one more switch.
+            Spacer(modifier = Modifier.height(StarveilSpacing.md))
+            AppearancePreviewCard()
         }
 
         // ---- Connection ----------------------------------------------------
@@ -1170,6 +1210,117 @@ private fun CardHeader(title: String, description: String) {
 
 
 /**
+ * A miniature of the home page, drawn with the settings in force.
+ *
+ * Pure display: no ViewModel, no connection, no node — the four values are
+ * fixed sample data and the corner says so. It exists because a swatch answers
+ * "which colour" and not "what will the app look like": the mode, the accent
+ * and the text size are three separate choices whose combination is the thing
+ * being chosen.
+ *
+ * Everything it shows comes from the theme it is drawn in, so it follows all
+ * three settings without a single line of state: the palette for the accent and
+ * mode, the density for the text size, and the brand gradient — which never
+ * follows either.
+ */
+@Composable
+private fun AppearancePreviewCard() {
+    StarveilCard(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(StarveilSpacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                PreviewRing()
+                Spacer(modifier = Modifier.height(StarveilSpacing.md))
+                PreviewLine(
+                    label = stringResource(R.string.preview_node_latency),
+                    value = "86 ms",
+                    accent = true,
+                )
+                PreviewLine(
+                    label = stringResource(R.string.preview_exit_ip),
+                    value = "203.0.113.42",
+                )
+                PreviewLine(
+                    label = stringResource(R.string.preview_exit_latency),
+                    value = "92 ms",
+                )
+                PreviewLine(
+                    label = stringResource(R.string.preview_exit),
+                    value = "Tokyo · 03",
+                )
+            }
+            StarveilBadge(
+                text = stringResource(R.string.preview_badge),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(StarveilSpacing.md),
+            )
+        }
+    }
+}
+
+/**
+ * The ring, at rest.
+ *
+ * A static 270-degree arc of the brand gradient with the star at its centre:
+ * the real core spins and breathes with the connection state, and none of that
+ * belongs in a preview of colours.
+ */
+@Composable
+private fun PreviewRing() {
+    Box(
+        modifier = Modifier.size(112.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val stroke = 7.dp.toPx()
+            val inset = stroke / 2f
+            drawArc(
+                brush = Brush.linearGradient(
+                    colors = StarveilBrand.colors,
+                    start = Offset.Zero,
+                    end = Offset(size.width, size.height),
+                ),
+                startAngle = -90f,
+                sweepAngle = 270f,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - stroke, size.height - stroke),
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+        }
+        StarveilStar(size = 40.dp)
+    }
+}
+
+/** One line of the preview: label on the left, sample value on the right. */
+@Composable
+private fun PreviewLine(label: String, value: String, accent: Boolean = false) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = StarveilSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = StarveilType.label,
+            color = StarveilColors.ink2,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value,
+            style = StarveilType.tech,
+            color = if (accent) StarveilColors.accent else StarveilColors.ink,
+        )
+    }
+}
+
+/**
  * One accent swatch.
  *
  * The dot is the preset's own accent colour, and the tick is drawn in whatever
@@ -1180,13 +1331,20 @@ private fun CardHeader(title: String, description: String) {
 private fun AccentSwatch(
     preset: AccentPreset,
     selected: Boolean,
+    enabled: Boolean,
+    /** Resolved once by the caller; null when the platform has none. */
+    dynamicTone: com.justnpcx.starveil.core.ui.theme.AccentTone?,
     onClick: () -> Unit,
 ) {
     val dark = StarveilColors.isDark
-    val tone = accentToneFor(dark, preset)
+    val tone = accentToneFor(dark, preset, dynamicTone)
     val checkTint = if (dark) StarveilColors.bg else Color.White
+    // No dynamic colour to show: half blue, half teal, which is a swatch that
+    // says "from the system" without pretending to know which colour.
+    val halfAndHalf = preset == AccentPreset.SYSTEM_DYNAMIC && dynamicTone == null
     val label = stringResource(
         when (preset) {
+            AccentPreset.SYSTEM_DYNAMIC -> R.string.accent_system
             AccentPreset.STAR_BLUE -> R.string.accent_star_blue
             AccentPreset.VIOLET -> R.string.accent_violet
             AccentPreset.TEAL -> R.string.accent_teal
@@ -1198,7 +1356,8 @@ private fun AccentSwatch(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .clickable(role = Role.RadioButton, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.RadioButton, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.38f)
             .semantics {
                 contentDescription = label
                 this.selected = selected
@@ -1216,9 +1375,25 @@ private fun AccentSwatch(
             modifier = Modifier
                 .size(30.dp)
                 .clip(CircleShape)
-                .background(tone.accent),
+                .background(if (halfAndHalf) Color.Transparent else tone.accent),
             contentAlignment = Alignment.Center,
         ) {
+            if (halfAndHalf) {
+                Row(modifier = Modifier.matchParentSize()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(Color(0xFF0B57D0)),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(Color(0xFF00707E)),
+                    )
+                }
+            }
             if (selected) {
                 Icon(
                     imageVector = StarveilIcons.Check,
