@@ -21,11 +21,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_ID="com.justnpcx.starveil"
-SERIAL="${1:-${CHAOS_SERIAL:-192.168.50.118:5555}}"
+SERIAL="${1:-${CHAOS_SERIAL:-}}"
 ROUNDS="${CHAOS_ROUNDS:-50}"
 HOLD_MS="${CHAOS_HOLD_MS:-2500}"
 GATE_MS=1200
 ABORT_MS=10000
+if [[ -z "$SERIAL" ]]; then
+    echo "usage: $0 <serial>   (or set CHAOS_SERIAL)" >&2
+    exit 2
+fi
 OUT="$ROOT/build/chaos/host-${SERIAL//[:.]/_}"
 mkdir -p "$OUT"
 
