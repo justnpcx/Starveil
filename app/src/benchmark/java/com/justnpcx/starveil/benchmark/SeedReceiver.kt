@@ -56,6 +56,10 @@ class SeedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_SEED) return
         val count = intent.getIntExtra(EXTRA_COUNT, DEFAULT_COUNT).coerceIn(1, MAX_COUNT)
+        // Zero is a real value here: it is the "chart hidden" side of the
+        // health-chart comparison. The row is still drawn, the curve is not.
+        val samples = intent.getIntExtra(EXTRA_SAMPLES, SAMPLES_PER_NODE)
+            .coerceIn(0, SAMPLES_PER_NODE)
         val app = context.applicationContext
         val entry = EntryPointAccessors.fromApplication(app, SeedEntryPoint::class.java)
         val profiles = entry.profiles()
@@ -83,13 +87,13 @@ class SeedReceiver : BroadcastReceiver() {
                 // Six probes: enough for the row to show a reading rather than
                 // "untested", which is what a real list looks like. One in
                 // twenty is a timeout, so the loss path is drawn too.
-                repeat(SAMPLES_PER_NODE) { sample ->
-                    val at = now - (SAMPLES_PER_NODE - sample) * 30_000L
+                repeat(samples) { sample ->
+                    val at = now - (samples - sample) * 30_000L
                     // One node in twenty-five ends on a timeout, so the loss
                     // path is drawn — but only on the last probe, which is the
                     // one the row reads. A fixture where everything times out
                     // measures a row nobody has.
-                    val timeout = index % 25 == 0 && sample == SAMPLES_PER_NODE - 1
+                    val timeout = index % 25 == 0 && sample == samples - 1
                     val latency = if (timeout) {
                         -1L
                     } else {
@@ -118,6 +122,7 @@ class SeedReceiver : BroadcastReceiver() {
     private companion object {
         const val ACTION_SEED = "com.justnpcx.starveil.benchmark.SEED"
         const val EXTRA_COUNT = "count"
+        const val EXTRA_SAMPLES = "samples"
         const val DEFAULT_COUNT = 1000
         const val MAX_COUNT = 5_000
         const val SAMPLES_PER_NODE = 6
