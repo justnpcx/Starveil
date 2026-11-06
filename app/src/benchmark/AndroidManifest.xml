@@ -21,5 +21,19 @@
         <receiver
             android:name=".benchmark.SeedReceiver"
             android:exported="true" />
+
+        <!--
+          The chaos fixture. LabNodeReceiver writes one real test node (host,
+          port and password arrive as broadcast extras, never from the repo);
+          ChaosStateReceiver subscribes to the kernel's state flow and writes
+          its transitions with elapsedRealtime so the harness can measure a
+          drop from the inside. Both exist only in the benchmark variant.
+        -->
+        <receiver
+            android:name=".benchmark.LabNodeReceiver"
+            android:exported="true" />
+        <receiver
+            android:name=".benchmark.ChaosStateReceiver"
+            android:exported="true" />
     </application>
 </manifest>
