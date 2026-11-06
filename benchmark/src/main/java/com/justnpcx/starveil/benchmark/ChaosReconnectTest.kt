@@ -64,6 +64,7 @@ class ChaosReconnectTest {
     private val probing = AtomicBoolean(false)
     private var probeThread: Thread? = null
     private val uid = Process.myUid()
+    private val deviceLock = Any()
 
     /** `-e rounds N` is for a smoke run; the acceptance run is the default 50. */
     private val roundsToRun: Int =
@@ -74,15 +75,15 @@ class ChaosReconnectTest {
         // The panel is the only thing that can keep the app in the foreground
         // for ten minutes on this box; the TV's own screen timeout is 10 min
         // and its screensaver is not part of the measurement.
-        device.executeShellCommand("svc power stayon true")
-        device.executeShellCommand("settings put system screen_off_timeout 2147483647")
-        device.executeShellCommand("settings put global stay_on_while_plugged_in 7")
-        device.executeShellCommand("input keyevent KEYCODE_WAKEUP")
-        device.executeShellCommand("am start -n $APP/.MainActivity")
+        shell("svc power stayon true")
+        shell("settings put system screen_off_timeout 2147483647")
+        shell("settings put global stay_on_while_plugged_in 7")
+        shell("input keyevent KEYCODE_WAKEUP")
+        shell("am start -n $APP/.MainActivity")
         awaitApp()
 
         if (!uiConnected()) {
-            device.executeShellCommand(
+            shell(
                 "am start -n $APP/.automation.AutomationActivity -a $APP.action.START",
             )
             val deadline = SystemClock.elapsedRealtime() + 30_000
@@ -94,7 +95,7 @@ class ChaosReconnectTest {
             fail("the tunnel was not connected before the run; seed the lab node first")
         }
 
-        device.executeShellCommand(
+        shell(
             "am broadcast -a $STATE_ACTION_START -n $APP/.benchmark.ChaosStateReceiver",
         )
         startProbe()
@@ -104,8 +105,8 @@ class ChaosReconnectTest {
     fun tearDown() {
         stopProbe()
         runCatching {
-            device.executeShellCommand("cmd wifi set-wifi-enabled enabled")
-            device.executeShellCommand(
+            shell("cmd wifi set-wifi-enabled enabled")
+            shell(
                 "am broadcast -a $STATE_ACTION_STOP -n $APP/.benchmark.ChaosStateReceiver",
             )
         }
@@ -116,7 +117,7 @@ class ChaosReconnectTest {
         android.util.Log.i(ROUND_TAG, "begin")
         val csv = File(outDir, "chaos-rounds.csv")
         csv.writeText(
-            "round,startMs,enableMs,connectedMs,selfHealMs,consistent,service,notification,leaksSoFar,note\n",
+            "round,startMs,enableMs,connectedMs,selfHealMs,appRecoveryMs,consistent,service,notification,leaksSoFar,note\n",
         )
         var inconsistent = 0
         var overGate = 0
@@ -125,11 +126,11 @@ class ChaosReconnectTest {
             val roundNo = index + 1
             val start = SystemClock.elapsedRealtime()
             mark("round$roundNo:start")
-            device.executeShellCommand("cmd wifi set-wifi-enabled disabled")
+            shell("cmd wifi set-wifi-enabled disabled")
             Thread.sleep(DROP_HOLD_MS)
             val enable = SystemClock.elapsedRealtime()
             mark("round$roundNo:wifi_enable")
-            device.executeShellCommand("cmd wifi set-wifi-enabled enabled")
+            shell("cmd wifi set-wifi-enabled enabled")
 
             var connectedAt = 0L
             var service = false
@@ -153,7 +154,7 @@ class ChaosReconnectTest {
                 android.util.Log.e(ROUND_TAG, "timeout round=$roundNo elapsed=${SystemClock.elapsedRealtime() - start}")
                 dumpLogcat("round$roundNo")
                 stopProbe()
-                device.executeShellCommand(
+                shell(
                     "am broadcast -a $STATE_ACTION_STOP -n $APP/.benchmark.ChaosStateReceiver",
                 )
                 fail("round $roundNo did not recover within ${ROUND_ABORT_MS / 1000}s; CSV kept at $csv")
@@ -168,19 +169,24 @@ class ChaosReconnectTest {
             val consistent = uiNow == serviceNow && serviceNow == notificationNow
             if (!consistent) inconsistent++
             val selfHeal = connectedAt - start
+            // The outage itself is not the app's latency. Both numbers are
+            // written down; the gate is the task book's, on selfHeal, and the
+            // recovery-after-network number is what a reader needs to tell a
+            // slow radio from a slow app.
+            val appRecovery = connectedAt - enable
             if (selfHeal > GATE_MS) overGate++
 
             csv.appendText(
-                "$roundNo,$start,$enable,$connectedAt,$selfHeal,$consistent," +
+                "$roundNo,$start,$enable,$connectedAt,$selfHeal,$appRecovery,$consistent," +
                     "$serviceNow,$notificationNow,${leaks.get()},\n",
             )
             android.util.Log.i(
                 ROUND_TAG,
                 "round=$roundNo,start=$start,enable=$enable,connected=$connectedAt," +
-                    "selfHeal=$selfHeal,consistent=$consistent,service=$serviceNow," +
+                    "selfHeal=$selfHeal,appRecovery=$appRecovery,consistent=$consistent,service=$serviceNow," +
                     "notification=$notificationNow,leaks=${leaks.get()}",
             )
-            rounds += Round(roundNo, selfHeal, consistent, serviceNow, notificationNow)
+            rounds += Round(roundNo, selfHeal, appRecovery, consistent, serviceNow, notificationNow)
 
             // A short settle so the next drop starts from a tunnel that is not
             // still rebuilding; it is not part of the self-heal number.
@@ -188,7 +194,7 @@ class ChaosReconnectTest {
         }
 
         stopProbe()
-        device.executeShellCommand(
+        shell(
             "am broadcast -a $STATE_ACTION_STOP -n $APP/.benchmark.ChaosStateReceiver",
         )
         writeSummary(inconsistent, overGate)
@@ -216,6 +222,9 @@ class ChaosReconnectTest {
                 appendLine("p50Ms,${pct(0.50)}")
                 appendLine("p95Ms,${pct(0.95)}")
                 appendLine("maxMs,${sorted.lastOrNull() ?: 0}")
+                val recovery = rounds.map { it.appRecoveryMs }.sorted()
+                appendLine("appRecoveryP50Ms,${recovery.getOrElse(((recovery.size - 1) * 0.50).toInt()) { 0 }}")
+                appendLine("appRecoveryP95Ms,${recovery.getOrElse(((recovery.size - 1) * 0.95).toInt()) { 0 }}")
             },
         )
         android.util.Log.i(
@@ -249,9 +258,13 @@ class ChaosReconnectTest {
                 }
                 if (reached) {
                     val route = runCatching {
-                        device.executeShellCommand("ip route get $PROBE_HOST uid $uid")
+                        shell("ip route get $PROBE_HOST uid $uid")
                     }.getOrDefault("")
-                    if (!route.contains("tun0")) {
+                    // An empty/denied route is not evidence of a leak. Only a
+                    // route that names a physical interface counts.
+                    if (route.contains("dev wlan0") || route.contains("dev rmnet") ||
+                        route.contains("dev eth")
+                    ) {
                         leaks.incrementAndGet()
                         synchronized(leakLines) {
                             leakLines += "${SystemClock.elapsedRealtime()},$route"
@@ -274,31 +287,43 @@ class ChaosReconnectTest {
     }
 
     private fun mark(label: String) {
-        device.executeShellCommand(
+        shell(
             "am broadcast -a $STATE_ACTION_MARK -n $APP/.benchmark.ChaosStateReceiver --es label $label",
         )
     }
 
+    /**
+     * UiDevice is not documented as thread-safe, and the leak probe calls the
+     * shell from its own thread while the round loop polls the UI. One lock
+     * keeps the two off each other; the probe's 150 ms cadence is far below
+     * anything the extra serialisation could hide.
+     */
+    private fun shell(command: String): String =
+        synchronized(deviceLock) { device.executeShellCommand(command) }
+
+    private fun hasText(text: String): Boolean =
+        synchronized(deviceLock) { device.hasObject(By.text(text)) }
+
     private fun dumpLogcat(tag: String) {
         runCatching {
-            val log = device.executeShellCommand("logcat -d -t 1200")
+            val log = shell("logcat -d -t 1200")
             File(outDir, "logcat-$tag.txt").writeText(log)
         }
     }
 
     private fun awaitApp() {
         repeat(50) {
-            if (device.hasObject(By.pkg(APP).depth(0))) return
+            if (synchronized(deviceLock) { device.hasObject(By.pkg(APP).depth(0)) }) return
             Thread.sleep(100)
         }
         fail("the app did not come to the foreground")
     }
 
     private fun uiConnected(): Boolean =
-        device.hasObject(By.text("CONNECTED")) || device.hasObject(By.text("已连接"))
+        hasText("CONNECTED") || hasText("已连接")
 
     private fun serviceRunning(): Boolean =
-        device.executeShellCommand("dumpsys activity services $APP")
+        shell("dumpsys activity services $APP")
             .contains("StarveilVpnService")
 
     /**
@@ -308,12 +333,13 @@ class ChaosReconnectTest {
      * existence, not about the text on it.
      */
     private fun notificationPresent(): Boolean =
-        device.executeShellCommand("dumpsys notification --noredact")
+        shell("dumpsys notification --noredact")
             .contains("pkg=$APP")
 
     private data class Round(
         val index: Int,
         val selfHealMs: Long,
+        val appRecoveryMs: Long,
         val consistent: Boolean,
         val service: Boolean,
         val notification: Boolean,

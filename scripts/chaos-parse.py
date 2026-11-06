@@ -82,7 +82,7 @@ def main() -> int:
     state.sort()
     if rounds:
         columns = [
-            "round", "start", "enable", "connected", "selfHeal",
+            "round", "start", "enable", "connected", "selfHeal", "appRecovery",
             "consistent", "service", "notification", "leaks",
         ]
         with (out / "chaos-rounds.csv").open("w") as handle:
